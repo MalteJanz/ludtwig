@@ -1,5 +1,5 @@
 extern crate nom;
-use self::nom::error::{ParseError, VerboseError};
+use self::nom::error::{context, ParseError, VerboseError};
 use nom::{
     branch::*, bytes::complete::*, character::complete::*, combinator::*, multi::*, sequence::*,
     whitespace,
@@ -50,14 +50,17 @@ fn html_open_tag(input: &str) -> IResult<&str> {
 }
 
 fn html_close_tag<'a>(open_tag: &'a str) -> impl Fn(&'a str) -> IResult<&'a str> {
-    delimited(
-        multispace0,
+    context(
+        "Unexpected closing tag that does not match opening tag!",
         delimited(
-            tag("</"),
-            terminated(tag(open_tag), many0(none_of(">"))),
-            tag(">"),
+            multispace0,
+            delimited(
+                tag("</"),
+                terminated(cut(tag(open_tag)), many0(none_of(">"))),
+                tag(">"),
+            ),
+            multispace0,
         ),
-        multispace0,
     )
 }
 
