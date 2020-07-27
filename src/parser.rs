@@ -1,7 +1,8 @@
 extern crate nom;
+use self::nom::error::{ParseError, VerboseError};
 use nom::{
     branch::*, bytes::complete::*, character::complete::*, combinator::*, multi::*, sequence::*,
-    whitespace, IResult,
+    whitespace,
 };
 
 #[derive(Debug)]
@@ -22,21 +23,33 @@ pub enum HtmlNode<'a> {
     Plain(HtmlPlain<'a>),
 }
 
-fn html_open_tag(input: &str) -> IResult<&str, &str> {
+type IResult<'a, O> = nom::IResult<&'a str, O, VerboseError<&'a str>>;
+
+fn html_open_tag(input: &str) -> IResult<&str> {
     // TODO: implement self closing tags.
     // TODO: implement tags that are forbidden to be closed like img, input, br, hr, meta, etc.
+
+    let (input, _) = multispace0(input)?;
+    let (input, _) = tag("<")(input)?;
+    let (input, open) = take_till1(|c| c == ' ' || c == '>' || c == '/' || c == '<')(input)?;
+    let (input, _args) = many0(none_of("></"))(input)?;
+    let (input, _) = tag(">")(input)?;
+
+    Ok((input, open))
+    /*
     delimited(
         multispace0,
         delimited(
             tag("<"),
-            terminated(take_till1(|c| c == ' ' || c == '>'), many0(none_of(">"))),
+            terminated(take_till1(|c| c == ' ' || c == '>'), many0(none_of("></"))),
             tag(">"),
         ),
         multispace0,
     )(input)
+     */
 }
 
-fn html_close_tag<'a>(open_tag: &'a str) -> impl Fn(&'a str) -> IResult<&str, &str> {
+fn html_close_tag<'a>(open_tag: &'a str) -> impl Fn(&'a str) -> IResult<&'a str> {
     delimited(
         multispace0,
         delimited(
@@ -48,7 +61,7 @@ fn html_close_tag<'a>(open_tag: &'a str) -> impl Fn(&'a str) -> IResult<&str, &s
     )
 }
 
-fn html_plain_text(input: &str) -> IResult<&str, HtmlNode> {
+fn html_plain_text(input: &str) -> IResult<HtmlNode> {
     let (remaining, plain) = delimited(
         multispace0,
         take_till1(|c| c == '<' || c == '\r' || c == '\n'),
@@ -58,11 +71,11 @@ fn html_plain_text(input: &str) -> IResult<&str, HtmlNode> {
     Ok((remaining, HtmlNode::Plain(HtmlPlain { plain })))
 }
 
-fn html_tag_content(input: &str) -> IResult<&str, HtmlNode> {
+fn html_tag_content(input: &str) -> IResult<HtmlNode> {
     alt((html_plain_text, html_complete_tag))(input)
 }
 
-fn html_complete_tag(input: &str) -> IResult<&str, HtmlNode> {
+fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
     let (remaining, open) = html_open_tag(input)?;
     let (remaining, children) = many0(html_tag_content)(remaining)?;
     let (remaining, _close) = preceded(take_till(|c| c == '<'), html_close_tag(open))(remaining)?;
@@ -75,8 +88,43 @@ fn html_complete_tag(input: &str) -> IResult<&str, HtmlNode> {
     Ok((remaining, HtmlNode::Tag(tag)))
 }
 
-pub fn parse(input: &str) -> Result<HtmlNode, nom::Err<(&str, nom::error::ErrorKind)>> {
+pub fn parse(input: &str) -> IResult<HtmlNode> {
     // TODO: implement better error handling - current errors don't give much information.
-    let (_remainder, result) = html_complete_tag(&input)?;
-    Ok(result)
+    html_complete_tag(&input)
+    //let (_remainder, result) = html_complete_tag::<VerboseError<&str>>(&input)?;
+    //Ok((_remainder, result))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::nom::error::{ParseError, VerboseError};
+    use super::nom::Err::Error;
+    use crate::parser::html_open_tag;
+
+    #[test]
+    fn test_open_tag_postive() {
+        assert_eq!(html_open_tag("<a href=\"#\">"), Ok(("", "a")));
+        assert_eq!(html_open_tag("<p>"), Ok(("", "p")));
+        assert_eq!(html_open_tag("<h1>"), Ok(("", "h1")));
+        assert_eq!(html_open_tag("<h1>"), Ok(("", "h1")));
+        assert_eq!(html_open_tag("<!DOCTYPE html>"), Ok(("", "!DOCTYPE")));
+    }
+
+    #[test]
+    fn test_open_tag_negative() {
+        assert_eq!(
+            html_open_tag("<a href=\"#\" <p></p>"),
+            Err(Error(VerboseError::from_error_kind(
+                "<p></p>",
+                nom::error::ErrorKind::Tag
+            )))
+        );
+        assert_eq!(
+            html_open_tag("</p>"),
+            Err(Error(VerboseError::from_error_kind(
+                "/p>",
+                nom::error::ErrorKind::TakeTill1
+            )))
+        );
+    }
 }
