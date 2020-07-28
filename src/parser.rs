@@ -4,6 +4,7 @@ use nom::{
     branch::*, bytes::complete::*, character::complete::*, combinator::*, multi::*, sequence::*,
     whitespace,
 };
+use std::collections::HashMap;
 
 static NON_CLOSING_TAGS: [&str; 6] = ["!DOCTYPE", "meta", "input", "img", "br", "hr"];
 
@@ -11,6 +12,7 @@ static NON_CLOSING_TAGS: [&str; 6] = ["!DOCTYPE", "meta", "input", "img", "br", 
 pub struct HtmlTag<'a> {
     name: &'a str,
     self_closed: bool,
+    arguments: HashMap<&'a str, &'a str>,
     children: Vec<HtmlNode<'a>>,
 }
 
@@ -28,19 +30,43 @@ pub enum HtmlNode<'a> {
 
 type IResult<'a, O> = nom::IResult<&'a str, O, VerboseError<&'a str>>;
 
+fn html_tag_argument<'a>(input: &'a str) -> IResult<(&'a str, &'a str)> {
+    let (input, _) = multispace0(input)?;
+    let (input, key) = alphanumeric1(input)?;
+    let (input, equal) = opt(tag("=\""))(input)?;
+
+    if equal == None {
+        return Ok((input, (key, "")));
+    }
+
+    let (input, value) = take_till1(|c| c == '"')(input)?;
+    let (input, _) = tag("\"")(input)?;
+    let (input, _) = multispace0(input)?;
+
+    Ok((input, (key, value)))
+}
+
+fn html_tag_argument_map<'a>(input: &'a str) -> IResult<HashMap<&'a str, &'a str>> {
+    let (input, list) = many0(html_tag_argument)(input)?;
+    let map = list.into_iter().collect::<HashMap<&str, &str>>();
+    Ok((input, map))
+}
+
 // returns (tag, self_closed)
-fn html_open_tag(input: &str) -> IResult<(&str, bool)> {
+fn html_open_tag(input: &str) -> IResult<(&str, bool, HashMap<&str, &str>)> {
     let (input, _) = multispace0(input)?;
     let (input, _) = tag("<")(input)?;
     let (input, open) = take_till1(|c| c == ' ' || c == '>' || c == '/' || c == '<')(input)?;
-    let (input, _args) = many0(none_of("></"))(input)?;
+    //let (input, _args) = many0(none_of("></"))(input)?;
+    let (input, args) = html_tag_argument_map(input)?;
+
     let (input, mut closed) = alt((value(false, tag(">")), value(true, tag("/>"))))(input)?;
 
     if NON_CLOSING_TAGS.contains(&open) {
         closed = true;
     }
 
-    Ok((input, (open, closed)))
+    Ok((input, (open, closed, args)))
 }
 
 fn html_close_tag<'a>(open_tag: &'a str) -> impl Fn(&'a str) -> IResult<&'a str> {
@@ -73,7 +99,8 @@ fn html_tag_content(input: &str) -> IResult<HtmlNode> {
 }
 
 fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
-    let (mut remaining, (open, self_closed)) = html_open_tag(input)?;
+    // TODO: also parse whitespace because it matters in rendering!: https://prettier.io/blog/2018/11/07/1.15.0.html
+    let (mut remaining, (open, self_closed, args)) = html_open_tag(input)?;
     let mut children = vec![];
 
     if !self_closed {
@@ -87,6 +114,7 @@ fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
     let tag = HtmlTag {
         name: open,
         self_closed,
+        arguments: args,
         children,
     };
 
@@ -101,6 +129,7 @@ pub fn parse(input: &str) -> IResult<HtmlNode> {
         HtmlNode::Tag(HtmlTag {
             name: "ROOT",
             self_closed: false,
+            arguments: HashMap::new(),
             children,
         }),
     ))
@@ -109,18 +138,34 @@ pub fn parse(input: &str) -> IResult<HtmlNode> {
 #[cfg(test)]
 mod tests {
     use super::nom::error::{ParseError, VerboseError};
+    use super::nom::lib::std::collections::HashMap;
     use super::nom::Err::Error;
-    use crate::parser::{html_complete_tag, html_open_tag, HtmlNode, HtmlTag};
+    use crate::parser::{
+        html_complete_tag, html_open_tag, html_tag_argument, html_tag_argument_map, HtmlNode,
+        HtmlTag,
+    };
 
     #[test]
     fn test_open_tag_postive() {
-        assert_eq!(html_open_tag("<a href=\"#\">"), Ok(("", ("a", false))));
-        assert_eq!(html_open_tag("<p>"), Ok(("", ("p", false))));
-        assert_eq!(html_open_tag("<h1>"), Ok(("", ("h1", false))));
-        assert_eq!(html_open_tag("<h1>"), Ok(("", ("h1", false))));
+        assert_eq!(
+            html_open_tag("<a href=\"#\">"),
+            Ok(("", ("a", false, vec![("href", "#")].into_iter().collect())))
+        );
+        assert_eq!(html_open_tag("<p>"), Ok(("", ("p", false, HashMap::new()))));
+        assert_eq!(
+            html_open_tag("<h1>"),
+            Ok(("", ("h1", false, HashMap::new())))
+        );
+        assert_eq!(
+            html_open_tag("<h1>"),
+            Ok(("", ("h1", false, HashMap::new())))
+        );
         assert_eq!(
             html_open_tag("<!DOCTYPE html>"),
-            Ok(("", ("!DOCTYPE", true)))
+            Ok((
+                "",
+                ("!DOCTYPE", true, vec![("html", "")].into_iter().collect())
+            ))
         );
     }
 
@@ -145,15 +190,28 @@ mod tests {
 
     #[test]
     fn test_open_self_closing_tag() {
-        assert_eq!(html_open_tag("<br/>"), Ok(("", ("br", true))));
-        assert_eq!(html_open_tag("<a href=\"#\"/>"), Ok(("", ("a", true))))
+        assert_eq!(
+            html_open_tag("<br/>"),
+            Ok(("", ("br", true, HashMap::new())))
+        );
+        assert_eq!(
+            html_open_tag("<a href=\"#\"/>"),
+            Ok(("", ("a", true, vec![("href", "#")].into_iter().collect())))
+        )
     }
 
     #[test]
     fn test_open_non_closing_tag() {
         assert_eq!(
             html_open_tag("<meta charset=\"UTF-8\"><title>SomeTitle</title>"),
-            Ok(("<title>SomeTitle</title>", ("meta", true)))
+            Ok((
+                "<title>SomeTitle</title>",
+                (
+                    "meta",
+                    true,
+                    vec![("charset", "UTF-8")].into_iter().collect()
+                )
+            ))
         );
     }
 
@@ -166,6 +224,7 @@ mod tests {
                 HtmlNode::Tag(HtmlTag {
                     name: "meta",
                     self_closed: true,
+                    arguments: vec![("charset", "UTF-8")].into_iter().collect(),
                     children: vec![]
                 })
             ))
@@ -178,20 +237,45 @@ mod tests {
                 HtmlNode::Tag(HtmlTag {
                     name: "div",
                     self_closed: false,
+                    arguments: HashMap::new(),
                     children: vec![
                         HtmlNode::Tag(HtmlTag {
                             name: "meta",
                             self_closed: true,
+                            arguments: vec![("charset", "UTF-8")].into_iter().collect(),
                             children: vec![]
                         }),
                         HtmlNode::Tag(HtmlTag {
                             name: "title",
                             self_closed: false,
+                            arguments: HashMap::new(),
                             children: vec![]
                         })
                     ]
                 })
             ))
+        );
+    }
+
+    #[test]
+    fn test_tag_argument() {
+        assert_eq!(html_tag_argument("href=\"#\""), Ok(("", ("href", "#"))));
+        assert_eq!(
+            html_tag_argument("onClick=\"alert('Hello world');\" "),
+            Ok(("", ("onClick", "alert('Hello world');")))
+        );
+        assert_eq!(html_tag_argument("disabled"), Ok(("", ("disabled", ""))));
+    }
+
+    #[test]
+    fn test_tag_argument_map() {
+        let mut map = HashMap::new();
+        map.insert("href", "#");
+        map.insert("target", "_blank");
+
+        assert_eq!(
+            html_tag_argument_map("href=\"#\" \n\t         target=\"_blank\"   "),
+            Ok(("", map))
         );
     }
 }
