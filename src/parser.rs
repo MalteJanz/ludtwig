@@ -1,4 +1,5 @@
 extern crate nom;
+use self::nom::character::is_alphanumeric;
 use self::nom::error::{context, ParseError, VerboseError};
 use nom::{
     branch::*, bytes::complete::*, character::complete::*, combinator::*, multi::*, sequence::*,
@@ -23,9 +24,15 @@ pub struct HtmlPlain<'a> {
 }
 
 #[derive(Debug, Eq, PartialEq)]
+pub struct VueBlock<'a> {
+    content: &'a str,
+}
+
+#[derive(Debug, Eq, PartialEq)]
 pub enum HtmlNode<'a> {
     Tag(HtmlTag<'a>),
     Plain(HtmlPlain<'a>),
+    VueBlock(VueBlock<'a>),
 }
 
 type IResult<'a, O> = nom::IResult<&'a str, O, VerboseError<&'a str>>;
@@ -105,17 +112,13 @@ fn html_plain_text(input: &str) -> IResult<HtmlNode> {
     Ok((remaining, HtmlNode::Plain(HtmlPlain { plain })))
 }
 
-fn html_tag_content(input: &str) -> IResult<HtmlNode> {
-    alt((html_plain_text, html_complete_tag))(input)
-}
-
 fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
     // TODO: also parse whitespace because it matters in rendering!: https://prettier.io/blog/2018/11/07/1.15.0.html
     let (mut remaining, (open, self_closed, args)) = html_open_tag(input)?;
     let mut children = vec![];
 
     if !self_closed {
-        let (remaining_new, children_new) = many0(html_tag_content)(remaining)?;
+        let (remaining_new, children_new) = many0(document_node)(remaining)?;
         let (remaining_new, _close) =
             preceded(take_till(|c| c == '<'), html_close_tag(open))(remaining_new)?;
         remaining = remaining_new;
@@ -132,8 +135,30 @@ fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
     Ok((remaining, HtmlNode::Tag(tag)))
 }
 
+fn vue_block(input: &str) -> IResult<HtmlNode> {
+    delimited(
+        multispace0,
+        delimited(
+            tag("{{"),
+            delimited(
+                multispace0,
+                map(alt((take_until(" }}"), take_until("}}"))), |content| {
+                    HtmlNode::VueBlock(VueBlock { content })
+                }),
+                multispace0,
+            ),
+            tag("}}"),
+        ),
+        multispace0,
+    )(input)
+}
+
+fn document_node(input: &str) -> IResult<HtmlNode> {
+    alt((html_complete_tag, vue_block, html_plain_text))(input)
+}
+
 pub fn parse(input: &str) -> IResult<HtmlNode> {
-    let (remaining, children) = many1(html_complete_tag)(&input)?;
+    let (remaining, children) = many1(document_node)(&input)?;
 
     Ok((
         remaining,
@@ -152,8 +177,8 @@ mod tests {
     use super::nom::lib::std::collections::HashMap;
     use super::nom::Err::Error;
     use crate::parser::{
-        html_complete_tag, html_open_tag, html_tag_argument, html_tag_argument_map, HtmlNode,
-        HtmlTag,
+        document_node, html_complete_tag, html_open_tag, html_tag_argument, html_tag_argument_map,
+        vue_block, HtmlNode, HtmlTag, VueBlock,
     };
 
     #[test]
@@ -323,5 +348,31 @@ mod tests {
         );
 
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_some_vue_variable_print() {
+        let res = vue_block("{{ $tc('swag-migration.index.confirmAbortDialog.hint') }}");
+
+        assert_eq!(
+            res,
+            Ok((
+                "",
+                HtmlNode::VueBlock(VueBlock {
+                    content: "$tc('swag-migration.index.confirmAbortDialog.hint')"
+                })
+            ))
+        )
+    }
+
+    #[test]
+    fn test_some_vue_variable_print_inside_tag() {
+        let res = document_node(
+            "<p class=\"swag-migration-index-modal-abort-migration-confirm-dialog-hint\">
+                    {{ $tc('swag-migration.index.confirmAbortDialog.hint') }}
+                </p>",
+        );
+
+        assert!(res.is_ok())
     }
 }
