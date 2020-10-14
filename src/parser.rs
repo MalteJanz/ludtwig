@@ -11,21 +11,27 @@ static NON_CLOSING_TAGS: [&str; 6] = ["!DOCTYPE", "meta", "input", "img", "br", 
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct HtmlTag<'a> {
-    name: &'a str,
-    self_closed: bool,
-    arguments: HashMap<&'a str, &'a str>,
-    children: Vec<HtmlNode<'a>>,
+    pub name: &'a str,
+    pub self_closed: bool,
+    pub arguments: HashMap<&'a str, &'a str>,
+    pub children: Vec<HtmlNode<'a>>,
 }
 
 // Represents one line of plain text in the html document without line break characters or indentation.
 #[derive(Debug, Eq, PartialEq)]
 pub struct HtmlPlain<'a> {
-    plain: &'a str,
+    pub plain: &'a str,
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct VueBlock<'a> {
-    content: &'a str,
+    pub content: &'a str,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct TwigBlock<'a> {
+    pub name: &'a str,
+    pub children: Vec<HtmlNode<'a>>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -33,6 +39,7 @@ pub enum HtmlNode<'a> {
     Tag(HtmlTag<'a>),
     Plain(HtmlPlain<'a>),
     VueBlock(VueBlock<'a>),
+    TwigBlock(TwigBlock<'a>),
 }
 
 type IResult<'a, O> = nom::IResult<&'a str, O, VerboseError<&'a str>>;
@@ -105,7 +112,7 @@ fn html_close_tag<'a>(open_tag: &'a str) -> impl Fn(&'a str) -> IResult<&'a str>
 fn html_plain_text(input: &str) -> IResult<HtmlNode> {
     let (remaining, plain) = delimited(
         multispace0,
-        take_till1(|c| c == '<' || c == '\r' || c == '\n'),
+        take_till1(|c| c == '<' || c == '{' || c == '\t' || c == '\r' || c == '\n'),
         multispace0,
     )(input)?;
 
@@ -153,8 +160,56 @@ fn vue_block(input: &str) -> IResult<HtmlNode> {
     )(input)
 }
 
+fn twig_opening_block(input: &str) -> IResult<&str> {
+    delimited(
+        multispace0,
+        delimited(
+            tag("{%"),
+            preceded(
+                delimited(multispace0, tag("block"), multispace0),
+                terminated(take_till1(char::is_whitespace), multispace0),
+            ),
+            tag("%}"),
+        ),
+        multispace0,
+    )(input)
+}
+
+fn twig_closing_block(input: &str) -> IResult<&str> {
+    // {% endblock %}
+    delimited(
+        multispace0,
+        delimited(
+            tag("{%"),
+            delimited(multispace0, tag("endblock"), multispace0),
+            tag("%}"),
+        ),
+        multispace0,
+    )(input)
+}
+
+fn twig_complete_block(input: &str) -> IResult<HtmlNode> {
+    // TODO: also parse whitespace because it matters in rendering!: https://prettier.io/blog/2018/11/07/1.15.0.html
+    let (mut remaining, open) = twig_opening_block(input)?;
+    let (remaining, children) = many0(document_node)(remaining)?;
+
+    let (remaining, _close) = preceded(take_till(|c| c == '{'), twig_closing_block)(remaining)?;
+
+    let block = TwigBlock {
+        name: open,
+        children,
+    };
+
+    Ok((remaining, HtmlNode::TwigBlock(block)))
+}
+
 fn document_node(input: &str) -> IResult<HtmlNode> {
-    alt((html_complete_tag, vue_block, html_plain_text))(input)
+    alt((
+        twig_complete_block,
+        html_complete_tag,
+        vue_block,
+        html_plain_text,
+    ))(input)
 }
 
 pub fn parse(input: &str) -> IResult<HtmlNode> {
@@ -178,7 +233,8 @@ mod tests {
     use super::nom::Err::Error;
     use crate::parser::{
         document_node, html_complete_tag, html_open_tag, html_tag_argument, html_tag_argument_map,
-        vue_block, HtmlNode, HtmlTag, VueBlock,
+        twig_closing_block, twig_complete_block, twig_opening_block, vue_block, HtmlNode, HtmlTag,
+        TwigBlock, VueBlock,
     };
 
     #[test]
@@ -374,5 +430,52 @@ mod tests {
         );
 
         assert!(res.is_ok())
+    }
+
+    #[test]
+    fn test_opening_twig_block() {
+        let res = twig_opening_block("{% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint %}");
+
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn test_closing_twig_block() {
+        let res = twig_closing_block("{% endblock %}");
+
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn test_complete_twig_block() {
+        let res = twig_complete_block("{% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint %}
+                <p class=\"swag-migration-index-modal-abort-migration-confirm-dialog-hint\">
+                    Hello world
+                </p>
+                {% endblock %}");
+
+        println!("{:#?}", res);
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn test_complete_twig_block_nested() {
+        let res = twig_complete_block("{% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint %}
+                    {% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint_content %}
+                        <div></div>
+                    {% endblock %}
+                {% endblock %}");
+
+        assert_eq!(res, Ok(("", HtmlNode::TwigBlock(TwigBlock{name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint", children: vec![
+            HtmlNode::TwigBlock(TwigBlock{
+                name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint_content",
+                children: vec![HtmlNode::Tag(HtmlTag{
+                    name: "div",
+                    self_closed: false,
+                    arguments: Default::default(),
+                    children: vec![]
+                })]
+            })
+        ] }))));
     }
 }
