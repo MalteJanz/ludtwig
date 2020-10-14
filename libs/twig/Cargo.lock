@@ -49,13 +49,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-twig-tools"
-version = "0.1.0"
-dependencies = [
- "twig",
-]
-
-[[package]]
 name = "ryu"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

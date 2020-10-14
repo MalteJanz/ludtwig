@@ -1,0 +1,137 @@
+{% block swag_migration_history_detail %}
+    <div class="swag-migration-history-detail">
+        <sw-modal v-if="showModal"
+                  class="swag-migration-history-detail__modal"
+                  size="800px"
+                  :title="$tc('swag-migration.history.detailPage.title')"
+                  :isLoading="isLoading"
+                  @modal-close="onCloseModal">
+
+            {% block swag_migration_history_detail_modal_content %}
+                <div v-if="isLoading"
+                     class="swag-migration-history-detail__loading-placeholder">
+                </div>
+                <div v-if="!isLoading"
+                     class="swag-migration-history-detail__content">
+
+                    {% block swag_migration_history_detail_header %}
+                        <div class="swag-migration-history-detail__header">
+
+                            {% block swag_migration_history_detail_connectin_avatar %}
+                                <template v-if="profileIcon === null || profileIcon === ''">
+                                    <swag-migration-shop-avatar class="swag-migration-shop-information__connection-avatar"
+                                                                color="#189EFF"
+                                                                size="80px">
+                                        {{ shopFirstLetter }}
+                                    </swag-migration-shop-avatar>
+                                </template>
+
+                                <template v-else>
+                                    <img class="swag-migration-shop-information__profile-avatar"
+                                         :src="profileIcon | asset"
+                                         size="80px">
+                                </template>
+                            {% endblock %}
+
+                            {% block swag_migration_history_detail_connection_info %}
+                                <div class="swag-migration-history-detail__connection-info">
+
+                                    {% block swag_migration_history_detail_shop_system %}
+                                        <div class="swag-migration-history-detail__connection-name">
+                                            {{ connectionName }}
+                                        </div>
+                                    {% endblock %}
+
+                                    {% block swag_migration_history_detail_shop_domain %}
+                                        <div v-if="shopUrl !== ''" class="swag-migration-history-detail__shop-domain">
+                                                        <span class="swag-migration-history-detail__shop-domain-prefix"
+                                                              :class="shopUrlPrefixClass">
+                                                            <sw-icon v-if="sslActive"
+                                                                     class="swag-migration-history-detail__shop-domain-prefix-icon"
+                                                                     name="small-lock-closed"
+                                                                     size="12px">
+                                                            </sw-icon>
+                                                            <sw-icon v-else
+                                                                     class="swag-migration-history-detail__shop-domain-prefix-icon"
+                                                                     name="small-lock-open"
+                                                                     size="12px">
+                                                            </sw-icon>
+                                                            {{ shopUrlPrefix }}</span>{{ shopUrl }}
+                                        </div>
+                                    {% endblock %}
+
+                                    {% block swag_migration_history_detail_profile %}
+                                        <div class="swag-migration-history-detail__profile">
+                                            {{ profileName }} / {{ gatewayName }}
+                                        </div>
+                                    {% endblock %}
+                                </div>
+                            {% endblock %}
+
+                            {% block swag_migration_history_detail_run_info %}
+                                <div class="swag-migration-history-detail__run-info">
+                                    <div class="swag-migration-history-detail__run-timestamp-label">
+                                        {{ $tc('swag-migration.history.detailPage.timestamp') }}
+                                    </div>
+                                    <div class="swag-migration-history-detail__run-timestamp-value">
+                                        {{ migrationRun.createdAt | date(migrationDateOptions) }}
+                                    </div>
+
+                                    <div class="swag-migration-history-detail__run-status-label">
+                                        {{ $tc('swag-migration.history.detailPage.runStatus') }}
+                                    </div>
+                                    <div class="swag-migration-history-detail__run-status-value" :class="runStatusClasses">
+                                        {{ $tc(runStatusSnippet) }}
+                                    </div>
+                                </div>
+                            {% endblock %}
+                        </div>
+                    {% endblock %}
+
+                    {% block swag_migration_history_detail_body %}
+                        <div class="swag-migration-history-detail__body">
+
+                            {% block swag_migration_history_detail_body_tabs %}
+                                <sw-tabs ref="tabReference"
+                                         @new-item-active="newActiveTabItem">
+
+                                    {% block swag_migration_history_detail_body_tabs_data %}
+                                        <sw-tabs-item name="data" ref="dataTabItem">
+                                            {{ $tc('swag-migration.history.detailPage.data') }}
+                                        </sw-tabs-item>
+                                    {% endblock %}
+
+                                    {% block swag_migration_history_detail_body_tabs_errors %}
+                                        <sw-tabs-item name="errors" ref="errorsTabItem">
+                                            {{ $tc('swag-migration.history.detailPage.errors') }}
+                                        </sw-tabs-item>
+                                    {% endblock %}
+                                </sw-tabs>
+                            {% endblock %}
+
+                            {% block swag_migration_history_detail_body_data %}
+                                <swag-migration-history-detail-data v-show="currentTab === 'data'"
+                                                                    :migrationRun="migrationRun">
+                                </swag-migration-history-detail-data>
+                            {% endblock %}
+
+                            {% block swag_migration_history_detail_body_errors %}
+                                <swag-migration-history-detail-errors v-show="currentTab === 'errors'"
+                                                                      :migrationRun="migrationRun">
+                                </swag-migration-history-detail-errors>
+                            {% endblock %}
+                        </div>
+                    {% endblock %}
+                </div>
+            {% endblock %}
+
+            {% block swag_migration_history_detail_footer %}
+                <template #modal-footer>
+                    <sw-button size="small" @click="onCloseModal">
+                        {{ $tc('swag-migration.history.detailPage.close') }}
+                    </sw-button>
+                </template>
+            {% endblock %}
+        </sw-modal>
+    </div>
+{% endblock %}
