@@ -5,7 +5,7 @@ use std::fs;
 mod parser;
 
 fn main() {
-    let file_content = fs::read_to_string("example.html").expect("Can't read file 'example.html'");
+    let file_content = fs::read_to_string("complex.html").expect("Can't read file 'example.html'");
     let result = parser::parse(&file_content);
 
     match result {

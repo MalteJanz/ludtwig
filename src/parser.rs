@@ -32,7 +32,16 @@ type IResult<'a, O> = nom::IResult<&'a str, O, VerboseError<&'a str>>;
 
 fn html_tag_argument<'a>(input: &'a str) -> IResult<(&'a str, &'a str)> {
     let (input, _) = multispace0(input)?;
-    let (input, key) = alphanumeric1(input)?;
+    let (input, key) = take_till1(|c| {
+        c == '='
+            || c == ' '
+            || c == '>'
+            || c == '/'
+            || c == '<'
+            || c == '\n'
+            || c == '\r'
+            || c == '\t'
+    })(input)?; //alphanumeric1(input)?;
     let (input, equal) = opt(tag("=\""))(input)?;
 
     if equal == None {
@@ -56,7 +65,9 @@ fn html_tag_argument_map<'a>(input: &'a str) -> IResult<HashMap<&'a str, &'a str
 fn html_open_tag(input: &str) -> IResult<(&str, bool, HashMap<&str, &str>)> {
     let (input, _) = multispace0(input)?;
     let (input, _) = tag("<")(input)?;
-    let (input, open) = take_till1(|c| c == ' ' || c == '>' || c == '/' || c == '<')(input)?;
+    let (input, open) = take_till1(|c| {
+        c == ' ' || c == '>' || c == '/' || c == '<' || c == '\n' || c == '\r' || c == '\t'
+    })(input)?;
     //let (input, _args) = many0(none_of("></"))(input)?;
     let (input, args) = html_tag_argument_map(input)?;
 
@@ -277,5 +288,40 @@ mod tests {
             html_tag_argument_map("href=\"#\" \n\t         target=\"_blank\"   "),
             Ok(("", map))
         );
+    }
+
+    #[test]
+    fn test_some_vue_template() {
+        let res = html_complete_tag(
+            "<sw-button-group
+                v-if=\"startButtonVisible\"
+                :splitButton=\"true\">
+
+            <sw-button variant=\"primary\"
+                       :disabled=\"startButtonDisabled\"
+                       @click=\"onStartButtonClick\">
+
+            </sw-button>
+
+            <sw-context-button :disabled=\"isLoading\">
+                <template slot=\"button\">
+
+                    <sw-button square
+                               variant=\"primary\"
+                               :disabled=\"isLoading\">
+                        <sw-icon name=\"small-arrow-medium-down\" size=\"16\"></sw-icon>
+                    </sw-button>
+                </template>
+
+                <sw-context-menu-item @click=\"onSaveButtonClick\"
+                                      :disabled=\"isLoading\">
+
+                </sw-context-menu-item>
+            </sw-context-button>
+
+        </sw-button-group>",
+        );
+
+        assert!(res.is_ok());
     }
 }
