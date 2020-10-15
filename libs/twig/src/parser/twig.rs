@@ -1,8 +1,9 @@
 use super::IResult;
 use crate::ast::*;
-use crate::parser::general::document_node;
-use nom::bytes::complete::{tag, take_till, take_till1};
+use crate::parser::general::{document_node, dynamic_context};
+use nom::bytes::complete::{tag, take_till1};
 use nom::character::complete::multispace0;
+use nom::combinator::cut;
 use nom::multi::many0;
 use nom::sequence::{delimited, preceded, terminated};
 
@@ -39,7 +40,13 @@ pub(crate) fn twig_complete_block(input: &str) -> IResult<HtmlNode> {
     let (remaining, open) = twig_opening_block(input)?;
     let (remaining, children) = many0(document_node)(remaining)?;
 
-    let (remaining, _close) = preceded(take_till(|c| c == '{'), twig_closing_block)(remaining)?;
+    let (remaining, _close) = preceded(
+        multispace0, /*take_till(|c| c == '{')*/
+        dynamic_context(
+            format!("Missing endblock for '{}' twig block", open),
+            cut(twig_closing_block),
+        ),
+    )(remaining)?;
 
     let block = TwigBlock {
         name: open,

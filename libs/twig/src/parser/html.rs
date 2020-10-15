@@ -1,8 +1,8 @@
 use super::IResult;
 use crate::ast::*;
-use crate::parser::general::document_node;
+use crate::parser::general::{document_node, dynamic_context};
 use nom::branch::alt;
-use nom::bytes::complete::{tag, take_till, take_till1};
+use nom::bytes::complete::{tag, take_till1};
 use nom::character::complete::{multispace0, none_of};
 use nom::combinator::{cut, opt, value};
 use nom::error::context;
@@ -63,17 +63,14 @@ pub(crate) fn html_open_tag(input: &str) -> IResult<(&str, bool, HashMap<&str, &
 }
 
 pub(crate) fn html_close_tag<'a>(open_tag: &'a str) -> impl Fn(&'a str) -> IResult<&'a str> {
-    context(
-        "Unexpected closing tag that does not match opening tag!",
+    delimited(
+        multispace0,
         delimited(
-            multispace0,
-            delimited(
-                tag("</"),
-                terminated(cut(tag(open_tag)), many0(none_of(">"))),
-                tag(">"),
-            ),
-            multispace0,
+            tag("</"),
+            terminated(cut(tag(open_tag)), many0(none_of(">"))),
+            tag(">"),
         ),
+        multispace0,
     )
 }
 
@@ -89,13 +86,22 @@ pub(crate) fn html_plain_text(input: &str) -> IResult<HtmlNode> {
 
 pub(crate) fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
     // TODO: also parser whitespace because it matters in rendering!: https://prettier.io/blog/2018/11/07/1.15.0.html
-    let (mut remaining, (open, self_closed, args)) = html_open_tag(input)?;
+    let (mut remaining, (open, self_closed, args)) =
+        context("open tag expected", html_open_tag)(input)?;
     let mut children = vec![];
 
     if !self_closed {
         let (remaining_new, children_new) = many0(document_node)(remaining)?;
-        let (remaining_new, _close) =
-            preceded(take_till(|c| c == '<'), html_close_tag(open))(remaining_new)?;
+        let (remaining_new, _close) = preceded(
+            multispace0, /*take_till(|c| c == '<')*/
+            dynamic_context(
+                format!(
+                    "Missing closing tag for opening tag '{}' with arguments {:?}",
+                    open, args
+                ),
+                cut(html_close_tag(open)),
+            ),
+        )(remaining_new)?;
         remaining = remaining_new;
         children = children_new;
     }
@@ -115,7 +121,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_open_tag_postive() {
+    fn test_open_tag_positive() {
         assert_eq!(
             html_open_tag("<a href=\"#\">"),
             Ok(("", ("a", false, vec![("href", "#")].into_iter().collect())))

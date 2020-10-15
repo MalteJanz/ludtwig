@@ -1,13 +1,40 @@
 use crate::ast::*;
+use crate::error::{DynamicParseError, ParsingErrorInformation};
 use crate::parser::html::{html_complete_tag, html_plain_text};
 use crate::parser::twig::twig_complete_block;
 use crate::parser::vue::vue_block;
-use crate::TwigParseError;
 use nom::branch::alt;
 use nom::multi::many1;
 use std::collections::HashMap;
 
-pub(crate) type IResult<'a, O> = nom::IResult<&'a str, O, TwigParseError>;
+pub(crate) type IResult<'a, O> = nom::IResult<&'a str, O, ParsingErrorInformation<&'a str>>;
+//pub(crate) type IResult<'a, O> = nom::IResult<&'a str, O, VerboseError<&'a str>>;
+
+/// create a new error from an input position, a static string and an existing error.
+/// This is used mainly in the [context] combinator, to add user friendly information
+/// to errors when backtracking through a parse tree
+pub(crate) fn dynamic_context<I: Clone, E: DynamicParseError<I>, F, O>(
+    context: String,
+    f: F,
+) -> impl Fn(I) -> nom::IResult<I, O, E>
+where
+    F: Fn(I) -> nom::IResult<I, O, E>,
+{
+    move |i: I| match f(i.clone()) {
+        Ok(o) => Ok(o),
+        Err(nom::Err::Incomplete(i)) => Err(nom::Err::Incomplete(i)),
+        Err(nom::Err::Error(e)) => Err(nom::Err::Error(E::add_dynamic_context(
+            i,
+            context.clone(),
+            e,
+        ))),
+        Err(nom::Err::Failure(e)) => Err(nom::Err::Failure(E::add_dynamic_context(
+            i,
+            context.clone(),
+            e,
+        ))),
+    }
+}
 
 pub(crate) fn document_node(input: &str) -> IResult<HtmlNode> {
     alt((
