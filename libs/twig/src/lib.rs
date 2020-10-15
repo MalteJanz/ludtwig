@@ -89,6 +89,7 @@ mod tests {
         let input = "{% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint %}
                 <div>
                 <p class=\"swag-migration-index-modal-abort-migration-confirm-dialog-hint\">
+
                     Hello world
                 <p></p>
                 </div>
@@ -98,5 +99,30 @@ mod tests {
         let pretty = result.pretty_userfriendly_error_string(input);
         //println!("{}", pretty);
         assert_eq!(pretty, "Parsing goes wrong in line 7 and column 19 :\n                </div>\n                  ^\n                  |\nMissing closing tag for opening tag \'p\' with arguments {\"class\": \"swag-migration-index-modal-abort-migration-confirm-dialog-hint\"}");
+    }
+
+    #[test]
+    fn test_missing_quote_in_tag_argument() {
+        let input = "
+                <p class=swag-migration-index-modal-abort-migration-confirm-dialog-hint\">
+                    Hello world
+                </p>";
+        let result = parse(input).unwrap_err();
+
+        let pretty = result.pretty_userfriendly_error_string(input);
+        //println!("{}", pretty);
+        assert_eq!(pretty, "Parsing goes wrong in line 1 and column 26 :\n                <p class=swag-migration-index-modal-abort-migration-confirm-dialog-hint\">\n                         ^\n                         |\nmissing \'\"\' quote");
+    }
+
+    #[test]
+    fn test_missing_quote_in_tag_argument_end() {
+        let input = "<sw-button size=\"small @click=\"onCloseModal\">
+                click me
+            </sw-button>";
+        let result = parse(input).unwrap_err();
+
+        let pretty = result.pretty_userfriendly_error_string(input);
+        //println!("{}", pretty);
+        assert_eq!(pretty, "Parsing goes wrong in line 1 and column 44 :\n<sw-button size=\"small @click=\"onCloseModal\">\n                                           ^\n                                           |\ninvalid attribute name");
     }
 }

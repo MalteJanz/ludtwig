@@ -8,7 +8,7 @@ fn main() {
     let result = match twig::parse(&file_content) {
         Ok(r) => r,
         Err(e) => {
-            panic!("Parsing error: {}", e);
+            panic!("{}", e.pretty_userfriendly_error_string(&file_content));
         }
     };
 

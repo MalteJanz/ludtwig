@@ -7,7 +7,7 @@ use std::fmt::Display;
 pub struct ParsingErrorInformation<I> {
     pub leftover: I,
     pub context: Option<String>,
-    kind: ErrorKind,
+    pub(crate) kind: ErrorKind,
 }
 
 #[derive(Debug, PartialEq)]
@@ -167,16 +167,22 @@ impl SubsliceOffset for str {
 fn get_line_and_column_of_subslice<'a>(input: &'a str, slice: &'a str) -> (usize, usize, &'a str) {
     let offset = input.subslice_offset(slice).unwrap();
     let mut last_line_start = 0;
-    let mut last_line_end = 0;
+    let mut last_line_end = 1;
     let mut found = false;
-    let mut lines = 1;
+    let mut lines = 0;
     let mut byte_number = 0;
+    let mut last_byte = None;
 
     for (i, byte) in input.bytes().enumerate() {
         byte_number = i;
         if byte == b'\r' || byte == b'\n' {
-            lines += 1;
             last_line_end = i + 1;
+
+            if let Some(l_byte) = last_byte {
+                if l_byte != b'\r' || l_byte != b'\r' {
+                    lines += 1;
+                }
+            }
 
             if found {
                 break;
@@ -188,11 +194,14 @@ fn get_line_and_column_of_subslice<'a>(input: &'a str, slice: &'a str) -> (usize
         if i == offset {
             found = true;
         }
+
+        last_byte = Some(byte);
     }
 
     // if the for loop did not found a newline in the last parsed line the end and start will be the same.
     if last_line_start == last_line_end {
         last_line_end = byte_number + 1;
+        lines += 1;
     } else {
         last_line_end -= 1;
     }

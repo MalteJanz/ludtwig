@@ -3,8 +3,8 @@ use crate::ast::*;
 use crate::parser::general::{document_node, dynamic_context};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till1};
-use nom::character::complete::{multispace0, none_of};
-use nom::combinator::{cut, opt, value};
+use nom::character::complete::{char, multispace0, none_of};
+use nom::combinator::{cut, not, opt, peek, value};
 use nom::error::context;
 use nom::multi::many0;
 use nom::sequence::{delimited, preceded, terminated};
@@ -20,18 +20,22 @@ pub(crate) fn html_tag_argument<'a>(input: &'a str) -> IResult<(&'a str, &'a str
             || c == '>'
             || c == '/'
             || c == '<'
+            || c == '"'
             || c == '\n'
             || c == '\r'
             || c == '\t'
     })(input)?; //alphanumeric1(input)?;
-    let (input, equal) = opt(tag("=\""))(input)?;
+    let (input, equal) = opt(tag("="))(input)?;
 
     if equal == None {
+        let (input, _) = context("invalid attribute name", cut(peek(not(char('"')))))(input)?;
+
         return Ok((input, (key, "")));
     }
 
+    let (input, _) = context("missing '\"' quote", cut(tag("\"")))(input)?;
     let (input, value) = take_till1(|c| c == '"')(input)?;
-    let (input, _) = tag("\"")(input)?;
+    let (input, _) = context("missing '\"' quote", cut(tag("\"")))(input)?;
     let (input, _) = multispace0(input)?;
 
     Ok((input, (key, value)))
@@ -86,8 +90,7 @@ pub(crate) fn html_plain_text(input: &str) -> IResult<HtmlNode> {
 
 pub(crate) fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
     // TODO: also parser whitespace because it matters in rendering!: https://prettier.io/blog/2018/11/07/1.15.0.html
-    let (mut remaining, (open, self_closed, args)) =
-        context("open tag expected", html_open_tag)(input)?;
+    let (mut remaining, (open, self_closed, args)) = html_open_tag(input)?;
     let mut children = vec![];
 
     if !self_closed {
@@ -119,6 +122,8 @@ pub(crate) fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::ParsingErrorInformation;
+    use nom::error::ErrorKind;
 
     #[test]
     fn test_open_tag_positive() {
@@ -237,6 +242,30 @@ mod tests {
             Ok(("", ("onClick", "alert('Hello world');")))
         );
         assert_eq!(html_tag_argument("disabled"), Ok(("", ("disabled", ""))));
+    }
+
+    #[test]
+    fn test_tag_argument_with_missing_quote() {
+        assert_eq!(
+            html_tag_argument("href=#\""),
+            Err(nom::Err::Failure(ParsingErrorInformation {
+                leftover: "#\"",
+                context: Some("missing '\"' quote".to_string()),
+                kind: ErrorKind::Tag
+            }))
+        );
+    }
+
+    #[test]
+    fn test_tag_argument_map_with_missing_quote() {
+        assert_eq!(
+            html_tag_argument_map("size=\"small @click=\"onCloseModal\""),
+            Err(nom::Err::Failure(ParsingErrorInformation {
+                leftover: "\"",
+                context: Some("invalid attribute name".to_string()),
+                kind: ErrorKind::Not
+            }))
+        );
     }
 
     #[test]
