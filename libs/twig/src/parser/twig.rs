@@ -82,7 +82,6 @@ mod tests {
                 </p>
                 {% endblock %}");
 
-        println!("{:#?}", res);
         assert!(res.is_ok())
     }
 

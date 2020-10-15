@@ -8,10 +8,9 @@ use nom::multi::many1;
 use std::collections::HashMap;
 
 pub(crate) type IResult<'a, O> = nom::IResult<&'a str, O, ParsingErrorInformation<&'a str>>;
-//pub(crate) type IResult<'a, O> = nom::IResult<&'a str, O, VerboseError<&'a str>>;
 
-/// create a new error from an input position, a static string and an existing error.
-/// This is used mainly in the [context] combinator, to add user friendly information
+/// create a new error from an input position, a DYNAMIC string and an existing error.
+/// This is used mainly in the [dynamic_context] combinator, to add user friendly information
 /// to errors when backtracking through a parse tree
 pub(crate) fn dynamic_context<I: Clone, E: DynamicParseError<I>, F, O>(
     context: String,
