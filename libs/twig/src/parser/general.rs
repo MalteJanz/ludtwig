@@ -1,7 +1,7 @@
 use crate::ast::*;
 use crate::error::{DynamicParseError, TwigParsingErrorInformation};
 use crate::parser::html::{html_complete_tag, html_plain_text};
-use crate::parser::twig::twig_complete_block;
+use crate::parser::twig::{twig_complete_block, twig_parent_call};
 use crate::parser::vue::vue_block;
 use nom::branch::alt;
 use nom::lib::std::collections::BTreeMap;
@@ -41,6 +41,7 @@ pub(crate) fn document_node(input: &str) -> IResult<HtmlNode> {
         html_complete_tag,
         vue_block,
         html_plain_text,
+        twig_parent_call,
     ))(input)
 }
 

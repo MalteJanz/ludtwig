@@ -14,7 +14,10 @@ pub(crate) fn twig_opening_block(input: &str) -> IResult<&str> {
             tag("{%"),
             preceded(
                 delimited(multispace0, tag("block"), multispace0),
-                terminated(take_till1(char::is_whitespace), multispace0),
+                terminated(
+                    take_till1(|c| char::is_whitespace(c) || c == '%'),
+                    multispace0,
+                ),
             ),
             tag("%}"),
         ),
@@ -33,6 +36,20 @@ pub(crate) fn twig_closing_block(input: &str) -> IResult<&str> {
         ),
         multispace0,
     )(input)
+}
+
+pub(crate) fn twig_parent_call(input: &str) -> IResult<HtmlNode> {
+    let (remaining, _) = delimited(
+        multispace0,
+        delimited(
+            tag("{%"),
+            delimited(multispace0, tag("parent"), multispace0),
+            tag("%}"),
+        ),
+        multispace0,
+    )(input)?;
+
+    Ok((remaining, HtmlNode::TwigParentCall))
 }
 
 pub(crate) fn twig_complete_block(input: &str) -> IResult<HtmlNode> {
@@ -102,5 +119,45 @@ mod tests {
                 })]
             })
         ] }))));
+    }
+
+    #[test]
+    fn test_complete_twig_block_without_space_at_the_end() {
+        let res = twig_complete_block(
+            "{% block swag_migration_history_detail_errors_grid_code%}
+                    {% endblock %}
+        ",
+        );
+
+        assert_eq!(
+            res,
+            Ok((
+                "",
+                HtmlNode::TwigBlock(TwigBlock {
+                    name: "swag_migration_history_detail_errors_grid_code",
+                    children: vec![]
+                })
+            ))
+        )
+    }
+
+    #[test]
+    fn test_parent_block_call() {
+        let res = twig_complete_block(
+            "{% block sw_dashboard_index_content_intro_card %}
+                {% parent %}
+            {% endblock %}",
+        );
+
+        assert_eq!(
+            res,
+            Ok((
+                "",
+                HtmlNode::TwigBlock(TwigBlock {
+                    name: "sw_dashboard_index_content_intro_card",
+                    children: vec![HtmlNode::TwigParentCall]
+                })
+            ))
+        )
     }
 }

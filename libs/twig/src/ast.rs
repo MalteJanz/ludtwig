@@ -31,6 +31,7 @@ pub enum HtmlNode<'a> {
     Plain(HtmlPlain<'a>),
     VueBlock(VueBlock<'a>),
     TwigBlock(TwigBlock<'a>),
+    TwigParentCall,
 }
 
 impl<'a> Default for HtmlTag<'a> {
