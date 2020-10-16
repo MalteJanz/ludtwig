@@ -1,13 +1,12 @@
 mod process;
 
-use async_std::fs;
-use async_std::path::Path;
-use async_std::prelude::*;
-use async_std::task;
 use clap::{crate_authors, crate_version, Clap, ValueHint};
 use std::boxed::Box;
 use std::future::Future;
+use std::path::Path;
 use std::pin::Pin;
+use tokio::fs;
+use tokio::stream::StreamExt;
 
 /// Tools for '.twig' files. Mostly scanning for errors and formatting.
 #[derive(Clap)]
@@ -29,9 +28,11 @@ struct Opts {
 
 fn main() {
     let opts: Opts = Opts::parse();
-    println!("working on files: {:#?}", opts.files);
+    //println!("working on files: {:#?}", opts.files);
 
-    task::block_on(async {
+    let runtime = tokio::runtime::Runtime::new().expect("can't create tokio runtime");
+
+    runtime.block_on(async {
         let mut futures = Vec::with_capacity(opts.files.len());
         for path in &opts.files {
             futures.push(handle_input_path(path.clone()));
@@ -89,7 +90,7 @@ where
             let entry = entry_result.unwrap();
             let path = entry.path();
 
-            if path.is_dir().await {
+            if path.is_dir() {
                 futures_dirs.push(handle_input_dir(path));
                 //handle_input_dir(path).await;
                 continue;

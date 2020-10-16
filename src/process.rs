@@ -1,5 +1,5 @@
-use async_std::fs;
-use async_std::path::Path;
+use std::path::Path;
+use tokio::fs;
 use twig::ast::HtmlNode;
 
 pub async fn process_file<P>(path: P)
@@ -16,23 +16,20 @@ where
     );
     let file_content = file_content_result.unwrap();
 
-    let result = match twig::parse(&file_content) {
-        Ok(r) => r,
-        Err(e) => {
-            panic!("{}", e.pretty_helpful_error_string(&file_content));
-        }
-    };
+    tokio::task::spawn_blocking(move || {
+        let result = match twig::parse(&file_content) {
+            Ok(r) => r,
+            Err(e) => {
+                panic!("{}", e.pretty_helpful_error_string(&file_content));
+            }
+        };
 
-    print_twig_block_hierarchy(&result, 0);
+        print_twig_block_hierarchy(&result, 0);
+    })
+    .await
+    .unwrap();
 }
 
-/*
-async fn parse_file_async(
-    file_content: String,
-) -> Result<HtmlNode<'static>, TwigParseError<&'static str>> {
-    task::spawn(async move { twig::parse(&file_content) }).await
-}
-*/
 pub fn print_twig_block_hierarchy(node: &HtmlNode, spaces: i32) {
     match node {
         HtmlNode::TwigBlock(block) => {
