@@ -1,45 +1,48 @@
 use nom::error::ErrorKind;
 use nom::lib::std::fmt::Formatter;
+use std::borrow::Cow;
 use std::error::Error;
 use std::fmt::Display;
 
 #[derive(Debug, PartialEq)]
-pub struct ParsingErrorInformation<I> {
+pub struct TwigParsingErrorInformation<I> {
     pub leftover: I,
-    pub context: Option<String>,
+    pub context: Option<Cow<'static, str>>,
     pub(crate) kind: ErrorKind,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum TwigParseError<I> {
-    ParsingError(ParsingErrorInformation<I>),
-    ParsingFailure(ParsingErrorInformation<I>),
+    ParsingError(TwigParsingErrorInformation<I>),
+    ParsingFailure(TwigParsingErrorInformation<I>),
 }
 
-impl<I: std::fmt::Debug> Error for TwigParseError<I> {}
+impl<I: std::fmt::Debug + std::fmt::Display> Error for TwigParseError<I> {}
 
-impl<I: std::fmt::Debug> Display for TwigParseError<I> {
+impl<I: std::fmt::Debug + std::fmt::Display> Display for TwigParseError<I> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             TwigParseError::ParsingError(info) => write!(
                 f,
-                "parsing error because: ({:?}, {:?}, {:?})",
+                "parsing error because: ({}, {:?}, {:?})",
                 info.leftover, info.kind, info.context
             ),
             TwigParseError::ParsingFailure(info) => write!(
                 f,
-                "Unrecoverable parsing failure because: ({:?}, {:?}, {:?})",
+                "Unrecoverable parsing failure because: ({}, {:?}, {:?})",
                 info.leftover, info.kind, info.context
             ),
         }
     }
 }
 
-impl<I: std::fmt::Debug> nom::error::ParseError<I> for ParsingErrorInformation<I> {
+impl<I: std::fmt::Debug + std::fmt::Display> nom::error::ParseError<I>
+    for TwigParsingErrorInformation<I>
+{
     fn from_error_kind(_input: I, _kind: ErrorKind) -> Self {
         //println!("[FROM_ERROR_KIND] {:?}: {:?}", _kind, _input);
 
-        ParsingErrorInformation {
+        TwigParsingErrorInformation {
             leftover: _input,
             kind: _kind,
             context: None,
@@ -53,16 +56,16 @@ impl<I: std::fmt::Debug> nom::error::ParseError<I> for ParsingErrorInformation<I
 
     fn from_char(input: I, _: char) -> Self {
         //println!("[FROM_CHAR] {:?}", input);
-        ParsingErrorInformation {
+        TwigParsingErrorInformation {
             leftover: input,
             kind: ErrorKind::Not,
             context: None,
         }
     }
 
-    fn add_context(_input: I, _ctx: &str, mut other: Self) -> Self {
+    fn add_context(_input: I, _ctx: &'static str, mut other: Self) -> Self {
         //println!("[ADD_CONTEXT] {} {:?} {:?}", _ctx, _input, other);
-        other.context = Some(_ctx.to_string());
+        other.context = Some(_ctx.into());
 
         other
     }
@@ -72,17 +75,19 @@ pub(crate) trait DynamicParseError<I> {
     fn add_dynamic_context(input: I, ctx: String, other: Self) -> Self;
 }
 
-impl<I: std::fmt::Debug> DynamicParseError<I> for ParsingErrorInformation<I> {
+impl<I: std::fmt::Debug + std::fmt::Display> DynamicParseError<I>
+    for TwigParsingErrorInformation<I>
+{
     fn add_dynamic_context(_input: I, _ctx: String, mut other: Self) -> Self {
         //println!("[ADD_DYNAMIC_CONTEXT] {:?} {:?} {:?}", _ctx, _input, other);
-        other.context = Some(_ctx);
+        other.context = Some(_ctx.into());
 
         other
     }
 }
 
-impl<I> From<nom::Err<ParsingErrorInformation<I>>> for TwigParseError<I> {
-    fn from(e: nom::Err<ParsingErrorInformation<I>>) -> Self {
+impl<I> From<nom::Err<TwigParsingErrorInformation<I>>> for TwigParseError<I> {
+    fn from(e: nom::Err<TwigParsingErrorInformation<I>>) -> Self {
         match e {
             nom::Err::Incomplete(_) => unreachable!(),
             nom::Err::Error(i) => TwigParseError::ParsingError(i),
@@ -93,7 +98,7 @@ impl<I> From<nom::Err<ParsingErrorInformation<I>>> for TwigParseError<I> {
 
 // error reporting logic
 impl TwigParseError<&str> {
-    pub fn pretty_userfriendly_error_string(&self, input: &str) -> String {
+    pub fn pretty_helpful_error_string(&self, input: &str) -> String {
         let mut output = String::with_capacity(256);
 
         let info = match self {
@@ -133,7 +138,7 @@ impl TwigParseError<&str> {
     }
 }
 
-pub trait SubsliceOffset {
+trait SubsliceOffset {
     /**
     Returns the byte offset of an inner slice relative to an enclosing outer slice.
 
@@ -142,10 +147,10 @@ pub trait SubsliceOffset {
     ```ignore
     let string = "a\nb\nc";
     let lines: Vec<&str> = string.lines().collect();
-    assert!(string.subslice_offset_stable(lines[0]) == Some(0)); // &"a"
-    assert!(string.subslice_offset_stable(lines[1]) == Some(2)); // &"b"
-    assert!(string.subslice_offset_stable(lines[2]) == Some(4)); // &"c"
-    assert!(string.subslice_offset_stable("other!") == None);
+    assert!(string.subslice_offset(lines[0]) == Some(0)); // &"a"
+    assert!(string.subslice_offset(lines[1]) == Some(2)); // &"b"
+    assert!(string.subslice_offset(lines[2]) == Some(4)); // &"c"
+    assert!(string.subslice_offset("other!") == None);
     ```
     */
     fn subslice_offset(&self, inner: &Self) -> Option<usize>;

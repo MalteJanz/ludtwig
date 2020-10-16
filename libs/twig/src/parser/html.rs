@@ -6,9 +6,9 @@ use nom::bytes::complete::{tag, take_till1};
 use nom::character::complete::{char, multispace0, none_of};
 use nom::combinator::{cut, not, opt, peek, value};
 use nom::error::context;
+use nom::lib::std::collections::BTreeMap;
 use nom::multi::many0;
 use nom::sequence::{delimited, preceded, terminated};
-use std::collections::HashMap;
 
 static NON_CLOSING_TAGS: [&str; 6] = ["!DOCTYPE", "meta", "input", "img", "br", "hr"];
 
@@ -41,14 +41,14 @@ pub(crate) fn html_tag_argument<'a>(input: &'a str) -> IResult<(&'a str, &'a str
     Ok((input, (key, value)))
 }
 
-pub(crate) fn html_tag_argument_map<'a>(input: &'a str) -> IResult<HashMap<&'a str, &'a str>> {
+pub(crate) fn html_tag_argument_map<'a>(input: &'a str) -> IResult<BTreeMap<&'a str, &'a str>> {
     let (input, list) = many0(html_tag_argument)(input)?;
-    let map = list.into_iter().collect::<HashMap<&str, &str>>();
+    let map = list.into_iter().collect::<BTreeMap<&str, &str>>();
     Ok((input, map))
 }
 
 // returns (tag, self_closed)
-pub(crate) fn html_open_tag(input: &str) -> IResult<(&str, bool, HashMap<&str, &str>)> {
+pub(crate) fn html_open_tag(input: &str) -> IResult<(&str, bool, BTreeMap<&str, &str>)> {
     let (input, _) = multispace0(input)?;
     let (input, _) = tag("<")(input)?;
     let (input, open) = take_till1(|c| {
@@ -112,7 +112,7 @@ pub(crate) fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
     let tag = HtmlTag {
         name: open,
         self_closed,
-        arguments: args,
+        attributes: args,
         children,
     };
 
@@ -122,7 +122,7 @@ pub(crate) fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::ParsingErrorInformation;
+    use crate::error::TwigParsingErrorInformation;
     use nom::error::ErrorKind;
 
     #[test]
@@ -131,14 +131,17 @@ mod tests {
             html_open_tag("<a href=\"#\">"),
             Ok(("", ("a", false, vec![("href", "#")].into_iter().collect())))
         );
-        assert_eq!(html_open_tag("<p>"), Ok(("", ("p", false, HashMap::new()))));
         assert_eq!(
-            html_open_tag("<h1>"),
-            Ok(("", ("h1", false, HashMap::new())))
+            html_open_tag("<p>"),
+            Ok(("", ("p", false, BTreeMap::new())))
         );
         assert_eq!(
             html_open_tag("<h1>"),
-            Ok(("", ("h1", false, HashMap::new())))
+            Ok(("", ("h1", false, BTreeMap::new())))
+        );
+        assert_eq!(
+            html_open_tag("<h1>"),
+            Ok(("", ("h1", false, BTreeMap::new())))
         );
         assert_eq!(
             html_open_tag("<!DOCTYPE html>"),
@@ -151,25 +154,30 @@ mod tests {
 
     #[test]
     fn test_open_tag_negative() {
-        // TODO: reimplement with error checking.
-        /*
         assert_eq!(
             html_open_tag("<a href=\"#\" <p></p>"),
-            Err(nom::Err(TwigParseError::Unparseable))
-        );
-        assert_eq!(
-            html_open_tag("</p>"),
-            Err(nom::Err(TwigParseError::Unparseable))
+            Err(nom::Err::Error(TwigParsingErrorInformation {
+                leftover: "<p></p>",
+                context: None,
+                kind: ErrorKind::Tag
+            }))
         );
 
-         */
+        assert_eq!(
+            html_open_tag("</p>"),
+            Err(nom::Err::Error(TwigParsingErrorInformation {
+                leftover: "/p>",
+                context: None,
+                kind: ErrorKind::TakeTill1
+            }))
+        );
     }
 
     #[test]
     fn test_open_self_closing_tag() {
         assert_eq!(
             html_open_tag("<br/>"),
-            Ok(("", ("br", true, HashMap::new())))
+            Ok(("", ("br", true, BTreeMap::new())))
         );
         assert_eq!(
             html_open_tag("<a href=\"#\"/>"),
@@ -201,8 +209,8 @@ mod tests {
                 HtmlNode::Tag(HtmlTag {
                     name: "meta",
                     self_closed: true,
-                    arguments: vec![("charset", "UTF-8")].into_iter().collect(),
-                    children: vec![]
+                    attributes: vec![("charset", "UTF-8")].into_iter().collect(),
+                    ..Default::default()
                 })
             ))
         );
@@ -213,22 +221,19 @@ mod tests {
                 "",
                 HtmlNode::Tag(HtmlTag {
                     name: "div",
-                    self_closed: false,
-                    arguments: HashMap::new(),
                     children: vec![
                         HtmlNode::Tag(HtmlTag {
                             name: "meta",
                             self_closed: true,
-                            arguments: vec![("charset", "UTF-8")].into_iter().collect(),
-                            children: vec![]
+                            attributes: vec![("charset", "UTF-8")].into_iter().collect(),
+                            ..Default::default()
                         }),
                         HtmlNode::Tag(HtmlTag {
                             name: "title",
-                            self_closed: false,
-                            arguments: HashMap::new(),
-                            children: vec![]
+                            ..Default::default()
                         })
-                    ]
+                    ],
+                    ..Default::default()
                 })
             ))
         );
@@ -248,9 +253,9 @@ mod tests {
     fn test_tag_argument_with_missing_quote() {
         assert_eq!(
             html_tag_argument("href=#\""),
-            Err(nom::Err::Failure(ParsingErrorInformation {
+            Err(nom::Err::Failure(TwigParsingErrorInformation {
                 leftover: "#\"",
-                context: Some("missing '\"' quote".to_string()),
+                context: Some("missing '\"' quote".into()),
                 kind: ErrorKind::Tag
             }))
         );
@@ -260,9 +265,9 @@ mod tests {
     fn test_tag_argument_map_with_missing_quote() {
         assert_eq!(
             html_tag_argument_map("size=\"small @click=\"onCloseModal\""),
-            Err(nom::Err::Failure(ParsingErrorInformation {
+            Err(nom::Err::Failure(TwigParsingErrorInformation {
                 leftover: "\"",
-                context: Some("invalid attribute name".to_string()),
+                context: Some("invalid attribute name".into()),
                 kind: ErrorKind::Not
             }))
         );
@@ -270,7 +275,7 @@ mod tests {
 
     #[test]
     fn test_tag_argument_map() {
-        let mut map = HashMap::new();
+        let mut map = BTreeMap::new();
         map.insert("href", "#");
         map.insert("target", "_blank");
 

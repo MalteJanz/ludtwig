@@ -1,13 +1,13 @@
 use crate::ast::*;
-use crate::error::{DynamicParseError, ParsingErrorInformation};
+use crate::error::{DynamicParseError, TwigParsingErrorInformation};
 use crate::parser::html::{html_complete_tag, html_plain_text};
 use crate::parser::twig::twig_complete_block;
 use crate::parser::vue::vue_block;
 use nom::branch::alt;
+use nom::lib::std::collections::BTreeMap;
 use nom::multi::many1;
-use std::collections::HashMap;
 
-pub(crate) type IResult<'a, O> = nom::IResult<&'a str, O, ParsingErrorInformation<&'a str>>;
+pub(crate) type IResult<'a, O> = nom::IResult<&'a str, O, TwigParsingErrorInformation<&'a str>>;
 
 /// create a new error from an input position, a DYNAMIC string and an existing error.
 /// This is used mainly in the [dynamic_context] combinator, to add user friendly information
@@ -52,7 +52,7 @@ pub(crate) fn document_node_all(input: &str) -> IResult<HtmlNode> {
         HtmlNode::Tag(HtmlTag {
             name: "ROOT",
             self_closed: false,
-            arguments: HashMap::new(),
+            attributes: BTreeMap::new(),
             children,
         }),
     ))

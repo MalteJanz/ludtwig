@@ -98,9 +98,7 @@ mod tests {
                 name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint_content",
                 children: vec![HtmlNode::Tag(HtmlTag{
                     name: "div",
-                    self_closed: false,
-                    arguments: Default::default(),
-                    children: vec![]
+                    ..Default::default()
                 })]
             })
         ] }))));

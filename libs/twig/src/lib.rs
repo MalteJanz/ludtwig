@@ -17,7 +17,7 @@ pub fn parse(input: &str) -> Result<HtmlNode, TwigParseError<&str>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+    use nom::lib::std::collections::BTreeMap;
 
     #[test]
     fn it_works() {
@@ -27,7 +27,7 @@ mod tests {
                 </p>
                 {% endblock %}");
 
-        let mut attributes = HashMap::new();
+        let mut attributes = BTreeMap::new();
         attributes.insert(
             "class",
             "swag-migration-index-modal-abort-migration-confirm-dialog-hint",
@@ -38,7 +38,7 @@ mod tests {
             Ok(HtmlNode::Tag(HtmlTag {
                 name: "ROOT",
                 self_closed: false,
-                arguments: Default::default(),
+                attributes: Default::default(),
                 children: vec![
                     HtmlNode::TwigBlock(TwigBlock{
                         name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint",
@@ -46,7 +46,7 @@ mod tests {
                         HtmlNode::Tag(HtmlTag{
                             name: "p",
                             self_closed: false,
-                            arguments: attributes,
+                            attributes,
                             children: vec![
                             HtmlNode::Plain(HtmlPlain{ plain: "Hello world" })]
                         })]
@@ -66,7 +66,7 @@ mod tests {
                 {% endblock %}";
         let result = parse(input).unwrap_err();
 
-        let pretty = result.pretty_userfriendly_error_string(input);
+        let pretty = result.pretty_helpful_error_string(input);
         //println!("{}", pretty);
         assert_eq!(pretty, "Parsing goes wrong in line 6 and column 17 :\n                {% endblock %}\n                ^\n                |\nMissing closing tag for opening tag \'p\' with arguments {\"class\": \"swag-migration-index-modal-abort-migration-confirm-dialog-hint\"}");
     }
@@ -79,7 +79,7 @@ mod tests {
                 </p>";
         let result = parse(input).unwrap_err();
 
-        let pretty = result.pretty_userfriendly_error_string(input);
+        let pretty = result.pretty_helpful_error_string(input);
         //println!("{}", pretty);
         assert_eq!(pretty, "Parsing goes wrong in line 4 and column 21 :\n                </p>\n                    ^\n                    |\nMissing endblock for \'swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint\' twig block");
     }
@@ -96,7 +96,7 @@ mod tests {
                 {% endblock %}";
         let result = parse(input).unwrap_err();
 
-        let pretty = result.pretty_userfriendly_error_string(input);
+        let pretty = result.pretty_helpful_error_string(input);
         //println!("{}", pretty);
         assert_eq!(pretty, "Parsing goes wrong in line 7 and column 19 :\n                </div>\n                  ^\n                  |\nMissing closing tag for opening tag \'p\' with arguments {\"class\": \"swag-migration-index-modal-abort-migration-confirm-dialog-hint\"}");
     }
@@ -109,7 +109,7 @@ mod tests {
                 </p>";
         let result = parse(input).unwrap_err();
 
-        let pretty = result.pretty_userfriendly_error_string(input);
+        let pretty = result.pretty_helpful_error_string(input);
         //println!("{}", pretty);
         assert_eq!(pretty, "Parsing goes wrong in line 1 and column 26 :\n                <p class=swag-migration-index-modal-abort-migration-confirm-dialog-hint\">\n                         ^\n                         |\nmissing \'\"\' quote");
     }
@@ -121,7 +121,7 @@ mod tests {
             </sw-button>";
         let result = parse(input).unwrap_err();
 
-        let pretty = result.pretty_userfriendly_error_string(input);
+        let pretty = result.pretty_helpful_error_string(input);
         //println!("{}", pretty);
         assert_eq!(pretty, "Parsing goes wrong in line 1 and column 44 :\n<sw-button size=\"small @click=\"onCloseModal\">\n                                           ^\n                                           |\ninvalid attribute name");
     }
