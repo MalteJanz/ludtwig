@@ -1,43 +1,44 @@
 use nom::lib::std::collections::BTreeMap;
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct HtmlTag<'a> {
-    pub name: &'a str,
+pub struct HtmlTag {
+    pub name: String,
     pub self_closed: bool,
-    pub attributes: BTreeMap<&'a str, &'a str>,
-    pub children: Vec<HtmlNode<'a>>,
+    pub attributes: BTreeMap<String, String>,
+    pub children: Vec<HtmlNode>,
 }
 
 // Represents one line of plain text in the html document without line break characters or indentation.
 #[derive(Debug, Eq, PartialEq)]
-pub struct HtmlPlain<'a> {
-    pub plain: &'a str,
+pub struct HtmlPlain {
+    pub plain: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct VueBlock<'a> {
-    pub content: &'a str,
+pub struct VueBlock {
+    pub content: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct TwigBlock<'a> {
-    pub name: &'a str,
-    pub children: Vec<HtmlNode<'a>>,
+pub struct TwigBlock {
+    pub name: String,
+    pub children: Vec<HtmlNode>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum HtmlNode<'a> {
-    Tag(HtmlTag<'a>),
-    Plain(HtmlPlain<'a>),
-    VueBlock(VueBlock<'a>),
-    TwigBlock(TwigBlock<'a>),
+pub enum HtmlNode {
+    Root(Vec<HtmlNode>),
+    Tag(HtmlTag),
+    Plain(HtmlPlain),
+    VueBlock(VueBlock),
+    TwigBlock(TwigBlock),
     TwigParentCall,
 }
 
-impl<'a> Default for HtmlTag<'a> {
+impl Default for HtmlTag {
     fn default() -> Self {
         HtmlTag {
-            name: "",
+            name: "".to_string(),
             self_closed: false,
             attributes: BTreeMap::new(),
             children: Vec::new(),
@@ -45,22 +46,26 @@ impl<'a> Default for HtmlTag<'a> {
     }
 }
 
-impl<'a> Default for HtmlPlain<'a> {
+impl Default for HtmlPlain {
     fn default() -> Self {
-        HtmlPlain { plain: "" }
+        HtmlPlain {
+            plain: "".to_string(),
+        }
     }
 }
 
-impl<'a> Default for VueBlock<'a> {
+impl Default for VueBlock {
     fn default() -> Self {
-        VueBlock { content: "" }
+        VueBlock {
+            content: "".to_string(),
+        }
     }
 }
 
-impl<'a> Default for TwigBlock<'a> {
+impl Default for TwigBlock {
     fn default() -> Self {
         TwigBlock {
-            name: "",
+            name: "".to_string(),
             children: Vec::new(),
         }
     }

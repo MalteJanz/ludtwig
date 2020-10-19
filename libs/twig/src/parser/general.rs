@@ -4,7 +4,6 @@ use crate::parser::html::{html_complete_tag, html_plain_text};
 use crate::parser::twig::{twig_complete_block, twig_parent_call};
 use crate::parser::vue::vue_block;
 use nom::branch::alt;
-use nom::lib::std::collections::BTreeMap;
 use nom::multi::many1;
 
 pub(crate) type IResult<'a, O> = nom::IResult<&'a str, O, TwigParsingErrorInformation<&'a str>>;
@@ -48,15 +47,7 @@ pub(crate) fn document_node(input: &str) -> IResult<HtmlNode> {
 pub(crate) fn document_node_all(input: &str) -> IResult<HtmlNode> {
     let (remaining, children) = many1(document_node)(&input)?;
 
-    Ok((
-        remaining,
-        HtmlNode::Tag(HtmlTag {
-            name: "ROOT",
-            self_closed: false,
-            attributes: BTreeMap::new(),
-            children,
-        }),
-    ))
+    Ok((remaining, HtmlNode::Root(children)))
 }
 
 #[cfg(test)]

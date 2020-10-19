@@ -13,9 +13,14 @@ pub(crate) fn vue_block(input: &str) -> IResult<HtmlNode> {
             tag("{{"),
             delimited(
                 multispace0,
-                map(alt((take_until(" }}"), take_until("}}"))), |content| {
-                    HtmlNode::VueBlock(VueBlock { content })
-                }),
+                map(
+                    alt((take_until(" }}"), take_until("}}"))),
+                    |content: &str| {
+                        HtmlNode::VueBlock(VueBlock {
+                            content: content.to_owned(),
+                        })
+                    },
+                ),
                 multispace0,
             ),
             tag("}}"),
@@ -37,7 +42,7 @@ mod tests {
             Ok((
                 "",
                 HtmlNode::VueBlock(VueBlock {
-                    content: "$tc('swag-migration.index.confirmAbortDialog.hint')"
+                    content: "$tc('swag-migration.index.confirmAbortDialog.hint')".to_string()
                 })
             ))
         )
@@ -54,7 +59,7 @@ mod tests {
             Ok((
                 "",
                 HtmlNode::VueBlock(VueBlock {
-                    content: "if a { $tc('swag-migration.index.confirmAbortDialog.hint' ) } else {  $tc('nothing' ); }   "
+                    content: "if a { $tc('swag-migration.index.confirmAbortDialog.hint' ) } else {  $tc('nothing' ); }   ".to_string()
                 })
             ))
         )

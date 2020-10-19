@@ -1,4 +1,5 @@
 mod process;
+mod writer;
 
 use clap::{crate_authors, crate_version, Clap, ValueHint};
 use std::boxed::Box;

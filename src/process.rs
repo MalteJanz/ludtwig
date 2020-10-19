@@ -1,4 +1,6 @@
-use std::path::Path;
+use crate::writer::write_tree;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 use tokio::fs;
 use twig::ast::HtmlNode;
 
@@ -16,18 +18,37 @@ where
     );
     let file_content = file_content_result.unwrap();
 
-    tokio::task::spawn_blocking(move || {
-        let result = match twig::parse(&file_content) {
+    let tree = tokio::task::spawn_blocking(move || {
+        let tree = match twig::parse(&file_content) {
             Ok(r) => r,
             Err(e) => {
                 panic!("{}", e.pretty_helpful_error_string(&file_content));
             }
         };
 
-        print_twig_block_hierarchy(&result, 0);
+        tree
     })
     .await
     .unwrap();
+
+    let mut raw_path = path
+        .parent()
+        .unwrap_or(Path::new(""))
+        .as_os_str()
+        .to_owned();
+
+    let stem = path.file_stem().unwrap_or(OsStr::new(""));
+
+    let mut filename = stem.to_os_string();
+    filename.push(".formatted.");
+
+    if let Some(extension) = path.extension() {
+        filename.push(extension);
+    }
+
+    raw_path.push(filename);
+    //print_twig_block_hierarchy(&tree, 0);
+    write_tree(PathBuf::from(raw_path), &tree).await;
 }
 
 pub fn print_twig_block_hierarchy(node: &HtmlNode, spaces: i32) {

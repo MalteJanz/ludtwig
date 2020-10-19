@@ -29,26 +29,26 @@ mod tests {
 
         let mut attributes = BTreeMap::new();
         attributes.insert(
-            "class",
-            "swag-migration-index-modal-abort-migration-confirm-dialog-hint",
+            "class".to_string(),
+            "swag-migration-index-modal-abort-migration-confirm-dialog-hint".to_string(),
         );
 
         assert_eq!(
             result,
             Ok(HtmlNode::Tag(HtmlTag {
-                name: "ROOT",
+                name: "ROOT".to_string(),
                 self_closed: false,
                 attributes: Default::default(),
                 children: vec![
                     HtmlNode::TwigBlock(TwigBlock{
-                        name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint",
+                        name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint".to_string(),
                         children: vec![
                         HtmlNode::Tag(HtmlTag{
-                            name: "p",
+                            name: "p".to_string(),
                             self_closed: false,
                             attributes,
                             children: vec![
-                            HtmlNode::Plain(HtmlPlain{ plain: "Hello world" })]
+                            HtmlNode::Plain(HtmlPlain{ plain: "Hello world".to_string() })]
                         })]
                     })
                 ]

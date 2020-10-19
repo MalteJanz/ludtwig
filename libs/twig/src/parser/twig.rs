@@ -66,7 +66,7 @@ pub(crate) fn twig_complete_block(input: &str) -> IResult<HtmlNode> {
     )(remaining)?;
 
     let block = TwigBlock {
-        name: open,
+        name: open.to_owned(),
         children,
     };
 
@@ -110,11 +110,11 @@ mod tests {
                     {% endblock %}
                 {% endblock %}");
 
-        assert_eq!(res, Ok(("", HtmlNode::TwigBlock(TwigBlock{name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint", children: vec![
+        assert_eq!(res, Ok(("", HtmlNode::TwigBlock(TwigBlock{name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint".to_string(), children: vec![
             HtmlNode::TwigBlock(TwigBlock{
-                name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint_content",
+                name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint_content".to_string(),
                 children: vec![HtmlNode::Tag(HtmlTag{
-                    name: "div",
+                    name: "div".to_string(),
                     ..Default::default()
                 })]
             })
@@ -134,7 +134,7 @@ mod tests {
             Ok((
                 "",
                 HtmlNode::TwigBlock(TwigBlock {
-                    name: "swag_migration_history_detail_errors_grid_code",
+                    name: "swag_migration_history_detail_errors_grid_code".to_string(),
                     children: vec![]
                 })
             ))
@@ -154,7 +154,7 @@ mod tests {
             Ok((
                 "",
                 HtmlNode::TwigBlock(TwigBlock {
-                    name: "sw_dashboard_index_content_intro_card",
+                    name: "sw_dashboard_index_content_intro_card".to_string(),
                     children: vec![HtmlNode::TwigParentCall]
                 })
             ))
