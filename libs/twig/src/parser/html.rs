@@ -74,10 +74,6 @@ pub(crate) fn html_close_tag<'a>(open_tag: &'a str) -> impl Fn(&'a str) -> IResu
 }
 
 pub(crate) fn html_plain_text(input: &str) -> IResult<HtmlNode> {
-    // TODO: stop consuming the last spaces.
-    // let (remaining, plain) =
-    //     take_till1(|c| c == '<' || c == '{' || c == '\t' || c == '\r' || c == '\n')(input)?;
-
     let (remaining, plain) = recognize(many1(preceded(
         opt(char(' ')),
         take_till1(|c| c == '<' || c == '{' || c == '\t' || c == '\r' || c == '\n' || c == ' '),

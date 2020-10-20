@@ -111,7 +111,5 @@ where
         for f in futures_processes {
             f.await;
         }
-
-        ()
     })
 }

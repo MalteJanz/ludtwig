@@ -39,13 +39,19 @@ mod tests {
                     HtmlNode::TwigBlock(TwigBlock{
                         name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint".to_string(),
                         children: vec![
-                        HtmlNode::Tag(HtmlTag{
-                            name: "p".to_string(),
-                            self_closed: false,
-                            attributes,
-                            children: vec![
-                            HtmlNode::Plain(HtmlPlain{ plain: "Hello world".to_string() })]
-                        })]
+                            HtmlNode::Whitespace,
+                            HtmlNode::Tag(HtmlTag{
+                                name: "p".to_string(),
+                                self_closed: false,
+                                attributes,
+                                children: vec![
+                                    HtmlNode::Whitespace,
+                                    HtmlNode::Plain(HtmlPlain{ plain: "Hello world".to_string() }),
+                                    HtmlNode::Whitespace,
+                                ]
+                            }),
+                            HtmlNode::Whitespace
+                        ]
                     })
                 ])
             )
