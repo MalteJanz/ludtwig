@@ -31,11 +31,7 @@ where
     .await
     .unwrap();
 
-    let mut raw_path = path
-        .parent()
-        .unwrap_or(Path::new(""))
-        .as_os_str()
-        .to_owned();
+    let mut raw_path = path.parent().unwrap_or(Path::new(""));
 
     let stem = path.file_stem().unwrap_or(OsStr::new(""));
 
@@ -46,9 +42,10 @@ where
         filename.push(extension);
     }
 
-    raw_path.push(filename);
+    let file_path = raw_path.join(filename);
+    write_tree(file_path, &tree).await;
+
     //print_twig_block_hierarchy(&tree, 0);
-    write_tree(PathBuf::from(raw_path), &tree).await;
 }
 
 pub fn print_twig_block_hierarchy(node: &HtmlNode, spaces: i32) {

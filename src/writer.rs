@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 use std::future::Future;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use tokio::fs::File;
 use tokio::io::{AsyncWriteExt, BufWriter};
@@ -8,15 +8,13 @@ use twig::ast::{HtmlNode, HtmlPlain, HtmlTag, TwigBlock, VueBlock};
 
 pub async fn write_tree(path: PathBuf, tree: &HtmlNode) {
     // ToDo: replace this after done with testing.
-    let mut raw_path = OsStr::new(r"output\").to_owned();
-
-    raw_path.push(path.file_name().unwrap());
-
-    let path = PathBuf::from(raw_path);
-    let parent = path.parent().unwrap();
-    tokio::fs::create_dir_all(parent).await.unwrap();
+    let mut base_path = Path::new("output");
+    let path = base_path.join(path);
 
     println!("path: {:?}", path);
+
+    let parent = path.parent().unwrap();
+    tokio::fs::create_dir_all(parent).await.unwrap();
 
     let file = File::create(path).await.expect("can't create file.");
     let mut writer = BufWriter::new(file);
