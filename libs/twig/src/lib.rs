@@ -35,11 +35,7 @@ mod tests {
 
         assert_eq!(
             result,
-            Ok(HtmlNode::Tag(HtmlTag {
-                name: "ROOT".to_string(),
-                self_closed: false,
-                attributes: Default::default(),
-                children: vec![
+            Ok(HtmlNode::Root(vec![
                     HtmlNode::TwigBlock(TwigBlock{
                         name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint".to_string(),
                         children: vec![
@@ -51,8 +47,8 @@ mod tests {
                             HtmlNode::Plain(HtmlPlain{ plain: "Hello world".to_string() })]
                         })]
                     })
-                ]
-            }))
+                ])
+            )
         )
     }
 

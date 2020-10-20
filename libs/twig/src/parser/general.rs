@@ -4,6 +4,7 @@ use crate::parser::html::{html_complete_tag, html_plain_text};
 use crate::parser::twig::{twig_complete_block, twig_parent_call};
 use crate::parser::vue::vue_block;
 use nom::branch::alt;
+use nom::character::complete::multispace1;
 use nom::multi::many1;
 
 pub(crate) type IResult<'a, O> = nom::IResult<&'a str, O, TwigParsingErrorInformation<&'a str>>;
@@ -34,11 +35,18 @@ where
     }
 }
 
+pub(crate) fn some_whitespace(input: &str) -> IResult<HtmlNode> {
+    let (remainder, _) = multispace1(input)?;
+
+    Ok((remainder, HtmlNode::Whitespace))
+}
+
 pub(crate) fn document_node(input: &str) -> IResult<HtmlNode> {
     alt((
         twig_complete_block,
         html_complete_tag,
         vue_block,
+        some_whitespace,
         html_plain_text,
         twig_parent_call,
     ))(input)
@@ -87,5 +95,120 @@ mod tests {
         );
 
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_whitespace_between_nodes() {
+        let res = document_node_all(
+            "<h2>
+    HelloWorld<span>asdf</span>
+</h2>",
+        );
+
+        assert_eq!(
+            res,
+            Ok((
+                "",
+                HtmlNode::Root(vec![HtmlNode::Tag(HtmlTag {
+                    name: "h2".to_string(),
+                    children: vec![
+                        HtmlNode::Whitespace,
+                        HtmlNode::Plain(HtmlPlain {
+                            plain: "HelloWorld".to_string()
+                        }),
+                        HtmlNode::Tag(HtmlTag {
+                            name: "span".to_string(),
+                            children: vec![HtmlNode::Plain(HtmlPlain {
+                                plain: "asdf".to_string()
+                            })],
+                            ..Default::default()
+                        }),
+                        HtmlNode::Whitespace
+                    ],
+                    ..Default::default()
+                })])
+            ))
+        );
+    }
+
+    #[test]
+    fn test_no_whitespace_between_nodes() {
+        let res = document_node_all("<h2>HelloWorld<span>asdf</span></h2>");
+
+        assert_eq!(
+            res,
+            Ok((
+                "",
+                HtmlNode::Root(vec![HtmlNode::Tag(HtmlTag {
+                    name: "h2".to_string(),
+                    children: vec![
+                        HtmlNode::Plain(HtmlPlain {
+                            plain: "HelloWorld".to_string()
+                        }),
+                        HtmlNode::Tag(HtmlTag {
+                            name: "span".to_string(),
+                            children: vec![HtmlNode::Plain(HtmlPlain {
+                                plain: "asdf".to_string()
+                            })],
+                            ..Default::default()
+                        })
+                    ],
+                    ..Default::default()
+                })])
+            ))
+        );
+    }
+
+    #[test]
+    fn test_whitespace_with_plain_text() {
+        let res = document_node_all(
+            "<h2>
+    Hello World
+    this is <strong>some</strong> text
+    <span>!!!</span>
+</h2>",
+        );
+
+        assert_eq!(
+            res,
+            Ok((
+                "",
+                HtmlNode::Root(vec![HtmlNode::Tag(HtmlTag {
+                    name: "h2".to_string(),
+                    children: vec![
+                        HtmlNode::Whitespace,
+                        HtmlNode::Plain(HtmlPlain {
+                            plain: "Hello World".to_string()
+                        }),
+                        HtmlNode::Whitespace,
+                        HtmlNode::Plain(HtmlPlain {
+                            plain: "this is".to_string()
+                        }),
+                        HtmlNode::Whitespace,
+                        HtmlNode::Tag(HtmlTag {
+                            name: "strong".to_string(),
+                            children: vec![HtmlNode::Plain(HtmlPlain {
+                                plain: "some".to_string()
+                            })],
+                            ..Default::default()
+                        }),
+                        HtmlNode::Whitespace,
+                        HtmlNode::Plain(HtmlPlain {
+                            plain: "text".to_string()
+                        }),
+                        HtmlNode::Whitespace,
+                        HtmlNode::Tag(HtmlTag {
+                            name: "span".to_string(),
+                            children: vec![HtmlNode::Plain(HtmlPlain {
+                                plain: "!!!".to_string()
+                            })],
+                            ..Default::default()
+                        }),
+                        HtmlNode::Whitespace
+                    ],
+                    ..Default::default()
+                })])
+            ))
+        );
     }
 }

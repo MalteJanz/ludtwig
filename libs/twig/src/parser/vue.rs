@@ -4,28 +4,23 @@ use nom::branch::alt;
 use nom::bytes::complete::{tag, take_until};
 use nom::character::complete::multispace0;
 use nom::combinator::map;
-use nom::sequence::delimited;
+use nom::sequence::{delimited, preceded};
 
 pub(crate) fn vue_block(input: &str) -> IResult<HtmlNode> {
     delimited(
-        multispace0,
-        delimited(
-            tag("{{"),
-            delimited(
-                multispace0,
-                map(
-                    alt((take_until(" }}"), take_until("}}"))),
-                    |content: &str| {
-                        HtmlNode::VueBlock(VueBlock {
-                            content: content.to_owned(),
-                        })
-                    },
-                ),
-                multispace0,
+        tag("{{"),
+        preceded(
+            multispace0,
+            map(
+                alt((take_until(" }}"), take_until("}}"))),
+                |content: &str| {
+                    HtmlNode::VueBlock(VueBlock {
+                        content: content.to_owned(),
+                    })
+                },
             ),
-            tag("}}"),
         ),
-        multispace0,
+        alt((tag(" }}"), tag("}}"))),
     )(input)
 }
 
@@ -51,7 +46,7 @@ mod tests {
     #[test]
     fn test_some_vue_variable_print_with_complex_logic() {
         let res = vue_block(
-            "       {{   if a { $tc('swag-migration.index.confirmAbortDialog.hint' ) } else {  $tc('nothing' ); }    }}       ",
+            "{{   if a { $tc('swag-migration.index.confirmAbortDialog.hint' ) } else {  $tc('nothing' ); }    }}",
         );
 
         assert_eq!(

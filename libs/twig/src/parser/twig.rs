@@ -9,44 +9,32 @@ use nom::sequence::{delimited, preceded, terminated};
 
 pub(crate) fn twig_opening_block(input: &str) -> IResult<&str> {
     delimited(
-        multispace0,
-        delimited(
-            tag("{%"),
-            preceded(
-                delimited(multispace0, tag("block"), multispace0),
-                terminated(
-                    take_till1(|c| char::is_whitespace(c) || c == '%'),
-                    multispace0,
-                ),
+        tag("{%"),
+        preceded(
+            delimited(multispace0, tag("block"), multispace0),
+            terminated(
+                take_till1(|c| char::is_whitespace(c) || c == '%'),
+                multispace0,
             ),
-            tag("%}"),
         ),
-        multispace0,
+        tag("%}"),
     )(input)
 }
 
 pub(crate) fn twig_closing_block(input: &str) -> IResult<&str> {
     // {% endblock %}
     delimited(
-        multispace0,
-        delimited(
-            tag("{%"),
-            delimited(multispace0, tag("endblock"), multispace0),
-            tag("%}"),
-        ),
-        multispace0,
+        tag("{%"),
+        delimited(multispace0, tag("endblock"), multispace0),
+        tag("%}"),
     )(input)
 }
 
 pub(crate) fn twig_parent_call(input: &str) -> IResult<HtmlNode> {
     let (remaining, _) = delimited(
-        multispace0,
-        delimited(
-            tag("{%"),
-            delimited(multispace0, tag("parent"), multispace0),
-            tag("%}"),
-        ),
-        multispace0,
+        tag("{%"),
+        delimited(multispace0, tag("parent"), multispace0),
+        tag("%}"),
     )(input)?;
 
     Ok((remaining, HtmlNode::TwigParentCall))
@@ -57,12 +45,9 @@ pub(crate) fn twig_complete_block(input: &str) -> IResult<HtmlNode> {
     let (remaining, open) = twig_opening_block(input)?;
     let (remaining, children) = many0(document_node)(remaining)?;
 
-    let (remaining, _close) = preceded(
-        multispace0, /*take_till(|c| c == '{')*/
-        dynamic_context(
-            format!("Missing endblock for '{}' twig block", open),
-            cut(twig_closing_block),
-        ),
+    let (remaining, _close) = dynamic_context(
+        format!("Missing endblock for '{}' twig block", open),
+        cut(twig_closing_block),
     )(remaining)?;
 
     let block = TwigBlock {
@@ -111,13 +96,17 @@ mod tests {
                 {% endblock %}");
 
         assert_eq!(res, Ok(("", HtmlNode::TwigBlock(TwigBlock{name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint".to_string(), children: vec![
+            HtmlNode::Whitespace,
             HtmlNode::TwigBlock(TwigBlock{
                 name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint_content".to_string(),
-                children: vec![HtmlNode::Tag(HtmlTag{
+                children: vec![
+                    HtmlNode::Whitespace,
+                    HtmlNode::Tag(HtmlTag{
                     name: "div".to_string(),
                     ..Default::default()
-                })]
-            })
+                }), HtmlNode::Whitespace]
+            }),
+            HtmlNode::Whitespace
         ] }))));
     }
 
@@ -125,8 +114,7 @@ mod tests {
     fn test_complete_twig_block_without_space_at_the_end() {
         let res = twig_complete_block(
             "{% block swag_migration_history_detail_errors_grid_code%}
-                    {% endblock %}
-        ",
+                    {% endblock %}",
         );
 
         assert_eq!(
@@ -135,7 +123,7 @@ mod tests {
                 "",
                 HtmlNode::TwigBlock(TwigBlock {
                     name: "swag_migration_history_detail_errors_grid_code".to_string(),
-                    children: vec![]
+                    children: vec![HtmlNode::Whitespace]
                 })
             ))
         )
@@ -155,7 +143,11 @@ mod tests {
                 "",
                 HtmlNode::TwigBlock(TwigBlock {
                     name: "sw_dashboard_index_content_intro_card".to_string(),
-                    children: vec![HtmlNode::TwigParentCall]
+                    children: vec![
+                        HtmlNode::Whitespace,
+                        HtmlNode::TwigParentCall,
+                        HtmlNode::Whitespace,
+                    ]
                 })
             ))
         )

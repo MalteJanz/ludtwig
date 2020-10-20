@@ -33,6 +33,7 @@ pub enum HtmlNode {
     VueBlock(VueBlock),
     TwigBlock(TwigBlock),
     TwigParentCall,
+    Whitespace,
 }
 
 impl Default for HtmlTag {

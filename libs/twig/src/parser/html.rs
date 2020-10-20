@@ -4,10 +4,10 @@ use crate::parser::general::{document_node, dynamic_context};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till1};
 use nom::character::complete::{char, multispace0, none_of};
-use nom::combinator::{cut, not, opt, peek, value};
+use nom::combinator::{cut, not, opt, peek, recognize, value};
 use nom::error::context;
 use nom::lib::std::collections::BTreeMap;
-use nom::multi::many0;
+use nom::multi::{many0, many1};
 use nom::sequence::{delimited, preceded, terminated};
 
 static NON_CLOSING_TAGS: [&str; 6] = ["!DOCTYPE", "meta", "input", "img", "br", "hr"];
@@ -49,7 +49,6 @@ pub(crate) fn html_tag_argument_map(input: &str) -> IResult<BTreeMap<String, Str
 
 // returns (tag, self_closed)
 pub(crate) fn html_open_tag(input: &str) -> IResult<(&str, bool, BTreeMap<String, String>)> {
-    let (input, _) = multispace0(input)?;
     let (input, _) = tag("<")(input)?;
     let (input, open) = take_till1(|c| {
         c == ' ' || c == '>' || c == '/' || c == '<' || c == '\n' || c == '\r' || c == '\t'
@@ -68,22 +67,21 @@ pub(crate) fn html_open_tag(input: &str) -> IResult<(&str, bool, BTreeMap<String
 
 pub(crate) fn html_close_tag<'a>(open_tag: &'a str) -> impl Fn(&'a str) -> IResult<&'a str> {
     delimited(
-        multispace0,
-        delimited(
-            tag("</"),
-            terminated(cut(tag(open_tag)), many0(none_of(">"))),
-            tag(">"),
-        ),
-        multispace0,
+        tag("</"),
+        terminated(cut(tag(open_tag)), many0(none_of(">"))),
+        tag(">"),
     )
 }
 
 pub(crate) fn html_plain_text(input: &str) -> IResult<HtmlNode> {
-    let (remaining, plain) = delimited(
-        multispace0,
-        take_till1(|c| c == '<' || c == '{' || c == '\t' || c == '\r' || c == '\n'),
-        multispace0,
-    )(input)?;
+    // TODO: stop consuming the last spaces.
+    // let (remaining, plain) =
+    //     take_till1(|c| c == '<' || c == '{' || c == '\t' || c == '\r' || c == '\n')(input)?;
+
+    let (remaining, plain) = recognize(many1(preceded(
+        opt(char(' ')),
+        take_till1(|c| c == '<' || c == '{' || c == '\t' || c == '\r' || c == '\n' || c == ' '),
+    )))(input)?;
 
     Ok((
         remaining,
@@ -100,15 +98,12 @@ pub(crate) fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
 
     if !self_closed {
         let (remaining_new, children_new) = many0(document_node)(remaining)?;
-        let (remaining_new, _close) = preceded(
-            multispace0, /*take_till(|c| c == '<')*/
-            dynamic_context(
-                format!(
-                    "Missing closing tag for opening tag '{}' with arguments {:?}",
-                    open, args
-                ),
-                cut(html_close_tag(open)),
+        let (remaining_new, _close) = dynamic_context(
+            format!(
+                "Missing closing tag for opening tag '{}' with arguments {:?}",
+                open, args
             ),
+            cut(html_close_tag(open)),
         )(remaining_new)?;
         remaining = remaining_new;
         children = children_new;
