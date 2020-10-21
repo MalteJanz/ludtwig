@@ -31,9 +31,7 @@ fn print_node<'a>(
     Box::pin(async move {
         match node {
             HtmlNode::Root(root) => {
-                for child in root {
-                    print_node(writer, child, indentation).await;
-                }
+                print_node_list(writer, &root, indentation).await;
             }
             HtmlNode::Tag(tag) => {
                 print_tag(writer, &tag, indentation).await;
@@ -55,6 +53,12 @@ fn print_node<'a>(
             }
         }
     })
+}
+
+async fn print_node_list(writer: &mut BufWriter<File>, nodes: &Vec<HtmlNode>, indentation: u16) {
+    for node in nodes {
+        print_node(writer, node, indentation).await;
+    }
 }
 
 async fn print_tag(writer: &mut BufWriter<File>, tag: &HtmlTag, indentation: u16) {
@@ -89,9 +93,7 @@ async fn print_tag(writer: &mut BufWriter<File>, tag: &HtmlTag, indentation: u16
         writer.write_all(b">").await.unwrap();
     }
 
-    for child in &tag.children {
-        print_node(writer, child, indentation + 1).await;
-    }
+    print_node_list(writer, &tag.children, indentation + 1).await;
 
     if !tag.children.is_empty() {
         print_indentation(writer, indentation).await;
@@ -122,9 +124,7 @@ async fn print_twig_block(writer: &mut BufWriter<File>, twig: &TwigBlock, indent
     writer.write_all(twig.name.as_bytes()).await.unwrap();
     writer.write_all(b" %}").await.unwrap();
 
-    for child in &twig.children {
-        print_node(writer, child, indentation + 1).await;
-    }
+    print_node_list(writer, &twig.children, indentation + 1).await;
 
     print_indentation(writer, indentation).await;
     writer.write_all(b"{% endblock %}").await.unwrap();
