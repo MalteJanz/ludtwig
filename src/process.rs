@@ -1,6 +1,8 @@
+use crate::analyzer::analyze;
 use crate::writer::write_tree;
 use std::ffi::OsStr;
 use std::path::Path;
+use std::sync::Arc;
 use tokio::fs;
 
 pub async fn process_file<P>(path: P)
@@ -42,5 +44,23 @@ where
     }
 
     let file_path = raw_path.join(filename);
-    write_tree(file_path, &tree).await;
+
+    //write_tree(file_path, &tree).await;
+    //analyze(&tree).await;
+
+    let tree = Arc::new(tree);
+    let mut futs = vec![];
+
+    let clone = Arc::clone(&tree);
+    futs.push(tokio::spawn(async move {
+        analyze(clone).await;
+    }));
+
+    futs.push(tokio::spawn(async move {
+        write_tree(file_path, &tree).await;
+    }));
+
+    for fut in futs {
+        fut.await.unwrap();
+    }
 }

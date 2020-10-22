@@ -59,7 +59,7 @@ fn print_node<'a>(
     writer: &'a mut BufWriter<File>,
     node: &'a HtmlNode,
     context: &'a mut PrintingContext<'a>,
-) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
+) -> Pin<Box<dyn Future<Output = ()> + 'a + Send>> {
     Box::pin(async move {
         context.parent_nodes.push(&node);
 

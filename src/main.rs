@@ -1,3 +1,4 @@
+mod analyzer;
 mod process;
 mod writer;
 
