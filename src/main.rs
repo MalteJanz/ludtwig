@@ -28,22 +28,20 @@ struct Opts {
     //verbose: i32,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
     //println!("working on files: {:#?}", opts.files);
 
-    let runtime = tokio::runtime::Runtime::new().expect("can't create tokio runtime");
+    let mut futures = Vec::with_capacity(opts.files.len());
+    for path in &opts.files {
+        let path = path.clone();
+        futures.push(tokio::task::spawn(handle_input_path(path)));
+    }
 
-    runtime.block_on(async {
-        let mut futures = Vec::with_capacity(opts.files.len());
-        for path in &opts.files {
-            futures.push(handle_input_path(path.clone()));
-        }
-
-        for t in futures {
-            t.await;
-        }
-    });
+    for t in futures {
+        t.await.unwrap();
+    }
 
     // Gets a value for config if supplied by user, or defaults to "default.conf"
     // println!("Value for config: {}", opts.config);
@@ -60,11 +58,13 @@ fn main() {
         3 | _ => println!("Don't be crazy"),
     }
      */
+
+    Ok(())
 }
 
 async fn handle_input_path<P>(path: P)
 where
-    P: AsRef<Path> + 'static,
+    P: AsRef<Path> + 'static + Send,
 {
     let meta = fs::metadata(&path).await.unwrap();
     if meta.is_file() {
@@ -75,9 +75,9 @@ where
     handle_input_dir(path).await;
 }
 
-fn handle_input_dir<P>(path: P) -> Pin<Box<dyn Future<Output = ()>>>
+fn handle_input_dir<P>(path: P) -> Pin<Box<dyn Future<Output = ()> + Send>>
 where
-    P: AsRef<Path> + 'static,
+    P: AsRef<Path> + 'static + Send,
 {
     Box::pin(async move {
         let mut entries = fs::read_dir(path).await.unwrap();
