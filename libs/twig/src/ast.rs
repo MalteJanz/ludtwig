@@ -1,6 +1,6 @@
 use nom::lib::std::collections::BTreeMap;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Default)]
 pub struct HtmlTag {
     pub name: String,
     pub self_closed: bool,
@@ -9,20 +9,25 @@ pub struct HtmlTag {
 }
 
 // Represents one line of plain text in the html document without line break characters or indentation.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Default)]
 pub struct HtmlPlain {
     pub plain: String,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Default)]
 pub struct VueBlock {
     pub content: String,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Default)]
 pub struct TwigBlock {
     pub name: String,
     pub children: Vec<HtmlNode>,
+}
+
+#[derive(Debug, Eq, PartialEq, Default)]
+pub struct TwigComment {
+    pub content: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -33,9 +38,10 @@ pub enum HtmlNode {
     VueBlock(VueBlock),
     TwigBlock(TwigBlock),
     TwigParentCall,
+    TwigComment(TwigComment),
     Whitespace,
 }
-
+/*
 impl Default for HtmlTag {
     fn default() -> Self {
         HtmlTag {
@@ -71,3 +77,4 @@ impl Default for TwigBlock {
         }
     }
 }
+*/

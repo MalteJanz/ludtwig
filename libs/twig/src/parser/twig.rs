@@ -1,7 +1,8 @@
 use super::IResult;
 use crate::ast::*;
 use crate::parser::general::{document_node, dynamic_context};
-use nom::bytes::complete::{tag, take_till1};
+use nom::branch::alt;
+use nom::bytes::complete::{tag, take_till1, take_until};
 use nom::character::complete::multispace0;
 use nom::combinator::cut;
 use nom::multi::many0;
@@ -38,6 +39,23 @@ pub(crate) fn twig_parent_call(input: &str) -> IResult<HtmlNode> {
     )(input)?;
 
     Ok((remaining, HtmlNode::TwigParentCall))
+}
+
+pub(crate) fn twig_comment(input: &str) -> IResult<HtmlNode> {
+    let (remaining, _) = tag("{#")(input)?;
+    // TODO: fix this one whitespace crap at the end.
+    let (remaining, content) = delimited(
+        multispace0,
+        alt((take_until(" #}"), take_until("#}"))),
+        alt((tag(" #}"), tag("#}"))),
+    )(remaining)?;
+
+    Ok((
+        remaining,
+        HtmlNode::TwigComment(TwigComment {
+            content: content.to_owned(),
+        }),
+    ))
 }
 
 pub(crate) fn twig_complete_block(input: &str) -> IResult<HtmlNode> {
@@ -150,6 +168,16 @@ mod tests {
                     ]
                 })
             ))
+        )
+    }
+
+    #[test]
+    fn test_twig_comment() {
+        let res = twig_comment("{# @deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\". #}");
+
+        assert_eq!(
+            res,
+            Ok(("", HtmlNode::TwigComment(TwigComment{ content: "@deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\".".to_string() })))
         )
     }
 }

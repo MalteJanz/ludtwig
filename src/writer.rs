@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use tokio::fs::File;
 use tokio::io::{AsyncWriteExt, BufWriter};
-use twig::ast::{HtmlNode, HtmlPlain, HtmlTag, TwigBlock, VueBlock};
+use twig::ast::{HtmlNode, HtmlPlain, HtmlTag, TwigBlock, TwigComment, VueBlock};
 
 #[derive(Clone, PartialEq)]
 struct PrintingContext<'a> {
@@ -81,6 +81,9 @@ fn print_node<'a>(
             }
             HtmlNode::TwigParentCall => {
                 print_twig_parent_call(writer, context).await;
+            }
+            HtmlNode::TwigComment(comment) => {
+                print_twig_comment(writer, comment, context).await;
             }
             HtmlNode::Whitespace => {
                 print_whitespace(writer, context).await;
@@ -194,6 +197,17 @@ async fn print_twig_block(
 async fn print_twig_parent_call(writer: &mut BufWriter<File>, context: &PrintingContext<'_>) {
     print_indentation(writer, context).await;
     writer.write_all(b"{% parent %}").await.unwrap();
+}
+
+async fn print_twig_comment(
+    writer: &mut BufWriter<File>,
+    comment: &TwigComment,
+    context: &PrintingContext<'_>,
+) {
+    print_indentation(writer, context).await;
+    writer.write_all(b"{# ").await.unwrap();
+    writer.write_all(comment.content.as_bytes()).await.unwrap();
+    writer.write_all(b" #}").await.unwrap();
 }
 
 async fn print_whitespace(writer: &mut BufWriter<File>, context: &PrintingContext<'_>) {

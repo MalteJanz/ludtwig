@@ -2,7 +2,7 @@ use super::IResult;
 use crate::ast::*;
 use crate::parser::general::{document_node, dynamic_context};
 use nom::branch::alt;
-use nom::bytes::complete::{tag, take_till1};
+use nom::bytes::complete::{tag, take_till, take_till1};
 use nom::character::complete::{char, multispace0, none_of};
 use nom::combinator::{cut, not, opt, peek, recognize, value};
 use nom::error::context;
@@ -12,7 +12,7 @@ use nom::sequence::{delimited, preceded, terminated};
 
 static NON_CLOSING_TAGS: [&str; 6] = ["!DOCTYPE", "meta", "input", "img", "br", "hr"];
 
-pub(crate) fn html_tag_argument<'a>(input: &'a str) -> IResult<(String, String)> {
+pub(crate) fn html_tag_attribute<'a>(input: &'a str) -> IResult<(String, String)> {
     let (input, _) = multispace0(input)?;
     let (input, key) = take_till1(|c| {
         c == '='
@@ -34,15 +34,15 @@ pub(crate) fn html_tag_argument<'a>(input: &'a str) -> IResult<(String, String)>
     }
 
     let (input, _) = context("missing '\"' quote", cut(tag("\"")))(input)?;
-    let (input, value) = take_till1(|c| c == '"')(input)?;
+    let (input, value) = take_till(|c| c == '"')(input)?;
     let (input, _) = context("missing '\"' quote", cut(tag("\"")))(input)?;
     let (input, _) = multispace0(input)?;
 
     Ok((input, (key.to_owned(), value.to_owned())))
 }
 
-pub(crate) fn html_tag_argument_map(input: &str) -> IResult<BTreeMap<String, String>> {
-    let (input, list) = many0(html_tag_argument)(input)?;
+pub(crate) fn html_tag_attribute_map(input: &str) -> IResult<BTreeMap<String, String>> {
+    let (input, list) = many0(html_tag_attribute)(input)?;
     let map = list.into_iter().collect::<BTreeMap<String, String>>();
     Ok((input, map))
 }
@@ -54,7 +54,7 @@ pub(crate) fn html_open_tag(input: &str) -> IResult<(&str, bool, BTreeMap<String
         c == ' ' || c == '>' || c == '/' || c == '<' || c == '\n' || c == '\r' || c == '\t'
     })(input)?;
     //let (input, _args) = many0(none_of("></"))(input)?;
-    let (input, args) = html_tag_argument_map(input)?;
+    let (input, args) = html_tag_attribute_map(input)?;
 
     let (input, mut closed) = alt((value(false, tag(">")), value(true, tag("/>"))))(input)?;
 
@@ -266,28 +266,62 @@ mod tests {
     }
 
     #[test]
-    fn test_tag_argument() {
+    fn test_tag_attribute() {
         assert_eq!(
-            html_tag_argument("href=\"#\""),
+            html_tag_attribute("href=\"#\""),
             Ok(("", ("href".to_string(), "#".to_string())))
         );
         assert_eq!(
-            html_tag_argument("onClick=\"alert('Hello world');\" "),
+            html_tag_attribute("onClick=\"alert('Hello world');\" "),
             Ok((
                 "",
                 ("onClick".to_string(), "alert('Hello world');".to_string())
             ))
         );
         assert_eq!(
-            html_tag_argument("disabled"),
+            html_tag_attribute("disabled"),
             Ok(("", ("disabled".to_string(), "".to_string())))
+        );
+    }
+
+    #[test]
+    fn test_special_attributes() {
+        assert_eq!(
+            html_tag_attribute("title=\"\""),
+            Ok(("", ("title".to_string(), "".to_string())))
+        );
+        assert_eq!(
+            html_tag_attribute("#body"),
+            Ok(("", ("#body".to_string(), "".to_string())))
+        );
+        assert_eq!(
+            html_tag_attribute("@click=\"counter += 1;\""),
+            Ok(("", ("@click".to_string(), "counter += 1;".to_string())))
+        );
+        assert_eq!(
+            html_tag_attribute(":name=\"firstname\""),
+            Ok(("", (":name".to_string(), "firstname".to_string())))
+        );
+        assert_eq!(
+            html_tag_attribute("v-model=\"lastname\""),
+            Ok(("", ("v-model".to_string(), "lastname".to_string())))
+        );
+        assert_eq!(
+            html_tag_attribute("@change=\"if counter < 100 { counter += 1; }\""),
+            Ok((
+                "",
+                (
+                    "@change".to_string(),
+                    "if counter < 100 { counter += 1; }".to_string()
+                )
+            ))
         );
     }
 
     #[test]
     fn test_tag_argument_with_missing_quote() {
         assert_eq!(
-            html_tag_argument("href=#\""),
+            html_tag_attribute("href=#\""),
             Err(nom::Err::Failure(TwigParsingErrorInformation {
                 leftover: "#\"",
                 context: Some("missing '\"' quote".into()),
@@ -299,7 +333,7 @@ mod tests {
     #[test]
     fn test_tag_argument_map_with_missing_quote() {
         assert_eq!(
-            html_tag_argument_map("size=\"small @click=\"onCloseModal\""),
+            html_tag_attribute_map("size=\"small @click=\"onCloseModal\""),
             Err(nom::Err::Failure(TwigParsingErrorInformation {
                 leftover: "\"",
                 context: Some("invalid attribute name".into()),
@@ -315,7 +349,7 @@ mod tests {
         map.insert("target".to_string(), "_blank".to_string());
 
         assert_eq!(
-            html_tag_argument_map("href=\"#\" \n\t         target=\"_blank\"   "),
+            html_tag_attribute_map("href=\"#\" \n\t         target=\"_blank\"   "),
             Ok(("", map))
         );
     }
