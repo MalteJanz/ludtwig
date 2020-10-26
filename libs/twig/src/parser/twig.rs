@@ -1,11 +1,10 @@
 use super::IResult;
 use crate::ast::*;
 use crate::parser::general::{document_node, dynamic_context};
-use nom::branch::alt;
-use nom::bytes::complete::{tag, take_till1, take_until};
-use nom::character::complete::multispace0;
-use nom::combinator::cut;
-use nom::multi::many0;
+use nom::bytes::complete::{tag, take_till1};
+use nom::character::complete::{anychar, multispace0};
+use nom::combinator::{cut, map};
+use nom::multi::{many0, many_till};
 use nom::sequence::{delimited, preceded, terminated};
 
 pub(crate) fn twig_opening_block(input: &str) -> IResult<&str> {
@@ -23,7 +22,6 @@ pub(crate) fn twig_opening_block(input: &str) -> IResult<&str> {
 }
 
 pub(crate) fn twig_closing_block(input: &str) -> IResult<&str> {
-    // {% endblock %}
     delimited(
         tag("{%"),
         delimited(multispace0, tag("endblock"), multispace0),
@@ -42,24 +40,20 @@ pub(crate) fn twig_parent_call(input: &str) -> IResult<HtmlNode> {
 }
 
 pub(crate) fn twig_comment(input: &str) -> IResult<HtmlNode> {
-    let (remaining, _) = tag("{#")(input)?;
-    // TODO: fix this one whitespace crap at the end.
-    let (remaining, content) = delimited(
-        multispace0,
-        alt((take_until(" #}"), take_until("#}"))),
-        alt((tag(" #}"), tag("#}"))),
-    )(remaining)?;
-
-    Ok((
-        remaining,
-        HtmlNode::TwigComment(TwigComment {
-            content: content.to_owned(),
-        }),
-    ))
+    preceded(
+        terminated(tag("{#"), multispace0),
+        map(
+            many_till(anychar, preceded(multispace0, tag("#}"))),
+            |(v, _)| {
+                HtmlNode::TwigComment(TwigComment {
+                    content: v.into_iter().collect(),
+                })
+            },
+        ),
+    )(input)
 }
 
 pub(crate) fn twig_complete_block(input: &str) -> IResult<HtmlNode> {
-    // TODO: also parser whitespace because it matters in rendering!: https://prettier.io/blog/2018/11/07/1.15.0.html
     let (remaining, open) = twig_opening_block(input)?;
     let (remaining, children) = many0(document_node)(remaining)?;
 
@@ -132,7 +126,26 @@ mod tests {
     fn test_complete_twig_block_without_space_at_the_end() {
         let res = twig_complete_block(
             "{% block swag_migration_history_detail_errors_grid_code%}
-                    {% endblock %}",
+                    {% endblock%}",
+        );
+
+        assert_eq!(
+            res,
+            Ok((
+                "",
+                HtmlNode::TwigBlock(TwigBlock {
+                    name: "swag_migration_history_detail_errors_grid_code".to_string(),
+                    children: vec![HtmlNode::Whitespace]
+                })
+            ))
+        )
+    }
+
+    #[test]
+    fn test_complete_twig_block_with_many_whitespace() {
+        let res = twig_complete_block(
+            "{%          block                swag_migration_history_detail_errors_grid_code                                    %}
+                    {%             endblock             %}",
         );
 
         assert_eq!(
@@ -173,11 +186,19 @@ mod tests {
 
     #[test]
     fn test_twig_comment() {
-        let res = twig_comment("{# @deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\". #}");
+        assert_eq!(
+            twig_comment("{# @deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\". #}"),
+            Ok(("", HtmlNode::TwigComment(TwigComment{ content: "@deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\".".to_string() })))
+        );
 
         assert_eq!(
-            res,
+            twig_comment("{#                   @deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\".                #}"),
             Ok(("", HtmlNode::TwigComment(TwigComment{ content: "@deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\".".to_string() })))
-        )
+        );
+
+        assert_eq!(
+            twig_comment("{#@deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\".#}"),
+            Ok(("", HtmlNode::TwigComment(TwigComment{ content: "@deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\".".to_string() })))
+        );
     }
 }

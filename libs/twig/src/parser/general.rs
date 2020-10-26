@@ -35,6 +35,7 @@ where
     }
 }
 
+// whitespace because it matters in rendering!: https://prettier.io/blog/2018/11/07/1.15.0.html
 pub(crate) fn some_whitespace(input: &str) -> IResult<HtmlNode> {
     let (remainder, _) = multispace1(input)?;
 

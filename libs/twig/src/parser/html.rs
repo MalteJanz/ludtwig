@@ -24,7 +24,7 @@ pub(crate) fn html_tag_attribute<'a>(input: &'a str) -> IResult<(String, String)
             || c == '\n'
             || c == '\r'
             || c == '\t'
-    })(input)?; //alphanumeric1(input)?;
+    })(input)?;
     let (input, equal) = opt(tag("="))(input)?;
 
     if equal == None {
@@ -47,13 +47,12 @@ pub(crate) fn html_tag_attribute_map(input: &str) -> IResult<BTreeMap<String, St
     Ok((input, map))
 }
 
-// returns (tag, self_closed)
+// returns (tag, self_closed, attributes)
 pub(crate) fn html_open_tag(input: &str) -> IResult<(&str, bool, BTreeMap<String, String>)> {
     let (input, _) = tag("<")(input)?;
     let (input, open) = take_till1(|c| {
         c == ' ' || c == '>' || c == '/' || c == '<' || c == '\n' || c == '\r' || c == '\t'
     })(input)?;
-    //let (input, _args) = many0(none_of("></"))(input)?;
     let (input, args) = html_tag_attribute_map(input)?;
 
     let (input, mut closed) = alt((value(false, tag(">")), value(true, tag("/>"))))(input)?;
@@ -88,7 +87,6 @@ pub(crate) fn html_plain_text(input: &str) -> IResult<HtmlNode> {
 }
 
 pub(crate) fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
-    // TODO: also parser whitespace because it matters in rendering!: https://prettier.io/blog/2018/11/07/1.15.0.html
     let (mut remaining, (open, self_closed, args)) = html_open_tag(input)?;
     let mut children = vec![];
 

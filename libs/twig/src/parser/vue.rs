@@ -1,26 +1,22 @@
 use super::IResult;
 use crate::ast::*;
-use nom::branch::alt;
-use nom::bytes::complete::{tag, take_until};
-use nom::character::complete::multispace0;
+use nom::bytes::complete::tag;
+use nom::character::complete::{anychar, multispace0};
 use nom::combinator::map;
-use nom::sequence::{delimited, preceded};
+use nom::multi::many_till;
+use nom::sequence::{preceded, terminated};
 
 pub(crate) fn vue_block(input: &str) -> IResult<HtmlNode> {
-    delimited(
-        tag("{{"),
-        preceded(
-            multispace0,
-            map(
-                alt((take_until(" }}"), take_until("}}"))),
-                |content: &str| {
-                    HtmlNode::VueBlock(VueBlock {
-                        content: content.to_owned(),
-                    })
-                },
-            ),
+    preceded(
+        terminated(tag("{{"), multispace0),
+        map(
+            many_till(anychar, preceded(multispace0, tag("}}"))),
+            |(v, _)| {
+                HtmlNode::VueBlock(VueBlock {
+                    content: v.into_iter().collect(),
+                })
+            },
         ),
-        alt((tag(" }}"), tag("}}"))),
     )(input)
 }
 
@@ -46,7 +42,7 @@ mod tests {
     #[test]
     fn test_some_vue_variable_print_with_complex_logic() {
         let res = vue_block(
-            "{{   if a { $tc('swag-migration.index.confirmAbortDialog.hint' ) } else {  $tc('nothing' ); }    }}",
+            "{{   if a { $tc('swag-migration.index.confirmAbortDialog.hint' ) } else {  $tc('nothing' ); }       }}",
         );
 
         assert_eq!(
@@ -54,7 +50,25 @@ mod tests {
             Ok((
                 "",
                 HtmlNode::VueBlock(VueBlock {
-                    content: "if a { $tc('swag-migration.index.confirmAbortDialog.hint' ) } else {  $tc('nothing' ); }   ".to_string()
+                    content: "if a { $tc('swag-migration.index.confirmAbortDialog.hint' ) } else {  $tc('nothing' ); }".to_string()
+                })
+            ))
+        )
+    }
+
+    #[test]
+    fn test_some_vue_print_with_no_whitespace_and_more_content() {
+        let res = vue_block(
+            "{{currentOrder.transactions.last().paymentMethod.translated.name}}{{ counter }}",
+        );
+
+        assert_eq!(
+            res,
+            Ok((
+                "{{ counter }}",
+                HtmlNode::VueBlock(VueBlock {
+                    content: "currentOrder.transactions.last().paymentMethod.translated.name"
+                        .to_string()
                 })
             ))
         )
