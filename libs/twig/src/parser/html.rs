@@ -3,14 +3,14 @@ use crate::ast::*;
 use crate::parser::general::{document_node, dynamic_context};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till, take_till1};
-use nom::character::complete::{char, multispace0, none_of};
-use nom::combinator::{cut, not, opt, peek, recognize, value};
+use nom::character::complete::{anychar, char, multispace0, none_of};
+use nom::combinator::{cut, map, not, opt, peek, recognize, value};
 use nom::error::context;
 use nom::lib::std::collections::BTreeMap;
-use nom::multi::{many0, many1};
+use nom::multi::{many0, many1, many_till};
 use nom::sequence::{delimited, preceded, terminated};
 
-static NON_CLOSING_TAGS: [&str; 6] = ["!DOCTYPE", "meta", "input", "img", "br", "hr"];
+static NON_CLOSING_TAGS: [&str; 7] = ["!DOCTYPE", "meta", "input", "img", "br", "hr", "source"];
 
 pub(crate) fn html_tag_attribute<'a>(input: &'a str) -> IResult<(String, String)> {
     let (input, _) = multispace0(input)?;
@@ -55,6 +55,9 @@ pub(crate) fn html_open_tag(input: &str) -> IResult<(&str, bool, BTreeMap<String
     })(input)?;
     let (input, args) = html_tag_attribute_map(input)?;
 
+    // get rid of whitespace between tag name and closing tag for tags without attributes.
+    let (input, _) = multispace0(input)?;
+
     let (input, mut closed) = alt((value(false, tag(">")), value(true, tag("/>"))))(input)?;
 
     if NON_CLOSING_TAGS.contains(&open) {
@@ -70,20 +73,6 @@ pub(crate) fn html_close_tag<'a>(open_tag: &'a str) -> impl Fn(&'a str) -> IResu
         terminated(cut(tag(open_tag)), many0(none_of(">"))),
         tag(">"),
     )
-}
-
-pub(crate) fn html_plain_text(input: &str) -> IResult<HtmlNode> {
-    let (remaining, plain) = recognize(many1(preceded(
-        opt(char(' ')),
-        take_till1(|c| c == '<' || c == '{' || c == '\t' || c == '\r' || c == '\n' || c == ' '),
-    )))(input)?;
-
-    Ok((
-        remaining,
-        HtmlNode::Plain(HtmlPlain {
-            plain: plain.to_owned(),
-        }),
-    ))
 }
 
 pub(crate) fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
@@ -111,6 +100,34 @@ pub(crate) fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
     };
 
     Ok((remaining, HtmlNode::Tag(tag)))
+}
+
+pub(crate) fn html_plain_text(input: &str) -> IResult<HtmlNode> {
+    let (remaining, plain) = recognize(many1(preceded(
+        opt(char(' ')),
+        take_till1(|c| c == '<' || c == '{' || c == '\t' || c == '\r' || c == '\n' || c == ' '),
+    )))(input)?;
+
+    Ok((
+        remaining,
+        HtmlNode::Plain(HtmlPlain {
+            plain: plain.to_owned(),
+        }),
+    ))
+}
+
+pub(crate) fn html_comment(input: &str) -> IResult<HtmlNode> {
+    preceded(
+        terminated(tag("<!--"), multispace0),
+        map(
+            many_till(anychar, preceded(multispace0, tag("-->"))),
+            |(v, _)| {
+                HtmlNode::Comment(HtmlComment {
+                    content: v.into_iter().collect(),
+                })
+            },
+        ),
+    )(input)
 }
 
 #[cfg(test)]
@@ -264,6 +281,69 @@ mod tests {
     }
 
     #[test]
+    fn test_special_complete_tag() {
+        assert_eq!(
+            html_complete_tag("<br/>"),
+            Ok((
+                "",
+                HtmlNode::Tag(HtmlTag {
+                    name: "br".to_string(),
+                    self_closed: true,
+                    ..Default::default()
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_complete_tag("<br />"),
+            Ok((
+                "",
+                HtmlNode::Tag(HtmlTag {
+                    name: "br".to_string(),
+                    self_closed: true,
+                    ..Default::default()
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_complete_tag("<br>"),
+            Ok((
+                "",
+                HtmlNode::Tag(HtmlTag {
+                    name: "br".to_string(),
+                    self_closed: true,
+                    ..Default::default()
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_complete_tag("<br >"),
+            Ok((
+                "",
+                HtmlNode::Tag(HtmlTag {
+                    name: "br".to_string(),
+                    self_closed: true,
+                    ..Default::default()
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_complete_tag("<source>"),
+            Ok((
+                "",
+                HtmlNode::Tag(HtmlTag {
+                    name: "source".to_string(),
+                    self_closed: true,
+                    ..Default::default()
+                })
+            ))
+        );
+    }
+
+    #[test]
     fn test_tag_attribute() {
         assert_eq!(
             html_tag_attribute("href=\"#\""),
@@ -349,6 +429,39 @@ mod tests {
         assert_eq!(
             html_tag_attribute_map("href=\"#\" \n\t         target=\"_blank\"   "),
             Ok(("", map))
+        );
+    }
+
+    #[test]
+    fn test_html_comment() {
+        assert_eq!(
+            html_comment("<!-- not full implemented yet -->"),
+            Ok((
+                "",
+                HtmlNode::Comment(HtmlComment {
+                    content: "not full implemented yet".to_string()
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_comment("<!--              not full implemented yet                         -->"),
+            Ok((
+                "",
+                HtmlNode::Comment(HtmlComment {
+                    content: "not full implemented yet".to_string()
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_comment("<!--not full implemented yet-->"),
+            Ok((
+                "",
+                HtmlNode::Comment(HtmlComment {
+                    content: "not full implemented yet".to_string()
+                })
+            ))
         );
     }
 }

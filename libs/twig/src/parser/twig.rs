@@ -3,7 +3,7 @@ use crate::ast::*;
 use crate::parser::general::{document_node, dynamic_context};
 use nom::bytes::complete::{tag, take_till1};
 use nom::character::complete::{anychar, multispace0};
-use nom::combinator::{cut, map};
+use nom::combinator::{cut, map, opt};
 use nom::multi::{many0, many_till};
 use nom::sequence::{delimited, preceded, terminated};
 
@@ -29,10 +29,31 @@ pub(crate) fn twig_closing_block(input: &str) -> IResult<&str> {
     )(input)
 }
 
+pub(crate) fn twig_complete_block(input: &str) -> IResult<HtmlNode> {
+    let (remaining, open) = twig_opening_block(input)?;
+    let (remaining, children) = many0(document_node)(remaining)?;
+
+    let (remaining, _close) = dynamic_context(
+        format!("Missing endblock for '{}' twig block", open),
+        cut(twig_closing_block),
+    )(remaining)?;
+
+    let block = TwigBlock {
+        name: open.to_owned(),
+        children,
+    };
+
+    Ok((remaining, HtmlNode::TwigBlock(block)))
+}
+
 pub(crate) fn twig_parent_call(input: &str) -> IResult<HtmlNode> {
     let (remaining, _) = delimited(
         tag("{%"),
-        delimited(multispace0, tag("parent"), multispace0),
+        delimited(
+            multispace0,
+            terminated(tag("parent"), opt(tag("()"))),
+            multispace0,
+        ),
         tag("%}"),
     )(input)?;
 
@@ -51,23 +72,6 @@ pub(crate) fn twig_comment(input: &str) -> IResult<HtmlNode> {
             },
         ),
     )(input)
-}
-
-pub(crate) fn twig_complete_block(input: &str) -> IResult<HtmlNode> {
-    let (remaining, open) = twig_opening_block(input)?;
-    let (remaining, children) = many0(document_node)(remaining)?;
-
-    let (remaining, _close) = dynamic_context(
-        format!("Missing endblock for '{}' twig block", open),
-        cut(twig_closing_block),
-    )(remaining)?;
-
-    let block = TwigBlock {
-        name: open.to_owned(),
-        children,
-    };
-
-    Ok((remaining, HtmlNode::TwigBlock(block)))
 }
 
 #[cfg(test)]
@@ -182,6 +186,29 @@ mod tests {
                 })
             ))
         )
+    }
+
+    #[test]
+    fn test_twig_parent_call_variations() {
+        assert_eq!(
+            twig_parent_call("{%parent%}"),
+            Ok(("", HtmlNode::TwigParentCall))
+        );
+
+        assert_eq!(
+            twig_parent_call("{%           parent         %}"),
+            Ok(("", HtmlNode::TwigParentCall))
+        );
+
+        assert_eq!(
+            twig_parent_call("{%parent()%}"),
+            Ok(("", HtmlNode::TwigParentCall))
+        );
+
+        assert_eq!(
+            twig_parent_call("{%        parent()         %}"),
+            Ok(("", HtmlNode::TwigParentCall))
+        );
     }
 
     #[test]

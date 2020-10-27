@@ -1,6 +1,6 @@
 use crate::ast::*;
 use crate::error::{DynamicParseError, TwigParsingErrorInformation};
-use crate::parser::html::{html_complete_tag, html_plain_text};
+use crate::parser::html::{html_comment, html_complete_tag, html_plain_text};
 use crate::parser::twig::{twig_comment, twig_complete_block, twig_parent_call};
 use crate::parser::vue::vue_block;
 use nom::branch::alt;
@@ -45,6 +45,7 @@ pub(crate) fn some_whitespace(input: &str) -> IResult<HtmlNode> {
 pub(crate) fn document_node(input: &str) -> IResult<HtmlNode> {
     alt((
         twig_complete_block,
+        html_comment,
         html_complete_tag,
         vue_block,
         some_whitespace,

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use tokio::fs::File;
 use tokio::io::{AsyncWriteExt, BufWriter};
-use twig::ast::{HtmlNode, HtmlPlain, HtmlTag, TwigBlock, TwigComment, VueBlock};
+use twig::ast::{HtmlComment, HtmlNode, HtmlPlain, HtmlTag, TwigBlock, TwigComment, VueBlock};
 
 #[derive(Clone, PartialEq)]
 struct PrintingContext<'a> {
@@ -72,6 +72,9 @@ fn print_node<'a>(
             }
             HtmlNode::Plain(plain) => {
                 print_plain(writer, &plain, context).await;
+            }
+            HtmlNode::Comment(comment) => {
+                print_html_comment(writer, comment, context).await;
             }
             HtmlNode::VueBlock(vue) => {
                 print_vue_block(writer, &vue, context).await;
@@ -165,6 +168,17 @@ async fn print_plain(
 ) {
     print_indentation(writer, context).await;
     writer.write_all(plain.plain.as_bytes()).await.unwrap();
+}
+
+async fn print_html_comment(
+    writer: &mut BufWriter<File>,
+    comment: &HtmlComment,
+    context: &PrintingContext<'_>,
+) {
+    print_indentation(writer, context).await;
+    writer.write_all(b"<!-- ").await.unwrap();
+    writer.write_all(comment.content.as_bytes()).await.unwrap();
+    writer.write_all(b" -->").await.unwrap();
 }
 
 async fn print_vue_block(

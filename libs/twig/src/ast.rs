@@ -15,6 +15,11 @@ pub struct HtmlPlain {
 }
 
 #[derive(Debug, Eq, PartialEq, Default)]
+pub struct HtmlComment {
+    pub content: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Default)]
 pub struct VueBlock {
     pub content: String,
 }
@@ -35,46 +40,10 @@ pub enum HtmlNode {
     Root(Vec<HtmlNode>),
     Tag(HtmlTag),
     Plain(HtmlPlain),
+    Comment(HtmlComment),
     VueBlock(VueBlock),
     TwigBlock(TwigBlock),
     TwigParentCall,
     TwigComment(TwigComment),
     Whitespace,
 }
-/*
-impl Default for HtmlTag {
-    fn default() -> Self {
-        HtmlTag {
-            name: "".to_string(),
-            self_closed: false,
-            attributes: BTreeMap::new(),
-            children: Vec::new(),
-        }
-    }
-}
-
-impl Default for HtmlPlain {
-    fn default() -> Self {
-        HtmlPlain {
-            plain: "".to_string(),
-        }
-    }
-}
-
-impl Default for VueBlock {
-    fn default() -> Self {
-        VueBlock {
-            content: "".to_string(),
-        }
-    }
-}
-
-impl Default for TwigBlock {
-    fn default() -> Self {
-        TwigBlock {
-            name: "".to_string(),
-            children: Vec::new(),
-        }
-    }
-}
-*/
