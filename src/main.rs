@@ -1,7 +1,9 @@
 mod analyzer;
+mod output;
 mod process;
 mod writer;
 
+use crate::output::OutputMessage;
 use clap::{crate_authors, crate_version, Clap, ValueHint};
 use std::boxed::Box;
 use std::future::Future;
@@ -9,6 +11,7 @@ use std::path::Path;
 use std::pin::Pin;
 use tokio::fs;
 use tokio::stream::StreamExt;
+use tokio::sync::mpsc;
 
 /// Tools for '.twig' files. Mostly scanning for errors and formatting.
 #[derive(Clap)]
@@ -28,20 +31,40 @@ struct Opts {
     //verbose: i32,
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
     let opts: Opts = Opts::parse();
-    //println!("working on files: {:#?}", opts.files);
+
+    let runtime = tokio::runtime::Runtime::new().expect("can't create tokio runtime");
+
+    let process_code = runtime.block_on(app(opts)).unwrap();
+
+    drop(runtime);
+
+    std::process::exit(process_code);
+}
+
+async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
+    println!("Analyzing files...");
+
+    let (tx, rx) = mpsc::channel(128);
+
+    let output_handler = tokio::spawn(output::handle_processing_output(rx));
 
     let mut futures = Vec::with_capacity(opts.files.len());
     for path in &opts.files {
         let path = path.clone();
-        futures.push(tokio::task::spawn(handle_input_path(path)));
+        let tx = tx.clone();
+        futures.push(tokio::task::spawn(handle_input_path(path, tx)));
     }
+    drop(tx);
 
     for t in futures {
         t.await.unwrap();
     }
+
+    let process_code = output_handler.await.unwrap();
+
+    Ok(process_code)
 
     // Gets a value for config if supplied by user, or defaults to "default.conf"
     // println!("Value for config: {}", opts.config);
@@ -58,24 +81,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         3 | _ => println!("Don't be crazy"),
     }
      */
-
-    Ok(())
 }
 
-async fn handle_input_path<P>(path: P)
+async fn handle_input_path<P>(path: P, tx: mpsc::Sender<OutputMessage>)
 where
     P: AsRef<Path> + 'static + Send,
 {
     let meta = fs::metadata(&path).await.unwrap();
     if meta.is_file() {
-        process::process_file(&path).await;
+        process::process_file(&path, tx).await;
         return;
     }
 
-    handle_input_dir(path).await;
+    handle_input_dir(path, tx).await;
 }
 
-fn handle_input_dir<P>(path: P) -> Pin<Box<dyn Future<Output = ()> + Send>>
+fn handle_input_dir<P>(
+    path: P,
+    tx: mpsc::Sender<OutputMessage>,
+) -> Pin<Box<dyn Future<Output = ()> + Send>>
 where
     P: AsRef<Path> + 'static + Send,
 {
@@ -93,24 +117,23 @@ where
             let path = entry.path();
 
             if path.is_dir() {
-                futures_dirs.push(handle_input_dir(path));
-                //handle_input_dir(path).await;
+                futures_dirs.push(tokio::spawn(handle_input_dir(path, tx.clone())));
                 continue;
             }
 
             if let Some(file_type) = path.extension() {
                 if file_type == "twig" {
-                    futures_processes.push(process::process_file(path));
+                    futures_processes.push(tokio::spawn(process::process_file(path, tx.clone())));
                 }
             }
         }
 
         for f in futures_dirs {
-            f.await;
+            f.await.unwrap();
         }
 
         for f in futures_processes {
-            f.await;
+            f.await.unwrap();
         }
     })
 }

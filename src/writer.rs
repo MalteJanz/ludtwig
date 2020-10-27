@@ -42,8 +42,6 @@ pub async fn write_tree(path: PathBuf, tree: &HtmlNode) {
     let base_path = Path::new("output");
     let path = base_path.join(path);
 
-    println!("path: {:?}", path);
-
     let parent = path.parent().unwrap();
     tokio::fs::create_dir_all(parent).await.unwrap();
 
