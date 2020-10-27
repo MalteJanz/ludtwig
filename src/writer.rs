@@ -2,7 +2,7 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use tokio::fs::File;
-use tokio::io::{AsyncWriteExt, BufWriter};
+use tokio::io::{AsyncWrite, AsyncWriteExt, BufWriter};
 use twig::ast::{HtmlComment, HtmlNode, HtmlPlain, HtmlTag, TwigBlock, TwigComment, VueBlock};
 
 #[derive(Clone, PartialEq)]
@@ -55,8 +55,8 @@ pub async fn write_tree(path: PathBuf, tree: &HtmlNode) {
     writer.flush().await.unwrap();
 }
 
-fn print_node<'a>(
-    writer: &'a mut BufWriter<File>,
+fn print_node<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &'a mut W,
     node: &'a HtmlNode,
     context: &'a mut PrintingContext<'a>,
 ) -> Pin<Box<dyn Future<Output = ()> + 'a + Send>> {
@@ -95,8 +95,8 @@ fn print_node<'a>(
     })
 }
 
-async fn print_node_list(
-    writer: &mut BufWriter<File>,
+async fn print_node_list<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
     nodes: &Vec<HtmlNode>,
     context: &PrintingContext<'_>,
 ) {
@@ -116,7 +116,11 @@ async fn print_node_list(
     }
 }
 
-async fn print_tag(writer: &mut BufWriter<File>, tag: &HtmlTag, context: &PrintingContext<'_>) {
+async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
+    tag: &HtmlTag,
+    context: &PrintingContext<'_>,
+) {
     print_indentation(writer, context).await;
 
     writer.write_all(b"<").await.unwrap();
@@ -161,8 +165,8 @@ async fn print_tag(writer: &mut BufWriter<File>, tag: &HtmlTag, context: &Printi
     }
 }
 
-async fn print_plain(
-    writer: &mut BufWriter<File>,
+async fn print_plain<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
     plain: &HtmlPlain,
     context: &PrintingContext<'_>,
 ) {
@@ -170,8 +174,8 @@ async fn print_plain(
     writer.write_all(plain.plain.as_bytes()).await.unwrap();
 }
 
-async fn print_html_comment(
-    writer: &mut BufWriter<File>,
+async fn print_html_comment<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
     comment: &HtmlComment,
     context: &PrintingContext<'_>,
 ) {
@@ -181,8 +185,8 @@ async fn print_html_comment(
     writer.write_all(b" -->").await.unwrap();
 }
 
-async fn print_vue_block(
-    writer: &mut BufWriter<File>,
+async fn print_vue_block<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
     vue: &VueBlock,
     context: &PrintingContext<'_>,
 ) {
@@ -192,8 +196,8 @@ async fn print_vue_block(
     writer.write_all(b" }}").await.unwrap();
 }
 
-async fn print_twig_block(
-    writer: &mut BufWriter<File>,
+async fn print_twig_block<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
     twig: &TwigBlock,
     context: &PrintingContext<'_>,
 ) {
@@ -208,13 +212,16 @@ async fn print_twig_block(
     writer.write_all(b"{% endblock %}").await.unwrap();
 }
 
-async fn print_twig_parent_call(writer: &mut BufWriter<File>, context: &PrintingContext<'_>) {
+async fn print_twig_parent_call<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
+    context: &PrintingContext<'_>,
+) {
     print_indentation(writer, context).await;
     writer.write_all(b"{% parent %}").await.unwrap();
 }
 
-async fn print_twig_comment(
-    writer: &mut BufWriter<File>,
+async fn print_twig_comment<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
     comment: &TwigComment,
     context: &PrintingContext<'_>,
 ) {
@@ -224,7 +231,10 @@ async fn print_twig_comment(
     writer.write_all(b" #}").await.unwrap();
 }
 
-async fn print_whitespace(writer: &mut BufWriter<File>, context: &PrintingContext<'_>) {
+async fn print_whitespace<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
+    context: &PrintingContext<'_>,
+) {
     if let Some(prev) = context.previous_node {
         if let HtmlNode::TwigBlock(_) = prev {
             // print another whitespace.
@@ -235,8 +245,46 @@ async fn print_whitespace(writer: &mut BufWriter<File>, context: &PrintingContex
     writer.write_all(b"\r\n").await.unwrap();
 }
 
-async fn print_indentation(writer: &mut BufWriter<File>, context: &PrintingContext<'_>) {
+async fn print_indentation<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
+    context: &PrintingContext<'_>,
+) {
     for _ in 0..context.indentation {
         writer.write_all(b"    ").await.unwrap();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    async fn convert_tree_into_written_string(tree: HtmlNode) -> String {
+        let mut writer_raw: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+
+        print_node(&mut writer_raw, &tree, &mut PrintingContext::default()).await;
+
+        String::from_utf8(writer_raw.into_inner()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_write_simple_twig_block() {
+        let tree = HtmlNode::TwigBlock(TwigBlock {
+            name: "some_twig_block".to_string(),
+            children: vec![
+                HtmlNode::Whitespace,
+                HtmlNode::Plain(HtmlPlain {
+                    plain: "Hello world".to_string(),
+                }),
+                HtmlNode::Whitespace,
+            ],
+        });
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "{% block some_twig_block %}\r\n    Hello world\r\n{% endblock %}".to_string()
+        );
     }
 }
