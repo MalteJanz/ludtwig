@@ -7,28 +7,47 @@ use crate::output::OutputMessage;
 use clap::{crate_authors, crate_version, Clap, ValueHint};
 use std::boxed::Box;
 use std::future::Future;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
+use std::sync::Arc;
 use tokio::fs;
 use tokio::stream::StreamExt;
 use tokio::sync::mpsc;
 
 /// Tools for '.twig' files. Mostly scanning for errors and formatting.
-#[derive(Clap)]
+#[derive(Clap, Debug, Clone)]
 #[clap(version = crate_version!(), author = crate_authors!())]
 struct Opts {
     /// Files or directories to scan and format
     #[clap(value_name = "FILE", min_values = 1, required = true, value_hint = ValueHint::AnyPath)]
-    files: Vec<String>,
-    // Sets a custom config file.
-    // TODO: reimplement config file
-    //#[clap(short, long, default_value = "default.conf")]
-    //config: String,
+    files: Vec<PathBuf>,
 
-    // A level of verbosity, and can be used multiple times
-    // TODO: reimplement verbose levels.
-    //#[clap(short, long, parse(from_occurrences))]
-    //verbose: i32,
+    /// Disable the analysis of the syntax tree. There will still be parsing errors.
+    #[clap(short = 'a', long)]
+    no_analysis: bool,
+
+    /// Disable the formatted printing of the syntax tree to disk. With this option the tool will not write to any files.
+    #[clap(short = 'w', long)]
+    no_writing: bool,
+
+    /// Specify a custom output directory instead of modifying the files in place.
+    #[clap(short, long, value_hint = ValueHint::AnyPath)]
+    output_path: Option<PathBuf>,
+    // Sets a custom config file.
+    // TODO: reimplement with working config file
+    //#[clap(, long, default_value = "default.conf")]
+    //config: Option<PathBuf>,
+}
+
+#[derive(Debug)]
+pub struct CliContext {
+    pub output_tx: mpsc::Sender<OutputMessage>,
+    /// Disable the analysis of the syntax tree. There will still be parsing errors.
+    pub no_analysis: bool,
+    /// Disable the formatted printing of the syntax tree to disk. With this option the tool will not write to any files.
+    pub no_writing: bool,
+    /// Specify a custom output directory instead of modifying the files in place.
+    pub output_path: Option<PathBuf>,
 }
 
 fn main() {
@@ -44,19 +63,26 @@ fn main() {
 }
 
 async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
-    println!("Analyzing files...");
+    println!("Parsing files...");
 
     let (tx, rx) = mpsc::channel(128);
+
+    let cli_context = Arc::new(CliContext {
+        output_tx: tx,
+        no_analysis: opts.no_analysis,
+        no_writing: opts.no_writing,
+        output_path: opts.output_path,
+    });
 
     let output_handler = tokio::spawn(output::handle_processing_output(rx));
 
     let mut futures = Vec::with_capacity(opts.files.len());
-    for path in &opts.files {
-        let path = path.clone();
-        let tx = tx.clone();
-        futures.push(tokio::task::spawn(handle_input_path(path, tx)));
+    for path in opts.files {
+        //let tx = cli_context.output_tx.clone();
+        let context = Arc::clone(&cli_context);
+        futures.push(tokio::task::spawn(handle_input_path(path, context)));
     }
-    drop(tx);
+    drop(cli_context);
 
     for t in futures {
         t.await.unwrap();
@@ -83,22 +109,22 @@ async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
      */
 }
 
-async fn handle_input_path<P>(path: P, tx: mpsc::Sender<OutputMessage>)
+async fn handle_input_path<P>(path: P, cli_context: Arc<CliContext>)
 where
     P: AsRef<Path> + 'static + Send,
 {
     let meta = fs::metadata(&path).await.unwrap();
     if meta.is_file() {
-        process::process_file(&path, tx).await;
+        process::process_file(path.as_ref().into(), cli_context).await;
         return;
     }
 
-    handle_input_dir(path, tx).await;
+    handle_input_dir(path, cli_context).await;
 }
 
 fn handle_input_dir<P>(
     path: P,
-    tx: mpsc::Sender<OutputMessage>,
+    cli_context: Arc<CliContext>,
 ) -> Pin<Box<dyn Future<Output = ()> + Send>>
 where
     P: AsRef<Path> + 'static + Send,
@@ -117,13 +143,19 @@ where
             let path = entry.path();
 
             if path.is_dir() {
-                futures_dirs.push(tokio::spawn(handle_input_dir(path, tx.clone())));
+                futures_dirs.push(tokio::spawn(handle_input_dir(
+                    path,
+                    Arc::clone(&cli_context),
+                )));
                 continue;
             }
 
             if let Some(file_type) = path.extension() {
                 if file_type == "twig" {
-                    futures_processes.push(tokio::spawn(process::process_file(path, tx.clone())));
+                    futures_processes.push(tokio::spawn(process::process_file(
+                        path.into(),
+                        Arc::clone(&cli_context),
+                    )));
                 }
             }
         }

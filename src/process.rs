@@ -2,28 +2,32 @@ use crate::analyzer::analyze;
 use crate::output::OutputMessage;
 use crate::output::OutputType;
 use crate::writer::write_tree;
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use crate::CliContext;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs;
-use tokio::sync::mpsc;
+use twig::ast::HtmlNode;
 
-pub async fn process_file<P>(path: P, tx: mpsc::Sender<OutputMessage>)
-where
-    P: AsRef<Path>,
-{
-    let path = path.as_ref();
+#[derive(Debug)]
+pub struct FileContext {
+    pub cli_context: Arc<CliContext>,
+    pub file_path: PathBuf,
+    pub tree: HtmlNode,
+}
 
-    let file_content = match fs::read_to_string(path).await {
+pub async fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
+    let file_content = match fs::read_to_string(&path).await {
         Ok(f) => f,
         Err(_) => {
-            tx.send(OutputMessage {
-                file: path.into(),
-                message: "Can't read file".to_string(),
-                output_type: OutputType::Error,
-            })
-            .await
-            .unwrap();
+            cli_context
+                .output_tx
+                .send(OutputMessage {
+                    file: path.into(),
+                    message: "Can't read file".to_string(),
+                    output_type: OutputType::Error,
+                })
+                .await
+                .unwrap();
             return;
         }
     };
@@ -44,43 +48,40 @@ where
     let tree = match tree {
         Ok(t) => t,
         Err(e) => {
-            tx.send(OutputMessage {
-                file: path.into(),
-                message: e,
-                output_type: OutputType::Error,
-            })
-            .await
-            .unwrap();
+            cli_context
+                .output_tx
+                .send(OutputMessage {
+                    file: path.into(),
+                    message: e,
+                    output_type: OutputType::Error,
+                })
+                .await
+                .unwrap();
 
             return;
         }
     };
 
-    let original_path = PathBuf::from(path);
-    let raw_path = path.parent().unwrap_or_else(|| Path::new(""));
+    let file_context = Arc::new(FileContext {
+        cli_context,
+        file_path: path,
+        tree,
+    });
 
-    let stem = path.file_stem().unwrap_or_else(|| OsStr::new(""));
-
-    let mut filename = stem.to_os_string();
-    filename.push(".formatted.");
-
-    if let Some(extension) = path.extension() {
-        filename.push(extension);
-    }
-
-    let file_path = raw_path.join(filename);
-
-    let tree = Arc::new(tree);
     let mut futs = vec![];
 
-    let clone = Arc::clone(&tree);
-    futs.push(tokio::spawn(async move {
-        analyze(original_path, clone, tx).await;
-    }));
+    if file_context.cli_context.no_analysis == false {
+        let clone = Arc::clone(&file_context);
+        futs.push(tokio::spawn(async move {
+            analyze(clone).await;
+        }));
+    }
 
-    futs.push(tokio::spawn(async move {
-        write_tree(file_path, &tree).await;
-    }));
+    if file_context.cli_context.no_writing == false {
+        futs.push(tokio::spawn(async move {
+            write_tree(file_context).await;
+        }));
+    }
 
     for fut in futs {
         fut.await.unwrap();

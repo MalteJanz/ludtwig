@@ -1,6 +1,8 @@
+use crate::process::FileContext;
 use std::future::Future;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::pin::Pin;
+use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::{AsyncWrite, AsyncWriteExt, BufWriter};
 use twig::ast::{HtmlComment, HtmlNode, HtmlPlain, HtmlTag, TwigBlock, TwigComment, VueBlock};
@@ -37,10 +39,13 @@ impl<'a> Default for PrintingContext<'a> {
     }
 }
 
-pub async fn write_tree(path: PathBuf, tree: &HtmlNode) {
+pub async fn write_tree(file_context: Arc<FileContext>) {
     // ToDo: replace this after done with testing.
-    let base_path = Path::new("output");
-    let path = base_path.join(path);
+    let base_path = match &file_context.cli_context.output_path {
+        None => Path::new(""),
+        Some(p) => p,
+    };
+    let path = base_path.join(&file_context.file_path);
 
     let parent = path.parent().unwrap();
     tokio::fs::create_dir_all(parent).await.unwrap();
@@ -48,7 +53,12 @@ pub async fn write_tree(path: PathBuf, tree: &HtmlNode) {
     let file = File::create(path).await.expect("can't create file.");
     let mut writer = BufWriter::new(file);
 
-    print_node(&mut writer, tree, &mut PrintingContext::default()).await;
+    print_node(
+        &mut writer,
+        &file_context.tree,
+        &mut PrintingContext::default(),
+    )
+    .await;
 
     writer.flush().await.unwrap();
 }
