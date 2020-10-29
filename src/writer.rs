@@ -1,6 +1,6 @@
 use crate::process::FileContext;
 use std::future::Future;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::fs::File;
@@ -40,16 +40,7 @@ impl<'a> Default for PrintingContext<'a> {
 }
 
 pub async fn write_tree(file_context: Arc<FileContext>) {
-    // ToDo: replace this after done with testing.
-    let base_path = match &file_context.cli_context.output_path {
-        None => Path::new(""),
-        Some(p) => p,
-    };
-    let path = base_path.join(&file_context.file_path);
-
-    let parent = path.parent().unwrap();
-    tokio::fs::create_dir_all(parent).await.unwrap();
-
+    let path = create_and_secure_output_path(&file_context).await;
     let file = File::create(path).await.expect("can't create file.");
     let mut writer = BufWriter::new(file);
 
@@ -61,6 +52,22 @@ pub async fn write_tree(file_context: Arc<FileContext>) {
     .await;
 
     writer.flush().await.unwrap();
+}
+
+async fn create_and_secure_output_path(file_context: &FileContext) -> PathBuf {
+    let base_path = match &file_context.cli_context.output_path {
+        None => Path::new(""),
+        Some(p) => p,
+    };
+    let path = base_path.join(&*file_context.file_path);
+
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .expect("can't create directory for output");
+    }
+
+    path
 }
 
 fn print_node<'a, W: AsyncWrite + Unpin + Send + ?Sized>(

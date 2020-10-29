@@ -50,6 +50,12 @@ pub struct CliContext {
     pub output_path: Option<PathBuf>,
 }
 
+impl CliContext {
+    pub async fn send_output(&self, msg: OutputMessage) {
+        self.output_tx.send(msg).await.unwrap();
+    }
+}
+
 fn main() {
     let opts: Opts = Opts::parse();
 
@@ -95,18 +101,6 @@ async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
     // Gets a value for config if supplied by user, or defaults to "default.conf"
     // println!("Value for config: {}", opts.config);
     // TODO: implement configuration.
-
-    // Vary the output based on how many times the user used the "verbose" flag
-    // (i.e. 'myprog -v -v -v' or 'myprog -vvv' vs 'myprog -v'
-    // TODO: maybe implement verbose levels.
-    /*
-    match opts.verbose {
-        0 => println!("No verbose info"),
-        1 => println!("Some verbose info"),
-        2 => println!("Tons of verbose info"),
-        3 | _ => println!("Don't be crazy"),
-    }
-     */
 }
 
 async fn handle_input_path<P>(path: P, cli_context: Arc<CliContext>)

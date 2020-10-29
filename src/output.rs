@@ -1,29 +1,21 @@
 use colored::*;
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum OutputType {
-    Error,
-    Warning,
+pub enum Output {
+    /// only to notify the output processing about a file, that was processed (does not show in CLI)
+    None,
+    Error(String),
+    Warning(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct OutputMessage {
-    pub file: PathBuf,
-    pub message: String,
-    pub output_type: OutputType,
-}
-
-impl Display for OutputType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            OutputType::Error => write!(f, "Error"),
-            OutputType::Warning => write!(f, "Warning"),
-        }
-    }
+    pub file: Arc<PathBuf>,
+    pub output: Output,
 }
 
 pub async fn handle_processing_output(mut rx: mpsc::Receiver<OutputMessage>) -> i32 {
@@ -33,33 +25,36 @@ pub async fn handle_processing_output(mut rx: mpsc::Receiver<OutputMessage>) -> 
     let mut error_count = 0;
 
     while let Some(msg) = rx.recv().await {
-        file_count += 1;
+        let entry = map.entry(msg.file).or_insert(vec![]);
 
-        match msg.output_type {
-            OutputType::Error => {
-                error_count += 1;
-            }
-            OutputType::Warning => {
-                warning_count += 1;
+        match msg.output {
+            Output::None => {}
+            _ => {
+                entry.push(msg.output);
             }
         }
-
-        map.entry(msg.file)
-            .or_insert(vec![])
-            .push((msg.output_type, msg.message));
     }
 
     for (k, v) in map {
+        file_count += 1;
+
+        if v.len() == 0 {
+            continue;
+        }
+
         println!("\nFile: {:?}", k);
 
-        for (output_type, message) in v {
-            match output_type {
-                OutputType::Error => {
-                    println!("[{}] {}", output_type, message.red());
+        for output in v {
+            match output {
+                Output::Error(message) => {
+                    error_count += 1;
+                    println!("[{}] {}", "Error", message.red());
                 }
-                OutputType::Warning => {
-                    println!("[{}] {}", output_type, message.yellow());
+                Output::Warning(message) => {
+                    warning_count += 1;
+                    println!("[{}] {}", "Warning", message.yellow());
                 }
+                Output::None => {}
             }
         }
     }

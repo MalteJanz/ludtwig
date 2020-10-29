@@ -1,6 +1,5 @@
 use crate::analyzer::analyze;
-use crate::output::OutputMessage;
-use crate::output::OutputType;
+use crate::output::{Output, OutputMessage};
 use crate::writer::write_tree;
 use crate::CliContext;
 use std::path::PathBuf;
@@ -11,23 +10,34 @@ use twig::ast::HtmlNode;
 #[derive(Debug)]
 pub struct FileContext {
     pub cli_context: Arc<CliContext>,
-    pub file_path: PathBuf,
+    pub file_path: Arc<PathBuf>,
     pub tree: HtmlNode,
 }
 
+impl FileContext {
+    pub async fn send_output(&self, output: Output) {
+        self.cli_context
+            .send_output(OutputMessage {
+                file: Arc::clone(&self.file_path),
+                output,
+            })
+            .await;
+    }
+}
+
 pub async fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
-    let file_content = match fs::read_to_string(&path).await {
+    let path = Arc::new(path);
+
+    let file_content = match fs::read_to_string(&*path).await {
         Ok(f) => f,
         Err(_) => {
             cli_context
-                .output_tx
-                .send(OutputMessage {
-                    file: path.into(),
-                    message: "Can't read file".to_string(),
-                    output_type: OutputType::Error,
+                .send_output(OutputMessage {
+                    file: Arc::clone(&path),
+                    output: Output::Error("Can't read file".into()),
                 })
-                .await
-                .unwrap();
+                .await;
+
             return;
         }
     };
@@ -46,17 +56,23 @@ pub async fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
     .unwrap();
 
     let tree = match tree {
-        Ok(t) => t,
+        Ok(t) => {
+            cli_context
+                .send_output(OutputMessage {
+                    file: Arc::clone(&path),
+                    output: Output::None,
+                })
+                .await;
+
+            t
+        }
         Err(e) => {
             cli_context
-                .output_tx
-                .send(OutputMessage {
-                    file: path.into(),
-                    message: e,
-                    output_type: OutputType::Error,
+                .send_output(OutputMessage {
+                    file: Arc::clone(&path),
+                    output: Output::Error(e),
                 })
-                .await
-                .unwrap();
+                .await;
 
             return;
         }
