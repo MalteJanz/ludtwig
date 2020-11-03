@@ -67,7 +67,7 @@ pub(crate) fn html_open_tag(input: &str) -> IResult<(&str, bool, BTreeMap<String
     Ok((input, (open, closed, args)))
 }
 
-pub(crate) fn html_close_tag<'a>(open_tag: &'a str) -> impl Fn(&'a str) -> IResult<&'a str> {
+pub(crate) fn html_close_tag<'a>(open_tag: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str> {
     delimited(
         tag("</"),
         terminated(cut(tag(open_tag)), many0(none_of(">"))),

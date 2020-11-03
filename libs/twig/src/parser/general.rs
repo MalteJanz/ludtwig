@@ -14,10 +14,10 @@ pub(crate) type IResult<'a, O> = nom::IResult<&'a str, O, TwigParsingErrorInform
 /// to errors when backtracking through a parse tree
 pub(crate) fn dynamic_context<I: Clone, E: DynamicParseError<I>, F, O>(
     context: String,
-    f: F,
-) -> impl Fn(I) -> nom::IResult<I, O, E>
+    mut f: F,
+) -> impl FnMut(I) -> nom::IResult<I, O, E>
 where
-    F: Fn(I) -> nom::IResult<I, O, E>,
+    F: FnMut(I) -> nom::IResult<I, O, E>,
 {
     move |i: I| match f(i.clone()) {
         Ok(o) => Ok(o),

@@ -1,4 +1,4 @@
-use nom::error::ErrorKind;
+use nom::error::{ContextError, ErrorKind};
 use nom::lib::std::fmt::Formatter;
 use std::borrow::Cow;
 use std::error::Error;
@@ -62,7 +62,9 @@ impl<I: std::fmt::Debug + std::fmt::Display> nom::error::ParseError<I>
             context: None,
         }
     }
+}
 
+impl<I: std::fmt::Debug + std::fmt::Display> ContextError<I> for TwigParsingErrorInformation<I> {
     fn add_context(_input: I, _ctx: &'static str, mut other: Self) -> Self {
         //println!("[ADD_CONTEXT] {} {:?} {:?}", _ctx, _input, other);
         other.context = Some(_ctx.into());
