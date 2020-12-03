@@ -17,7 +17,6 @@ pub fn parse(input: &str) -> Result<HtmlNode, TwigParseError<&str>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nom::lib::std::collections::BTreeMap;
 
     #[test]
     fn it_works() {
@@ -27,11 +26,8 @@ mod tests {
                 </p>
                 {% endblock %}");
 
-        let mut attributes = BTreeMap::new();
-        attributes.insert(
-            "class".to_string(),
-            "swag-migration-index-modal-abort-migration-confirm-dialog-hint".to_string(),
-        );
+        let attributes = vec![("class".to_string(),
+                                   "swag-migration-index-modal-abort-migration-confirm-dialog-hint".to_string())];
 
         assert_eq!(
             result,
@@ -70,7 +66,7 @@ mod tests {
 
         let pretty = result.pretty_helpful_error_string(input);
         //println!("{}", pretty);
-        assert_eq!(pretty, "Parsing goes wrong in line 6 and column 17 :\n                {% endblock %}\n                ^\n                |\nMissing closing tag for opening tag \'p\' with arguments {\"class\": \"swag-migration-index-modal-abort-migration-confirm-dialog-hint\"}");
+        assert_eq!(pretty, "Parsing goes wrong in line 6 and column 17 :\n                {% endblock %}\n                ^\n                |\nMissing closing tag for opening tag \'p\' with attributes [(\"class\", \"swag-migration-index-modal-abort-migration-confirm-dialog-hint\")]");
     }
 
     #[test]
@@ -100,7 +96,7 @@ mod tests {
 
         let pretty = result.pretty_helpful_error_string(input);
         //println!("{}", pretty);
-        assert_eq!(pretty, "Parsing goes wrong in line 7 and column 19 :\n                </div>\n                  ^\n                  |\nMissing closing tag for opening tag \'p\' with arguments {\"class\": \"swag-migration-index-modal-abort-migration-confirm-dialog-hint\"}");
+        assert_eq!(pretty, "Parsing goes wrong in line 7 and column 19 :\n                </div>\n                  ^\n                  |\nMissing closing tag for opening tag \'p\' with attributes [(\"class\", \"swag-migration-index-modal-abort-migration-confirm-dialog-hint\")]");
     }
 
     #[test]

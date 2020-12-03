@@ -44,14 +44,14 @@ pub(crate) fn some_whitespace(input: &str) -> IResult<HtmlNode> {
 
 pub(crate) fn document_node(input: &str) -> IResult<HtmlNode> {
     alt((
-        twig_complete_block,
-        html_comment,
-        html_complete_tag,
-        vue_block,
         some_whitespace,
-        html_plain_text,
+        html_comment, //html comment must match before html tag because both can start with <!...
+        html_complete_tag,
+        twig_complete_block,
+        vue_block,
         twig_parent_call,
         twig_comment,
+        html_plain_text,
     ))(input)
 }
 

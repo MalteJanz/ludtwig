@@ -6,13 +6,12 @@ use nom::bytes::complete::{tag, take_till, take_till1};
 use nom::character::complete::{anychar, char, multispace0, none_of};
 use nom::combinator::{cut, map, not, opt, peek, recognize, value};
 use nom::error::context;
-use nom::lib::std::collections::BTreeMap;
 use nom::multi::{many0, many1, many_till};
 use nom::sequence::{delimited, preceded, terminated};
 
 static NON_CLOSING_TAGS: [&str; 7] = ["!DOCTYPE", "meta", "input", "img", "br", "hr", "source"];
 
-pub(crate) fn html_tag_attribute<'a>(input: &'a str) -> IResult<(String, String)> {
+pub(crate) fn html_tag_attribute(input: &str) -> IResult<HtmlAttribute> {
     let (input, _) = multispace0(input)?;
     let (input, key) = take_till1(|c| {
         c == '='
@@ -30,7 +29,7 @@ pub(crate) fn html_tag_attribute<'a>(input: &'a str) -> IResult<(String, String)
     if equal == None {
         let (input, _) = context("invalid attribute name", cut(peek(not(char('"')))))(input)?;
 
-        return Ok((input, (key.to_owned(), "".to_string())));
+        return Ok((input, (key.to_owned(), "".to_owned())));
     }
 
     let (input, _) = context("missing '\"' quote", cut(tag("\"")))(input)?;
@@ -41,14 +40,13 @@ pub(crate) fn html_tag_attribute<'a>(input: &'a str) -> IResult<(String, String)
     Ok((input, (key.to_owned(), value.to_owned())))
 }
 
-pub(crate) fn html_tag_attribute_map(input: &str) -> IResult<BTreeMap<String, String>> {
+pub(crate) fn html_tag_attribute_map(input: &str) -> IResult<Vec<HtmlAttribute>> {
     let (input, list) = many0(html_tag_attribute)(input)?;
-    let map = list.into_iter().collect::<BTreeMap<String, String>>();
-    Ok((input, map))
+    Ok((input, list))
 }
 
 // returns (tag, self_closed, attributes)
-pub(crate) fn html_open_tag(input: &str) -> IResult<(&str, bool, BTreeMap<String, String>)> {
+pub(crate) fn html_open_tag(input: &str) -> IResult<(&str, bool, Vec<HtmlAttribute>)> {
     let (input, _) = tag("<")(input)?;
     let (input, open) = take_till1(|c| {
         c == ' ' || c == '>' || c == '/' || c == '<' || c == '\n' || c == '\r' || c == '\t'
@@ -83,7 +81,7 @@ pub(crate) fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
         let (remaining_new, children_new) = many0(document_node)(remaining)?;
         let (remaining_new, _close) = dynamic_context(
             format!(
-                "Missing closing tag for opening tag '{}' with arguments {:?}",
+                "Missing closing tag for opening tag '{}' with attributes {:?}",
                 open, args
             ),
             cut(html_close_tag(open)),
@@ -153,15 +151,15 @@ mod tests {
         );
         assert_eq!(
             html_open_tag("<p>"),
-            Ok(("", ("p", false, BTreeMap::new())))
+            Ok(("", ("p", false, Vec::new())))
         );
         assert_eq!(
             html_open_tag("<h1>"),
-            Ok(("", ("h1", false, BTreeMap::new())))
+            Ok(("", ("h1", false, Vec::new())))
         );
         assert_eq!(
             html_open_tag("<h1>"),
-            Ok(("", ("h1", false, BTreeMap::new())))
+            Ok(("", ("h1", false, Vec::new())))
         );
         assert_eq!(
             html_open_tag("<!DOCTYPE html>"),
@@ -203,7 +201,7 @@ mod tests {
     fn test_open_self_closing_tag() {
         assert_eq!(
             html_open_tag("<br/>"),
-            Ok(("", ("br", true, BTreeMap::new())))
+            Ok(("", ("br", true, Vec::new())))
         );
         assert_eq!(
             html_open_tag("<a href=\"#\"/>"),
@@ -246,9 +244,7 @@ mod tests {
                 HtmlNode::Tag(HtmlTag {
                     name: "meta".to_string(),
                     self_closed: true,
-                    attributes: vec![("charset".to_string(), "UTF-8".to_string())]
-                        .into_iter()
-                        .collect(),
+                    attributes: vec![("charset".to_string(), "UTF-8".to_string())],
                     ..Default::default()
                 })
             ))
@@ -264,9 +260,7 @@ mod tests {
                         HtmlNode::Tag(HtmlTag {
                             name: "meta".to_string(),
                             self_closed: true,
-                            attributes: vec![("charset".to_string(), "UTF-8".to_string())]
-                                .into_iter()
-                                .collect(),
+                            attributes: vec![("charset".to_string(), "UTF-8".to_string())],
                             ..Default::default()
                         }),
                         HtmlNode::Tag(HtmlTag {
@@ -422,13 +416,14 @@ mod tests {
 
     #[test]
     fn test_tag_argument_map() {
-        let mut map = BTreeMap::new();
-        map.insert("href".to_string(), "#".to_string());
-        map.insert("target".to_string(), "_blank".to_string());
+        let attributes = vec![
+            ("href".to_string(), "#".to_string()),
+            ("target".to_string(), "_blank".to_string())
+        ];
 
         assert_eq!(
             html_tag_attribute_map("href=\"#\" \n\t         target=\"_blank\"   "),
-            Ok(("", map))
+            Ok(("", attributes))
         );
     }
 
@@ -460,6 +455,43 @@ mod tests {
                 "",
                 HtmlNode::Comment(HtmlComment {
                     content: "not full implemented yet".to_string()
+                })
+            ))
+        );
+    }
+
+    #[test]
+    fn test_html_comment_against_tag() {
+        assert_eq!(
+            document_node("<!-- not full implemented yet -->"),
+            Ok((
+                "",
+                HtmlNode::Comment(HtmlComment {
+                    content: "not full implemented yet".to_string()
+                })
+            ))
+        );
+
+        assert_eq!(
+            document_node("<!DOCTYPE html>"),
+            Ok((
+                "",
+                HtmlNode::Tag(HtmlTag {
+                    name: "!DOCTYPE".to_string(),
+                    self_closed: true,
+                    attributes: vec![("html".to_string(), "".to_string())],
+                    ..Default::default()
+                })
+            ))
+        );
+
+        assert_eq!(
+            document_node("<#special></#special>"),
+            Ok((
+                "",
+                HtmlNode::Tag(HtmlTag {
+                    name: "#special".to_string(),
+                    ..Default::default()
                 })
             ))
         );

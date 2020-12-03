@@ -1,10 +1,11 @@
-use nom::lib::std::collections::BTreeMap;
+
+pub type HtmlAttribute = (String, String);
 
 #[derive(Debug, Eq, PartialEq, Default)]
 pub struct HtmlTag {
     pub name: String,
     pub self_closed: bool,
-    pub attributes: BTreeMap<String, String>,
+    pub attributes: Vec<HtmlAttribute>,
     pub children: Vec<HtmlNode>,
 }
 
