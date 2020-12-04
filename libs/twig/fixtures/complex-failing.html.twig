@@ -1,0 +1,200 @@
+{% block swag_migration_process_screen %}
+<sw-page class="swag-migration-process-screen">
+
+    {% block swag_migration_index_smart_bar_header %}
+    <template #smart-bar-header>
+        <h2>
+            {{ $tc('sw-settings.index.title') }}
+            <sw-icon name="small-arrow-medium-right" small></sw-icon>
+            {{ $tc('swag-migration.general.mainMenuItemGeneral') }}
+        </h2>
+    </template>
+    {% endblock %}
+
+    {% block swag_migration_index_smart_bar_actions %}
+    <template #smart-bar-actions>
+
+        {% block swag_migration_index_smart_bar_abort_button %}
+        <sw-button v-if="abortButtonVisible" @click="onAbortButtonClick">
+            {{ $tc('swag-migration.index.abortButton') }}
+        </sw-button>
+        {% endblock %}
+
+        {% block swag_migration_index_smart_bar_back_button %}
+        <sw-button v-if="backButtonVisible"
+                   variant="primary"
+                   @click="onBackButtonClick">
+            {{ $tc('swag-migration.index.backButton') }}
+        </sw-button>
+        {% endblock %}
+
+        {% block swag_migration_index_smart_bar_pause_button %}
+        <sw-button v-if="pauseButtonVisible"
+                   variant="primary"
+                   :disabled="pauseButtonDisabled"
+                   @click="onPauseButtonClick">
+            {{ $tc('swag-migration.index.pauseButton') }}
+        </sw-button>
+        {% endblock %}
+
+        {% block swag_migration_index_smart_bar_continue_button %}
+        <sw-button v-if="continueButtonVisible"
+                   variant="primary"
+                   @click="onContinueButtonClick">
+            {{ $tc('swag-migration.index.continueButton') }}
+        </sw-button>
+        {% endblock %}
+
+        {% block swag_migration_index_smart_bar_button_group %}
+        <sw-button-group
+                v-if="startButtonVisible"
+                :splitButton="true">
+
+            {% block swag_migration_index_smart_bar_start_button %}
+            <sw-button variant="primary"
+                       :disabled="startButtonDisabled"
+                       @click="onStartButtonClick">
+                {{ $tc('swag-migration.index.startButton') }}
+            </sw-button>
+            {% endblock %}
+
+            {% block swag_migration_index_smart_bar_context_button %}
+            <sw-context-button :disabled="isLoading">
+                <template slot="button">
+
+                    {% block swag_migration_index_smart_bar_context_button_content %}
+                    <sw-button square
+                               variant="primary"
+                               :disabled="isLoading">
+                        <sw-icon name="small-arrow-medium-down" size="16"></sw-icon>
+                    </sw-button>
+                    {% endblock %}
+                </template>
+
+                {% block swag_migration_index_smart_bar_premapping_save_button %}
+                <sw-context-menu-item @click="onSaveButtonClick"
+                                      :disabled="isLoading">
+                    {{ $tc('swag-migration.index.savePremapping.saveButton') }}
+                </sw-context-menu-item>
+                {% endblock %}
+            </sw-context-button>
+            {% endblock %}
+
+        </sw-button-group>
+        {% endblock %}
+
+    </template>
+    {% endblock %}
+
+    <template #content>
+        <sw-card-view v-if="!isLoading" class="swag-migration-process-screen">
+
+            {% block swag_migration_index_main_page_flow_chart %}
+            <sw-step-display v-if="displayFlowChart && componentIndex !== UI_COMPONENT_INDEX.WARNING_CONFIRM"
+                             class="swag-migration-process-screen__step-display"
+                             :itemIndex="flowChartItemIndex"
+                             :itemVariant="flowChartItemVariant"
+                             :initialItemVariants="flowChartInitialItemVariants">
+                <sw-step-item>
+                    {{ $tc('swag-migration.index.loadingScreenCard.flowChart.premapping') }}
+                </sw-step-item>
+                <sw-step-item>
+                    {{ $tc('swag-migration.index.loadingScreenCard.flowChart.fetchData') }}
+                </sw-step-item>
+                <sw-step-item>
+                    {{ $tc('swag-migration.index.loadingScreenCard.flowChart.writeData') }}
+                </sw-step-item>
+                <sw-step-item>
+                    {{ $tc('swag-migration.index.loadingScreenCard.flowChart.processMedia') }}
+                </sw-step-item>
+                <sw-step-item disabledIcon="small-default-checkmark-line-medium">
+                    {{ $tc('swag-migration.index.loadingScreenCard.flowChart.finish') }}
+                </sw-step-item>
+            </sw-step-display>
+            {% endblock %}
+
+            {% block swag_migration_index_main_page_card_confirm_warning %}
+            <swag-migration-confirm-warning v-if="componentIndex === UI_COMPONENT_INDEX.WARNING_CONFIRM"
+                                            class="swag-migration-process-screen__confirm-warning"
+                                            @confirmation-change="onWarningConfirmationChanged">
+            </swag-migration-confirm-warning>
+            {% endblock %}
+
+            {% block swag_migration_index_main_page_card_premapping %}
+            <swag-migration-premapping v-if="componentIndex === UI_COMPONENT_INDEX.PREMAPPING">
+            </swag-migration-premapping>
+            {% endblock %}
+
+            {% block swag_migration_index_main_page_card_loadingScreen %}
+            <swag-migration-loading-screen
+                    v-if="componentIndex === UI_COMPONENT_INDEX.LOADING_SCREEN || componentIndex === UI_COMPONENT_INDEX.PAUSE_SCREEN">
+            </swag-migration-loading-screen>
+            {% endblock %}
+
+            {% block swag_migration_index_main_page_card_loadingScreen_media %}
+            <swag-migration-media-process v-if="componentIndex === UI_COMPONENT_INDEX.MEDIA_SCREEN">
+            </swag-migration-media-process>
+            {% endblock %}
+
+            {% block swag_migration_index_main_page_card_loadingScreen_success %}
+            <swag-migration-result-screen v-if="componentIndex === UI_COMPONENT_INDEX.RESULT_SUCCESS"
+                                          :runId="runId">
+            </swag-migration-result-screen>
+            {% endblock %}
+
+            {% block swag_migration_index_main_page_card_loadingScreen_takeover %}
+            <swag-migration-loading-screen-takeover v-if="componentIndex === UI_COMPONENT_INDEX.TAKEOVER"
+                                                    ref="loadingScreenTakeover"
+                                                    :isTakeoverForbidden="isTakeoverForbidden"
+                                                    :isMigrationInterrupted="isMigrationInterrupted"
+                                                    @onTakeoverMigration="onTakeoverMigration"
+                                                    @onAbortMigration="onAbortOtherMigration">
+            </swag-migration-loading-screen-takeover>
+            {% endblock %}
+
+            {% block swag_migration_index_main_page_card_loadingScreen_connectionLost %}
+            <swag-migration-loading-screen-connection-lost v-if="componentIndex === UI_COMPONENT_INDEX.CONNECTION_LOST">
+            </swag-migration-loading-screen-connection-lost>
+            {% endblock %}
+
+            {% block swag_migration_index_main_page_modal_abort_migration_confirmDialog %}
+            <sw-modal v-if="showAbortMigrationConfirmDialog"
+                      class="swag-migration-index-modal-abort-migration-confirm-dialog"
+                      :title="$tc('swag-migration.index.confirmAbortDialog.title')"
+                      variant="small"
+                      @modal-close="onCloseAbortMigrationConfirmDialog">
+
+                {% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_message %}
+                <p class="swag-migration-index-modal-abort-migration-confirm-dialog-content">
+                    {{ $tc('swag-migration.index.confirmAbortDialog.content') }}
+                </p>
+                {% endblock %}
+
+                {% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint %}
+                <p class="swag-migration-index-modal-abort-migration-confirm-dialog-hint">
+                    {{ $tc('swag-migration.index.confirmAbortDialog.hint') }}
+                </p>
+                {% endblock %}
+
+                {% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_footer %}
+                <template #modal-footer>
+
+                    {% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_footer_cancelAction %}
+                    <sw-button size="small" @click="onCloseAbortMigrationConfirmDialog">
+                        {{ abortMigrationBackText }}
+                    </sw-button>
+                    {% endblock %}
+
+                    {% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_footer_confirmAction %}
+                    <sw-button variant="primary" size="small" @click="onStop">
+                        {{ $tc('swag-migration.index.confirmAbortDialog.confirm') }}
+                    </sw-button>
+                    {% endblock %}
+                </template>
+                {% endblock %}
+            {% endblock %}
+        </sw-card-view>
+        <sw-loader v-if="isLoading"></sw-loader>
+    </template>
+</sw-page>
+{% endblock %}
