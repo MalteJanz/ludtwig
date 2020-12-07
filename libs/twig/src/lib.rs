@@ -5,10 +5,10 @@ mod parser;
 pub use error::TwigParseError;
 
 use crate::ast::*;
-use crate::parser::general::document_node_all;
+use crate::parser::general::{document_node_all, Input};
 use nom::combinator::all_consuming;
 
-pub fn parse(input: &str) -> Result<HtmlNode, TwigParseError<&str>> {
+pub fn parse(input: Input) -> Result<HtmlNode, TwigParseError<Input>> {
     let (_, result) = all_consuming(document_node_all)(input)?;
 
     Ok(result)
@@ -26,8 +26,12 @@ mod tests {
                 </p>
                 {% endblock %}");
 
-        let attributes = vec![("class".to_string(),
-                                   "swag-migration-index-modal-abort-migration-confirm-dialog-hint".to_string())];
+        let attributes = vec![HtmlAttribute {
+            name: "class".to_string(),
+            value: Some(
+                "swag-migration-index-modal-abort-migration-confirm-dialog-hint".to_string(),
+            ),
+        }];
 
         assert_eq!(
             result,
@@ -66,7 +70,7 @@ mod tests {
 
         let pretty = result.pretty_helpful_error_string(input);
         //println!("{}", pretty);
-        assert_eq!(pretty, "Parsing goes wrong in line 6 and column 17 :\n                {% endblock %}\n                ^\n                |\nMissing closing tag for opening tag \'p\' with attributes [(\"class\", \"swag-migration-index-modal-abort-migration-confirm-dialog-hint\")]");
+        assert_eq!(pretty, "Parsing goes wrong in line 6 and column 17 :\n                {% endblock %}\n                ^\n                |\nMissing closing tag for opening tag \'p\' with attributes [HtmlAttribute { name: \"class\", value: Some(\"swag-migration-index-modal-abort-migration-confirm-dialog-hint\") }]");
     }
 
     #[test]
@@ -96,7 +100,7 @@ mod tests {
 
         let pretty = result.pretty_helpful_error_string(input);
         //println!("{}", pretty);
-        assert_eq!(pretty, "Parsing goes wrong in line 7 and column 19 :\n                </div>\n                  ^\n                  |\nMissing closing tag for opening tag \'p\' with attributes [(\"class\", \"swag-migration-index-modal-abort-migration-confirm-dialog-hint\")]");
+        assert_eq!(pretty, "Parsing goes wrong in line 7 and column 19 :\n                </div>\n                  ^\n                  |\nMissing closing tag for opening tag \'p\' with attributes [HtmlAttribute { name: \"class\", value: Some(\"swag-migration-index-modal-abort-migration-confirm-dialog-hint\") }]");
     }
 
     #[test]

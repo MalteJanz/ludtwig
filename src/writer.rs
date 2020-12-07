@@ -142,7 +142,7 @@ async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer.write_all(tag.name.as_bytes()).await.unwrap();
 
     // attributes
-    for (key, value) in &tag.attributes {
+    for attribute in &tag.attributes {
         if tag.attributes.len() > 2 || tag.name.len() > 24 {
             writer.write_all(b"\n").await.unwrap();
             print_indentation(writer, &context.increase_indentation_by(2)).await;
@@ -150,11 +150,14 @@ async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
             writer.write_all(b" ").await.unwrap();
         }
 
-        writer.write_all(key.as_bytes()).await.unwrap();
+        writer.write_all(attribute.name.as_bytes()).await.unwrap();
 
-        if value == "" {
-            continue;
-        }
+        let value = match &attribute.value {
+            Some(v) => v,
+            None => {
+                return;
+            }
+        };
 
         writer.write_all(b"=\"").await.unwrap();
         writer.write_all(value.as_bytes()).await.unwrap();

@@ -19,8 +19,9 @@ fn failing_parsing_benchmark(c: &mut Criterion) {
         b.iter(|| parse(black_box(&input)))
     });
 
-    let err = parse(&input)
-        .expect_err("expected failed parsing for fixtures/complex-failing.html.twig in project folder");
+    let err = parse(&input).expect_err(
+        "expected failed parsing for fixtures/complex-failing.html.twig in project folder",
+    );
 
     c.bench_function("generating human error from failed parsing", |b| {
         b.iter(|| err.pretty_helpful_error_string(black_box(&input)))

@@ -86,14 +86,14 @@ pub async fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
 
     let mut futs = vec![];
 
-    if file_context.cli_context.no_analysis == false {
+    if !file_context.cli_context.no_analysis {
         let clone = Arc::clone(&file_context);
         futs.push(tokio::spawn(async move {
             analyze(clone).await;
         }));
     }
 
-    if file_context.cli_context.no_writing == false {
+    if !file_context.cli_context.no_writing {
         futs.push(tokio::spawn(async move {
             write_tree(file_context).await;
         }));

@@ -1,6 +1,6 @@
 use super::IResult;
 use crate::ast::*;
-use crate::parser::general::{document_node, dynamic_context};
+use crate::parser::general::{document_node, dynamic_context, Input};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till, take_till1};
 use nom::character::complete::{anychar, char, multispace0, none_of};
@@ -11,7 +11,7 @@ use nom::sequence::{delimited, preceded, terminated};
 
 static NON_CLOSING_TAGS: [&str; 7] = ["!DOCTYPE", "meta", "input", "img", "br", "hr", "source"];
 
-pub(crate) fn html_tag_attribute(input: &str) -> IResult<HtmlAttribute> {
+pub(crate) fn html_tag_attribute(input: Input) -> IResult<HtmlAttribute> {
     let (input, _) = multispace0(input)?;
     let (input, key) = take_till1(|c| {
         c == '='
@@ -29,7 +29,13 @@ pub(crate) fn html_tag_attribute(input: &str) -> IResult<HtmlAttribute> {
     if equal == None {
         let (input, _) = context("invalid attribute name", cut(peek(not(char('"')))))(input)?;
 
-        return Ok((input, (key.to_owned(), "".to_owned())));
+        return Ok((
+            input,
+            HtmlAttribute {
+                name: key.to_owned(),
+                value: None,
+            },
+        ));
     }
 
     let (input, _) = context("missing '\"' quote", cut(tag("\"")))(input)?;
@@ -37,16 +43,22 @@ pub(crate) fn html_tag_attribute(input: &str) -> IResult<HtmlAttribute> {
     let (input, _) = context("missing '\"' quote", cut(tag("\"")))(input)?;
     let (input, _) = multispace0(input)?;
 
-    Ok((input, (key.to_owned(), value.to_owned())))
+    Ok((
+        input,
+        HtmlAttribute {
+            name: key.to_owned(),
+            value: Some(value.to_owned()),
+        },
+    ))
 }
 
-pub(crate) fn html_tag_attribute_map(input: &str) -> IResult<Vec<HtmlAttribute>> {
+pub(crate) fn html_tag_attribute_map(input: Input) -> IResult<Vec<HtmlAttribute>> {
     let (input, list) = many0(html_tag_attribute)(input)?;
     Ok((input, list))
 }
 
 // returns (tag, self_closed, attributes)
-pub(crate) fn html_open_tag(input: &str) -> IResult<(&str, bool, Vec<HtmlAttribute>)> {
+pub(crate) fn html_open_tag(input: Input) -> IResult<(Input, bool, Vec<HtmlAttribute>)> {
     let (input, _) = tag("<")(input)?;
     let (input, open) = take_till1(|c| {
         c == ' ' || c == '>' || c == '/' || c == '<' || c == '\n' || c == '\r' || c == '\t'
@@ -65,7 +77,9 @@ pub(crate) fn html_open_tag(input: &str) -> IResult<(&str, bool, Vec<HtmlAttribu
     Ok((input, (open, closed, args)))
 }
 
-pub(crate) fn html_close_tag<'a>(open_tag: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str> {
+pub(crate) fn html_close_tag<'a>(
+    open_tag: &'a str,
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>> + 'a {
     delimited(
         tag("</"),
         terminated(cut(tag(open_tag)), many0(none_of(">"))),
@@ -73,7 +87,7 @@ pub(crate) fn html_close_tag<'a>(open_tag: &'a str) -> impl FnMut(&'a str) -> IR
     )
 }
 
-pub(crate) fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
+pub(crate) fn html_complete_tag(input: Input) -> IResult<HtmlNode> {
     let (mut remaining, (open, self_closed, args)) = html_open_tag(input)?;
     let mut children = vec![];
 
@@ -100,7 +114,7 @@ pub(crate) fn html_complete_tag(input: &str) -> IResult<HtmlNode> {
     Ok((remaining, HtmlNode::Tag(tag)))
 }
 
-pub(crate) fn html_plain_text(input: &str) -> IResult<HtmlNode> {
+pub(crate) fn html_plain_text(input: Input) -> IResult<HtmlNode> {
     let (remaining, plain) = recognize(many1(preceded(
         opt(char(' ')),
         take_till1(|c| c == '<' || c == '{' || c == '\t' || c == '\r' || c == '\n' || c == ' '),
@@ -114,7 +128,7 @@ pub(crate) fn html_plain_text(input: &str) -> IResult<HtmlNode> {
     ))
 }
 
-pub(crate) fn html_comment(input: &str) -> IResult<HtmlNode> {
+pub(crate) fn html_comment(input: Input) -> IResult<HtmlNode> {
     preceded(
         terminated(tag("<!--"), multispace0),
         map(
@@ -143,24 +157,16 @@ mod tests {
                 (
                     "a",
                     false,
-                    vec![("href".to_string(), "#".to_string())]
-                        .into_iter()
-                        .collect()
+                    vec![HtmlAttribute {
+                        name: "href".to_string(),
+                        value: Some("#".to_string())
+                    }]
                 )
             ))
         );
-        assert_eq!(
-            html_open_tag("<p>"),
-            Ok(("", ("p", false, Vec::new())))
-        );
-        assert_eq!(
-            html_open_tag("<h1>"),
-            Ok(("", ("h1", false, Vec::new())))
-        );
-        assert_eq!(
-            html_open_tag("<h1>"),
-            Ok(("", ("h1", false, Vec::new())))
-        );
+        assert_eq!(html_open_tag("<p>"), Ok(("", ("p", false, Vec::new()))));
+        assert_eq!(html_open_tag("<h1>"), Ok(("", ("h1", false, Vec::new()))));
+        assert_eq!(html_open_tag("<h1>"), Ok(("", ("h1", false, Vec::new()))));
         assert_eq!(
             html_open_tag("<!DOCTYPE html>"),
             Ok((
@@ -168,9 +174,10 @@ mod tests {
                 (
                     "!DOCTYPE",
                     true,
-                    vec![("html".to_string(), "".to_string())]
-                        .into_iter()
-                        .collect()
+                    vec![HtmlAttribute {
+                        name: "html".to_string(),
+                        value: None
+                    }]
                 )
             ))
         );
@@ -199,10 +206,7 @@ mod tests {
 
     #[test]
     fn test_open_self_closing_tag() {
-        assert_eq!(
-            html_open_tag("<br/>"),
-            Ok(("", ("br", true, Vec::new())))
-        );
+        assert_eq!(html_open_tag("<br/>"), Ok(("", ("br", true, Vec::new()))));
         assert_eq!(
             html_open_tag("<a href=\"#\"/>"),
             Ok((
@@ -210,9 +214,10 @@ mod tests {
                 (
                     "a",
                     true,
-                    vec![("href".to_string(), "#".to_string())]
-                        .into_iter()
-                        .collect()
+                    vec![HtmlAttribute {
+                        name: "href".to_string(),
+                        value: Some("#".to_string())
+                    }]
                 )
             ))
         )
@@ -227,9 +232,10 @@ mod tests {
                 (
                     "meta",
                     true,
-                    vec![("charset".to_string(), "UTF-8".to_string())]
-                        .into_iter()
-                        .collect()
+                    vec![HtmlAttribute {
+                        name: "charset".to_string(),
+                        value: Some("UTF-8".to_string())
+                    }]
                 )
             ))
         );
@@ -237,17 +243,19 @@ mod tests {
 
     #[test]
     fn test_complete_tag() {
+        let meta_tag = HtmlNode::Tag(HtmlTag {
+            name: "meta".to_string(),
+            self_closed: true,
+            attributes: vec![HtmlAttribute {
+                name: "charset".to_string(),
+                value: Some("UTF-8".to_string()),
+            }],
+            ..Default::default()
+        });
+
         assert_eq!(
             html_complete_tag("<meta charset=\"UTF-8\"><title>SomeTitle</title>"),
-            Ok((
-                "<title>SomeTitle</title>",
-                HtmlNode::Tag(HtmlTag {
-                    name: "meta".to_string(),
-                    self_closed: true,
-                    attributes: vec![("charset".to_string(), "UTF-8".to_string())],
-                    ..Default::default()
-                })
-            ))
+            Ok(("<title>SomeTitle</title>", meta_tag.clone()))
         );
 
         assert_eq!(
@@ -257,12 +265,7 @@ mod tests {
                 HtmlNode::Tag(HtmlTag {
                     name: "div".to_string(),
                     children: vec![
-                        HtmlNode::Tag(HtmlTag {
-                            name: "meta".to_string(),
-                            self_closed: true,
-                            attributes: vec![("charset".to_string(), "UTF-8".to_string())],
-                            ..Default::default()
-                        }),
+                        meta_tag,
                         HtmlNode::Tag(HtmlTag {
                             name: "title".to_string(),
                             ..Default::default()
@@ -341,18 +344,33 @@ mod tests {
     fn test_tag_attribute() {
         assert_eq!(
             html_tag_attribute("href=\"#\""),
-            Ok(("", ("href".to_string(), "#".to_string())))
+            Ok((
+                "",
+                HtmlAttribute {
+                    name: "href".to_string(),
+                    value: Some("#".to_string())
+                }
+            ))
         );
         assert_eq!(
             html_tag_attribute("onClick=\"alert('Hello world');\" "),
             Ok((
                 "",
-                ("onClick".to_string(), "alert('Hello world');".to_string())
+                HtmlAttribute {
+                    name: "onClick".to_string(),
+                    value: Some("alert('Hello world');".to_string())
+                }
             ))
         );
         assert_eq!(
             html_tag_attribute("disabled"),
-            Ok(("", ("disabled".to_string(), "".to_string())))
+            Ok((
+                "",
+                HtmlAttribute {
+                    name: "disabled".to_string(),
+                    value: None
+                }
+            ))
         );
     }
 
@@ -360,32 +378,62 @@ mod tests {
     fn test_special_attributes() {
         assert_eq!(
             html_tag_attribute("title=\"\""),
-            Ok(("", ("title".to_string(), "".to_string())))
+            Ok((
+                "",
+                HtmlAttribute {
+                    name: "title".to_string(),
+                    value: Some("".to_string())
+                }
+            ))
         );
         assert_eq!(
             html_tag_attribute("#body"),
-            Ok(("", ("#body".to_string(), "".to_string())))
+            Ok((
+                "",
+                HtmlAttribute {
+                    name: "#body".to_string(),
+                    value: None
+                }
+            ))
         );
         assert_eq!(
             html_tag_attribute("@click=\"counter += 1;\""),
-            Ok(("", ("@click".to_string(), "counter += 1;".to_string())))
+            Ok((
+                "",
+                HtmlAttribute {
+                    name: "@click".to_string(),
+                    value: Some("counter += 1;".to_string())
+                }
+            ))
         );
         assert_eq!(
             html_tag_attribute(":name=\"firstname\""),
-            Ok(("", (":name".to_string(), "firstname".to_string())))
+            Ok((
+                "",
+                HtmlAttribute {
+                    name: ":name".to_string(),
+                    value: Some("firstname".to_string())
+                }
+            ))
         );
         assert_eq!(
             html_tag_attribute("v-model=\"lastname\""),
-            Ok(("", ("v-model".to_string(), "lastname".to_string())))
+            Ok((
+                "",
+                HtmlAttribute {
+                    name: "v-model".to_string(),
+                    value: Some("lastname".to_string())
+                }
+            ))
         );
         assert_eq!(
             html_tag_attribute("@change=\"if counter < 100 { counter += 1; }\""),
             Ok((
                 "",
-                (
-                    "@change".to_string(),
-                    "if counter < 100 { counter += 1; }".to_string()
-                )
+                HtmlAttribute {
+                    name: "@change".to_string(),
+                    value: Some("if counter < 100 { counter += 1; }".to_string())
+                }
             ))
         );
     }
@@ -417,8 +465,14 @@ mod tests {
     #[test]
     fn test_tag_argument_map() {
         let attributes = vec![
-            ("href".to_string(), "#".to_string()),
-            ("target".to_string(), "_blank".to_string())
+            HtmlAttribute {
+                name: "href".to_string(),
+                value: Some("#".to_string()),
+            },
+            HtmlAttribute {
+                name: "target".to_string(),
+                value: Some("_blank".to_string()),
+            },
         ];
 
         assert_eq!(
@@ -479,7 +533,10 @@ mod tests {
                 HtmlNode::Tag(HtmlTag {
                     name: "!DOCTYPE".to_string(),
                     self_closed: true,
-                    attributes: vec![("html".to_string(), "".to_string())],
+                    attributes: vec![HtmlAttribute {
+                        name: "html".to_string(),
+                        value: None
+                    }],
                     ..Default::default()
                 })
             ))

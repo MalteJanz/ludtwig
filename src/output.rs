@@ -38,7 +38,7 @@ pub async fn handle_processing_output(mut rx: mpsc::Receiver<OutputMessage>) -> 
     for (k, v) in map {
         file_count += 1;
 
-        if v.len() == 0 {
+        if v.is_empty() {
             continue;
         }
 
@@ -48,11 +48,11 @@ pub async fn handle_processing_output(mut rx: mpsc::Receiver<OutputMessage>) -> 
             match output {
                 Output::Error(message) => {
                     error_count += 1;
-                    println!("[{}] {}", "Error", message.red());
+                    println!("[Error] {}", message.red());
                 }
                 Output::Warning(message) => {
                     warning_count += 1;
-                    println!("[{}] {}", "Warning", message.yellow());
+                    println!("[Warning] {}", message.yellow());
                 }
                 Output::None => {}
             }

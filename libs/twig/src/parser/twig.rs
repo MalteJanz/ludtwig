@@ -1,13 +1,13 @@
 use super::IResult;
 use crate::ast::*;
-use crate::parser::general::{document_node, dynamic_context};
+use crate::parser::general::{document_node, dynamic_context, Input};
 use nom::bytes::complete::{tag, take_till1};
 use nom::character::complete::{anychar, multispace0};
 use nom::combinator::{cut, map, opt};
 use nom::multi::{many0, many_till};
 use nom::sequence::{delimited, preceded, terminated};
 
-pub(crate) fn twig_opening_block(input: &str) -> IResult<&str> {
+pub(crate) fn twig_opening_block(input: Input) -> IResult<Input> {
     delimited(
         tag("{%"),
         preceded(
@@ -21,7 +21,7 @@ pub(crate) fn twig_opening_block(input: &str) -> IResult<&str> {
     )(input)
 }
 
-pub(crate) fn twig_closing_block(input: &str) -> IResult<&str> {
+pub(crate) fn twig_closing_block(input: Input) -> IResult<Input> {
     delimited(
         tag("{%"),
         delimited(multispace0, tag("endblock"), multispace0),
@@ -29,7 +29,7 @@ pub(crate) fn twig_closing_block(input: &str) -> IResult<&str> {
     )(input)
 }
 
-pub(crate) fn twig_complete_block(input: &str) -> IResult<HtmlNode> {
+pub(crate) fn twig_complete_block(input: Input) -> IResult<HtmlNode> {
     let (remaining, open) = twig_opening_block(input)?;
     let (remaining, children) = many0(document_node)(remaining)?;
 
@@ -46,7 +46,7 @@ pub(crate) fn twig_complete_block(input: &str) -> IResult<HtmlNode> {
     Ok((remaining, HtmlNode::TwigBlock(block)))
 }
 
-pub(crate) fn twig_parent_call(input: &str) -> IResult<HtmlNode> {
+pub(crate) fn twig_parent_call(input: Input) -> IResult<HtmlNode> {
     let (remaining, _) = delimited(
         tag("{%"),
         delimited(
@@ -60,7 +60,7 @@ pub(crate) fn twig_parent_call(input: &str) -> IResult<HtmlNode> {
     Ok((remaining, HtmlNode::TwigParentCall))
 }
 
-pub(crate) fn twig_comment(input: &str) -> IResult<HtmlNode> {
+pub(crate) fn twig_comment(input: Input) -> IResult<HtmlNode> {
     preceded(
         terminated(tag("{#"), multispace0),
         map(

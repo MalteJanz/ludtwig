@@ -7,7 +7,8 @@ use nom::branch::alt;
 use nom::character::complete::multispace1;
 use nom::multi::many1;
 
-pub(crate) type IResult<'a, O> = nom::IResult<&'a str, O, TwigParsingErrorInformation<&'a str>>;
+pub(crate) type Input<'a> = &'a str;
+pub(crate) type IResult<'a, O> = nom::IResult<Input<'a>, O, TwigParsingErrorInformation<Input<'a>>>;
 
 /// create a new error from an input position, a DYNAMIC string and an existing error.
 /// This is used mainly in the [dynamic_context] combinator, to add user friendly information
@@ -36,13 +37,13 @@ where
 }
 
 // whitespace because it matters in rendering!: https://prettier.io/blog/2018/11/07/1.15.0.html
-pub(crate) fn some_whitespace(input: &str) -> IResult<HtmlNode> {
+pub(crate) fn some_whitespace(input: Input) -> IResult<HtmlNode> {
     let (remainder, _) = multispace1(input)?;
 
     Ok((remainder, HtmlNode::Whitespace))
 }
 
-pub(crate) fn document_node(input: &str) -> IResult<HtmlNode> {
+pub(crate) fn document_node(input: Input) -> IResult<HtmlNode> {
     alt((
         some_whitespace,
         html_comment, //html comment must match before html tag because both can start with <!...
@@ -55,7 +56,7 @@ pub(crate) fn document_node(input: &str) -> IResult<HtmlNode> {
     ))(input)
 }
 
-pub(crate) fn document_node_all(input: &str) -> IResult<HtmlNode> {
+pub(crate) fn document_node_all(input: Input) -> IResult<HtmlNode> {
     let (remaining, children) = many1(document_node)(&input)?;
 
     Ok((remaining, HtmlNode::Root(children)))

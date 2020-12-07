@@ -1,12 +1,13 @@
 use super::IResult;
 use crate::ast::*;
+use crate::parser::general::Input;
 use nom::bytes::complete::tag;
 use nom::character::complete::{anychar, multispace0};
 use nom::combinator::map;
 use nom::multi::many_till;
 use nom::sequence::{preceded, terminated};
 
-pub(crate) fn vue_block(input: &str) -> IResult<HtmlNode> {
+pub(crate) fn vue_block(input: Input) -> IResult<HtmlNode> {
     preceded(
         terminated(tag("{{"), multispace0),
         map(

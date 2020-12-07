@@ -186,7 +186,7 @@ fn get_line_and_column_of_subslice<'a>(input: &'a str, slice: &'a str) -> (usize
             last_line_end = i + 1;
 
             if let Some(l_byte) = last_byte {
-                if l_byte != b'\r' || l_byte != b'\r' {
+                if l_byte != b'\r' || l_byte != b'\n' {
                     lines += 1;
                 }
             }
