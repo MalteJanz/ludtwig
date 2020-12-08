@@ -26,6 +26,16 @@ impl<'a> PrintingContext<'a> {
         copy.indentation += increase;
         copy
     }
+
+    fn get_parent(&self) -> Option<&'a HtmlNode> {
+        self.parent_nodes
+            .iter()
+            .rev()
+            .skip(1)
+            .take(1)
+            .map(|n| *n)
+            .next()
+    }
 }
 
 impl<'a> Default for PrintingContext<'a> {
@@ -152,16 +162,11 @@ async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
 
         writer.write_all(attribute.name.as_bytes()).await.unwrap();
 
-        let value = match &attribute.value {
-            Some(v) => v,
-            None => {
-                return;
-            }
-        };
-
-        writer.write_all(b"=\"").await.unwrap();
-        writer.write_all(value.as_bytes()).await.unwrap();
-        writer.write_all(b"\"").await.unwrap();
+        if let Some(value) = &attribute.value {
+            writer.write_all(b"=\"").await.unwrap();
+            writer.write_all(value.as_bytes()).await.unwrap();
+            writer.write_all(b"\"").await.unwrap();
+        }
     }
 
     if tag.self_closed {
@@ -253,11 +258,48 @@ async fn print_whitespace<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
-    if let Some(prev) = context.previous_node {
-        if let HtmlNode::TwigBlock(_) = prev {
-            // print another whitespace.
-            writer.write_all(b"\r\n").await.unwrap();
+    match (
+        context.previous_node,
+        context.after_node,
+        context.get_parent(),
+    ) {
+        (Some(prev), Some(aft), Some(par)) => {
+            if let HtmlNode::TwigBlock(_) = par {
+                // don't print another whitespace if the parent is also a block.
+            } else {
+                if let HtmlNode::TwigBlock(_) = prev {
+                    // print another whitespace.
+                    writer.write_all(b"\r\n").await.unwrap();
+                } else if let HtmlNode::TwigBlock(_) = aft {
+                    // print another whitespace.
+                    writer.write_all(b"\r\n").await.unwrap();
+                }
+            }
         }
+
+        (None, Some(aft), Some(par)) => {
+            if let HtmlNode::TwigBlock(_) = par {
+                // don't print another whitespace if the parent is also a block.
+            } else {
+                if let HtmlNode::TwigBlock(_) = aft {
+                    // print another whitespace.
+                    writer.write_all(b"\r\n").await.unwrap();
+                }
+            }
+        }
+
+        (Some(prev), None, Some(par)) => {
+            if let HtmlNode::TwigBlock(_) = par {
+                // don't print another whitespace if the parent is also a block.
+            } else {
+                if let HtmlNode::TwigBlock(_) = prev {
+                    // print another whitespace.
+                    writer.write_all(b"\r\n").await.unwrap();
+                }
+            }
+        }
+
+        (_, _, _) => {}
     }
 
     writer.write_all(b"\r\n").await.unwrap();
@@ -303,6 +345,75 @@ mod tests {
         assert_eq!(
             res,
             "{% block some_twig_block %}\r\n    Hello world\r\n{% endblock %}".to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_nested_twig_block() {
+        let tree = HtmlNode::TwigBlock(TwigBlock {
+            name: "this_is_a_test_one".to_string(),
+            children: vec![
+                HtmlNode::Whitespace,
+                HtmlNode::TwigBlock(TwigBlock {
+                    name: "this_is_a_test_two".to_string(),
+                    children: vec![
+                        HtmlNode::Whitespace,
+                        HtmlNode::TwigBlock(TwigBlock {
+                            name: "this_is_a_test_three".to_string(),
+                            children: vec![HtmlNode::Whitespace],
+                        }),
+                        HtmlNode::Whitespace,
+                    ],
+                }),
+                HtmlNode::Whitespace,
+            ],
+        });
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "{% block this_is_a_test_one %}\r\n    {% block this_is_a_test_two %}\r\n        {% block this_is_a_test_three %}\r\n        {% endblock %}\r\n    {% endblock %}\r\n{% endblock %}".to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_nested_twig_block_separation() {
+        let tree = HtmlNode::Tag(HtmlTag {
+            name: "this_is_a_test_one".to_string(),
+            children: vec![
+                HtmlNode::Whitespace,
+                HtmlNode::TwigBlock(TwigBlock {
+                    name: "this_is_a_test_two".to_string(),
+                    children: vec![
+                        HtmlNode::Whitespace,
+                        HtmlNode::Plain(HtmlPlain {
+                            plain: "Some content".to_string(),
+                        }),
+                        HtmlNode::Whitespace,
+                    ],
+                }),
+                HtmlNode::Whitespace,
+                HtmlNode::TwigBlock(TwigBlock {
+                    name: "this_is_a_test_three".to_string(),
+                    children: vec![
+                        HtmlNode::Whitespace,
+                        HtmlNode::Plain(HtmlPlain {
+                            plain: "Some content".to_string(),
+                        }),
+                        HtmlNode::Whitespace,
+                    ],
+                }),
+                HtmlNode::Whitespace,
+            ],
+            ..Default::default()
+        });
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "<this_is_a_test_one>\r\n\r\n    {% block this_is_a_test_two %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n    {% block this_is_a_test_three %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n</this_is_a_test_one>".to_string()
         );
     }
 }
