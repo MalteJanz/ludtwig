@@ -112,7 +112,7 @@ fn print_node<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
 
 async fn print_node_list<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
-    nodes: &Vec<HtmlNode>,
+    nodes: &[HtmlNode],
     context: &PrintingContext<'_>,
 ) {
     for idx in 0..nodes.len() {

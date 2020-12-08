@@ -80,9 +80,9 @@ pub(crate) trait DynamicParseError<I> {
 impl<I: std::fmt::Debug + std::fmt::Display> DynamicParseError<I>
     for TwigParsingErrorInformation<I>
 {
-    fn add_dynamic_context(_input: I, _ctx: String, mut other: Self) -> Self {
+    fn add_dynamic_context(_input: I, ctx: String, mut other: Self) -> Self {
         //println!("[ADD_DYNAMIC_CONTEXT] {:?} {:?} {:?}", _ctx, _input, other);
-        other.context = Some(_ctx.into());
+        other.context = Some(Cow::Owned(ctx));
 
         other
     }

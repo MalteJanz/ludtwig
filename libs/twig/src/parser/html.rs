@@ -88,16 +88,18 @@ pub(crate) fn html_close_tag<'a>(
 }
 
 pub(crate) fn html_complete_tag(input: Input) -> IResult<HtmlNode> {
-    let (mut remaining, (open, self_closed, args)) = html_open_tag(input)?;
+    let (mut remaining, (open, self_closed, attributes)) = html_open_tag(input)?;
     let mut children = vec![];
 
     if !self_closed {
         let (remaining_new, children_new) = many0(document_node)(remaining)?;
         let (remaining_new, _close) = dynamic_context(
-            format!(
-                "Missing closing tag for opening tag '{}' with attributes {:?}",
-                open, args
-            ),
+            || {
+                format!(
+                    "Missing closing tag for opening tag '{}' with attributes {:?}",
+                    open, attributes
+                )
+            },
             cut(html_close_tag(open)),
         )(remaining_new)?;
         remaining = remaining_new;
@@ -107,7 +109,7 @@ pub(crate) fn html_complete_tag(input: Input) -> IResult<HtmlNode> {
     let tag = HtmlTag {
         name: open.to_owned(),
         self_closed,
-        attributes: args,
+        attributes,
         children,
     };
 

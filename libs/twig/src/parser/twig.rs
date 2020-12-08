@@ -34,7 +34,7 @@ pub(crate) fn twig_complete_block(input: Input) -> IResult<HtmlNode> {
     let (remaining, children) = many0(document_node)(remaining)?;
 
     let (remaining, _close) = dynamic_context(
-        format!("Missing endblock for '{}' twig block", open),
+        || format!("Missing endblock for '{}' twig block", open),
         cut(twig_closing_block),
     )(remaining)?;
 

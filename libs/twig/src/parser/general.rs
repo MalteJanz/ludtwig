@@ -6,31 +6,35 @@ use crate::parser::vue::vue_block;
 use nom::branch::alt;
 use nom::character::complete::multispace1;
 use nom::multi::many1;
+use nom::Parser;
 
 pub(crate) type Input<'a> = &'a str;
 pub(crate) type IResult<'a, O> = nom::IResult<Input<'a>, O, TwigParsingErrorInformation<Input<'a>>>;
 
-/// create a new error from an input position, a DYNAMIC string and an existing error.
-/// This is used mainly in the [dynamic_context] combinator, to add user friendly information
-/// to errors when backtracking through a parse tree
-pub(crate) fn dynamic_context<I: Clone, E: DynamicParseError<I>, F, O>(
-    context: String,
+/// This is used mainly as the [dynamic_context] combinator, to add user friendly information
+/// to errors when backtracking through a parse tree.
+/// It works by executing the callback function context_creator to get a dynamic String,
+/// which is then stored in the error as context
+/// (this execution only happens in the case of parsing errors).
+pub(crate) fn dynamic_context<I: Clone, C, E: DynamicParseError<I>, F, O>(
+    context_creator: C,
     mut f: F,
 ) -> impl FnMut(I) -> nom::IResult<I, O, E>
 where
-    F: FnMut(I) -> nom::IResult<I, O, E>,
+    C: Fn() -> String,
+    F: Parser<I, O, E>,
 {
-    move |i: I| match f(i.clone()) {
+    move |i: I| match f.parse(i.clone()) {
         Ok(o) => Ok(o),
         Err(nom::Err::Incomplete(i)) => Err(nom::Err::Incomplete(i)),
         Err(nom::Err::Error(e)) => Err(nom::Err::Error(E::add_dynamic_context(
             i,
-            context.clone(),
+            context_creator(),
             e,
         ))),
         Err(nom::Err::Failure(e)) => Err(nom::Err::Failure(E::add_dynamic_context(
             i,
-            context.clone(),
+            context_creator(),
             e,
         ))),
     }

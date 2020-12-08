@@ -147,7 +147,7 @@ where
             if let Some(file_type) = path.extension() {
                 if file_type == "twig" {
                     futures_processes.push(tokio::spawn(process::process_file(
-                        path.into(),
+                        path,
                         Arc::clone(&cli_context),
                     )));
                 }
