@@ -6,13 +6,11 @@ mod writer;
 use crate::output::OutputMessage;
 use clap::{crate_authors, crate_version, Clap, ValueHint};
 use std::boxed::Box;
-use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::sync::Arc;
-use tokio::fs;
-use tokio::stream::StreamExt;
+use tokio::fs::{self};
 use tokio::sync::mpsc;
+use walkdir::WalkDir;
 
 /// Tools for '.twig' files. Mostly scanning for errors and formatting.
 #[derive(Clap, Debug, Clone)]
@@ -116,50 +114,37 @@ where
     handle_input_dir(path, cli_context).await;
 }
 
-fn handle_input_dir<P>(
-    path: P,
-    cli_context: Arc<CliContext>,
-) -> Pin<Box<dyn Future<Output = ()> + Send>>
+async fn handle_input_dir<P>(path: P, cli_context: Arc<CliContext>)
 where
     P: AsRef<Path> + 'static + Send,
 {
-    Box::pin(async move {
-        let mut entries = fs::read_dir(path).await.unwrap();
-        let mut futures_dirs = Vec::new();
+    let processes = tokio::task::spawn_blocking(move || {
         let mut futures_processes = Vec::new();
 
-        while let Some(entry_result) = entries.next().await {
-            if entry_result.is_err() {
-                continue;
-            }
-
-            let entry = entry_result.unwrap();
+        for entry in WalkDir::new(path) {
+            let entry = entry.unwrap();
             let path = entry.path();
 
-            if path.is_dir() {
-                futures_dirs.push(tokio::spawn(handle_input_dir(
-                    path,
-                    Arc::clone(&cli_context),
-                )));
+            if !path.is_file() {
                 continue;
             }
 
             if let Some(file_type) = path.extension() {
                 if file_type == "twig" {
                     futures_processes.push(tokio::spawn(process::process_file(
-                        path,
+                        path.into(),
                         Arc::clone(&cli_context),
                     )));
                 }
             }
         }
 
-        for f in futures_dirs {
-            f.await.unwrap();
-        }
-
-        for f in futures_processes {
-            f.await.unwrap();
-        }
+        futures_processes
     })
+    .await
+    .unwrap();
+
+    for f in processes {
+        f.await.unwrap();
+    }
 }

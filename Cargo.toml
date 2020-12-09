@@ -16,3 +16,4 @@ twig = { path="libs/twig" }
 clap = "~3.0.0-beta.2"
 tokio = { version = "^0.3.5", features = ["rt-multi-thread", "fs", "io-util", "stream", "macros", "sync"] }
 colored = "~2.0.0"
+walkdir = "^2.3.1"
