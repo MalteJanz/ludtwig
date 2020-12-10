@@ -146,18 +146,55 @@ async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
     tag: &HtmlTag,
     context: &PrintingContext<'_>,
 ) {
-    print_indentation(writer, context).await;
+    print_indentation_if_whitespace_exists_before(writer, context).await;
 
     writer.write_all(b"<").await.unwrap();
     writer.write_all(tag.name.as_bytes()).await.unwrap();
 
+    let line_length_for_inlined_two_attributes = context.indentation as usize * 4
+        + 1
+        + tag.name.len()
+        + tag
+            .attributes
+            .iter()
+            .take(2)
+            .map(|a| 1 + a.name.len() + a.value.as_ref().map(|v| v.len() + 3).unwrap_or(0))
+            .sum::<usize>()
+        + tag.self_closed as usize
+        + 1
+        + if tag
+            .children
+            .first()
+            .map(|f| !matches!(f, HtmlNode::Whitespace))
+            .unwrap_or(true)
+        {
+            1000 //add 1000 to line length if there is no whitespace between opening tag and children
+        } else {
+            0
+        };
+
+    let inline_mode = tag.attributes.len() <= 2 && line_length_for_inlined_two_attributes <= 120;
+    let continuation_indent_mode = tag.name.len() > 8;
+
     // attributes
-    for attribute in &tag.attributes {
-        if tag.attributes.len() > 2 || tag.name.len() > 24 {
+    for (index, attribute) in tag.attributes.iter().enumerate() {
+        if inline_mode {
+            writer.write_all(b" ").await.unwrap();
+        } else if continuation_indent_mode {
             writer.write_all(b"\n").await.unwrap();
             print_indentation(writer, &context.increase_indentation_by(2)).await;
         } else {
-            writer.write_all(b" ").await.unwrap();
+            // write attribute on first line (same as tag)
+            if index == 0 {
+                writer.write_all(b" ").await.unwrap();
+            } else {
+                writer.write_all(b"\n").await.unwrap();
+
+                print_indentation(writer, context).await;
+                for _ in 0..(tag.name.len() + 2) {
+                    writer.write_all(b" ").await.unwrap();
+                }
+            }
         }
 
         writer.write_all(attribute.name.as_bytes()).await.unwrap();
@@ -173,12 +210,14 @@ async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
         writer.write_all(b"/>").await.unwrap();
     } else {
         writer.write_all(b">").await.unwrap();
+        // only print children if tag is not self_closed!
+        print_node_list(writer, &tag.children, &context.increase_indentation_by(1)).await;
     }
 
-    print_node_list(writer, &tag.children, &context.increase_indentation_by(1)).await;
-
-    if !tag.children.is_empty() {
-        print_indentation(writer, context).await;
+    if let Some(last) = tag.children.last() {
+        if let HtmlNode::Whitespace = last {
+            print_indentation(writer, context).await;
+        }
     }
 
     if !tag.self_closed {
@@ -193,7 +232,7 @@ async fn print_plain<W: AsyncWrite + Unpin + Send + ?Sized>(
     plain: &HtmlPlain,
     context: &PrintingContext<'_>,
 ) {
-    print_indentation(writer, context).await;
+    print_indentation_if_whitespace_exists_before(writer, context).await;
     writer.write_all(plain.plain.as_bytes()).await.unwrap();
 }
 
@@ -202,7 +241,7 @@ async fn print_html_comment<W: AsyncWrite + Unpin + Send + ?Sized>(
     comment: &HtmlComment,
     context: &PrintingContext<'_>,
 ) {
-    print_indentation(writer, context).await;
+    print_indentation_if_whitespace_exists_before(writer, context).await;
     writer.write_all(b"<!-- ").await.unwrap();
     writer.write_all(comment.content.as_bytes()).await.unwrap();
     writer.write_all(b" -->").await.unwrap();
@@ -213,7 +252,7 @@ async fn print_vue_block<W: AsyncWrite + Unpin + Send + ?Sized>(
     vue: &VueBlock,
     context: &PrintingContext<'_>,
 ) {
-    print_indentation(writer, context).await;
+    print_indentation_if_whitespace_exists_before(writer, context).await;
     writer.write_all(b"{{ ").await.unwrap();
     writer.write_all(vue.content.as_bytes()).await.unwrap();
     writer.write_all(b" }}").await.unwrap();
@@ -224,14 +263,20 @@ async fn print_twig_block<W: AsyncWrite + Unpin + Send + ?Sized>(
     twig: &TwigBlock,
     context: &PrintingContext<'_>,
 ) {
-    print_indentation(writer, context).await;
+    print_indentation_if_whitespace_exists_before(writer, context).await;
+
     writer.write_all(b"{% block ").await.unwrap();
     writer.write_all(twig.name.as_bytes()).await.unwrap();
     writer.write_all(b" %}").await.unwrap();
 
     print_node_list(writer, &twig.children, &context.increase_indentation_by(1)).await;
 
-    print_indentation(writer, context).await;
+    if let Some(last) = twig.children.last() {
+        if let HtmlNode::Whitespace = last {
+            print_indentation(writer, context).await;
+        }
+    }
+
     writer.write_all(b"{% endblock %}").await.unwrap();
 }
 
@@ -239,7 +284,7 @@ async fn print_twig_parent_call<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
-    print_indentation(writer, context).await;
+    print_indentation_if_whitespace_exists_before(writer, context).await;
     writer.write_all(b"{% parent %}").await.unwrap();
 }
 
@@ -248,7 +293,7 @@ async fn print_twig_comment<W: AsyncWrite + Unpin + Send + ?Sized>(
     comment: &TwigComment,
     context: &PrintingContext<'_>,
 ) {
-    print_indentation(writer, context).await;
+    print_indentation_if_whitespace_exists_before(writer, context).await;
     writer.write_all(b"{# ").await.unwrap();
     writer.write_all(comment.content.as_bytes()).await.unwrap();
     writer.write_all(b" #}").await.unwrap();
@@ -314,10 +359,22 @@ async fn print_indentation<W: AsyncWrite + Unpin + Send + ?Sized>(
     }
 }
 
+async fn print_indentation_if_whitespace_exists_before<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
+    context: &PrintingContext<'_>,
+) {
+    if let Some(prev) = context.previous_node {
+        if let HtmlNode::Whitespace = prev {
+            print_indentation(writer, context).await;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::io::Cursor;
+    use twig::ast::HtmlAttribute;
 
     async fn convert_tree_into_written_string(tree: HtmlNode) -> String {
         let mut writer_raw: Cursor<Vec<u8>> = Cursor::new(Vec::new());
@@ -325,6 +382,30 @@ mod tests {
         print_node(&mut writer_raw, &tree, &mut PrintingContext::default()).await;
 
         String::from_utf8(writer_raw.into_inner()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_write_empty_html_tag() {
+        let tree = HtmlNode::Tag(HtmlTag {
+            name: "this_is_a_test_one".to_string(),
+            children: vec![
+                HtmlNode::Whitespace,
+                HtmlNode::Tag(HtmlTag {
+                    name: "this_is_a_test_two".to_string(),
+                    children: vec![],
+                    ..Default::default()
+                }),
+                HtmlNode::Whitespace,
+            ],
+            ..Default::default()
+        });
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "<this_is_a_test_one>\r\n    <this_is_a_test_two></this_is_a_test_two>\r\n</this_is_a_test_one>".to_string()
+        );
     }
 
     #[tokio::test]
@@ -414,6 +495,79 @@ mod tests {
         assert_eq!(
             res,
             "<this_is_a_test_one>\r\n\r\n    {% block this_is_a_test_two %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n    {% block this_is_a_test_three %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n</this_is_a_test_one>".to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_empty_twig_block() {
+        let tree = HtmlNode::Tag(HtmlTag {
+            name: "this_is_a_test_one".to_string(),
+            children: vec![
+                HtmlNode::Whitespace,
+                HtmlNode::TwigBlock(TwigBlock {
+                    name: "this_is_a_test_two".to_string(),
+                    children: vec![],
+                }),
+                HtmlNode::Whitespace,
+            ],
+            ..Default::default()
+        });
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "<this_is_a_test_one>\r\n\r\n    {% block this_is_a_test_two %}{% endblock %}\r\n\r\n</this_is_a_test_one>".to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_tag_and_twig_block_without_whitespace() {
+        let tree = HtmlNode::Tag(HtmlTag {
+            name: "slot".to_string(),
+            children: vec![HtmlNode::TwigBlock(TwigBlock {
+                name: "sw_grid_slot_pagination".to_string(),
+                children: vec![],
+            })],
+            attributes: vec![HtmlAttribute {
+                name: "name".to_string(),
+                value: Some("pagination".to_string()),
+            }],
+            ..Default::default()
+        });
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "<slot name=\"pagination\">{% block sw_grid_slot_pagination %}{% endblock %}</slot>"
+                .to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_tag_and_twig_block_content_without_whitespace() {
+        let tree = HtmlNode::Tag(HtmlTag {
+            name: "slot".to_string(),
+            children: vec![HtmlNode::TwigBlock(TwigBlock {
+                name: "sw_grid_slot_pagination".to_string(),
+                children: vec![HtmlNode::Plain(HtmlPlain {
+                    plain: "Hello world".to_string(),
+                })],
+            })],
+            attributes: vec![HtmlAttribute {
+                name: "name".to_string(),
+                value: Some("pagination".to_string()),
+            }],
+            ..Default::default()
+        });
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "<slot name=\"pagination\">{% block sw_grid_slot_pagination %}Hello world{% endblock %}</slot>"
+                .to_string()
         );
     }
 }
