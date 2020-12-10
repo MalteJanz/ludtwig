@@ -168,7 +168,17 @@ async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
             .map(|f| !matches!(f, HtmlNode::Whitespace))
             .unwrap_or(true)
         {
-            1000 //add 1000 to line length if there is no whitespace between opening tag and children
+            // first child is a whitespace or there are no children
+            if tag.children.is_empty() {
+                if tag.self_closed {
+                    0
+                } else {
+                    2 + tag.name.len() + 1
+                }
+            } else {
+                1000 //add 1000 to line length if there is no whitespace between opening tag and children
+                     // this will enforce to not stay in inline_mode but split the attributes on separate lines.
+            }
         } else {
             0
         };
