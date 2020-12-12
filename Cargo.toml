@@ -1,5 +1,5 @@
 [package]
-name = "rust-twig-tools"
+name = "ludtwig"
 version = "0.1.0"
 authors = ["Malte Janz <malte.janz@yahoo.de>"]
 edition = "2018"

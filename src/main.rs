@@ -12,7 +12,7 @@ use tokio::fs::{self};
 use tokio::sync::mpsc;
 use walkdir::WalkDir;
 
-/// Tools for '.twig' files. Mostly scanning for errors and formatting.
+/// A CLI tool for '.twig' files with focus on formatting and detecting mistakes.
 #[derive(Clap, Debug, Clone)]
 #[clap(version = crate_version!(), author = crate_authors!())]
 struct Opts {
@@ -21,11 +21,11 @@ struct Opts {
     files: Vec<PathBuf>,
 
     /// Disable the analysis of the syntax tree. There will still be parsing errors.
-    #[clap(short = 'a', long)]
+    #[clap(short = 'A', long)]
     no_analysis: bool,
 
-    /// Disable the formatted printing of the syntax tree to disk. With this option the tool will not write to any files.
-    #[clap(short = 'w', long)]
+    /// Disable the formatted writing of the syntax tree to disk. With this option the tool will not write to any files.
+    #[clap(short = 'W', long)]
     no_writing: bool,
 
     /// Specify a custom output directory instead of modifying the files in place.
@@ -39,10 +39,11 @@ struct Opts {
 
 #[derive(Debug)]
 pub struct CliContext {
+    /// Channel sender for transmitting messages back to the user.
     pub output_tx: mpsc::Sender<OutputMessage>,
     /// Disable the analysis of the syntax tree. There will still be parsing errors.
     pub no_analysis: bool,
-    /// Disable the formatted printing of the syntax tree to disk. With this option the tool will not write to any files.
+    /// Disable the formatted writing of the syntax tree to disk. With this option the tool will not write to any files.
     pub no_writing: bool,
     /// Specify a custom output directory instead of modifying the files in place.
     pub output_path: Option<PathBuf>,
@@ -82,7 +83,6 @@ async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
 
     let mut futures = Vec::with_capacity(opts.files.len());
     for path in opts.files {
-        //let tx = cli_context.output_tx.clone();
         let context = Arc::clone(&cli_context);
         futures.push(tokio::task::spawn(handle_input_path(path, context)));
     }
@@ -95,10 +95,6 @@ async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
     let process_code = output_handler.await.unwrap();
 
     Ok(process_code)
-
-    // Gets a value for config if supplied by user, or defaults to "default.conf"
-    // println!("Value for config: {}", opts.config);
-    // TODO: implement configuration.
 }
 
 async fn handle_input_path<P>(path: P, cli_context: Arc<CliContext>)

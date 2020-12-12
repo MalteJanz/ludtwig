@@ -49,7 +49,7 @@ Make sure you have [Rust](https://www.rust-lang.org/) installed on your system.
 Clone this repository.
 
 Run the project with parameters: `cargo run -- filaA.twig`  
-Build the project for production with: `cargo build --release`  
+Build the project for production with (output in `target/release/ludtwig`): `cargo build --release`  
 Run tests with (only of the application not it's dependencies like twig parser): `cargo test`  
 
 If you want to benchmark the performance of the release build you could use [Hyperfine](https://github.com/sharkdp/hyperfine)
