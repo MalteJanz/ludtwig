@@ -386,6 +386,14 @@ mod tests {
     use std::io::Cursor;
     use twig::ast::HtmlAttribute;
 
+    /*
+    The input or output data for testing purposes is partially from the following sources and under copyright!
+    It is not included in the built binaries. Keep the licenses in mind if you use these strings (MIT as of 12.12.2020)!
+
+    Copyright (c) shopware AG (https://github.com/shopware/platform)
+    Copyright (c) shopware AG (https://github.com/shopware/SwagMigrationAssistant)
+     */
+
     async fn convert_tree_into_written_string(tree: HtmlNode) -> String {
         let mut writer_raw: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 

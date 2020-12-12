@@ -150,6 +150,14 @@ mod tests {
     use crate::error::TwigParsingErrorInformation;
     use nom::error::ErrorKind;
 
+    /*
+    The input or output data for testing purposes is partially from the following sources and under copyright!
+    It is not included in the built binaries. Keep the licenses in mind if you use these strings (MIT as of 12.12.2020)!
+
+    Copyright (c) shopware AG (https://github.com/shopware/platform)
+    Copyright (c) shopware AG (https://github.com/shopware/SwagMigrationAssistant)
+     */
+
     #[test]
     fn test_open_tag_positive() {
         assert_eq!(

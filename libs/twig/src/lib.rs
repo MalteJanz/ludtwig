@@ -18,6 +18,14 @@ pub fn parse(input: Input) -> Result<HtmlNode, TwigParseError<Input>> {
 mod tests {
     use super::*;
 
+    /*
+    The input or output data for testing purposes is partially from the following sources and under copyright!
+    It is not included in the built binaries. Keep the licenses in mind if you use these strings (MIT as of 12.12.2020)!
+
+    Copyright (c) shopware AG (https://github.com/shopware/platform)
+    Copyright (c) shopware AG (https://github.com/shopware/SwagMigrationAssistant)
+     */
+
     #[test]
     fn it_works() {
         let result = parse("{% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint %}

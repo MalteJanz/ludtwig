@@ -70,6 +70,14 @@ pub(crate) fn document_node_all(input: Input) -> IResult<HtmlNode> {
 mod tests {
     use super::*;
 
+    /*
+    The input or output data for testing purposes is partially from the following sources and under copyright!
+    It is not included in the built binaries. Keep the licenses in mind if you use these strings (MIT as of 12.12.2020)!
+
+    Copyright (c) shopware AG (https://github.com/shopware/platform)
+    Copyright (c) shopware AG (https://github.com/shopware/SwagMigrationAssistant)
+     */
+
     #[test]
     fn test_some_vue_template() {
         let res = document_node(
