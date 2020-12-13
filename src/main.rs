@@ -31,10 +31,6 @@ struct Opts {
     /// Specify a custom output directory instead of modifying the files in place.
     #[clap(short, long, value_hint = ValueHint::AnyPath)]
     output_path: Option<PathBuf>,
-    // Sets a custom config file.
-    // TODO: reimplement with working config file
-    //#[clap(, long, default_value = "default.conf")]
-    //config: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -103,7 +99,12 @@ where
 {
     let meta = fs::metadata(&path).await.unwrap();
     if meta.is_file() {
-        process::process_file(path.as_ref().into(), cli_context).await;
+        if let Some(file_type) = path.as_ref().extension() {
+            if file_type == "twig" {
+                process::process_file(path.as_ref().into(), cli_context).await;
+            }
+        }
+
         return;
     }
 

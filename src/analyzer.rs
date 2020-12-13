@@ -38,7 +38,7 @@ fn analyze_blocks<'a>(
                     if !twig.name.contains(parent) {
                         file_context
                             .send_output(Output::Warning(format!(
-                                "Twig block name '{}' does not contain parent twig block name '{}'",
+                                "Twig child with block name '{}' does not contain parent twig block name '{}'",
                                 twig.name, parent
                             )))
                             .await;

@@ -35,16 +35,16 @@ pub async fn handle_processing_output(mut rx: mpsc::Receiver<OutputMessage>) -> 
         }
     }
 
-    for (k, v) in map {
+    for (file_path, output_list) in map {
         file_count += 1;
 
-        if v.is_empty() {
+        if output_list.is_empty() {
             continue;
         }
 
-        println!("\nFile: {:?}", k);
+        println!("\nFile: {:?}", file_path);
 
-        for output in v {
+        for output in output_list {
             match output {
                 Output::Error(message) => {
                     error_count += 1;

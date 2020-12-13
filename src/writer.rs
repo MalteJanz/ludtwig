@@ -7,7 +7,7 @@ use tokio::fs::File;
 use tokio::io::{AsyncWrite, AsyncWriteExt, BufWriter};
 use twig::ast::{HtmlComment, HtmlNode, HtmlPlain, HtmlTag, TwigBlock, TwigComment, VueBlock};
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Default)]
 struct PrintingContext<'a> {
     previous_node: Option<&'a HtmlNode>,
     after_node: Option<&'a HtmlNode>,
@@ -15,7 +15,7 @@ struct PrintingContext<'a> {
     /// the last node in the list is the current node. everything before that is up in the hierarchy.
     parent_nodes: Vec<&'a HtmlNode>,
 
-    /// in tab count
+    /// in tab (4 spaces) count
     indentation: u16,
 }
 
@@ -33,19 +33,8 @@ impl<'a> PrintingContext<'a> {
             .rev()
             .skip(1)
             .take(1)
-            .map(|n| *n)
+            .copied()
             .next()
-    }
-}
-
-impl<'a> Default for PrintingContext<'a> {
-    fn default() -> Self {
-        PrintingContext {
-            previous_node: None,
-            after_node: None,
-            parent_nodes: vec![],
-            indentation: 0,
-        }
     }
 }
 
@@ -151,39 +140,7 @@ async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer.write_all(b"<").await.unwrap();
     writer.write_all(tag.name.as_bytes()).await.unwrap();
 
-    let line_length_for_inlined_two_attributes = context.indentation as usize * 4
-        + 1
-        + tag.name.len()
-        + tag
-            .attributes
-            .iter()
-            .take(2)
-            .map(|a| 1 + a.name.len() + a.value.as_ref().map(|v| v.len() + 3).unwrap_or(0))
-            .sum::<usize>()
-        + tag.self_closed as usize
-        + 1
-        + if tag
-            .children
-            .first()
-            .map(|f| !matches!(f, HtmlNode::Whitespace))
-            .unwrap_or(true)
-        {
-            // first child is a whitespace or there are no children
-            if tag.children.is_empty() {
-                if tag.self_closed {
-                    0
-                } else {
-                    2 + tag.name.len() + 1
-                }
-            } else {
-                1000 //add 1000 to line length if there is no whitespace between opening tag and children
-                     // this will enforce to not stay in inline_mode but split the attributes on separate lines.
-            }
-        } else {
-            0
-        };
-
-    let inline_mode = tag.attributes.len() <= 2 && line_length_for_inlined_two_attributes <= 120;
+    let inline_mode = tag.attributes.len() <= 2 && calculate_tag_line_length(tag, context) <= 120;
     let continuation_indent_mode = tag.name.len() > 8;
 
     // attributes
@@ -313,6 +270,7 @@ async fn print_whitespace<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
+    // decide if additional whitespaces are needed (for example before and after twig blocks
     match (
         context.previous_node,
         context.after_node,
@@ -321,36 +279,30 @@ async fn print_whitespace<W: AsyncWrite + Unpin + Send + ?Sized>(
         (Some(prev), Some(aft), Some(par)) => {
             if let HtmlNode::TwigBlock(_) = par {
                 // don't print another whitespace if the parent is also a block.
-            } else {
-                if let HtmlNode::TwigBlock(_) = prev {
-                    // print another whitespace.
-                    writer.write_all(b"\r\n").await.unwrap();
-                } else if let HtmlNode::TwigBlock(_) = aft {
-                    // print another whitespace.
-                    writer.write_all(b"\r\n").await.unwrap();
-                }
+            } else if let HtmlNode::TwigBlock(_) = prev {
+                // print another whitespace.
+                writer.write_all(b"\r\n").await.unwrap();
+            } else if let HtmlNode::TwigBlock(_) = aft {
+                // print another whitespace.
+                writer.write_all(b"\r\n").await.unwrap();
             }
         }
 
         (None, Some(aft), Some(par)) => {
             if let HtmlNode::TwigBlock(_) = par {
                 // don't print another whitespace if the parent is also a block.
-            } else {
-                if let HtmlNode::TwigBlock(_) = aft {
-                    // print another whitespace.
-                    writer.write_all(b"\r\n").await.unwrap();
-                }
+            } else if let HtmlNode::TwigBlock(_) = aft {
+                // print another whitespace.
+                writer.write_all(b"\r\n").await.unwrap();
             }
         }
 
         (Some(prev), None, Some(par)) => {
             if let HtmlNode::TwigBlock(_) = par {
                 // don't print another whitespace if the parent is also a block.
-            } else {
-                if let HtmlNode::TwigBlock(_) = prev {
-                    // print another whitespace.
-                    writer.write_all(b"\r\n").await.unwrap();
-                }
+            } else if let HtmlNode::TwigBlock(_) = prev {
+                // print another whitespace.
+                writer.write_all(b"\r\n").await.unwrap();
             }
         }
 
@@ -378,6 +330,44 @@ async fn print_indentation_if_whitespace_exists_before<W: AsyncWrite + Unpin + S
             print_indentation(writer, context).await;
         }
     }
+}
+
+/// Calculates the line length including indentation but only with a maximum of two attributes
+/// (everything above that will be ignored).
+/// It is possible that this function returns a very high line length (>1000) if this is
+/// a inline tag without whitespaces.
+fn calculate_tag_line_length(tag: &HtmlTag, context: &PrintingContext) -> usize {
+    context.indentation as usize * 4
+        + 1
+        + tag.name.len()
+        + tag
+            .attributes
+            .iter()
+            .take(2)
+            .map(|a| 1 + a.name.len() + a.value.as_ref().map(|v| v.len() + 3).unwrap_or(0))
+            .sum::<usize>()
+        + tag.self_closed as usize
+        + 1
+        + if tag
+            .children
+            .first()
+            .map(|f| !matches!(f, HtmlNode::Whitespace))
+            .unwrap_or(true)
+        {
+            // first child is a whitespace or there are no children
+            if tag.children.is_empty() {
+                if tag.self_closed {
+                    0
+                } else {
+                    2 + tag.name.len() + 1
+                }
+            } else {
+                1000 //add 1000 to line length if there is no whitespace between opening tag and children
+                     // this will enforce to not stay in inline_mode but split the attributes on separate lines.
+            }
+        } else {
+            0
+        }
 }
 
 #[cfg(test)]
