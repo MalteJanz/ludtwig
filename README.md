@@ -56,3 +56,25 @@ If you want to benchmark the performance of the release build you could use [Hyp
 and run it like so:  
 `hyperfine -i 'ludtwig -o ./output ./my-template-folder'`
 
+## License
+Copyright (c) 2020 Malte Janz  
+`ludtwig` is distributed under the terms of the MIT License.  
+See the [LICENSE](./LICENSE) file for details.
+
+### Dependencies / License notices*
+If you build this project locally or use the distributed binary keep also the following licenses in mind:
+- [nom](https://github.com/Geal/nom) - [MIT](https://github.com/Geal/nom/blob/master/LICENSE)
+- [tokio](https://github.com/tokio-rs/tokio) - [MIT](https://github.com/tokio-rs/tokio/blob/master/LICENSE)
+- [clap](https://github.com/clap-rs/clap) - [MIT](https://github.com/clap-rs/clap/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/clap-rs/clap/blob/master/LICENSE-APACHE)
+- [ansi_term](https://github.com/ogham/rust-ansi-term) - [MIT](https://github.com/ogham/rust-ansi-term/blob/master/LICENCE)
+- [walkdir](https://github.com/BurntSushi/walkdir) - [MIT](https://github.com/BurntSushi/walkdir/blob/master/LICENSE-MIT) / [UNLICENSE](https://github.com/BurntSushi/walkdir/blob/master/UNLICENSE)
+
+If you run the tests / benchmarks locally you also should keep these licenses in mind (not included in distributed binary):
+- [criterion](https://github.com/bheisler/criterion.rs) - [MIT](https://github.com/bheisler/criterion.rs/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/bheisler/criterion.rs/blob/master/LICENSE-APACHE)
+
+For testing purposes this repository also includes code from the following sources (not included in distributed binary):
+- [Shopware](https://github.com/shopware/platform) - [MIT](https://github.com/shopware/platform/blob/master/LICENSE)
+- [SwagMigrationAssistant](https://github.com/shopware/SwagMigrationAssistant) - [MIT](https://github.com/shopware/SwagMigrationAssistant/blob/master/LICENSE)
+
+Special thanks goes to the authors of these dependencies.  
+*This list and the links may not be up to date and you should do your own research

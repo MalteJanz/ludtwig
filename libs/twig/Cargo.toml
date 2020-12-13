@@ -2,6 +2,7 @@
 name = "twig"
 version = "0.1.0"
 authors = ["Malte Janz <malte.janz@yahoo.de>"]
+license = "MIT"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
