@@ -1,4 +1,5 @@
-use colored::*;
+use ansi_term::Colour::*;
+use ansi_term::Style;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -48,11 +49,11 @@ pub async fn handle_processing_output(mut rx: mpsc::Receiver<OutputMessage>) -> 
             match output {
                 Output::Error(message) => {
                     error_count += 1;
-                    println!("[Error] {}", message.red());
+                    println!("[Error] {}", Red.paint(message));
                 }
                 Output::Warning(message) => {
                     warning_count += 1;
-                    println!("[Warning] {}", message.yellow());
+                    println!("[Warning] {}", Yellow.paint(message));
                 }
                 Output::None => {}
             }
@@ -65,10 +66,16 @@ pub async fn handle_processing_output(mut rx: mpsc::Receiver<OutputMessage>) -> 
     );
 
     if file_count > 0 && (error_count > 0 || warning_count > 0) {
-        println!("{}", "Happy bug fixing ;)".black().on_white());
+        println!(
+            "{}",
+            Style::new()
+                .on(White)
+                .fg(Black)
+                .paint("Happy bug fixing ;)")
+        );
         return 1;
     } else if file_count > 0 {
-        println!("{}", "Good job! o.O".on_green());
+        println!("{}", Style::new().on(Green).paint("Good job! o.O"));
         return 0;
     }
 
