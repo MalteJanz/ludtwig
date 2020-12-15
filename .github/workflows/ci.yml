@@ -33,6 +33,7 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
+    - uses: Swatinem/rust-cache@v1
     - name: Cargo build
       uses: actions-rs/cargo@v1
       with:
@@ -58,6 +59,7 @@ jobs:
       with:
         toolchain: stable
         components: rustfmt
+    - uses: Swatinem/rust-cache@v1
     - name: Run cargo fmt
       uses: actions-rs/cargo@v1
       with:
@@ -74,6 +76,7 @@ jobs:
         with:
           toolchain: stable
           components: clippy
+      - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
