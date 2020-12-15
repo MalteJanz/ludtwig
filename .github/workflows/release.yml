@@ -55,14 +55,17 @@ jobs:
             os: ubuntu-latest
             rust: stable
             output_ending: -linux-x86_64.tar.gz
+            type: application/gzip
           - build: macos
             os: macos-latest
             rust: stable
             output_ending: -mac-x86_64.zip
+            type: application/zip
           - build: windows
             os: windows-latest
             rust: stable
             output_ending: -windows-x86_64.zip
+            type: application/zip
 
     steps:
     - uses: actions/checkout@v2
@@ -109,7 +112,7 @@ jobs:
         upload_url: ${{ needs.create.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
         asset_path: artifacts/${{ env.RELEASE_BIN }}${{ matrix.output_ending }}
         asset_name: ${{ env.RELEASE_BIN }}${{ matrix.output_ending }}
-#        asset_content_type: application/zip
+        asset_content_type: ${{ matrix.type }}
 
     # This will double-zip
     # See - https://github.com/actions/upload-artifact/issues/39
