@@ -42,23 +42,20 @@ jobs:
             rust: stable
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
+    
+    - name: Install latest stable Rust version
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+    
+    - uses: Swatinem/rust-cache@v1
 
-    - name: Install Rust (rustup)
-      run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
-      if: matrix.os != 'macos-latest'
-      shell: bash
-
-    - name: Install Rust (macos)
-      # As of 7.12.2019 rust is not installed on MacOS
-      # https://help.github.com/en/actions/automating-your-workflow-with-github-actions/software-installed-on-github-hosted-runners#macos-1015
-      run: |
-        curl https://sh.rustup.rs | sh -s -- -y
-        echo "##[add-path]$HOME/.cargo/bin"
-      if: matrix.os == 'macos-latest'
-
-    - name: Build
-      run: cargo build --verbose --release
+    - name: Run cargo build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --verbose
 
     - name: Create artifact directory
       run: mkdir artifacts
