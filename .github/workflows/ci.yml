@@ -43,13 +43,10 @@ jobs:
       with:
         command: test
         args: --verbose
-    - name: Cd into parser crate
-      run: cd libs/twig/
     - name: Cargo test parser crate
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --verbose
+      working-directory: libs/twig/
+      run: |
+        cargo test --verbose
 
   rustfmt:
     name: Rustfmt
