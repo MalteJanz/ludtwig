@@ -23,8 +23,26 @@ env:
 
 
 jobs:
+  create:
+    name: Create
+    runs-on: ubuntu-latest
+    
+    steps:
+     - name: Create Release
+       id: create_release
+       uses: actions/create-release@v1
+       env:
+         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+       with:
+         tag_name: ${{ github.ref }}
+         release_name: Release ${{ github.ref }}
+         draft: true
+         prerelease: false
+  
+  
   build:
     name: Build release
+    needs: [create]
 
     runs-on: ${{ matrix.os }}
     strategy:
@@ -34,12 +52,15 @@ jobs:
           - build: linux
             os: ubuntu-latest
             rust: stable
+            output: ${{ env.RELEASE_BIN }}-linux-x86_64.tar.gz
           - build: macos
             os: macos-latest
             rust: stable
+            output: ${{ env.RELEASE_BIN }}-mac-x86_64.zip
           - build: windows
             os: windows-latest
             rust: stable
+            output: ${{ env.RELEASE_BIN }}-windows-x86_64.zip
 
     steps:
     - uses: actions/checkout@v2
@@ -77,10 +98,21 @@ jobs:
       run: 7z a -tzip ./artifacts/${{ env.RELEASE_BIN }}-mac-x86_64.zip ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }}
       if: matrix.os == 'macos-latest'
 
+    - name: Upload Windows Release Asset
+      id: upload-release-asset 
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create.steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: artifacts/${{ matrix.output }}
+        asset_name: ${{ matrix.output }}
+#        asset_content_type: application/zip
+
     # This will double-zip
     # See - https://github.com/actions/upload-artifact/issues/39
-    - uses: actions/upload-artifact@v1
-      name: Upload archive
-      with:
-        name: ${{ runner.os }}
-        path: artifacts/
+    #- uses: actions/upload-artifact@v1
+    #  name: Upload archive
+    #  with:
+    #    name: ${{ runner.os }}
+    #    path: artifacts/
