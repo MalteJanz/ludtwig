@@ -26,6 +26,8 @@ jobs:
   create:
     name: Create
     runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
     
     steps:
      - name: Create Release
@@ -38,8 +40,6 @@ jobs:
          release_name: Release ${{ github.ref }}
          draft: true
          prerelease: false
-     - id: set_upload
-       run: echo "::set-output name=upload_url::${{ steps.create_release.outputs.upload_url }}"
   
   
   build:
