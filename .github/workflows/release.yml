@@ -30,7 +30,7 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     
     steps:
-     - name: Create Release
+     - name: Create draft release
        id: create_release
        uses: actions/create-release@v1
        env:
@@ -43,7 +43,7 @@ jobs:
   
   
   build:
-    name: Build release
+    name: Build draft release
     needs: [create]
 
     runs-on: ${{ matrix.os }}
@@ -51,21 +51,18 @@ jobs:
       matrix:
         build: [linux, macos, windows]
         include:
-          - build: linux
+          - build: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            rust: stable
-            output_ending: -linux-x86_64.tar.gz
             type: application/gzip
-          - build: macos
+            output_ending: .tar.gz
+          - build: x86_64-apple-darwin
             os: macos-latest
-            rust: stable
-            output_ending: -mac-x86_64.zip
-            type: application/zip
-          - build: windows
+            type: application/gzip
+            output_ending: .tar.gz
+          - build: x86_64-pc-windows-msvc
             os: windows-latest
-            rust: stable
-            output_ending: -windows-x86_64.zip
             type: application/zip
+            output_ending: .zip
 
     steps:
     - uses: actions/checkout@v2
@@ -86,38 +83,30 @@ jobs:
     - name: Create artifact directory
       run: mkdir artifacts
 
-    - name: Create archive for Linux
-      run: 7z a -ttar -so -an ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }} | 7z a -si ./artifacts/${{ env.RELEASE_BIN }}-linux-x86_64.tar.gz
-      if: matrix.os == 'ubuntu-latest'
-
     - name: Create archive for Windows
-      run: 7z a -tzip ./artifacts/${{ env.RELEASE_BIN }}-windows-x86_64.zip ./target/release/${{ env.RELEASE_BIN }}.exe ${{ env.RELEASE_ADDS }}
+      run: 7z a -tzip ./artifacts/${{ env.RELEASE_BIN }}-${{ github.ref }}-${{ matrix.build }}-${{ matrix.output_ending }} ./target/release/${{ env.RELEASE_BIN }}.exe ${{ env.RELEASE_ADDS }}
       if: matrix.os == 'windows-latest'
 
-    - name: Install p7zip
+    - name: Create archive for Linux
+      run: 7z a -ttar -so -an ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }} | 7z a -tgzip -si ./artifacts/${{ env.RELEASE_BIN }}-${{ github.ref }}-${{ matrix.build }}-${{ matrix.output_ending }}
+      if: matrix.os == 'ubuntu-latest'
+
+    - name: Install p7zip on MacOS
       # 7Zip not available on MacOS, install p7zip via homebrew.
       run: brew install p7zip
       if: matrix.os == 'macos-latest'
-
+    
     - name: Create archive for MacOS
-      run: 7z a -tzip ./artifacts/${{ env.RELEASE_BIN }}-mac-x86_64.zip ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }}
+      run: 7z a -ttar -so -an ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }} | 7z a -tgzip -si ./artifacts/${{ env.RELEASE_BIN }}-${{ github.ref }}-${{ matrix.build }}-${{ matrix.output_ending }}
       if: matrix.os == 'macos-latest'
 
-    - name: Upload Windows Release Asset
+    - name: Upload Release Asset
       id: upload-release-asset 
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.create.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-        asset_path: artifacts/${{ env.RELEASE_BIN }}${{ matrix.output_ending }}
-        asset_name: ${{ env.RELEASE_BIN }}${{ matrix.output_ending }}
+        asset_path: artifacts/${{ env.RELEASE_BIN }}-${{ github.ref }}-${{ matrix.build }}-${{ matrix.output_ending }}
+        asset_name: ${{ env.RELEASE_BIN }}-${{ github.ref }}-${{ matrix.build }}-${{ matrix.output_ending }}
         asset_content_type: ${{ matrix.type }}
-
-    # This will double-zip
-    # See - https://github.com/actions/upload-artifact/issues/39
-    #- uses: actions/upload-artifact@v1
-    #  name: Upload archive
-    #  with:
-    #    name: ${{ runner.os }}
-    #    path: artifacts/
