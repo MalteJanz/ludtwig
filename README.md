@@ -1,4 +1,9 @@
 # Ludtwig
+![GitHub](https://img.shields.io/github/license/MalteJanz/ludtwig?color=blue&style=flat-square)
+![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/MalteJanz/ludtwig/CI/main?label=CI&logo=GitHub%20Actions&logoColor=%23FFFFFF&style=flat-square)
+![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/MalteJanz/ludtwig?include_prereleases&logo=GitHub&style=flat-square)
+![GitHub all releases](https://img.shields.io/github/downloads/MalteJanz/ludtwig/total?logo=GitHub&style=flat-square)
+
 A CLI tool for developers that tries to speedup the development workflow while working with templating (`.twig`) files.
 It focuses mainly on formatting the files with a uniform code style and detecting mistakes.
 It is only a "formatter" that can be run locally or in the pipeline, it will not report anything to your IDE.
