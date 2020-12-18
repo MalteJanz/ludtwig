@@ -5,13 +5,13 @@ use crate::CliContext;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs;
-use twig::ast::HtmlNode;
+use twig::ast::SyntaxNode;
 
 #[derive(Debug)]
 pub struct FileContext {
     pub cli_context: Arc<CliContext>,
     pub file_path: Arc<PathBuf>,
-    pub tree: HtmlNode,
+    pub tree: SyntaxNode,
 }
 
 impl FileContext {

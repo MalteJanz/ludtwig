@@ -7,13 +7,13 @@ use nom::combinator::map;
 use nom::multi::many_till;
 use nom::sequence::{preceded, terminated};
 
-pub(crate) fn vue_block(input: Input) -> IResult<HtmlNode> {
+pub(crate) fn vue_block(input: Input) -> IResult<SyntaxNode> {
     preceded(
         terminated(tag("{{"), multispace0),
         map(
             many_till(anychar, preceded(multispace0, tag("}}"))),
             |(v, _)| {
-                HtmlNode::VueBlock(VueBlock {
+                SyntaxNode::OutputExpression(OutputExpression {
                     content: v.into_iter().collect(),
                 })
             },
@@ -41,7 +41,7 @@ mod tests {
             res,
             Ok((
                 "",
-                HtmlNode::VueBlock(VueBlock {
+                SyntaxNode::OutputExpression(OutputExpression {
                     content: "$tc('swag-migration.index.confirmAbortDialog.hint')".to_string()
                 })
             ))
@@ -58,7 +58,7 @@ mod tests {
             res,
             Ok((
                 "",
-                HtmlNode::VueBlock(VueBlock {
+                SyntaxNode::OutputExpression(OutputExpression {
                     content: "if a { $tc('swag-migration.index.confirmAbortDialog.hint' ) } else {  $tc('nothing' ); }".to_string()
                 })
             ))
@@ -75,7 +75,7 @@ mod tests {
             res,
             Ok((
                 "{{ counter }}",
-                HtmlNode::VueBlock(VueBlock {
+                SyntaxNode::OutputExpression(OutputExpression {
                     content: "currentOrder.transactions.last().paymentMethod.translated.name"
                         .to_string()
                 })

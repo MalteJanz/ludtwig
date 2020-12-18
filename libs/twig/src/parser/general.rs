@@ -41,13 +41,13 @@ where
 }
 
 // whitespace because it matters in rendering!: https://prettier.io/blog/2018/11/07/1.15.0.html
-pub(crate) fn some_whitespace(input: Input) -> IResult<HtmlNode> {
+pub(crate) fn some_whitespace(input: Input) -> IResult<SyntaxNode> {
     let (remainder, _) = multispace1(input)?;
 
-    Ok((remainder, HtmlNode::Whitespace))
+    Ok((remainder, SyntaxNode::Whitespace))
 }
 
-pub(crate) fn document_node(input: Input) -> IResult<HtmlNode> {
+pub(crate) fn document_node(input: Input) -> IResult<SyntaxNode> {
     alt((
         some_whitespace,
         html_comment, //html comment must match before html tag because both can start with <!...
@@ -60,10 +60,10 @@ pub(crate) fn document_node(input: Input) -> IResult<HtmlNode> {
     ))(input)
 }
 
-pub(crate) fn document_node_all(input: Input) -> IResult<HtmlNode> {
+pub(crate) fn document_node_all(input: Input) -> IResult<SyntaxNode> {
     let (remaining, children) = many1(document_node)(&input)?;
 
-    Ok((remaining, HtmlNode::Root(children)))
+    Ok((remaining, SyntaxNode::Root(children)))
 }
 
 #[cfg(test)]
@@ -125,21 +125,21 @@ mod tests {
             res,
             Ok((
                 "",
-                HtmlNode::Root(vec![HtmlNode::Tag(HtmlTag {
+                SyntaxNode::Root(vec![SyntaxNode::Tag(Tag {
                     name: "h2".to_string(),
                     children: vec![
-                        HtmlNode::Whitespace,
-                        HtmlNode::Plain(HtmlPlain {
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::Plain(Plain {
                             plain: "HelloWorld".to_string()
                         }),
-                        HtmlNode::Tag(HtmlTag {
+                        SyntaxNode::Tag(Tag {
                             name: "span".to_string(),
-                            children: vec![HtmlNode::Plain(HtmlPlain {
+                            children: vec![SyntaxNode::Plain(Plain {
                                 plain: "asdf".to_string()
                             })],
                             ..Default::default()
                         }),
-                        HtmlNode::Whitespace
+                        SyntaxNode::Whitespace
                     ],
                     ..Default::default()
                 })])
@@ -155,15 +155,15 @@ mod tests {
             res,
             Ok((
                 "",
-                HtmlNode::Root(vec![HtmlNode::Tag(HtmlTag {
+                SyntaxNode::Root(vec![SyntaxNode::Tag(Tag {
                     name: "h2".to_string(),
                     children: vec![
-                        HtmlNode::Plain(HtmlPlain {
+                        SyntaxNode::Plain(Plain {
                             plain: "HelloWorld".to_string()
                         }),
-                        HtmlNode::Tag(HtmlTag {
+                        SyntaxNode::Tag(Tag {
                             name: "span".to_string(),
-                            children: vec![HtmlNode::Plain(HtmlPlain {
+                            children: vec![SyntaxNode::Plain(Plain {
                                 plain: "asdf".to_string()
                             })],
                             ..Default::default()
@@ -189,38 +189,38 @@ mod tests {
             res,
             Ok((
                 "",
-                HtmlNode::Root(vec![HtmlNode::Tag(HtmlTag {
+                SyntaxNode::Root(vec![SyntaxNode::Tag(Tag {
                     name: "h2".to_string(),
                     children: vec![
-                        HtmlNode::Whitespace,
-                        HtmlNode::Plain(HtmlPlain {
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::Plain(Plain {
                             plain: "Hello World".to_string()
                         }),
-                        HtmlNode::Whitespace,
-                        HtmlNode::Plain(HtmlPlain {
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::Plain(Plain {
                             plain: "this is".to_string()
                         }),
-                        HtmlNode::Whitespace,
-                        HtmlNode::Tag(HtmlTag {
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::Tag(Tag {
                             name: "strong".to_string(),
-                            children: vec![HtmlNode::Plain(HtmlPlain {
+                            children: vec![SyntaxNode::Plain(Plain {
                                 plain: "some".to_string()
                             })],
                             ..Default::default()
                         }),
-                        HtmlNode::Whitespace,
-                        HtmlNode::Plain(HtmlPlain {
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::Plain(Plain {
                             plain: "text".to_string()
                         }),
-                        HtmlNode::Whitespace,
-                        HtmlNode::Tag(HtmlTag {
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::Tag(Tag {
                             name: "span".to_string(),
-                            children: vec![HtmlNode::Plain(HtmlPlain {
+                            children: vec![SyntaxNode::Plain(Plain {
                                 plain: "!!!".to_string()
                             })],
                             ..Default::default()
                         }),
-                        HtmlNode::Whitespace
+                        SyntaxNode::Whitespace
                     ],
                     ..Default::default()
                 })])

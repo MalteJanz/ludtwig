@@ -87,7 +87,7 @@ pub(crate) fn html_close_tag<'a>(
     )
 }
 
-pub(crate) fn html_complete_tag(input: Input) -> IResult<HtmlNode> {
+pub(crate) fn html_complete_tag(input: Input) -> IResult<SyntaxNode> {
     let (mut remaining, (open, self_closed, attributes)) = html_open_tag(input)?;
     let mut children = vec![];
 
@@ -106,17 +106,17 @@ pub(crate) fn html_complete_tag(input: Input) -> IResult<HtmlNode> {
         children = children_new;
     }
 
-    let tag = HtmlTag {
+    let tag = Tag {
         name: open.to_owned(),
         self_closed,
         attributes,
         children,
     };
 
-    Ok((remaining, HtmlNode::Tag(tag)))
+    Ok((remaining, SyntaxNode::Tag(tag)))
 }
 
-pub(crate) fn html_plain_text(input: Input) -> IResult<HtmlNode> {
+pub(crate) fn html_plain_text(input: Input) -> IResult<SyntaxNode> {
     let (remaining, plain) = recognize(many1(preceded(
         opt(char(' ')),
         take_till1(|c| c == '<' || c == '{' || c == '\t' || c == '\r' || c == '\n' || c == ' '),
@@ -124,19 +124,19 @@ pub(crate) fn html_plain_text(input: Input) -> IResult<HtmlNode> {
 
     Ok((
         remaining,
-        HtmlNode::Plain(HtmlPlain {
+        SyntaxNode::Plain(Plain {
             plain: plain.to_owned(),
         }),
     ))
 }
 
-pub(crate) fn html_comment(input: Input) -> IResult<HtmlNode> {
+pub(crate) fn html_comment(input: Input) -> IResult<SyntaxNode> {
     preceded(
         terminated(tag("<!--"), multispace0),
         map(
             many_till(anychar, preceded(multispace0, tag("-->"))),
             |(v, _)| {
-                HtmlNode::Comment(HtmlComment {
+                SyntaxNode::HtmlComment(HtmlComment {
                     content: v.into_iter().collect(),
                 })
             },
@@ -253,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_complete_tag() {
-        let meta_tag = HtmlNode::Tag(HtmlTag {
+        let meta_tag = SyntaxNode::Tag(Tag {
             name: "meta".to_string(),
             self_closed: true,
             attributes: vec![HtmlAttribute {
@@ -272,11 +272,11 @@ mod tests {
             html_complete_tag("<div><meta charset=\"UTF-8\"><title></title></div>"),
             Ok((
                 "",
-                HtmlNode::Tag(HtmlTag {
+                SyntaxNode::Tag(Tag {
                     name: "div".to_string(),
                     children: vec![
                         meta_tag,
-                        HtmlNode::Tag(HtmlTag {
+                        SyntaxNode::Tag(Tag {
                             name: "title".to_string(),
                             ..Default::default()
                         })
@@ -293,7 +293,7 @@ mod tests {
             html_complete_tag("<br/>"),
             Ok((
                 "",
-                HtmlNode::Tag(HtmlTag {
+                SyntaxNode::Tag(Tag {
                     name: "br".to_string(),
                     self_closed: true,
                     ..Default::default()
@@ -305,7 +305,7 @@ mod tests {
             html_complete_tag("<br />"),
             Ok((
                 "",
-                HtmlNode::Tag(HtmlTag {
+                SyntaxNode::Tag(Tag {
                     name: "br".to_string(),
                     self_closed: true,
                     ..Default::default()
@@ -317,7 +317,7 @@ mod tests {
             html_complete_tag("<br>"),
             Ok((
                 "",
-                HtmlNode::Tag(HtmlTag {
+                SyntaxNode::Tag(Tag {
                     name: "br".to_string(),
                     self_closed: true,
                     ..Default::default()
@@ -329,7 +329,7 @@ mod tests {
             html_complete_tag("<br >"),
             Ok((
                 "",
-                HtmlNode::Tag(HtmlTag {
+                SyntaxNode::Tag(Tag {
                     name: "br".to_string(),
                     self_closed: true,
                     ..Default::default()
@@ -341,7 +341,7 @@ mod tests {
             html_complete_tag("<source>"),
             Ok((
                 "",
-                HtmlNode::Tag(HtmlTag {
+                SyntaxNode::Tag(Tag {
                     name: "source".to_string(),
                     self_closed: true,
                     ..Default::default()
@@ -497,7 +497,7 @@ mod tests {
             html_comment("<!-- not full implemented yet -->"),
             Ok((
                 "",
-                HtmlNode::Comment(HtmlComment {
+                SyntaxNode::HtmlComment(HtmlComment {
                     content: "not full implemented yet".to_string()
                 })
             ))
@@ -507,7 +507,7 @@ mod tests {
             html_comment("<!--              not full implemented yet                         -->"),
             Ok((
                 "",
-                HtmlNode::Comment(HtmlComment {
+                SyntaxNode::HtmlComment(HtmlComment {
                     content: "not full implemented yet".to_string()
                 })
             ))
@@ -517,7 +517,7 @@ mod tests {
             html_comment("<!--not full implemented yet-->"),
             Ok((
                 "",
-                HtmlNode::Comment(HtmlComment {
+                SyntaxNode::HtmlComment(HtmlComment {
                     content: "not full implemented yet".to_string()
                 })
             ))
@@ -530,7 +530,7 @@ mod tests {
             document_node("<!-- not full implemented yet -->"),
             Ok((
                 "",
-                HtmlNode::Comment(HtmlComment {
+                SyntaxNode::HtmlComment(HtmlComment {
                     content: "not full implemented yet".to_string()
                 })
             ))
@@ -540,7 +540,7 @@ mod tests {
             document_node("<!DOCTYPE html>"),
             Ok((
                 "",
-                HtmlNode::Tag(HtmlTag {
+                SyntaxNode::Tag(Tag {
                     name: "!DOCTYPE".to_string(),
                     self_closed: true,
                     attributes: vec![HtmlAttribute {
@@ -556,7 +556,7 @@ mod tests {
             document_node("<#special></#special>"),
             Ok((
                 "",
-                HtmlNode::Tag(HtmlTag {
+                SyntaxNode::Tag(Tag {
                     name: "#special".to_string(),
                     ..Default::default()
                 })
