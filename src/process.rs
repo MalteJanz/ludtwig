@@ -7,6 +7,7 @@ use std::sync::Arc;
 use tokio::fs;
 use twig::ast::SyntaxNode;
 
+/// The context for a single file.
 #[derive(Debug)]
 pub struct FileContext {
     pub cli_context: Arc<CliContext>,
@@ -15,6 +16,7 @@ pub struct FileContext {
 }
 
 impl FileContext {
+    /// Helper function to send some [Output] to the user for this specific file.
     pub async fn send_output(&self, output: Output) {
         self.cli_context
             .send_output(OutputMessage {
@@ -25,6 +27,7 @@ impl FileContext {
     }
 }
 
+/// Process a single file with it's filepath.
 pub async fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
     let path = Arc::new(path);
 

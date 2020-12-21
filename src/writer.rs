@@ -7,6 +7,7 @@ use tokio::fs::File;
 use tokio::io::{AsyncWrite, AsyncWriteExt, BufWriter};
 use twig::ast::{HtmlComment, OutputExpression, Plain, SyntaxNode, Tag, TwigBlock, TwigComment};
 
+/// Context for traversing the AST with printing in mind.
 #[derive(Clone, PartialEq, Default)]
 struct PrintingContext<'a> {
     previous_node: Option<&'a SyntaxNode>,
@@ -20,13 +21,14 @@ struct PrintingContext<'a> {
 }
 
 impl<'a> PrintingContext<'a> {
-    /// clones the current context and returns a new one with the increased indentation.
+    /// Clones the current context and returns a new one with the increased indentation.
     fn increase_indentation_by(&self, increase: u16) -> Self {
         let mut copy = self.clone();
         copy.indentation += increase;
         copy
     }
 
+    /// Get the parent node for the current context.
     fn get_parent(&self) -> Option<&'a SyntaxNode> {
         self.parent_nodes
             .iter()
@@ -38,6 +40,7 @@ impl<'a> PrintingContext<'a> {
     }
 }
 
+/// Entry function for writing the ast back into files.
 pub async fn write_tree(file_context: Arc<FileContext>) {
     let path = create_and_secure_output_path(&file_context).await;
     let file = File::create(path).await.expect("can't create file.");
@@ -53,6 +56,9 @@ pub async fn write_tree(file_context: Arc<FileContext>) {
     writer.flush().await.unwrap();
 }
 
+/// Append the CLI output path if it is given and
+/// create all directories if they do not exists.
+/// Returns the full path which is secure to use.
 async fn create_and_secure_output_path(file_context: &FileContext) -> PathBuf {
     let base_path = match &file_context.cli_context.output_path {
         None => Path::new(""),
@@ -69,6 +75,7 @@ async fn create_and_secure_output_path(file_context: &FileContext) -> PathBuf {
     path
 }
 
+/// Print a single [SyntaxNode] from the AST, which can be anything.
 fn print_node<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &'a mut W,
     node: &'a SyntaxNode,
@@ -109,6 +116,7 @@ fn print_node<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
     })
 }
 
+/// Print a list of [SyntaxNode]'s and prepare the context for each one.
 async fn print_node_list<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
     nodes: &[SyntaxNode],
@@ -335,7 +343,7 @@ async fn print_indentation_if_whitespace_exists_before<W: AsyncWrite + Unpin + S
 /// Calculates the line length including indentation but only with a maximum of two attributes
 /// (everything above that will be ignored).
 /// It is possible that this function returns a very high line length (>1000) if this is
-/// a inline tag without whitespaces.
+/// a inline tag without whitespaces (like `<span>Hello</span>`)
 fn calculate_tag_line_length(tag: &Tag, context: &PrintingContext) -> usize {
     context.indentation as usize * 4
         + 1

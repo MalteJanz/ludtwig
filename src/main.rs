@@ -46,11 +46,13 @@ pub struct CliContext {
 }
 
 impl CliContext {
+    /// Helper function to send a [OutputMessage] back to the user.
     pub async fn send_output(&self, msg: OutputMessage) {
         self.output_tx.send(msg).await.unwrap();
     }
 }
 
+/// Parse the CLI arguments and bootstrap the async application.
 fn main() {
     let opts: Opts = Opts::parse();
 
@@ -63,9 +65,11 @@ fn main() {
     std::process::exit(process_code);
 }
 
+/// The entry point of the async application.
 async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
     println!("Parsing files...");
 
+    // sender and receiver channels for the communication between tasks and the user.
     let (tx, rx) = mpsc::channel(128);
 
     let cli_context = Arc::new(CliContext {
@@ -93,6 +97,7 @@ async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
     Ok(process_code)
 }
 
+/// Process one input path (CLI file argument).
 async fn handle_input_path<P>(path: P, cli_context: Arc<CliContext>)
 where
     P: AsRef<Path> + 'static + Send,
@@ -111,6 +116,7 @@ where
     handle_input_dir(path, cli_context).await;
 }
 
+/// Process a directory path.
 async fn handle_input_dir<P>(path: P, cli_context: Arc<CliContext>)
 where
     P: AsRef<Path> + 'static + Send,

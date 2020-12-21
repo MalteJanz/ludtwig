@@ -5,20 +5,24 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
+/// The user output has different variants.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Output {
-    /// only to notify the output processing about a file, that was processed (does not show in CLI)
+    /// only to notify the output processing about a file, that was processed (does not show in CLI, only for counting purposes)
     None,
     Error(String),
     Warning(String),
 }
 
+/// This is a single output message which is associated with a file path.
 #[derive(Debug, Clone, PartialEq)]
 pub struct OutputMessage {
     pub file: Arc<PathBuf>,
     pub output: Output,
 }
 
+/// This function receives all the [OutputMessage] instances from the receiver channel and
+/// prints information to the console / user.
 pub async fn handle_processing_output(mut rx: mpsc::Receiver<OutputMessage>) -> i32 {
     let mut map = HashMap::new();
     let mut file_count = 0;
