@@ -1,13 +1,16 @@
 pub mod ast;
-mod error;
+pub mod error;
 mod parser;
 
+pub use ast::SyntaxNode;
 pub use error::TwigParseError;
 
-use crate::ast::*;
 use crate::parser::general::{document_node_all, Input};
 use nom::combinator::all_consuming;
 
+/// Parses a template into an AST of the [SyntaxNode] type.
+/// If it fails it will return a [TwigParseError] which contains a function
+/// to generate a human readable error message [TwigParseError::pretty_helpful_error_string].
 pub fn parse(input: Input) -> Result<SyntaxNode, TwigParseError<Input>> {
     let (_, result) = all_consuming(document_node_all)(input)?;
 
@@ -17,6 +20,7 @@ pub fn parse(input: Input) -> Result<SyntaxNode, TwigParseError<Input>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ast::*;
 
     /*
     The input or output data for testing purposes is partially from the following sources and under copyright!
