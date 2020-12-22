@@ -24,7 +24,9 @@ pub(crate) fn html_tag_attribute(input: Input) -> IResult<HtmlAttribute> {
             || c == '\r'
             || c == '\t'
     })(input)?;
+    let (input, _) = multispace0(input)?; // allow whitespace between equals
     let (input, equal) = opt(tag("="))(input)?;
+    let (input, _) = multispace0(input)?; // allow whitespace between equals
 
     if equal == None {
         let (input, _) = context("invalid attribute name", cut(peek(not(char('"')))))(input)?;
@@ -443,6 +445,42 @@ mod tests {
                 HtmlAttribute {
                     name: "@change".to_string(),
                     value: Some("if counter < 100 { counter += 1; }".to_string())
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_tag_argument_with_spaces_between_equals() {
+        assert_eq!(
+            html_tag_attribute("class = \"ok\""),
+            Ok((
+                "",
+                HtmlAttribute {
+                    name: "class".to_string(),
+                    value: Some("ok".to_string())
+                }
+            ))
+        );
+
+        assert_eq!(
+            html_tag_attribute("class= \"ok\""),
+            Ok((
+                "",
+                HtmlAttribute {
+                    name: "class".to_string(),
+                    value: Some("ok".to_string())
+                }
+            ))
+        );
+
+        assert_eq!(
+            html_tag_attribute("class =\"ok\""),
+            Ok((
+                "",
+                HtmlAttribute {
+                    name: "class".to_string(),
+                    value: Some("ok".to_string())
                 }
             ))
         );
