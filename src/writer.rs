@@ -5,29 +5,31 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::{AsyncWrite, AsyncWriteExt, BufWriter};
-use twig::ast::{HtmlComment, HtmlNode, HtmlPlain, HtmlTag, TwigBlock, TwigComment, VueBlock};
+use twig::ast::{HtmlComment, OutputExpression, Plain, SyntaxNode, Tag, TwigBlock, TwigComment};
 
+/// Context for traversing the AST with printing in mind.
 #[derive(Clone, PartialEq, Default)]
 struct PrintingContext<'a> {
-    previous_node: Option<&'a HtmlNode>,
-    after_node: Option<&'a HtmlNode>,
+    previous_node: Option<&'a SyntaxNode>,
+    after_node: Option<&'a SyntaxNode>,
 
     /// the last node in the list is the current node. everything before that is up in the hierarchy.
-    parent_nodes: Vec<&'a HtmlNode>,
+    parent_nodes: Vec<&'a SyntaxNode>,
 
     /// in tab (4 spaces) count
     indentation: u16,
 }
 
 impl<'a> PrintingContext<'a> {
-    /// clones the current context and returns a new one with the increased indentation.
+    /// Clones the current context and returns a new one with the increased indentation.
     fn increase_indentation_by(&self, increase: u16) -> Self {
         let mut copy = self.clone();
         copy.indentation += increase;
         copy
     }
 
-    fn get_parent(&self) -> Option<&'a HtmlNode> {
+    /// Get the parent node for the current context.
+    fn get_parent(&self) -> Option<&'a SyntaxNode> {
         self.parent_nodes
             .iter()
             .rev()
@@ -38,6 +40,7 @@ impl<'a> PrintingContext<'a> {
     }
 }
 
+/// Entry function for writing the ast back into files.
 pub async fn write_tree(file_context: Arc<FileContext>) {
     let path = create_and_secure_output_path(&file_context).await;
     let file = File::create(path).await.expect("can't create file.");
@@ -53,6 +56,9 @@ pub async fn write_tree(file_context: Arc<FileContext>) {
     writer.flush().await.unwrap();
 }
 
+/// Append the CLI output path if it is given and
+/// create all directories if they do not exists.
+/// Returns the full path which is secure to use.
 async fn create_and_secure_output_path(file_context: &FileContext) -> PathBuf {
     let base_path = match &file_context.cli_context.output_path {
         None => Path::new(""),
@@ -69,49 +75,51 @@ async fn create_and_secure_output_path(file_context: &FileContext) -> PathBuf {
     path
 }
 
+/// Print a single [SyntaxNode] from the AST, which can be anything.
 fn print_node<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &'a mut W,
-    node: &'a HtmlNode,
+    node: &'a SyntaxNode,
     context: &'a mut PrintingContext<'a>,
 ) -> Pin<Box<dyn Future<Output = ()> + 'a + Send>> {
     Box::pin(async move {
         context.parent_nodes.push(&node);
 
         match node {
-            HtmlNode::Root(root) => {
+            SyntaxNode::Root(root) => {
                 print_node_list(writer, &root, context).await;
             }
-            HtmlNode::Tag(tag) => {
+            SyntaxNode::Tag(tag) => {
                 print_tag(writer, &tag, context).await;
             }
-            HtmlNode::Plain(plain) => {
+            SyntaxNode::Plain(plain) => {
                 print_plain(writer, &plain, context).await;
             }
-            HtmlNode::Comment(comment) => {
+            SyntaxNode::HtmlComment(comment) => {
                 print_html_comment(writer, comment, context).await;
             }
-            HtmlNode::VueBlock(vue) => {
+            SyntaxNode::OutputExpression(vue) => {
                 print_vue_block(writer, &vue, context).await;
             }
-            HtmlNode::TwigBlock(twig) => {
+            SyntaxNode::TwigBlock(twig) => {
                 print_twig_block(writer, &twig, context).await;
             }
-            HtmlNode::TwigParentCall => {
+            SyntaxNode::TwigParentCall => {
                 print_twig_parent_call(writer, context).await;
             }
-            HtmlNode::TwigComment(comment) => {
+            SyntaxNode::TwigComment(comment) => {
                 print_twig_comment(writer, comment, context).await;
             }
-            HtmlNode::Whitespace => {
+            SyntaxNode::Whitespace => {
                 print_whitespace(writer, context).await;
             }
         }
     })
 }
 
+/// Print a list of [SyntaxNode]'s and prepare the context for each one.
 async fn print_node_list<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
-    nodes: &[HtmlNode],
+    nodes: &[SyntaxNode],
     context: &PrintingContext<'_>,
 ) {
     for idx in 0..nodes.len() {
@@ -132,7 +140,7 @@ async fn print_node_list<W: AsyncWrite + Unpin + Send + ?Sized>(
 
 async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
-    tag: &HtmlTag,
+    tag: &Tag,
     context: &PrintingContext<'_>,
 ) {
     print_indentation_if_whitespace_exists_before(writer, context).await;
@@ -182,7 +190,7 @@ async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
     }
 
     if let Some(last) = tag.children.last() {
-        if let HtmlNode::Whitespace = last {
+        if let SyntaxNode::Whitespace = last {
             print_indentation(writer, context).await;
         }
     }
@@ -196,7 +204,7 @@ async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
 
 async fn print_plain<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
-    plain: &HtmlPlain,
+    plain: &Plain,
     context: &PrintingContext<'_>,
 ) {
     print_indentation_if_whitespace_exists_before(writer, context).await;
@@ -216,7 +224,7 @@ async fn print_html_comment<W: AsyncWrite + Unpin + Send + ?Sized>(
 
 async fn print_vue_block<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
-    vue: &VueBlock,
+    vue: &OutputExpression,
     context: &PrintingContext<'_>,
 ) {
     print_indentation_if_whitespace_exists_before(writer, context).await;
@@ -239,7 +247,7 @@ async fn print_twig_block<W: AsyncWrite + Unpin + Send + ?Sized>(
     print_node_list(writer, &twig.children, &context.increase_indentation_by(1)).await;
 
     if let Some(last) = twig.children.last() {
-        if let HtmlNode::Whitespace = last {
+        if let SyntaxNode::Whitespace = last {
             print_indentation(writer, context).await;
         }
     }
@@ -277,30 +285,30 @@ async fn print_whitespace<W: AsyncWrite + Unpin + Send + ?Sized>(
         context.get_parent(),
     ) {
         (Some(prev), Some(aft), Some(par)) => {
-            if let HtmlNode::TwigBlock(_) = par {
+            if let SyntaxNode::TwigBlock(_) = par {
                 // don't print another whitespace if the parent is also a block.
-            } else if let HtmlNode::TwigBlock(_) = prev {
+            } else if let SyntaxNode::TwigBlock(_) = prev {
                 // print another whitespace.
                 writer.write_all(b"\r\n").await.unwrap();
-            } else if let HtmlNode::TwigBlock(_) = aft {
+            } else if let SyntaxNode::TwigBlock(_) = aft {
                 // print another whitespace.
                 writer.write_all(b"\r\n").await.unwrap();
             }
         }
 
         (None, Some(aft), Some(par)) => {
-            if let HtmlNode::TwigBlock(_) = par {
+            if let SyntaxNode::TwigBlock(_) = par {
                 // don't print another whitespace if the parent is also a block.
-            } else if let HtmlNode::TwigBlock(_) = aft {
+            } else if let SyntaxNode::TwigBlock(_) = aft {
                 // print another whitespace.
                 writer.write_all(b"\r\n").await.unwrap();
             }
         }
 
         (Some(prev), None, Some(par)) => {
-            if let HtmlNode::TwigBlock(_) = par {
+            if let SyntaxNode::TwigBlock(_) = par {
                 // don't print another whitespace if the parent is also a block.
-            } else if let HtmlNode::TwigBlock(_) = prev {
+            } else if let SyntaxNode::TwigBlock(_) = prev {
                 // print another whitespace.
                 writer.write_all(b"\r\n").await.unwrap();
             }
@@ -326,7 +334,7 @@ async fn print_indentation_if_whitespace_exists_before<W: AsyncWrite + Unpin + S
     context: &PrintingContext<'_>,
 ) {
     if let Some(prev) = context.previous_node {
-        if let HtmlNode::Whitespace = prev {
+        if let SyntaxNode::Whitespace = prev {
             print_indentation(writer, context).await;
         }
     }
@@ -335,8 +343,8 @@ async fn print_indentation_if_whitespace_exists_before<W: AsyncWrite + Unpin + S
 /// Calculates the line length including indentation but only with a maximum of two attributes
 /// (everything above that will be ignored).
 /// It is possible that this function returns a very high line length (>1000) if this is
-/// a inline tag without whitespaces.
-fn calculate_tag_line_length(tag: &HtmlTag, context: &PrintingContext) -> usize {
+/// a inline tag without whitespaces (like `<span>Hello</span>`)
+fn calculate_tag_line_length(tag: &Tag, context: &PrintingContext) -> usize {
     context.indentation as usize * 4
         + 1
         + tag.name.len()
@@ -351,7 +359,7 @@ fn calculate_tag_line_length(tag: &HtmlTag, context: &PrintingContext) -> usize 
         + if tag
             .children
             .first()
-            .map(|f| !matches!(f, HtmlNode::Whitespace))
+            .map(|f| !matches!(f, SyntaxNode::Whitespace))
             .unwrap_or(true)
         {
             // first child is a whitespace or there are no children
@@ -384,7 +392,7 @@ mod tests {
     Copyright (c) shopware AG (https://github.com/shopware/SwagMigrationAssistant)
      */
 
-    async fn convert_tree_into_written_string(tree: HtmlNode) -> String {
+    async fn convert_tree_into_written_string(tree: SyntaxNode) -> String {
         let mut writer_raw: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
         print_node(&mut writer_raw, &tree, &mut PrintingContext::default()).await;
@@ -394,16 +402,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_empty_html_tag() {
-        let tree = HtmlNode::Tag(HtmlTag {
+        let tree = SyntaxNode::Tag(Tag {
             name: "this_is_a_test_one".to_string(),
             children: vec![
-                HtmlNode::Whitespace,
-                HtmlNode::Tag(HtmlTag {
+                SyntaxNode::Whitespace,
+                SyntaxNode::Tag(Tag {
                     name: "this_is_a_test_two".to_string(),
                     children: vec![],
                     ..Default::default()
                 }),
-                HtmlNode::Whitespace,
+                SyntaxNode::Whitespace,
             ],
             ..Default::default()
         });
@@ -418,14 +426,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_simple_twig_block() {
-        let tree = HtmlNode::TwigBlock(TwigBlock {
+        let tree = SyntaxNode::TwigBlock(TwigBlock {
             name: "some_twig_block".to_string(),
             children: vec![
-                HtmlNode::Whitespace,
-                HtmlNode::Plain(HtmlPlain {
+                SyntaxNode::Whitespace,
+                SyntaxNode::Plain(Plain {
                     plain: "Hello world".to_string(),
                 }),
-                HtmlNode::Whitespace,
+                SyntaxNode::Whitespace,
             ],
         });
 
@@ -439,22 +447,22 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_nested_twig_block() {
-        let tree = HtmlNode::TwigBlock(TwigBlock {
+        let tree = SyntaxNode::TwigBlock(TwigBlock {
             name: "this_is_a_test_one".to_string(),
             children: vec![
-                HtmlNode::Whitespace,
-                HtmlNode::TwigBlock(TwigBlock {
+                SyntaxNode::Whitespace,
+                SyntaxNode::TwigBlock(TwigBlock {
                     name: "this_is_a_test_two".to_string(),
                     children: vec![
-                        HtmlNode::Whitespace,
-                        HtmlNode::TwigBlock(TwigBlock {
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::TwigBlock(TwigBlock {
                             name: "this_is_a_test_three".to_string(),
-                            children: vec![HtmlNode::Whitespace],
+                            children: vec![SyntaxNode::Whitespace],
                         }),
-                        HtmlNode::Whitespace,
+                        SyntaxNode::Whitespace,
                     ],
                 }),
-                HtmlNode::Whitespace,
+                SyntaxNode::Whitespace,
             ],
         });
 
@@ -468,32 +476,32 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_nested_twig_block_separation() {
-        let tree = HtmlNode::Tag(HtmlTag {
+        let tree = SyntaxNode::Tag(Tag {
             name: "this_is_a_test_one".to_string(),
             children: vec![
-                HtmlNode::Whitespace,
-                HtmlNode::TwigBlock(TwigBlock {
+                SyntaxNode::Whitespace,
+                SyntaxNode::TwigBlock(TwigBlock {
                     name: "this_is_a_test_two".to_string(),
                     children: vec![
-                        HtmlNode::Whitespace,
-                        HtmlNode::Plain(HtmlPlain {
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::Plain(Plain {
                             plain: "Some content".to_string(),
                         }),
-                        HtmlNode::Whitespace,
+                        SyntaxNode::Whitespace,
                     ],
                 }),
-                HtmlNode::Whitespace,
-                HtmlNode::TwigBlock(TwigBlock {
+                SyntaxNode::Whitespace,
+                SyntaxNode::TwigBlock(TwigBlock {
                     name: "this_is_a_test_three".to_string(),
                     children: vec![
-                        HtmlNode::Whitespace,
-                        HtmlNode::Plain(HtmlPlain {
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::Plain(Plain {
                             plain: "Some content".to_string(),
                         }),
-                        HtmlNode::Whitespace,
+                        SyntaxNode::Whitespace,
                     ],
                 }),
-                HtmlNode::Whitespace,
+                SyntaxNode::Whitespace,
             ],
             ..Default::default()
         });
@@ -508,15 +516,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_empty_twig_block() {
-        let tree = HtmlNode::Tag(HtmlTag {
+        let tree = SyntaxNode::Tag(Tag {
             name: "this_is_a_test_one".to_string(),
             children: vec![
-                HtmlNode::Whitespace,
-                HtmlNode::TwigBlock(TwigBlock {
+                SyntaxNode::Whitespace,
+                SyntaxNode::TwigBlock(TwigBlock {
                     name: "this_is_a_test_two".to_string(),
                     children: vec![],
                 }),
-                HtmlNode::Whitespace,
+                SyntaxNode::Whitespace,
             ],
             ..Default::default()
         });
@@ -531,9 +539,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_tag_and_twig_block_without_whitespace() {
-        let tree = HtmlNode::Tag(HtmlTag {
+        let tree = SyntaxNode::Tag(Tag {
             name: "slot".to_string(),
-            children: vec![HtmlNode::TwigBlock(TwigBlock {
+            children: vec![SyntaxNode::TwigBlock(TwigBlock {
                 name: "sw_grid_slot_pagination".to_string(),
                 children: vec![],
             })],
@@ -555,11 +563,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_tag_and_twig_block_content_without_whitespace() {
-        let tree = HtmlNode::Tag(HtmlTag {
+        let tree = SyntaxNode::Tag(Tag {
             name: "slot".to_string(),
-            children: vec![HtmlNode::TwigBlock(TwigBlock {
+            children: vec![SyntaxNode::TwigBlock(TwigBlock {
                 name: "sw_grid_slot_pagination".to_string(),
-                children: vec![HtmlNode::Plain(HtmlPlain {
+                children: vec![SyntaxNode::Plain(Plain {
                     plain: "Hello world".to_string(),
                 })],
             })],

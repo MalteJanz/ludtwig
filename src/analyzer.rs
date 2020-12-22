@@ -3,8 +3,10 @@ use crate::process::FileContext;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use twig::ast::HtmlNode;
+use twig::ast::SyntaxNode;
 
+/// Entry function for doing the analyzing.
+/// It spawns all analyzer functions concurrently.
 pub async fn analyze<'a>(file_context: Arc<FileContext>) {
     let clone = Arc::clone(&file_context);
     tokio::spawn(async move {
@@ -16,24 +18,27 @@ pub async fn analyze<'a>(file_context: Arc<FileContext>) {
     // run more analyzers in parallel...
 }
 
+/// Example analyzer:
+/// Checks if the twig block name contains the block name of it's parent twig block.
+/// This should reduce typing errors that humans will produce.
 fn analyze_blocks<'a>(
-    node: &'a HtmlNode,
+    node: &'a SyntaxNode,
     file_context: &'a FileContext,
     parent_block_name: Option<&'a str>,
 ) -> Pin<Box<dyn Future<Output = ()> + 'a + Send>> {
     Box::pin(async move {
         match node {
-            HtmlNode::Root(root) => {
+            SyntaxNode::Root(root) => {
                 for child in root {
                     analyze_blocks(child, file_context, parent_block_name).await;
                 }
             }
-            HtmlNode::Tag(tag) => {
+            SyntaxNode::Tag(tag) => {
                 for child in &tag.children {
                     analyze_blocks(child, file_context, parent_block_name).await;
                 }
             }
-            HtmlNode::TwigBlock(twig) => {
+            SyntaxNode::TwigBlock(twig) => {
                 if let Some(parent) = parent_block_name {
                     if !twig.name.contains(parent) {
                         file_context

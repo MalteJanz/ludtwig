@@ -29,7 +29,7 @@ pub(crate) fn twig_closing_block(input: Input) -> IResult<Input> {
     )(input)
 }
 
-pub(crate) fn twig_complete_block(input: Input) -> IResult<HtmlNode> {
+pub(crate) fn twig_complete_block(input: Input) -> IResult<SyntaxNode> {
     let (remaining, open) = twig_opening_block(input)?;
     let (remaining, children) = many0(document_node)(remaining)?;
 
@@ -43,10 +43,10 @@ pub(crate) fn twig_complete_block(input: Input) -> IResult<HtmlNode> {
         children,
     };
 
-    Ok((remaining, HtmlNode::TwigBlock(block)))
+    Ok((remaining, SyntaxNode::TwigBlock(block)))
 }
 
-pub(crate) fn twig_parent_call(input: Input) -> IResult<HtmlNode> {
+pub(crate) fn twig_parent_call(input: Input) -> IResult<SyntaxNode> {
     let (remaining, _) = delimited(
         tag("{%"),
         delimited(
@@ -57,16 +57,16 @@ pub(crate) fn twig_parent_call(input: Input) -> IResult<HtmlNode> {
         tag("%}"),
     )(input)?;
 
-    Ok((remaining, HtmlNode::TwigParentCall))
+    Ok((remaining, SyntaxNode::TwigParentCall))
 }
 
-pub(crate) fn twig_comment(input: Input) -> IResult<HtmlNode> {
+pub(crate) fn twig_comment(input: Input) -> IResult<SyntaxNode> {
     preceded(
         terminated(tag("{#"), multispace0),
         map(
             many_till(anychar, preceded(multispace0, tag("#}"))),
             |(v, _)| {
-                HtmlNode::TwigComment(TwigComment {
+                SyntaxNode::TwigComment(TwigComment {
                     content: v.into_iter().collect(),
                 })
             },
@@ -90,14 +90,20 @@ mod tests {
     fn test_opening_twig_block() {
         let res = twig_opening_block("{% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint %}");
 
-        assert!(res.is_ok())
+        assert_eq!(
+            res,
+            Ok((
+                "",
+                "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint"
+            ))
+        );
     }
 
     #[test]
     fn test_closing_twig_block() {
         let res = twig_closing_block("{% endblock %}");
 
-        assert!(res.is_ok())
+        assert_eq!(res, Ok(("", "endblock")));
     }
 
     #[test]
@@ -108,7 +114,43 @@ mod tests {
                 </p>
                 {% endblock %}");
 
-        assert!(res.is_ok())
+        assert_eq!(res, Ok(
+            (
+                "",
+                SyntaxNode::TwigBlock(
+                    TwigBlock {
+                        name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint".to_string(),
+                        children: vec![
+                            SyntaxNode::Whitespace,
+                            SyntaxNode::Tag(
+                                Tag {
+                                    name: "p".to_string(),
+                                    self_closed: false,
+                                    attributes: vec![
+                                        HtmlAttribute {
+                                            name: "class".to_string(),
+                                            value: Some(
+                                                "swag-migration-index-modal-abort-migration-confirm-dialog-hint".to_string(),
+                                            ),
+                                        },
+                                    ],
+                                    children: vec![
+                                        SyntaxNode::Whitespace,
+                                        SyntaxNode::Plain(
+                                            Plain {
+                                                plain: "Hello world".to_string(),
+                                            },
+                                        ),
+                                        SyntaxNode::Whitespace,
+                                    ],
+                                },
+                            ),
+                            SyntaxNode::Whitespace,
+                        ],
+                    },
+                ),
+            ),
+        ));
     }
 
     #[test]
@@ -119,18 +161,18 @@ mod tests {
                     {% endblock %}
                 {% endblock %}");
 
-        assert_eq!(res, Ok(("", HtmlNode::TwigBlock(TwigBlock{name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint".to_string(), children: vec![
-            HtmlNode::Whitespace,
-            HtmlNode::TwigBlock(TwigBlock{
+        assert_eq!(res, Ok(("", SyntaxNode::TwigBlock(TwigBlock{name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint".to_string(), children: vec![
+            SyntaxNode::Whitespace,
+            SyntaxNode::TwigBlock(TwigBlock{
                 name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint_content".to_string(),
                 children: vec![
-                    HtmlNode::Whitespace,
-                    HtmlNode::Tag(HtmlTag{
+                    SyntaxNode::Whitespace,
+                    SyntaxNode::Tag(Tag {
                     name: "div".to_string(),
                     ..Default::default()
-                }), HtmlNode::Whitespace]
+                }), SyntaxNode::Whitespace]
             }),
-            HtmlNode::Whitespace
+            SyntaxNode::Whitespace
         ] }))));
     }
 
@@ -145,9 +187,9 @@ mod tests {
             res,
             Ok((
                 "",
-                HtmlNode::TwigBlock(TwigBlock {
+                SyntaxNode::TwigBlock(TwigBlock {
                     name: "swag_migration_history_detail_errors_grid_code".to_string(),
-                    children: vec![HtmlNode::Whitespace]
+                    children: vec![SyntaxNode::Whitespace]
                 })
             ))
         )
@@ -164,9 +206,9 @@ mod tests {
             res,
             Ok((
                 "",
-                HtmlNode::TwigBlock(TwigBlock {
+                SyntaxNode::TwigBlock(TwigBlock {
                     name: "swag_migration_history_detail_errors_grid_code".to_string(),
-                    children: vec![HtmlNode::Whitespace]
+                    children: vec![SyntaxNode::Whitespace]
                 })
             ))
         )
@@ -184,12 +226,12 @@ mod tests {
             res,
             Ok((
                 "",
-                HtmlNode::TwigBlock(TwigBlock {
+                SyntaxNode::TwigBlock(TwigBlock {
                     name: "sw_dashboard_index_content_intro_card".to_string(),
                     children: vec![
-                        HtmlNode::Whitespace,
-                        HtmlNode::TwigParentCall,
-                        HtmlNode::Whitespace,
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::TwigParentCall,
+                        SyntaxNode::Whitespace,
                     ]
                 })
             ))
@@ -200,22 +242,22 @@ mod tests {
     fn test_twig_parent_call_variations() {
         assert_eq!(
             twig_parent_call("{%parent%}"),
-            Ok(("", HtmlNode::TwigParentCall))
+            Ok(("", SyntaxNode::TwigParentCall))
         );
 
         assert_eq!(
             twig_parent_call("{%           parent         %}"),
-            Ok(("", HtmlNode::TwigParentCall))
+            Ok(("", SyntaxNode::TwigParentCall))
         );
 
         assert_eq!(
             twig_parent_call("{%parent()%}"),
-            Ok(("", HtmlNode::TwigParentCall))
+            Ok(("", SyntaxNode::TwigParentCall))
         );
 
         assert_eq!(
             twig_parent_call("{%        parent()         %}"),
-            Ok(("", HtmlNode::TwigParentCall))
+            Ok(("", SyntaxNode::TwigParentCall))
         );
     }
 
@@ -223,17 +265,17 @@ mod tests {
     fn test_twig_comment() {
         assert_eq!(
             twig_comment("{# @deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\". #}"),
-            Ok(("", HtmlNode::TwigComment(TwigComment{ content: "@deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\".".to_string() })))
+            Ok(("", SyntaxNode::TwigComment(TwigComment{ content: "@deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\".".to_string() })))
         );
 
         assert_eq!(
             twig_comment("{#                   @deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\".                #}"),
-            Ok(("", HtmlNode::TwigComment(TwigComment{ content: "@deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\".".to_string() })))
+            Ok(("", SyntaxNode::TwigComment(TwigComment{ content: "@deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\".".to_string() })))
         );
 
         assert_eq!(
             twig_comment("{#@deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\".#}"),
-            Ok(("", HtmlNode::TwigComment(TwigComment{ content: "@deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\".".to_string() })))
+            Ok(("", SyntaxNode::TwigComment(TwigComment{ content: "@deprecated tag:v6.4.0 - Will be removed. Mail template assignment will be done via \"sw-event-action\".".to_string() })))
         );
     }
 }

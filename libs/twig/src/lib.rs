@@ -1,14 +1,17 @@
 pub mod ast;
-mod error;
+pub mod error;
 mod parser;
 
+pub use ast::SyntaxNode;
 pub use error::TwigParseError;
 
-use crate::ast::*;
 use crate::parser::general::{document_node_all, Input};
 use nom::combinator::all_consuming;
 
-pub fn parse(input: Input) -> Result<HtmlNode, TwigParseError<Input>> {
+/// Parses a template into an AST of the [SyntaxNode] type.
+/// If it fails it will return a [TwigParseError] which contains a function
+/// to generate a human readable error message [TwigParseError::pretty_helpful_error_string].
+pub fn parse(input: Input) -> Result<SyntaxNode, TwigParseError<Input>> {
     let (_, result) = all_consuming(document_node_all)(input)?;
 
     Ok(result)
@@ -17,6 +20,7 @@ pub fn parse(input: Input) -> Result<HtmlNode, TwigParseError<Input>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ast::*;
 
     /*
     The input or output data for testing purposes is partially from the following sources and under copyright!
@@ -43,22 +47,22 @@ mod tests {
 
         assert_eq!(
             result,
-            Ok(HtmlNode::Root(vec![
-                    HtmlNode::TwigBlock(TwigBlock{
+            Ok(SyntaxNode::Root(vec![
+                SyntaxNode::TwigBlock(TwigBlock{
                         name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint".to_string(),
                         children: vec![
-                            HtmlNode::Whitespace,
-                            HtmlNode::Tag(HtmlTag{
+                            SyntaxNode::Whitespace,
+                            SyntaxNode::Tag(Tag {
                                 name: "p".to_string(),
                                 self_closed: false,
                                 attributes,
                                 children: vec![
-                                    HtmlNode::Whitespace,
-                                    HtmlNode::Plain(HtmlPlain{ plain: "Hello world".to_string() }),
-                                    HtmlNode::Whitespace,
+                                    SyntaxNode::Whitespace,
+                                    SyntaxNode::Plain(Plain { plain: "Hello world".to_string() }),
+                                    SyntaxNode::Whitespace,
                                 ]
                             }),
-                            HtmlNode::Whitespace
+                            SyntaxNode::Whitespace
                         ]
                     })
                 ])

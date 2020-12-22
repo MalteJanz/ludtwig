@@ -6,7 +6,7 @@ mod writer;
 use crate::output::OutputMessage;
 use clap::{crate_authors, crate_version, Clap, ValueHint};
 use std::boxed::Box;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::{self};
 use tokio::sync::mpsc;
@@ -46,11 +46,13 @@ pub struct CliContext {
 }
 
 impl CliContext {
+    /// Helper function to send a [OutputMessage] back to the user.
     pub async fn send_output(&self, msg: OutputMessage) {
         self.output_tx.send(msg).await.unwrap();
     }
 }
 
+/// Parse the CLI arguments and bootstrap the async application.
 fn main() {
     let opts: Opts = Opts::parse();
 
@@ -63,9 +65,11 @@ fn main() {
     std::process::exit(process_code);
 }
 
+/// The entry point of the async application.
 async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
     println!("Parsing files...");
 
+    // sender and receiver channels for the communication between tasks and the user.
     let (tx, rx) = mpsc::channel(128);
 
     let cli_context = Arc::new(CliContext {
@@ -93,15 +97,13 @@ async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
     Ok(process_code)
 }
 
-async fn handle_input_path<P>(path: P, cli_context: Arc<CliContext>)
-where
-    P: AsRef<Path> + 'static + Send,
-{
+/// Process one input path (CLI file argument).
+async fn handle_input_path(path: PathBuf, cli_context: Arc<CliContext>) {
     let meta = fs::metadata(&path).await.unwrap();
     if meta.is_file() {
-        if let Some(file_type) = path.as_ref().extension() {
+        if let Some(file_type) = path.extension() {
             if file_type == "twig" {
-                process::process_file(path.as_ref().into(), cli_context).await;
+                process::process_file(path, cli_context).await;
             }
         }
 
@@ -111,10 +113,8 @@ where
     handle_input_dir(path, cli_context).await;
 }
 
-async fn handle_input_dir<P>(path: P, cli_context: Arc<CliContext>)
-where
-    P: AsRef<Path> + 'static + Send,
-{
+/// Process a directory path.
+async fn handle_input_dir(path: PathBuf, cli_context: Arc<CliContext>) {
     let processes = tokio::task::spawn_blocking(move || {
         let mut futures_processes = Vec::new();
 

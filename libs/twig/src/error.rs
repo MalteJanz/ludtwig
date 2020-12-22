@@ -73,6 +73,7 @@ impl<I: std::fmt::Debug + std::fmt::Display> ContextError<I> for TwigParsingErro
     }
 }
 
+/// allows the error to have a dynamic (heap allocated) string as it's context.
 pub(crate) trait DynamicParseError<I> {
     fn add_dynamic_context(input: I, ctx: String, other: Self) -> Self;
 }
@@ -100,6 +101,8 @@ impl<I> From<nom::Err<TwigParsingErrorInformation<I>>> for TwigParseError<I> {
 
 // error reporting logic
 impl TwigParseError<&str> {
+    /// Use the parsing error and the raw input to generate a human friendly error message.
+    /// This message contains line and column information, the line itself and other information from the error.
     pub fn pretty_helpful_error_string(&self, input: &str) -> String {
         let mut output = String::with_capacity(256);
 
@@ -170,7 +173,12 @@ impl SubsliceOffset for str {
     }
 }
 
-// TODO: check this function for safety!
+/// Given the raw input and a slice of the input.
+/// Outputs the line and column number of the slice inside the input and
+/// the whole last line which contains the slice.
+///
+/// # Warning
+/// This function will most likely not work correctly with UTF8 strings because it iterates over bytes.
 fn get_line_and_column_of_subslice<'a>(input: &'a str, slice: &'a str) -> (usize, usize, &'a str) {
     let offset = input.subslice_offset(slice).unwrap();
     let mut last_line_start = 0;
@@ -217,16 +225,4 @@ fn get_line_and_column_of_subslice<'a>(input: &'a str, slice: &'a str) -> (usize
     let column = offset - last_line_start + 1;
 
     (lines, column, last_line)
-
-    /*
-    let offset = input.subslice_offset(slice).unwrap();
-    let before = &input[..offset];
-    let line_count = before.lines().count();
-    let last_line = match before.lines().last() {
-        None => "",
-        Some(l) => l,
-    };
-
-    (before.lines().count(), 0, last_line)
-     */
 }
