@@ -90,14 +90,20 @@ mod tests {
     fn test_opening_twig_block() {
         let res = twig_opening_block("{% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint %}");
 
-        assert!(res.is_ok())
+        assert_eq!(
+            res,
+            Ok((
+                "",
+                "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint"
+            ))
+        );
     }
 
     #[test]
     fn test_closing_twig_block() {
         let res = twig_closing_block("{% endblock %}");
 
-        assert!(res.is_ok())
+        assert_eq!(res, Ok(("", "endblock")));
     }
 
     #[test]
@@ -108,7 +114,43 @@ mod tests {
                 </p>
                 {% endblock %}");
 
-        assert!(res.is_ok())
+        assert_eq!(res, Ok(
+            (
+                "",
+                SyntaxNode::TwigBlock(
+                    TwigBlock {
+                        name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint".to_string(),
+                        children: vec![
+                            SyntaxNode::Whitespace,
+                            SyntaxNode::Tag(
+                                Tag {
+                                    name: "p".to_string(),
+                                    self_closed: false,
+                                    attributes: vec![
+                                        HtmlAttribute {
+                                            name: "class".to_string(),
+                                            value: Some(
+                                                "swag-migration-index-modal-abort-migration-confirm-dialog-hint".to_string(),
+                                            ),
+                                        },
+                                    ],
+                                    children: vec![
+                                        SyntaxNode::Whitespace,
+                                        SyntaxNode::Plain(
+                                            Plain {
+                                                plain: "Hello world".to_string(),
+                                            },
+                                        ),
+                                        SyntaxNode::Whitespace,
+                                    ],
+                                },
+                            ),
+                            SyntaxNode::Whitespace,
+                        ],
+                    },
+                ),
+            ),
+        ));
     }
 
     #[test]

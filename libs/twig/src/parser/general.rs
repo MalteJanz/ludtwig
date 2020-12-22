@@ -110,7 +110,186 @@ mod tests {
         </sw-button-group>",
         );
 
-        assert!(res.is_ok());
+        assert_eq!(res, Ok(
+            (
+                "",
+                SyntaxNode::Tag(
+                    Tag {
+                        name: "sw-button-group".to_string(),
+                        self_closed: false,
+                        attributes: vec![
+                            HtmlAttribute {
+                                name: "v-if".to_string(),
+                                value: Some(
+                                    "startButtonVisible".to_string(),
+                                ),
+                            },
+                            HtmlAttribute {
+                                name: ":splitButton".to_string(),
+                                value: Some(
+                                    "true".to_string(),
+                                ),
+                            },
+                        ],
+                        children: vec![
+                            SyntaxNode::Whitespace,
+                            SyntaxNode::Tag(
+                                Tag {
+                                    name: "sw-button".to_string(),
+                                    self_closed: false,
+                                    attributes: vec![
+                                        HtmlAttribute {
+                                            name: "variant".to_string(),
+                                            value: Some(
+                                                "primary".to_string(),
+                                            ),
+                                        },
+                                        HtmlAttribute {
+                                            name: ":disabled".to_string(),
+                                            value: Some(
+                                                "startButtonDisabled".to_string(),
+                                            ),
+                                        },
+                                        HtmlAttribute {
+                                            name: "@click".to_string(),
+                                            value: Some(
+                                                "onStartButtonClick".to_string(),
+                                            ),
+                                        },
+                                    ],
+                                    children: vec![
+                                        SyntaxNode::Whitespace,
+                                        SyntaxNode::OutputExpression(
+                                            OutputExpression {
+                                                content: "$tc(\'swag-migration.index.confirmAbortDialog.hint\')".to_string(),
+                                            },
+                                        ),
+                                        SyntaxNode::Whitespace,
+                                    ],
+                                },
+                            ),
+                            SyntaxNode::Whitespace,
+                            SyntaxNode::Tag(
+                                Tag {
+                                    name: "sw-context-button".to_string(),
+                                    self_closed: false,
+                                    attributes: vec![
+                                        HtmlAttribute {
+                                            name: ":disabled".to_string(),
+                                            value: Some(
+                                                "isLoading".to_string(),
+                                            ),
+                                        },
+                                    ],
+                                    children: vec![
+                                        SyntaxNode::Whitespace,
+                                        SyntaxNode::Tag(
+                                            Tag {
+                                                name: "template".to_string(),
+                                                self_closed: false,
+                                                attributes: vec![
+                                                    HtmlAttribute {
+                                                        name: "slot".to_string(),
+                                                        value: Some(
+                                                            "button".to_string(),
+                                                        ),
+                                                    },
+                                                ],
+                                                children: vec![
+                                                    SyntaxNode::Whitespace,
+                                                    SyntaxNode::Tag(
+                                                        Tag {
+                                                            name: "sw-button".to_string(),
+                                                            self_closed: false,
+                                                            attributes: vec![
+                                                                HtmlAttribute {
+                                                                    name: "square".to_string(),
+                                                                    value: None,
+                                                                },
+                                                                HtmlAttribute {
+                                                                    name: "variant".to_string(),
+                                                                    value: Some(
+                                                                        "primary".to_string(),
+                                                                    ),
+                                                                },
+                                                                HtmlAttribute {
+                                                                    name: ":disabled".to_string(),
+                                                                    value: Some(
+                                                                        "isLoading".to_string(),
+                                                                    ),
+                                                                },
+                                                            ],
+                                                            children: vec![
+                                                                SyntaxNode::Whitespace,
+                                                                SyntaxNode::Tag(
+                                                                    Tag {
+                                                                        name: "sw-icon".to_string(),
+                                                                        self_closed: false,
+                                                                        attributes: vec![
+                                                                            HtmlAttribute {
+                                                                                name: "name".to_string(),
+                                                                                value: Some(
+                                                                                    "small-arrow-medium-down".to_string(),
+                                                                                ),
+                                                                            },
+                                                                            HtmlAttribute {
+                                                                                name: "size".to_string(),
+                                                                                value: Some(
+                                                                                    "16".to_string(),
+                                                                                ),
+                                                                            },
+                                                                        ],
+                                                                        children: vec![],
+                                                                    },
+                                                                ),
+                                                                SyntaxNode::Whitespace,
+                                                            ],
+                                                        },
+                                                    ),
+                                                    SyntaxNode::Whitespace,
+                                                ],
+                                            },
+                                        ),
+                                        SyntaxNode::Whitespace,
+                                        SyntaxNode::Tag(
+                                            Tag {
+                                                name: "sw-context-menu-item".to_string(),
+                                                self_closed: false,
+                                                attributes: vec![
+                                                    HtmlAttribute {
+                                                        name: "@click".to_string(),
+                                                        value: Some(
+                                                            "onSaveButtonClick".to_string(),
+                                                        ),
+                                                    },
+                                                    HtmlAttribute {
+                                                        name: ":disabled".to_string(),
+                                                        value: Some(
+                                                            "isLoading".to_string(),
+                                                        ),
+                                                    },
+                                                ],
+                                                children: vec![
+                                                    SyntaxNode::Whitespace,
+                                                    SyntaxNode::OutputExpression(
+                                                        OutputExpression {
+                                                            content: "$tc(\'swag-migration.index.confirmAbortDialog.hint\')".to_string(),
+                                                        },
+                                                    ),
+                                                    SyntaxNode::Whitespace,
+                                                ],
+                                            },
+                                        ),
+                                        SyntaxNode::Whitespace,
+                                    ],
+                                },
+                            ),
+                            SyntaxNode::Whitespace,
+                        ],
+                    },
+                ),
+            ),
+        ));
     }
 
     #[test]
