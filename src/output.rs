@@ -50,6 +50,10 @@ pub async fn handle_processing_output(mut rx: mpsc::Receiver<OutputMessage>) -> 
         }
     }
 
+    // enable ansi codes support on windows 10 if the environment supports it.
+    #[cfg(windows)]
+    let _ansi_enabled = ansi_term::enable_ansi_support().is_ok();
+
     for (file_path, output_list) in map {
         file_count += 1;
 
