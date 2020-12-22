@@ -6,7 +6,7 @@ mod writer;
 use crate::output::OutputMessage;
 use clap::{crate_authors, crate_version, Clap, ValueHint};
 use std::boxed::Box;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::{self};
 use tokio::sync::mpsc;
@@ -98,15 +98,12 @@ async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
 }
 
 /// Process one input path (CLI file argument).
-async fn handle_input_path<P>(path: P, cli_context: Arc<CliContext>)
-where
-    P: AsRef<Path> + 'static + Send,
-{
+async fn handle_input_path(path: PathBuf, cli_context: Arc<CliContext>) {
     let meta = fs::metadata(&path).await.unwrap();
     if meta.is_file() {
-        if let Some(file_type) = path.as_ref().extension() {
+        if let Some(file_type) = path.extension() {
             if file_type == "twig" {
-                process::process_file(path.as_ref().into(), cli_context).await;
+                process::process_file(path, cli_context).await;
             }
         }
 
@@ -117,10 +114,7 @@ where
 }
 
 /// Process a directory path.
-async fn handle_input_dir<P>(path: P, cli_context: Arc<CliContext>)
-where
-    P: AsRef<Path> + 'static + Send,
-{
+async fn handle_input_dir(path: PathBuf, cli_context: Arc<CliContext>) {
     let processes = tokio::task::spawn_blocking(move || {
         let mut futures_processes = Vec::new();
 

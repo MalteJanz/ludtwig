@@ -17,7 +17,17 @@ pub enum Output {
 /// This is a single output message which is associated with a file path.
 #[derive(Debug, Clone, PartialEq)]
 pub struct OutputMessage {
+    /// The file path that is associated with this output message.
+    ///
+    /// # Note
+    /// Clippy does not like to put "mutable" data types into `Rc` or `Arc` but in this case this
+    /// is the only way to have a owned value (with unknown size) shared between threads.
+    /// Maybe this lint will be disabled by default in the future:
+    /// https://github.com/rust-lang/rust-clippy/issues/6170
+    ///
+    #[allow(clippy::rc_buffer)]
     pub file: Arc<PathBuf>,
+
     pub output: Output,
 }
 
