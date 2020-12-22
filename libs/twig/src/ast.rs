@@ -45,6 +45,12 @@ pub enum SyntaxNode {
     //Statement(),
 }
 
+/// Every AST data structure that implements this trait has a list of children (of type [SyntaxNode]).
+pub trait HasChildren {
+    /// Get the children of this AST node.
+    fn get_children(&self) -> &[SyntaxNode];
+}
+
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub struct HtmlAttribute {
     pub name: String,
@@ -78,6 +84,12 @@ impl Tag {
             attributes,
             children,
         }
+    }
+}
+
+impl HasChildren for Tag {
+    fn get_children(&self) -> &[SyntaxNode] {
+        self.children.as_ref()
     }
 }
 
@@ -124,6 +136,12 @@ pub struct TwigBlock {
 impl TwigBlock {
     pub fn new(name: String, children: Vec<SyntaxNode>) -> Self {
         Self { name, children }
+    }
+}
+
+impl HasChildren for TwigBlock {
+    fn get_children(&self) -> &[SyntaxNode] {
+        self.children.as_ref()
     }
 }
 
