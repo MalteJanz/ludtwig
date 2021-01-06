@@ -13,14 +13,6 @@ pub struct FileContext {
     pub cli_context: Arc<CliContext>,
 
     /// The file path that is associated with this context and the parsed [SyntaxNode] AST.
-    ///
-    /// # Note
-    /// Clippy does not like to put "mutable" data types into `Rc` or `Arc` but in this case this
-    /// is the only way to have a owned value (with unknown size) shared between threads.
-    /// Maybe this lint will be disabled by default in the future:
-    /// https://github.com/rust-lang/rust-clippy/issues/6170
-    ///
-    #[allow(clippy::rc_buffer)]
     pub file_path: Arc<PathBuf>,
 
     pub tree: SyntaxNode,

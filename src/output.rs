@@ -18,14 +18,6 @@ pub enum Output {
 #[derive(Debug, Clone, PartialEq)]
 pub struct OutputMessage {
     /// The file path that is associated with this output message.
-    ///
-    /// # Note
-    /// Clippy does not like to put "mutable" data types into `Rc` or `Arc` but in this case this
-    /// is the only way to have a owned value (with unknown size) shared between threads.
-    /// Maybe this lint will be disabled by default in the future:
-    /// https://github.com/rust-lang/rust-clippy/issues/6170
-    ///
-    #[allow(clippy::rc_buffer)]
     pub file: Arc<PathBuf>,
 
     pub output: Output,
@@ -40,7 +32,7 @@ pub async fn handle_processing_output(mut rx: mpsc::Receiver<OutputMessage>) -> 
     let mut error_count = 0;
 
     while let Some(msg) = rx.recv().await {
-        let entry = map.entry(msg.file).or_insert(vec![]);
+        let entry = map.entry(msg.file).or_insert_with(Vec::new);
 
         match msg.output {
             Output::None => {}
