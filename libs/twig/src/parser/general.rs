@@ -1,7 +1,7 @@
 use crate::ast::*;
 use crate::error::{DynamicParseError, TwigParsingErrorInformation};
 use crate::parser::html::{html_comment, html_complete_tag, html_plain_text};
-use crate::parser::twig::{twig_comment, twig_complete_block, twig_parent_call};
+use crate::parser::twig::{twig_comment, twig_complete_block, twig_statement};
 use crate::parser::vue::vue_block;
 use nom::branch::alt;
 use nom::character::complete::multispace1;
@@ -54,7 +54,7 @@ pub(crate) fn document_node(input: Input) -> IResult<SyntaxNode> {
         html_complete_tag,
         twig_complete_block,
         vue_block,
-        twig_parent_call,
+        twig_statement,
         twig_comment,
         html_plain_text,
     ))(input)

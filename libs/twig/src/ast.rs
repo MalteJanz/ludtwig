@@ -37,12 +37,27 @@ pub enum SyntaxNode {
     /// Comment in twig syntax: `{# some comment #}`
     TwigComment(TwigComment),
 
-    /// twig parent call: `{% parent %}`.
-    /// This variant will eventually be merged with a more general execute statement variant.
-    TwigParentCall,
-    // Some execute statement that has no children.
-    // twig: `{% set foo = 'foo' %}`
-    //Statement(),
+    /// Some execute statement that has no children.
+    /// twig: `{% set foo = 'foo' %}`
+    /// or `{% parent %}`
+    /// or ...
+    TwigStatement(TwigStatement),
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum TwigStatement {
+    /// For a first implementation there is no difference between all the possibilities of twig execute statements.
+    /// This may change in the future with a more advanced parser.
+    ///
+    /// # Examples
+    /// `{% set foo = 'foo' %}` -> `Raw("set foo = 'foo'")`
+    ///
+    /// `{% parent %}` -> `Raw("parent")`
+    ///
+    /// `{% include 'header.html' %}` -> `Raw("include 'header.html'")`
+    ///
+    /// ...
+    Raw(String),
 }
 
 /// Every AST data structure that implements this trait has a list of children (of type [SyntaxNode]).

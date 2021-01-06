@@ -3,7 +3,7 @@ use crate::ast::*;
 use crate::parser::general::{document_node, dynamic_context, Input};
 use nom::bytes::complete::{tag, take_till1};
 use nom::character::complete::{anychar, multispace0};
-use nom::combinator::{cut, map, opt};
+use nom::combinator::{cut, map, verify};
 use nom::multi::{many0, many_till};
 use nom::sequence::{delimited, preceded, terminated};
 
@@ -46,18 +46,28 @@ pub(crate) fn twig_complete_block(input: Input) -> IResult<SyntaxNode> {
     Ok((remaining, SyntaxNode::TwigBlock(block)))
 }
 
-pub(crate) fn twig_parent_call(input: Input) -> IResult<SyntaxNode> {
-    let (remaining, _) = delimited(
-        tag("{%"),
-        delimited(
-            multispace0,
-            terminated(tag("parent"), opt(tag("()"))),
-            multispace0,
+/// Parses any {% ... %} syntax and only the inner content is saved (with stripped whitespace around it).
+/// An exception to this is the {% end... %} syntax, because there are
+/// other parsers for this hierarchical nodes (and it is not allowed to steal that from them).
+pub(crate) fn twig_statement(input: Input) -> IResult<SyntaxNode> {
+    let (remaining, m) = map(
+        preceded(
+            terminated(tag("{%"), multispace0),
+            verify(
+                map(
+                    many_till(anychar, preceded(multispace0, tag("%}"))),
+                    |(v, _)| v.iter().collect::<String>(),
+                ),
+                |s: &str| {
+                    // every inner statement {% ... %} is not allowed to start with 'end' because that closes hierarchical syntax nodes.
+                    return !s.starts_with("end");
+                },
+            ),
         ),
-        tag("%}"),
+        |inner| SyntaxNode::TwigStatement(TwigStatement::Raw(inner)),
     )(input)?;
 
-    Ok((remaining, SyntaxNode::TwigParentCall))
+    Ok((remaining, m))
 }
 
 pub(crate) fn twig_comment(input: Input) -> IResult<SyntaxNode> {
@@ -230,7 +240,7 @@ mod tests {
                     name: "sw_dashboard_index_content_intro_card".to_string(),
                     children: vec![
                         SyntaxNode::Whitespace,
-                        SyntaxNode::TwigParentCall,
+                        SyntaxNode::TwigStatement(TwigStatement::Raw("parent".to_string())),
                         SyntaxNode::Whitespace,
                     ]
                 })
@@ -241,23 +251,35 @@ mod tests {
     #[test]
     fn test_twig_parent_call_variations() {
         assert_eq!(
-            twig_parent_call("{%parent%}"),
-            Ok(("", SyntaxNode::TwigParentCall))
+            twig_statement("{%parent%}"),
+            Ok((
+                "",
+                SyntaxNode::TwigStatement(TwigStatement::Raw("parent".to_string()))
+            ))
         );
 
         assert_eq!(
-            twig_parent_call("{%           parent         %}"),
-            Ok(("", SyntaxNode::TwigParentCall))
+            twig_statement("{%           parent         %}"),
+            Ok((
+                "",
+                SyntaxNode::TwigStatement(TwigStatement::Raw("parent".to_string()))
+            ))
         );
 
         assert_eq!(
-            twig_parent_call("{%parent()%}"),
-            Ok(("", SyntaxNode::TwigParentCall))
+            twig_statement("{%parent()%}"),
+            Ok((
+                "",
+                SyntaxNode::TwigStatement(TwigStatement::Raw("parent()".to_string()))
+            ))
         );
 
         assert_eq!(
-            twig_parent_call("{%        parent()         %}"),
-            Ok(("", SyntaxNode::TwigParentCall))
+            twig_statement("{%        parent()         %}"),
+            Ok((
+                "",
+                SyntaxNode::TwigStatement(TwigStatement::Raw("parent()".to_string()))
+            ))
         );
     }
 

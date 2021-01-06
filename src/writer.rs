@@ -5,7 +5,9 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::{AsyncWrite, AsyncWriteExt, BufWriter};
-use twig::ast::{HtmlComment, OutputExpression, Plain, SyntaxNode, Tag, TwigBlock, TwigComment};
+use twig::ast::{
+    HtmlComment, OutputExpression, Plain, SyntaxNode, Tag, TwigBlock, TwigComment, TwigStatement,
+};
 
 /// Context for traversing the AST with printing in mind.
 #[derive(Clone, PartialEq, Default)]
@@ -103,8 +105,8 @@ fn print_node<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
             SyntaxNode::TwigBlock(twig) => {
                 print_twig_block(writer, &twig, context).await;
             }
-            SyntaxNode::TwigParentCall => {
-                print_twig_parent_call(writer, context).await;
+            SyntaxNode::TwigStatement(statement) => {
+                print_twig_statement(writer, &statement, context).await;
             }
             SyntaxNode::TwigComment(comment) => {
                 print_twig_comment(writer, comment, context).await;
@@ -255,12 +257,19 @@ async fn print_twig_block<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer.write_all(b"{% endblock %}").await.unwrap();
 }
 
-async fn print_twig_parent_call<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_twig_statement<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
+    statement: &TwigStatement,
     context: &PrintingContext<'_>,
 ) {
     print_indentation_if_whitespace_exists_before(writer, context).await;
-    writer.write_all(b"{% parent %}").await.unwrap();
+    writer.write_all(b"{% ").await.unwrap();
+    match statement {
+        TwigStatement::Raw(raw) => {
+            writer.write_all(raw.as_bytes()).await.unwrap();
+        }
+    }
+    writer.write_all(b" %}").await.unwrap();
 }
 
 async fn print_twig_comment<W: AsyncWrite + Unpin + Send + ?Sized>(
@@ -484,6 +493,8 @@ mod tests {
                     name: "this_is_a_test_two".to_string(),
                     children: vec![
                         SyntaxNode::Whitespace,
+                        SyntaxNode::TwigStatement(TwigStatement::Raw("parent".to_string())),
+                        SyntaxNode::Whitespace,
                         SyntaxNode::Plain(Plain {
                             plain: "Some content".to_string(),
                         }),
@@ -510,7 +521,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "<this_is_a_test_one>\r\n\r\n    {% block this_is_a_test_two %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n    {% block this_is_a_test_three %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n</this_is_a_test_one>".to_string()
+            "<this_is_a_test_one>\r\n\r\n    {% block this_is_a_test_two %}\r\n        {% parent %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n    {% block this_is_a_test_three %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n</this_is_a_test_one>".to_string()
         );
     }
 
