@@ -26,22 +26,32 @@ pub enum SyntaxNode {
     HtmlComment(HtmlComment),
 
     /// Some expression to output something like  
-    /// twig: `{{ my_counter }}` (can be php)  
-    /// vue: `{{ myCounter }}` (can be javascript)
+    /// twig: `{{ my_counter|e }}` (can be php)  
+    /// vue: `{{ myCounter.count }}` (can be javascript)
     OutputExpression(OutputExpression),
-
-    /// twig block structure which has a name and contains other [SyntaxNode] values as children.
-    /// For example `{% block my_block_name %}...{% endblock %}`
-    TwigBlock(TwigBlock),
 
     /// Comment in twig syntax: `{# some comment #}`
     TwigComment(TwigComment),
 
-    /// Some execute statement that has no children.
-    /// twig: `{% set foo = 'foo' %}`
+    /// Some execute statement that has no children / has no closing syntax.
+    ///
+    /// # Examples
+    /// `{% set foo = 'foo' %}`
+    ///
     /// or `{% parent %}`
+    ///
     /// or ...
     TwigStatement(TwigStatement),
+
+    /// Some hierarchical twig syntax.
+    ///
+    /// # Examples
+    /// `{% block my_block_name %}...{% endblock %}`
+    ///
+    /// # Notes
+    /// This is preferred over [TwigStatement] by the parser if it sees special keywords like `block` right after the `{% `.
+    ///
+    TwigStructure(TwigStructure),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -60,6 +70,71 @@ pub enum TwigStatement {
     Raw(String),
 }
 
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum TwigStructure {
+    /// Twig block structure which has a name and contains other [SyntaxNode] values as children.
+    /// For example `{% block my_block_name %}...{% endblock %}`
+    TwigBlock(TwigBlock),
+
+    /// Twig for block.
+    ///
+    /// # Example
+    /// ```twig
+    /// {% for user in users %}
+    ///      <li>{{ user.username|e }}</li>
+    /// {% endfor %}
+    /// ```
+    TwigFor(TwigFor),
+
+    /// Twig if block.
+    ///
+    /// # Example
+    /// ```twig
+    /// {% if product.stock > 10 %}
+    ///    Available
+    /// {% elseif product.stock > 0 %}
+    ///    Only {{ product.stock }} left!
+    /// {% else %}
+    ///    Sold-out!
+    /// {% endif %}
+    /// ```
+    TwigIf(TwigIf),
+
+    /// Twig apply block.
+    ///
+    /// # Example
+    /// ```twig
+    /// {% apply upper %}
+    ///     This text becomes uppercase
+    /// {% endapply %}
+    /// ```
+    TwigApply(TwigApply),
+
+    /// Twig set block with no '='. captures the children.
+    ///
+    /// # Example
+    /// ```twig
+    /// {% set foo %}
+    ///     <div>
+    ///         hello world
+    ///     </div>
+    /// {% endset %}
+    /// ```
+    TwigSetCapture(TwigSetCapture),
+}
+/*
+impl HasChildren for TwigStructure {
+    fn get_children(&self) -> &[SyntaxNode] {
+        match self {
+            TwigStructure::TwigBlock(p) => p.get_children(),
+            TwigStructure::TwigFor(p) => p.get_children(),
+            TwigStructure::TwigIf(p) => p.get_children(), // how to handle this? is it really needed?
+            TwigStructure::TwigApply(p) => p.get_children(),
+            TwigStructure::TwigSetCapture(p) => p.get_children(),
+        }
+    }
+}
+*/
 /// Every AST data structure that implements this trait has a list of children (of type [SyntaxNode]).
 pub trait HasChildren {
     /// Get the children of this AST node.
@@ -143,6 +218,17 @@ impl OutputExpression {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
+pub struct TwigComment {
+    pub content: String,
+}
+
+impl TwigComment {
+    pub fn new(content: String) -> Self {
+        Self { content }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub struct TwigBlock {
     pub name: String,
     pub children: Vec<SyntaxNode>,
@@ -161,12 +247,100 @@ impl HasChildren for TwigBlock {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
-pub struct TwigComment {
-    pub content: String,
+pub struct TwigFor {
+    pub expression: String,
+    pub children: Vec<SyntaxNode>,
 }
 
-impl TwigComment {
-    pub fn new(content: String) -> Self {
-        Self { content }
+impl TwigFor {
+    pub fn new(expression: String, children: Vec<SyntaxNode>) -> Self {
+        Self {
+            expression,
+            children,
+        }
+    }
+}
+
+impl HasChildren for TwigFor {
+    fn get_children(&self) -> &[SyntaxNode] {
+        self.children.as_ref()
+    }
+}
+
+/// Represents a full set of if / elseif / else expressions.
+///
+/// # Example
+/// ```twig
+/// {% if product.stock > 10 %}
+///    Available
+/// {% elseif product.stock > 0 %}
+///    Only {{ product.stock }} left!
+/// {% else %}
+///    Sold-out!
+/// {% endif %}
+/// ```
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
+pub struct TwigIf {
+    pub if_arms: Vec<TwigIfArm>,
+}
+
+/// Represents one Arm of a possible multi arm if
+///
+/// # Example
+/// ```twig
+/// {% if product.stock > 10 %}
+///    Available
+/// ...
+/// ```
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
+pub struct TwigIfArm {
+    /// 'if' and 'elseif' arms have an expression,
+    /// otherwise it is an 'else' arm.
+    pub expression: Option<String>,
+    pub children: Vec<SyntaxNode>,
+}
+
+impl HasChildren for TwigIfArm {
+    fn get_children(&self) -> &[SyntaxNode] {
+        self.children.as_ref()
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
+pub struct TwigApply {
+    pub expression: String,
+    pub children: Vec<SyntaxNode>,
+}
+
+impl TwigApply {
+    pub fn new(expression: String, children: Vec<SyntaxNode>) -> Self {
+        Self {
+            expression,
+            children,
+        }
+    }
+}
+
+impl HasChildren for TwigApply {
+    fn get_children(&self) -> &[SyntaxNode] {
+        self.children.as_ref()
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
+pub struct TwigSetCapture {
+    pub name: String,
+    pub children: Vec<SyntaxNode>,
+}
+
+impl TwigSetCapture {
+    pub fn new(name: String, children: Vec<SyntaxNode>) -> Self {
+        Self { name, children }
+    }
+}
+
+impl HasChildren for TwigSetCapture {
+    fn get_children(&self) -> &[SyntaxNode] {
+        self.children.as_ref()
     }
 }

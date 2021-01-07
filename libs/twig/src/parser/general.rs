@@ -1,7 +1,7 @@
 use crate::ast::*;
 use crate::error::{DynamicParseError, TwigParsingErrorInformation};
 use crate::parser::html::{html_comment, html_complete_tag, html_plain_text};
-use crate::parser::twig::{twig_comment, twig_complete_block, twig_statement};
+use crate::parser::twig::{twig_comment, twig_syntax};
 use crate::parser::vue::vue_block;
 use nom::branch::alt;
 use nom::character::complete::multispace1;
@@ -52,9 +52,8 @@ pub(crate) fn document_node(input: Input) -> IResult<SyntaxNode> {
         some_whitespace,
         html_comment, //html comment must match before html tag because both can start with <!...
         html_complete_tag,
-        twig_complete_block,
         vue_block,
-        twig_statement,
+        twig_syntax,
         twig_comment,
         html_plain_text,
     ))(input)
