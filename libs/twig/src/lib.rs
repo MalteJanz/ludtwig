@@ -48,7 +48,7 @@ mod tests {
         assert_eq!(
             result,
             Ok(SyntaxNode::Root(vec![
-                SyntaxNode::TwigBlock(TwigBlock{
+                SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock{
                         name: "swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint".to_string(),
                         children: vec![
                             SyntaxNode::Whitespace,
@@ -64,7 +64,7 @@ mod tests {
                             }),
                             SyntaxNode::Whitespace
                         ]
-                    })
+                    }))
                 ])
             )
         )

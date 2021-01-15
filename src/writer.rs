@@ -5,7 +5,10 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::{AsyncWrite, AsyncWriteExt, BufWriter};
-use twig::ast::{HtmlComment, OutputExpression, Plain, SyntaxNode, Tag, TwigBlock, TwigComment};
+use twig::ast::{
+    HtmlComment, OutputExpression, Plain, SyntaxNode, Tag, TwigApply, TwigBlock, TwigComment,
+    TwigFor, TwigIf, TwigSetCapture, TwigStatement, TwigStructure,
+};
 
 /// Context for traversing the AST with printing in mind.
 #[derive(Clone, PartialEq, Default)]
@@ -85,8 +88,8 @@ fn print_node<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
         context.parent_nodes.push(&node);
 
         match node {
-            SyntaxNode::Root(root) => {
-                print_node_list(writer, &root, context).await;
+            SyntaxNode::Whitespace => {
+                print_whitespace(writer, context).await;
             }
             SyntaxNode::Tag(tag) => {
                 print_tag(writer, &tag, context).await;
@@ -100,17 +103,29 @@ fn print_node<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
             SyntaxNode::OutputExpression(vue) => {
                 print_vue_block(writer, &vue, context).await;
             }
-            SyntaxNode::TwigBlock(twig) => {
-                print_twig_block(writer, &twig, context).await;
+            SyntaxNode::TwigStructure(TwigStructure::TwigBlock(block)) => {
+                print_twig_block(writer, &block, context).await;
             }
-            SyntaxNode::TwigParentCall => {
-                print_twig_parent_call(writer, context).await;
+            SyntaxNode::TwigStructure(TwigStructure::TwigFor(twig_for)) => {
+                print_twig_for(writer, &twig_for, context).await;
+            }
+            SyntaxNode::TwigStructure(TwigStructure::TwigIf(twig_if)) => {
+                print_twig_if(writer, &twig_if, context).await;
+            }
+            SyntaxNode::TwigStatement(statement) => {
+                print_twig_statement(writer, &statement, context).await;
             }
             SyntaxNode::TwigComment(comment) => {
                 print_twig_comment(writer, comment, context).await;
             }
-            SyntaxNode::Whitespace => {
-                print_whitespace(writer, context).await;
+            SyntaxNode::TwigStructure(TwigStructure::TwigApply(twig_apply)) => {
+                print_twig_apply(writer, &twig_apply, context).await;
+            }
+            SyntaxNode::TwigStructure(TwigStructure::TwigSetCapture(twig_set_capture)) => {
+                print_twig_set_capture(writer, &twig_set_capture, context).await;
+            }
+            SyntaxNode::Root(root) => {
+                print_node_list(writer, &root, context).await;
             }
         }
     })
@@ -255,12 +270,145 @@ async fn print_twig_block<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer.write_all(b"{% endblock %}").await.unwrap();
 }
 
-async fn print_twig_parent_call<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_twig_for<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
+    twig_for: &TwigFor,
     context: &PrintingContext<'_>,
 ) {
     print_indentation_if_whitespace_exists_before(writer, context).await;
-    writer.write_all(b"{% parent %}").await.unwrap();
+
+    writer.write_all(b"{% for ").await.unwrap();
+    writer
+        .write_all(twig_for.expression.as_bytes())
+        .await
+        .unwrap();
+    writer.write_all(b" %}").await.unwrap();
+
+    print_node_list(
+        writer,
+        &twig_for.children,
+        &context.increase_indentation_by(1),
+    )
+    .await;
+
+    if let Some(last) = twig_for.children.last() {
+        if let SyntaxNode::Whitespace = last {
+            print_indentation(writer, context).await;
+        }
+    }
+
+    writer.write_all(b"{% endfor %}").await.unwrap();
+}
+
+async fn print_twig_if<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
+    twig_if: &TwigIf,
+    context: &PrintingContext<'_>,
+) {
+    for (index, arm) in twig_if.if_arms.iter().enumerate() {
+        print_indentation_if_whitespace_exists_before(writer, context).await;
+
+        match (index, &arm.expression) {
+            (0, Some(e)) => {
+                writer.write_all(b"{% if ").await.unwrap();
+                writer.write_all(e.as_bytes()).await.unwrap();
+            }
+            (_, Some(e)) => {
+                writer.write_all(b"{% elseif ").await.unwrap();
+                writer.write_all(e.as_bytes()).await.unwrap();
+            }
+            (_, None) => {
+                writer.write_all(b"{% else").await.unwrap();
+            }
+        }
+
+        writer.write_all(b" %}").await.unwrap();
+
+        print_node_list(writer, &arm.children, &context.increase_indentation_by(1)).await;
+
+        if let Some(last) = arm.children.last() {
+            if let SyntaxNode::Whitespace = last {
+                print_indentation(writer, context).await;
+            }
+        }
+    }
+
+    writer.write_all(b"{% endif %}").await.unwrap();
+}
+
+async fn print_twig_apply<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
+    twig_apply: &TwigApply,
+    context: &PrintingContext<'_>,
+) {
+    print_indentation_if_whitespace_exists_before(writer, context).await;
+
+    writer.write_all(b"{% apply ").await.unwrap();
+    writer
+        .write_all(twig_apply.expression.as_bytes())
+        .await
+        .unwrap();
+    writer.write_all(b" %}").await.unwrap();
+
+    print_node_list(
+        writer,
+        &twig_apply.children,
+        &context.increase_indentation_by(1),
+    )
+    .await;
+
+    if let Some(last) = twig_apply.children.last() {
+        if let SyntaxNode::Whitespace = last {
+            print_indentation(writer, context).await;
+        }
+    }
+
+    writer.write_all(b"{% endapply %}").await.unwrap();
+}
+
+async fn print_twig_set_capture<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
+    twig_set_capture: &TwigSetCapture,
+    context: &PrintingContext<'_>,
+) {
+    print_indentation_if_whitespace_exists_before(writer, context).await;
+
+    writer.write_all(b"{% set ").await.unwrap();
+    writer
+        .write_all(twig_set_capture.name.as_bytes())
+        .await
+        .unwrap();
+    writer.write_all(b" %}").await.unwrap();
+
+    print_node_list(
+        writer,
+        &twig_set_capture.children,
+        &context.increase_indentation_by(1),
+    )
+    .await;
+
+    if let Some(last) = twig_set_capture.children.last() {
+        if let SyntaxNode::Whitespace = last {
+            print_indentation(writer, context).await;
+        }
+    }
+
+    writer.write_all(b"{% endset %}").await.unwrap();
+}
+
+async fn print_twig_statement<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
+    statement: &TwigStatement,
+    context: &PrintingContext<'_>,
+) {
+    print_indentation_if_whitespace_exists_before(writer, context).await;
+    writer.write_all(b"{% ").await.unwrap();
+    match statement {
+        TwigStatement::Raw(raw) => {
+            writer.write_all(raw.as_bytes()).await.unwrap();
+        }
+    }
+    writer.write_all(b" %}").await.unwrap();
 }
 
 async fn print_twig_comment<W: AsyncWrite + Unpin + Send + ?Sized>(
@@ -285,30 +433,30 @@ async fn print_whitespace<W: AsyncWrite + Unpin + Send + ?Sized>(
         context.get_parent(),
     ) {
         (Some(prev), Some(aft), Some(par)) => {
-            if let SyntaxNode::TwigBlock(_) = par {
+            if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)) = par {
                 // don't print another whitespace if the parent is also a block.
-            } else if let SyntaxNode::TwigBlock(_) = prev {
+            } else if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)) = prev {
                 // print another whitespace.
                 writer.write_all(b"\r\n").await.unwrap();
-            } else if let SyntaxNode::TwigBlock(_) = aft {
+            } else if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)) = aft {
                 // print another whitespace.
                 writer.write_all(b"\r\n").await.unwrap();
             }
         }
 
         (None, Some(aft), Some(par)) => {
-            if let SyntaxNode::TwigBlock(_) = par {
+            if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)) = par {
                 // don't print another whitespace if the parent is also a block.
-            } else if let SyntaxNode::TwigBlock(_) = aft {
+            } else if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)) = aft {
                 // print another whitespace.
                 writer.write_all(b"\r\n").await.unwrap();
             }
         }
 
         (Some(prev), None, Some(par)) => {
-            if let SyntaxNode::TwigBlock(_) = par {
+            if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)) = par {
                 // don't print another whitespace if the parent is also a block.
-            } else if let SyntaxNode::TwigBlock(_) = prev {
+            } else if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)) = prev {
                 // print another whitespace.
                 writer.write_all(b"\r\n").await.unwrap();
             }
@@ -382,7 +530,7 @@ fn calculate_tag_line_length(tag: &Tag, context: &PrintingContext) -> usize {
 mod tests {
     use super::*;
     use std::io::Cursor;
-    use twig::ast::HtmlAttribute;
+    use twig::ast::{HtmlAttribute, TwigIfArm};
 
     /*
     The input or output data for testing purposes is partially from the following sources and under copyright!
@@ -426,7 +574,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_simple_twig_block() {
-        let tree = SyntaxNode::TwigBlock(TwigBlock {
+        let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
             name: "some_twig_block".to_string(),
             children: vec![
                 SyntaxNode::Whitespace,
@@ -435,7 +583,7 @@ mod tests {
                 }),
                 SyntaxNode::Whitespace,
             ],
-        });
+        }));
 
         let res = convert_tree_into_written_string(tree).await;
 
@@ -447,24 +595,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_nested_twig_block() {
-        let tree = SyntaxNode::TwigBlock(TwigBlock {
+        let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
             name: "this_is_a_test_one".to_string(),
             children: vec![
                 SyntaxNode::Whitespace,
-                SyntaxNode::TwigBlock(TwigBlock {
+                SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
                     name: "this_is_a_test_two".to_string(),
                     children: vec![
                         SyntaxNode::Whitespace,
-                        SyntaxNode::TwigBlock(TwigBlock {
+                        SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
                             name: "this_is_a_test_three".to_string(),
                             children: vec![SyntaxNode::Whitespace],
-                        }),
+                        })),
                         SyntaxNode::Whitespace,
                     ],
-                }),
+                })),
                 SyntaxNode::Whitespace,
             ],
-        });
+        }));
 
         let res = convert_tree_into_written_string(tree).await;
 
@@ -480,18 +628,20 @@ mod tests {
             name: "this_is_a_test_one".to_string(),
             children: vec![
                 SyntaxNode::Whitespace,
-                SyntaxNode::TwigBlock(TwigBlock {
+                SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
                     name: "this_is_a_test_two".to_string(),
                     children: vec![
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::TwigStatement(TwigStatement::Raw("parent".to_string())),
                         SyntaxNode::Whitespace,
                         SyntaxNode::Plain(Plain {
                             plain: "Some content".to_string(),
                         }),
                         SyntaxNode::Whitespace,
                     ],
-                }),
+                })),
                 SyntaxNode::Whitespace,
-                SyntaxNode::TwigBlock(TwigBlock {
+                SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
                     name: "this_is_a_test_three".to_string(),
                     children: vec![
                         SyntaxNode::Whitespace,
@@ -500,7 +650,7 @@ mod tests {
                         }),
                         SyntaxNode::Whitespace,
                     ],
-                }),
+                })),
                 SyntaxNode::Whitespace,
             ],
             ..Default::default()
@@ -510,7 +660,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "<this_is_a_test_one>\r\n\r\n    {% block this_is_a_test_two %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n    {% block this_is_a_test_three %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n</this_is_a_test_one>".to_string()
+            "<this_is_a_test_one>\r\n\r\n    {% block this_is_a_test_two %}\r\n        {% parent %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n    {% block this_is_a_test_three %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n</this_is_a_test_one>".to_string()
         );
     }
 
@@ -520,10 +670,10 @@ mod tests {
             name: "this_is_a_test_one".to_string(),
             children: vec![
                 SyntaxNode::Whitespace,
-                SyntaxNode::TwigBlock(TwigBlock {
+                SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
                     name: "this_is_a_test_two".to_string(),
                     children: vec![],
-                }),
+                })),
                 SyntaxNode::Whitespace,
             ],
             ..Default::default()
@@ -541,10 +691,12 @@ mod tests {
     async fn test_write_tag_and_twig_block_without_whitespace() {
         let tree = SyntaxNode::Tag(Tag {
             name: "slot".to_string(),
-            children: vec![SyntaxNode::TwigBlock(TwigBlock {
-                name: "sw_grid_slot_pagination".to_string(),
-                children: vec![],
-            })],
+            children: vec![SyntaxNode::TwigStructure(TwigStructure::TwigBlock(
+                TwigBlock {
+                    name: "sw_grid_slot_pagination".to_string(),
+                    children: vec![],
+                },
+            ))],
             attributes: vec![HtmlAttribute {
                 name: "name".to_string(),
                 value: Some("pagination".to_string()),
@@ -565,12 +717,14 @@ mod tests {
     async fn test_write_tag_and_twig_block_content_without_whitespace() {
         let tree = SyntaxNode::Tag(Tag {
             name: "slot".to_string(),
-            children: vec![SyntaxNode::TwigBlock(TwigBlock {
-                name: "sw_grid_slot_pagination".to_string(),
-                children: vec![SyntaxNode::Plain(Plain {
-                    plain: "Hello world".to_string(),
-                })],
-            })],
+            children: vec![SyntaxNode::TwigStructure(TwigStructure::TwigBlock(
+                TwigBlock {
+                    name: "sw_grid_slot_pagination".to_string(),
+                    children: vec![SyntaxNode::Plain(Plain {
+                        plain: "Hello world".to_string(),
+                    })],
+                },
+            ))],
             attributes: vec![HtmlAttribute {
                 name: "name".to_string(),
                 value: Some("pagination".to_string()),
@@ -584,6 +738,172 @@ mod tests {
             res,
             "<slot name=\"pagination\">{% block sw_grid_slot_pagination %}Hello world{% endblock %}</slot>"
                 .to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_twig_for() {
+        let tree = SyntaxNode::TwigStructure(TwigStructure::TwigFor(TwigFor {
+            expression: "item in items".to_string(),
+            children: vec![
+                SyntaxNode::Whitespace,
+                SyntaxNode::OutputExpression(OutputExpression {
+                    content: "item".to_string(),
+                }),
+                SyntaxNode::Whitespace,
+            ],
+        }));
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "{% for item in items %}\r\n    {{ item }}\r\n{% endfor %}".to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_twig_if() {
+        let tree = SyntaxNode::TwigStructure(TwigStructure::TwigIf(TwigIf {
+            if_arms: vec![TwigIfArm {
+                expression: Some("a > b".to_string()),
+                children: vec![
+                    SyntaxNode::Whitespace,
+                    SyntaxNode::OutputExpression(OutputExpression {
+                        content: "a".to_string(),
+                    }),
+                    SyntaxNode::Whitespace,
+                ],
+            }],
+        }));
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "{% if a > b %}\r\n    {{ a }}\r\n{% endif %}".to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_twig_if_else() {
+        let tree = SyntaxNode::TwigStructure(TwigStructure::TwigIf(TwigIf {
+            if_arms: vec![
+                TwigIfArm {
+                    expression: Some("a > b".to_string()),
+                    children: vec![
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::OutputExpression(OutputExpression {
+                            content: "a".to_string(),
+                        }),
+                        SyntaxNode::Whitespace,
+                    ],
+                },
+                TwigIfArm {
+                    expression: None,
+                    children: vec![
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::OutputExpression(OutputExpression {
+                            content: "b".to_string(),
+                        }),
+                        SyntaxNode::Whitespace,
+                    ],
+                },
+            ],
+        }));
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "{% if a > b %}\r\n    {{ a }}\r\n{% else %}\r\n    {{ b }}\r\n{% endif %}".to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_twig_if_elseif_else() {
+        let tree = SyntaxNode::TwigStructure(TwigStructure::TwigIf(TwigIf {
+            if_arms: vec![
+                TwigIfArm {
+                    expression: Some("a > b".to_string()),
+                    children: vec![
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::OutputExpression(OutputExpression {
+                            content: "a".to_string(),
+                        }),
+                        SyntaxNode::Whitespace,
+                    ],
+                },
+                TwigIfArm {
+                    expression: Some("a == b".to_string()),
+                    children: vec![
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::OutputExpression(OutputExpression {
+                            content: "b".to_string(),
+                        }),
+                        SyntaxNode::Whitespace,
+                    ],
+                },
+                TwigIfArm {
+                    expression: None,
+                    children: vec![
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::Plain(Plain {
+                            plain: "TODO".to_string(),
+                        }),
+                        SyntaxNode::Whitespace,
+                    ],
+                },
+            ],
+        }));
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "{% if a > b %}\r\n    {{ a }}\r\n{% elseif a == b %}\r\n    {{ b }}\r\n{% else %}\r\n    TODO\r\n{% endif %}".to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_twig_apply() {
+        let tree = SyntaxNode::TwigStructure(TwigStructure::TwigApply(TwigApply {
+            expression: "upper".to_string(),
+            children: vec![
+                SyntaxNode::Whitespace,
+                SyntaxNode::Plain(Plain {
+                    plain: "hello world".to_string(),
+                }),
+                SyntaxNode::Whitespace,
+            ],
+        }));
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "{% apply upper %}\r\n    hello world\r\n{% endapply %}".to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_twig_set_capture() {
+        let tree = SyntaxNode::TwigStructure(TwigStructure::TwigSetCapture(TwigSetCapture {
+            name: "myVariable".to_string(),
+            children: vec![
+                SyntaxNode::Whitespace,
+                SyntaxNode::Plain(Plain {
+                    plain: "hello world".to_string(),
+                }),
+                SyntaxNode::Whitespace,
+            ],
+        }));
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "{% set myVariable %}\r\n    hello world\r\n{% endset %}".to_string()
         );
     }
 }

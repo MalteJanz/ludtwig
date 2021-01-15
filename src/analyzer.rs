@@ -3,7 +3,7 @@ use crate::process::FileContext;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use twig::ast::SyntaxNode;
+use twig::ast::{SyntaxNode, TwigStructure};
 
 /// Entry function for doing the analyzing.
 /// It spawns all analyzer functions concurrently.
@@ -38,7 +38,7 @@ fn analyze_blocks<'a>(
                     analyze_blocks(child, file_context, parent_block_name).await;
                 }
             }
-            SyntaxNode::TwigBlock(twig) => {
+            SyntaxNode::TwigStructure(TwigStructure::TwigBlock(twig)) => {
                 if let Some(parent) = parent_block_name {
                     if !twig.name.contains(parent) {
                         file_context
