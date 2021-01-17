@@ -155,7 +155,7 @@ async fn print_node_list<W: AsyncWrite + Unpin + Send + ?Sized>(
 
 async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
-    tag: &Tag,
+    tag: &Tag<SyntaxNode>,
     context: &PrintingContext<'_>,
 ) {
     print_indentation_if_whitespace_exists_before(writer, context).await;
@@ -250,7 +250,7 @@ async fn print_vue_block<W: AsyncWrite + Unpin + Send + ?Sized>(
 
 async fn print_twig_block<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
-    twig: &TwigBlock,
+    twig: &TwigBlock<SyntaxNode>,
     context: &PrintingContext<'_>,
 ) {
     print_indentation_if_whitespace_exists_before(writer, context).await;
@@ -272,7 +272,7 @@ async fn print_twig_block<W: AsyncWrite + Unpin + Send + ?Sized>(
 
 async fn print_twig_for<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
-    twig_for: &TwigFor,
+    twig_for: &TwigFor<SyntaxNode>,
     context: &PrintingContext<'_>,
 ) {
     print_indentation_if_whitespace_exists_before(writer, context).await;
@@ -302,7 +302,7 @@ async fn print_twig_for<W: AsyncWrite + Unpin + Send + ?Sized>(
 
 async fn print_twig_if<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
-    twig_if: &TwigIf,
+    twig_if: &TwigIf<SyntaxNode>,
     context: &PrintingContext<'_>,
 ) {
     for (index, arm) in twig_if.if_arms.iter().enumerate() {
@@ -338,7 +338,7 @@ async fn print_twig_if<W: AsyncWrite + Unpin + Send + ?Sized>(
 
 async fn print_twig_apply<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
-    twig_apply: &TwigApply,
+    twig_apply: &TwigApply<SyntaxNode>,
     context: &PrintingContext<'_>,
 ) {
     print_indentation_if_whitespace_exists_before(writer, context).await;
@@ -368,7 +368,7 @@ async fn print_twig_apply<W: AsyncWrite + Unpin + Send + ?Sized>(
 
 async fn print_twig_set_capture<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
-    twig_set_capture: &TwigSetCapture,
+    twig_set_capture: &TwigSetCapture<SyntaxNode>,
     context: &PrintingContext<'_>,
 ) {
     print_indentation_if_whitespace_exists_before(writer, context).await;
@@ -492,7 +492,7 @@ async fn print_indentation_if_whitespace_exists_before<W: AsyncWrite + Unpin + S
 /// (everything above that will be ignored).
 /// It is possible that this function returns a very high line length (>1000) if this is
 /// a inline tag without whitespaces (like `<span>Hello</span>`)
-fn calculate_tag_line_length(tag: &Tag, context: &PrintingContext) -> usize {
+fn calculate_tag_line_length(tag: &Tag<SyntaxNode>, context: &PrintingContext) -> usize {
     context.indentation as usize * 4
         + 1
         + tag.name.len()

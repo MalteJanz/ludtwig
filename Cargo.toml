@@ -9,6 +9,8 @@ edition = "2018"
 
 [profile.release]
 lto = true # does increase runtime performance for longer build times
+opt-level = 3 # maximum of code optimization (use "s" for optimized binary size)
+codegen-units = 1 # do not compile crates in parallel to allow for further optimization
 #only for profiling! remove for release
 #debug = 1
 

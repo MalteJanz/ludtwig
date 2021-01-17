@@ -13,7 +13,7 @@ pub enum SyntaxNode {
     /// It may also have attributes.
     /// It can also have children which are only a list of [SyntaxNode] instances.
     /// For example `<h2 class="bold">...</h2>`
-    Tag(Tag),
+    Tag(Tag<SyntaxNode>),
 
     /// Basically only plain text but does only represent text without line break characters or indentation.
     Plain(Plain),
@@ -51,7 +51,7 @@ pub enum SyntaxNode {
     /// # Notes
     /// This is preferred over [TwigStatement] by the parser if it sees special keywords like `block` right after the `{% `.
     ///
-    TwigStructure(TwigStructure),
+    TwigStructure(TwigStructure<SyntaxNode>),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -71,10 +71,10 @@ pub enum TwigStatement {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub enum TwigStructure {
+pub enum TwigStructure<C> {
     /// Twig block structure which has a name and contains other [SyntaxNode] values as children.
     /// For example `{% block my_block_name %}...{% endblock %}`
-    TwigBlock(TwigBlock),
+    TwigBlock(TwigBlock<C>),
 
     /// Twig for block.
     ///
@@ -84,7 +84,7 @@ pub enum TwigStructure {
     ///      <li>{{ user.username|e }}</li>
     /// {% endfor %}
     /// ```
-    TwigFor(TwigFor),
+    TwigFor(TwigFor<C>),
 
     /// Twig if block.
     ///
@@ -98,7 +98,7 @@ pub enum TwigStructure {
     ///    Sold-out!
     /// {% endif %}
     /// ```
-    TwigIf(TwigIf),
+    TwigIf(TwigIf<C>),
 
     /// Twig apply block.
     ///
@@ -108,7 +108,7 @@ pub enum TwigStructure {
     ///     This text becomes uppercase
     /// {% endapply %}
     /// ```
-    TwigApply(TwigApply),
+    TwigApply(TwigApply<C>),
 
     /// Twig set block with no '='. captures the children.
     ///
@@ -120,7 +120,7 @@ pub enum TwigStructure {
     ///     </div>
     /// {% endset %}
     /// ```
-    TwigSetCapture(TwigSetCapture),
+    TwigSetCapture(TwigSetCapture<C>),
 }
 /*
 impl HasChildren for TwigStructure {
@@ -136,9 +136,9 @@ impl HasChildren for TwigStructure {
 }
 */
 /// Every AST data structure that implements this trait has a list of children (of type [SyntaxNode]).
-pub trait HasChildren {
+pub trait HasChildren<C> {
     /// Get the children of this AST node.
-    fn get_children(&self) -> &[SyntaxNode];
+    fn get_children(&self) -> &[C];
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
@@ -153,20 +153,31 @@ impl HtmlAttribute {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Default)]
-pub struct Tag {
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct Tag<C> {
     pub name: String,
     pub self_closed: bool,
     pub attributes: Vec<HtmlAttribute>,
-    pub children: Vec<SyntaxNode>,
+    pub children: Vec<C>,
 }
 
-impl Tag {
+impl<C> Default for Tag<C> {
+    fn default() -> Self {
+        Self {
+            name: "".to_string(),
+            self_closed: false,
+            attributes: vec![],
+            children: vec![],
+        }
+    }
+}
+
+impl<C> Tag<C> {
     pub fn new(
         name: String,
         self_closed: bool,
         attributes: Vec<HtmlAttribute>,
-        children: Vec<SyntaxNode>,
+        children: Vec<C>,
     ) -> Self {
         Self {
             name,
@@ -177,8 +188,8 @@ impl Tag {
     }
 }
 
-impl HasChildren for Tag {
-    fn get_children(&self) -> &[SyntaxNode] {
+impl<C> HasChildren<C> for Tag<C> {
+    fn get_children(&self) -> &[C] {
         self.children.as_ref()
     }
 }
@@ -228,32 +239,50 @@ impl TwigComment {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Default)]
-pub struct TwigBlock {
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct TwigBlock<C> {
     pub name: String,
-    pub children: Vec<SyntaxNode>,
+    pub children: Vec<C>,
 }
 
-impl TwigBlock {
-    pub fn new(name: String, children: Vec<SyntaxNode>) -> Self {
+impl<C> Default for TwigBlock<C> {
+    fn default() -> Self {
+        Self {
+            name: "".to_string(),
+            children: vec![],
+        }
+    }
+}
+
+impl<C> TwigBlock<C> {
+    pub fn new(name: String, children: Vec<C>) -> Self {
         Self { name, children }
     }
 }
 
-impl HasChildren for TwigBlock {
-    fn get_children(&self) -> &[SyntaxNode] {
+impl<C> HasChildren<C> for TwigBlock<C> {
+    fn get_children(&self) -> &[C] {
         self.children.as_ref()
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Default)]
-pub struct TwigFor {
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct TwigFor<C> {
     pub expression: String,
-    pub children: Vec<SyntaxNode>,
+    pub children: Vec<C>,
 }
 
-impl TwigFor {
-    pub fn new(expression: String, children: Vec<SyntaxNode>) -> Self {
+impl<C> Default for TwigFor<C> {
+    fn default() -> Self {
+        Self {
+            expression: "".to_string(),
+            children: vec![],
+        }
+    }
+}
+
+impl<C> TwigFor<C> {
+    pub fn new(expression: String, children: Vec<C>) -> Self {
         Self {
             expression,
             children,
@@ -261,8 +290,8 @@ impl TwigFor {
     }
 }
 
-impl HasChildren for TwigFor {
-    fn get_children(&self) -> &[SyntaxNode] {
+impl<C> HasChildren<C> for TwigFor<C> {
+    fn get_children(&self) -> &[C] {
         self.children.as_ref()
     }
 }
@@ -279,9 +308,9 @@ impl HasChildren for TwigFor {
 ///    Sold-out!
 /// {% endif %}
 /// ```
-#[derive(Debug, Eq, PartialEq, Clone, Default)]
-pub struct TwigIf {
-    pub if_arms: Vec<TwigIfArm>,
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct TwigIf<C> {
+    pub if_arms: Vec<TwigIfArm<C>>,
 }
 
 /// Represents one Arm of a possible multi arm if
@@ -292,28 +321,46 @@ pub struct TwigIf {
 ///    Available
 /// ...
 /// ```
-#[derive(Debug, Eq, PartialEq, Clone, Default)]
-pub struct TwigIfArm {
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct TwigIfArm<C> {
     /// 'if' and 'elseif' arms have an expression,
     /// otherwise it is an 'else' arm.
     pub expression: Option<String>,
-    pub children: Vec<SyntaxNode>,
+    pub children: Vec<C>,
 }
 
-impl HasChildren for TwigIfArm {
-    fn get_children(&self) -> &[SyntaxNode] {
+impl<C> Default for TwigIfArm<C> {
+    fn default() -> Self {
+        Self {
+            expression: None,
+            children: vec![],
+        }
+    }
+}
+
+impl<C> HasChildren<C> for TwigIfArm<C> {
+    fn get_children(&self) -> &[C] {
         self.children.as_ref()
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Default)]
-pub struct TwigApply {
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct TwigApply<C> {
     pub expression: String,
-    pub children: Vec<SyntaxNode>,
+    pub children: Vec<C>,
 }
 
-impl TwigApply {
-    pub fn new(expression: String, children: Vec<SyntaxNode>) -> Self {
+impl<C> Default for TwigApply<C> {
+    fn default() -> Self {
+        Self {
+            expression: "".to_string(),
+            children: vec![],
+        }
+    }
+}
+
+impl<C> TwigApply<C> {
+    pub fn new(expression: String, children: Vec<C>) -> Self {
         Self {
             expression,
             children,
@@ -321,26 +368,35 @@ impl TwigApply {
     }
 }
 
-impl HasChildren for TwigApply {
-    fn get_children(&self) -> &[SyntaxNode] {
+impl<C> HasChildren<C> for TwigApply<C> {
+    fn get_children(&self) -> &[C] {
         self.children.as_ref()
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Default)]
-pub struct TwigSetCapture {
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct TwigSetCapture<C> {
     pub name: String,
-    pub children: Vec<SyntaxNode>,
+    pub children: Vec<C>,
 }
 
-impl TwigSetCapture {
-    pub fn new(name: String, children: Vec<SyntaxNode>) -> Self {
+impl<C> Default for TwigSetCapture<C> {
+    fn default() -> Self {
+        Self {
+            name: "".to_string(),
+            children: vec![],
+        }
+    }
+}
+
+impl<C> TwigSetCapture<C> {
+    pub fn new(name: String, children: Vec<C>) -> Self {
         Self { name, children }
     }
 }
 
-impl HasChildren for TwigSetCapture {
-    fn get_children(&self) -> &[SyntaxNode] {
+impl<C> HasChildren<C> for TwigSetCapture<C> {
+    fn get_children(&self) -> &[C] {
         self.children.as_ref()
     }
 }
