@@ -13,7 +13,7 @@ pub enum SyntaxNode {
     /// It may also have attributes.
     /// It can also have children which are only a list of [SyntaxNode] instances.
     /// For example `<h2 class="bold">...</h2>`
-    Tag(Tag<SyntaxNode>),
+    Tag(Tag),
 
     /// Basically only plain text but does only represent text without line break characters or indentation.
     Plain(Plain),
@@ -122,6 +122,12 @@ pub enum TwigStructure<C> {
     /// ```
     TwigSetCapture(TwigSetCapture<C>),
 }
+
+/// Every AST data structure that implements this trait has a list of children (of type [SyntaxNode]).
+pub trait HasChildren<C> {
+    /// Get the children of this AST node.
+    fn get_children(&self) -> &[C];
+}
 /*
 impl HasChildren for TwigStructure {
     fn get_children(&self) -> &[SyntaxNode] {
@@ -135,10 +141,12 @@ impl HasChildren for TwigStructure {
     }
 }
 */
-/// Every AST data structure that implements this trait has a list of children (of type [SyntaxNode]).
-pub trait HasChildren<C> {
-    /// Get the children of this AST node.
-    fn get_children(&self) -> &[C];
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum TagAttribute {
+    HtmlAttribute(HtmlAttribute),
+    TwigComment(TwigComment),
+    TwigStructure(TwigStructure<TagAttribute>),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
@@ -153,31 +161,20 @@ impl HtmlAttribute {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub struct Tag<C> {
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
+pub struct Tag {
     pub name: String,
     pub self_closed: bool,
-    pub attributes: Vec<HtmlAttribute>,
-    pub children: Vec<C>,
+    pub attributes: Vec<TagAttribute>,
+    pub children: Vec<SyntaxNode>,
 }
 
-impl<C> Default for Tag<C> {
-    fn default() -> Self {
-        Self {
-            name: "".to_string(),
-            self_closed: false,
-            attributes: vec![],
-            children: vec![],
-        }
-    }
-}
-
-impl<C> Tag<C> {
+impl Tag {
     pub fn new(
         name: String,
         self_closed: bool,
-        attributes: Vec<HtmlAttribute>,
-        children: Vec<C>,
+        attributes: Vec<TagAttribute>,
+        children: Vec<SyntaxNode>,
     ) -> Self {
         Self {
             name,
@@ -188,8 +185,8 @@ impl<C> Tag<C> {
     }
 }
 
-impl<C> HasChildren<C> for Tag<C> {
-    fn get_children(&self) -> &[C] {
+impl HasChildren<SyntaxNode> for Tag {
+    fn get_children(&self) -> &[SyntaxNode] {
         self.children.as_ref()
     }
 }

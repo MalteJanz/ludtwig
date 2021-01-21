@@ -73,6 +73,7 @@ If you build this project locally or use the distributed binary keep also the fo
 - [clap](https://github.com/clap-rs/clap) - [MIT](https://github.com/clap-rs/clap/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/clap-rs/clap/blob/master/LICENSE-APACHE)
 - [ansi_term](https://github.com/ogham/rust-ansi-term) - [MIT](https://github.com/ogham/rust-ansi-term/blob/master/LICENCE)
 - [walkdir](https://github.com/BurntSushi/walkdir) - [MIT](https://github.com/BurntSushi/walkdir/blob/master/LICENSE-MIT) / [UNLICENSE](https://github.com/BurntSushi/walkdir/blob/master/UNLICENSE)
+- [async-trait](https://github.com/dtolnay/async-trait) - [MIT](https://github.com/dtolnay/async-trait/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/dtolnay/async-trait/blob/master/LICENSE-APACHE)
 
 If you run the tests / benchmarks locally you also should keep these licenses in mind (not included in distributed binary):
 - [criterion](https://github.com/bheisler/criterion.rs) - [MIT](https://github.com/bheisler/criterion.rs/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/bheisler/criterion.rs/blob/master/LICENSE-APACHE)

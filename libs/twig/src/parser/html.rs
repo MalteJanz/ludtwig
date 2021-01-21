@@ -1,18 +1,20 @@
 use super::IResult;
 use crate::ast::*;
-use crate::parser::general::{document_node, dynamic_context, Input};
+use crate::parser::general::{
+    document_node, dynamic_context, DynamicChildParser, GenericChildParser, Input,
+};
+use crate::parser::twig::{twig_comment, twig_structure};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till, take_till1};
 use nom::character::complete::{anychar, char, multispace0, none_of};
-use nom::combinator::{cut, map, not, opt, peek, recognize, value};
+use nom::combinator::{cut, map, map_opt, not, opt, peek, recognize, value};
 use nom::error::context;
 use nom::multi::{many0, many1, many_till};
 use nom::sequence::{delimited, preceded, terminated};
 
 static NON_CLOSING_TAGS: [&str; 7] = ["!DOCTYPE", "meta", "input", "img", "br", "hr", "source"];
 
-pub(crate) fn html_tag_attribute(input: Input) -> IResult<HtmlAttribute> {
-    let (input, _) = multispace0(input)?;
+pub(crate) fn html_tag_html_attribute(input: Input) -> IResult<TagAttribute> {
     let (input, key) = take_till1(|c| {
         c == '='
             || c == ' '
@@ -20,6 +22,7 @@ pub(crate) fn html_tag_attribute(input: Input) -> IResult<HtmlAttribute> {
             || c == '/'
             || c == '<'
             || c == '"'
+            || c == '{' // skip attribute names that start with '{' because the syntax is reserved for twig.
             || c == '\n'
             || c == '\r'
             || c == '\t'
@@ -33,34 +36,49 @@ pub(crate) fn html_tag_attribute(input: Input) -> IResult<HtmlAttribute> {
 
         return Ok((
             input,
-            HtmlAttribute {
+            TagAttribute::HtmlAttribute(HtmlAttribute {
                 name: key.to_owned(),
                 value: None,
-            },
+            }),
         ));
     }
 
     let (input, _) = context("missing '\"' quote", cut(tag("\"")))(input)?;
     let (input, value) = take_till(|c| c == '"')(input)?;
     let (input, _) = context("missing '\"' quote", cut(tag("\"")))(input)?;
-    let (input, _) = multispace0(input)?;
 
     Ok((
         input,
-        HtmlAttribute {
+        TagAttribute::HtmlAttribute(HtmlAttribute {
             name: key.to_owned(),
             value: Some(value.to_owned()),
-        },
+        }),
     ))
 }
 
-pub(crate) fn html_tag_attribute_map(input: Input) -> IResult<Vec<HtmlAttribute>> {
-    let (input, list) = many0(html_tag_attribute)(input)?;
-    Ok((input, list))
+pub(crate) fn html_tag_attribute(input: Input) -> IResult<TagAttribute> {
+    alt((
+        map_opt(twig_comment, |node| {
+            if let SyntaxNode::TwigComment(comment) = node {
+                return Some(TagAttribute::TwigComment(comment));
+            }
+
+            None
+        }),
+        map_opt(
+            twig_structure::<TagAttribute, DynamicChildParser>,
+            |twig_structure| Some(TagAttribute::TwigStructure(twig_structure)),
+        ),
+        html_tag_html_attribute,
+    ))(input)
+}
+
+pub(crate) fn html_tag_attribute_map(input: Input) -> IResult<Vec<TagAttribute>> {
+    DynamicChildParser::generic_parse_children(input)
 }
 
 // returns (tag, self_closed, attributes)
-pub(crate) fn html_open_tag(input: Input) -> IResult<(Input, bool, Vec<HtmlAttribute>)> {
+pub(crate) fn html_open_tag(input: Input) -> IResult<(Input, bool, Vec<TagAttribute>)> {
     let (input, _) = tag("<")(input)?;
     let (input, open) = take_till1(|c| {
         c == ' ' || c == '>' || c == '/' || c == '<' || c == '\n' || c == '\r' || c == '\t'
@@ -169,10 +187,10 @@ mod tests {
                 (
                     "a",
                     false,
-                    vec![HtmlAttribute {
+                    vec![TagAttribute::HtmlAttribute(HtmlAttribute {
                         name: "href".to_string(),
                         value: Some("#".to_string())
-                    }]
+                    })]
                 )
             ))
         );
@@ -186,10 +204,10 @@ mod tests {
                 (
                     "!DOCTYPE",
                     true,
-                    vec![HtmlAttribute {
+                    vec![TagAttribute::HtmlAttribute(HtmlAttribute {
                         name: "html".to_string(),
                         value: None
-                    }]
+                    })]
                 )
             ))
         );
@@ -226,10 +244,10 @@ mod tests {
                 (
                     "a",
                     true,
-                    vec![HtmlAttribute {
+                    vec![TagAttribute::HtmlAttribute(HtmlAttribute {
                         name: "href".to_string(),
                         value: Some("#".to_string())
-                    }]
+                    })]
                 )
             ))
         )
@@ -244,10 +262,10 @@ mod tests {
                 (
                     "meta",
                     true,
-                    vec![HtmlAttribute {
+                    vec![TagAttribute::HtmlAttribute(HtmlAttribute {
                         name: "charset".to_string(),
                         value: Some("UTF-8".to_string())
-                    }]
+                    })]
                 )
             ))
         );
@@ -258,10 +276,10 @@ mod tests {
         let meta_tag = SyntaxNode::Tag(Tag {
             name: "meta".to_string(),
             self_closed: true,
-            attributes: vec![HtmlAttribute {
+            attributes: vec![TagAttribute::HtmlAttribute(HtmlAttribute {
                 name: "charset".to_string(),
                 value: Some("UTF-8".to_string()),
-            }],
+            })],
             ..Default::default()
         });
 
@@ -358,30 +376,30 @@ mod tests {
             html_tag_attribute("href=\"#\""),
             Ok((
                 "",
-                HtmlAttribute {
+                TagAttribute::HtmlAttribute(HtmlAttribute {
                     name: "href".to_string(),
                     value: Some("#".to_string())
-                }
+                })
             ))
         );
         assert_eq!(
-            html_tag_attribute("onClick=\"alert('Hello world');\" "),
+            html_tag_attribute("onClick=\"alert('Hello world');\""),
             Ok((
                 "",
-                HtmlAttribute {
+                TagAttribute::HtmlAttribute(HtmlAttribute {
                     name: "onClick".to_string(),
                     value: Some("alert('Hello world');".to_string())
-                }
+                })
             ))
         );
         assert_eq!(
             html_tag_attribute("disabled"),
             Ok((
                 "",
-                HtmlAttribute {
+                TagAttribute::HtmlAttribute(HtmlAttribute {
                     name: "disabled".to_string(),
                     value: None
-                }
+                })
             ))
         );
     }
@@ -392,60 +410,60 @@ mod tests {
             html_tag_attribute("title=\"\""),
             Ok((
                 "",
-                HtmlAttribute {
+                TagAttribute::HtmlAttribute(HtmlAttribute {
                     name: "title".to_string(),
                     value: Some("".to_string())
-                }
+                })
             ))
         );
         assert_eq!(
             html_tag_attribute("#body"),
             Ok((
                 "",
-                HtmlAttribute {
+                TagAttribute::HtmlAttribute(HtmlAttribute {
                     name: "#body".to_string(),
                     value: None
-                }
+                })
             ))
         );
         assert_eq!(
             html_tag_attribute("@click=\"counter += 1;\""),
             Ok((
                 "",
-                HtmlAttribute {
+                TagAttribute::HtmlAttribute(HtmlAttribute {
                     name: "@click".to_string(),
                     value: Some("counter += 1;".to_string())
-                }
+                })
             ))
         );
         assert_eq!(
             html_tag_attribute(":name=\"firstname\""),
             Ok((
                 "",
-                HtmlAttribute {
+                TagAttribute::HtmlAttribute(HtmlAttribute {
                     name: ":name".to_string(),
                     value: Some("firstname".to_string())
-                }
+                })
             ))
         );
         assert_eq!(
             html_tag_attribute("v-model=\"lastname\""),
             Ok((
                 "",
-                HtmlAttribute {
+                TagAttribute::HtmlAttribute(HtmlAttribute {
                     name: "v-model".to_string(),
                     value: Some("lastname".to_string())
-                }
+                })
             ))
         );
         assert_eq!(
             html_tag_attribute("@change=\"if counter < 100 { counter += 1; }\""),
             Ok((
                 "",
-                HtmlAttribute {
+                TagAttribute::HtmlAttribute(HtmlAttribute {
                     name: "@change".to_string(),
                     value: Some("if counter < 100 { counter += 1; }".to_string())
-                }
+                })
             ))
         );
     }
@@ -456,10 +474,10 @@ mod tests {
             html_tag_attribute("class = \"ok\""),
             Ok((
                 "",
-                HtmlAttribute {
+                TagAttribute::HtmlAttribute(HtmlAttribute {
                     name: "class".to_string(),
                     value: Some("ok".to_string())
-                }
+                })
             ))
         );
 
@@ -467,10 +485,10 @@ mod tests {
             html_tag_attribute("class= \"ok\""),
             Ok((
                 "",
-                HtmlAttribute {
+                TagAttribute::HtmlAttribute(HtmlAttribute {
                     name: "class".to_string(),
                     value: Some("ok".to_string())
-                }
+                })
             ))
         );
 
@@ -478,10 +496,10 @@ mod tests {
             html_tag_attribute("class =\"ok\""),
             Ok((
                 "",
-                HtmlAttribute {
+                TagAttribute::HtmlAttribute(HtmlAttribute {
                     name: "class".to_string(),
                     value: Some("ok".to_string())
-                }
+                })
             ))
         );
     }
@@ -513,14 +531,14 @@ mod tests {
     #[test]
     fn test_tag_argument_map() {
         let attributes = vec![
-            HtmlAttribute {
+            TagAttribute::HtmlAttribute(HtmlAttribute {
                 name: "href".to_string(),
                 value: Some("#".to_string()),
-            },
-            HtmlAttribute {
+            }),
+            TagAttribute::HtmlAttribute(HtmlAttribute {
                 name: "target".to_string(),
                 value: Some("_blank".to_string()),
-            },
+            }),
         ];
 
         assert_eq!(
@@ -581,10 +599,10 @@ mod tests {
                 SyntaxNode::Tag(Tag {
                     name: "!DOCTYPE".to_string(),
                     self_closed: true,
-                    attributes: vec![HtmlAttribute {
+                    attributes: vec![TagAttribute::HtmlAttribute(HtmlAttribute {
                         name: "html".to_string(),
                         value: None
-                    }],
+                    })],
                     ..Default::default()
                 })
             ))
@@ -599,6 +617,88 @@ mod tests {
                     ..Default::default()
                 })
             ))
+        );
+    }
+
+    #[test]
+    fn test_html_attributes_with_twig_comment() {
+        let attributes = vec![
+            TagAttribute::HtmlAttribute(HtmlAttribute {
+                name: "href".to_string(),
+                value: Some("#".to_string()),
+            }),
+            TagAttribute::TwigComment(TwigComment {
+                content: "this is a twig comment".to_string(),
+            }),
+            TagAttribute::HtmlAttribute(HtmlAttribute {
+                name: "target".to_string(),
+                value: Some("_blank".to_string()),
+            }),
+        ];
+
+        assert_eq!(
+            html_tag_attribute_map(
+                "href=\"#\" \n\t    {# this is a twig comment #}     target=\"_blank\"   "
+            ),
+            Ok(("", attributes))
+        );
+    }
+
+    #[test]
+    fn test_valid_twig_syntax_for_html_attributes() {
+        assert_eq!(
+            twig_structure::<TagAttribute, DynamicChildParser>(
+                "{% block hello %}{# this is a twig comment #}{% endblock %}",
+            ),
+            Ok((
+                "",
+                TwigStructure::TwigBlock(TwigBlock {
+                    name: "hello".to_string(),
+                    children: vec![TagAttribute::TwigComment(TwigComment {
+                        content: "this is a twig comment".to_string()
+                    })]
+                })
+            ))
+        );
+
+        assert_eq!(
+            twig_structure::<TagAttribute, DynamicChildParser>(
+                "{% block hello %}     href=\"#\" {% endblock %}",
+            ),
+            Ok((
+                "",
+                TwigStructure::TwigBlock(TwigBlock {
+                    name: "hello".to_string(),
+                    children: vec![TagAttribute::HtmlAttribute(HtmlAttribute {
+                        name: "href".to_string(),
+                        value: Some("#".to_string())
+                    })]
+                })
+            ))
+        );
+    }
+
+    #[test]
+    fn test_html_attributes_with_twig_if() {
+        let attributes = vec![
+            TagAttribute::HtmlAttribute(HtmlAttribute {
+                name: "href".to_string(),
+                value: Some("#".to_string()),
+            }),
+            TagAttribute::TwigStructure(TwigStructure::TwigIf(TwigIf {
+                if_arms: vec![TwigIfArm {
+                    expression: Some("differentBrowserTab == true".to_string()),
+                    children: vec![TagAttribute::HtmlAttribute(HtmlAttribute {
+                        name: "target".to_string(),
+                        value: Some("_blank".to_string()),
+                    })],
+                }],
+            })),
+        ];
+
+        assert_eq!(
+            html_tag_attribute_map("href=\"#\" \n\t   {% if differentBrowserTab == true  %}  target=\"_blank\"  {% endif %}   "),
+            Ok(("", attributes))
         );
     }
 }
