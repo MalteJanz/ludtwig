@@ -2,12 +2,12 @@ use super::IResult;
 use crate::ast::*;
 use crate::error::DynamicParseError;
 use crate::error::TwigParsingErrorInformation;
-use crate::parser::general::{document_node, dynamic_context, Input};
+use crate::parser::general::{dynamic_context, DynamicChildParser, GenericChildParser, Input};
 use nom::bytes::complete::{tag, take_till1};
 use nom::character::complete::{alpha1, anychar, multispace0};
 use nom::combinator::{cut, map, verify};
 use nom::error::ErrorKind;
-use nom::multi::{many0, many_till};
+use nom::multi::many_till;
 use nom::sequence::{delimited, preceded, terminated};
 
 /// matches any twig comment {# ... #}
@@ -31,11 +31,31 @@ pub(crate) fn twig_syntax(input: Input) -> IResult<SyntaxNode> {
     let (remaining, keyword) = alpha1(remaining)?;
 
     return match keyword {
-        "block" => preceded(multispace0, twig_complete_block)(remaining),
+        "block" => preceded(
+            multispace0,
+            map(twig_complete_block::<SyntaxNode, DynamicChildParser>, |i| {
+                SyntaxNode::TwigStructure(TwigStructure::TwigBlock(i))
+            }),
+        )(remaining),
         // ignore these because they are indicators for hierarchical syntax
-        "if" => preceded(multispace0, twig_if_block)(remaining),
-        "for" => preceded(multispace0, twig_for_block)(remaining),
-        "apply" => preceded(multispace0, twig_apply_block)(remaining),
+        "if" => preceded(
+            multispace0,
+            map(twig_if_block::<SyntaxNode, DynamicChildParser>, |i| {
+                SyntaxNode::TwigStructure(TwigStructure::TwigIf(i))
+            }),
+        )(remaining),
+        "for" => preceded(
+            multispace0,
+            map(twig_for_block::<SyntaxNode, DynamicChildParser>, |i| {
+                SyntaxNode::TwigStructure(TwigStructure::TwigFor(i))
+            }),
+        )(remaining),
+        "apply" => preceded(
+            multispace0,
+            map(twig_apply_block::<SyntaxNode, DynamicChildParser>, |i| {
+                SyntaxNode::TwigStructure(TwigStructure::TwigApply(i))
+            }),
+        )(remaining),
         // every hierarchical closing block should not be parsed here
         "endblock" | "elseif" | "else" | "endif" | "endfor" | "endapply" | "endset" => {
             Err(nom::Err::Error(TwigParsingErrorInformation {
@@ -45,16 +65,85 @@ pub(crate) fn twig_syntax(input: Input) -> IResult<SyntaxNode> {
             }))
         }
         "set" => {
-            let set_capture_result = preceded(multispace0, twig_set_capture_block)(remaining);
+            let set_capture_result = preceded(
+                multispace0,
+                map(
+                    twig_set_capture_block::<SyntaxNode, DynamicChildParser>,
+                    |i| SyntaxNode::TwigStructure(TwigStructure::TwigSetCapture(i)),
+                ),
+            )(remaining);
+
             return if let Ok((remaining, set_capture)) = set_capture_result {
                 Ok((remaining, set_capture))
             } else {
                 twig_statement(keyword, remaining)
+                    .map(|(remaining, statement)| (remaining, SyntaxNode::TwigStatement(statement)))
             };
         }
         // everything else can be a [TwigStatement::Raw] for now
-        _ => twig_statement(keyword, remaining),
+        _ => twig_statement(keyword, remaining)
+            .map(|(remaining, statement)| (remaining, SyntaxNode::TwigStatement(statement))),
     };
+}
+
+/// Matches any {% ... %} syntax THAT HAS CHILDREN and decides what TwigStructure to use.
+/// TODO: try to minify code duplication with the [twig_syntax] function.
+pub(crate) fn twig_structure<R, T: GenericChildParser<R>>(
+    input: Input,
+) -> IResult<TwigStructure<R>> {
+    let (remaining, _) = terminated(tag("{%"), multispace0)(input)?;
+    let (remaining, keyword) = alpha1(remaining)?;
+
+    match keyword {
+        "block" => preceded(
+            multispace0,
+            map(twig_complete_block::<R, T>, TwigStructure::TwigBlock),
+        )(remaining),
+        // ignore these because they are indicators for hierarchical syntax
+        "if" => preceded(
+            multispace0,
+            map(twig_if_block::<R, T>, TwigStructure::TwigIf),
+        )(remaining),
+        "for" => preceded(
+            multispace0,
+            map(twig_for_block::<R, T>, TwigStructure::TwigFor),
+        )(remaining),
+        "apply" => preceded(
+            multispace0,
+            map(twig_apply_block::<R, T>, TwigStructure::TwigApply),
+        )(remaining),
+        // every hierarchical closing block should not be parsed here
+        "endblock" | "elseif" | "else" | "endif" | "endfor" | "endapply" | "endset" => {
+            Err(nom::Err::Error(TwigParsingErrorInformation {
+                leftover: remaining,
+                context: None,
+                kind: ErrorKind::Tag,
+            }))
+        }
+        "set" => {
+            let set_capture_result = preceded(
+                multispace0,
+                map(twig_set_capture_block::<R, T>, |i| {
+                    TwigStructure::TwigSetCapture(i)
+                }),
+            )(remaining);
+
+            if let Ok((remaining, set_capture)) = set_capture_result {
+                Ok((remaining, set_capture))
+            } else {
+                Err(nom::Err::Error(TwigParsingErrorInformation {
+                    leftover: remaining,
+                    context: None,
+                    kind: ErrorKind::Tag,
+                }))
+            }
+        }
+        _ => Err(nom::Err::Error(TwigParsingErrorInformation {
+            leftover: remaining,
+            context: None,
+            kind: ErrorKind::Tag,
+        })),
+    }
 }
 
 pub(crate) fn twig_single_word_opening_block(input: Input) -> IResult<Input> {
@@ -89,89 +178,85 @@ pub(crate) fn twig_closing_structure<'a>(
     )
 }
 
-pub(crate) fn twig_complete_block(input: Input) -> IResult<SyntaxNode> {
+pub(crate) fn twig_complete_block<R, T: GenericChildParser<R>>(
+    input: Input,
+) -> IResult<TwigBlock<R>> {
     let (remaining, open) = twig_single_word_opening_block(input)?;
-    let (remaining, children) = many0(document_node)(remaining)?;
+    let (remaining, children) = T::generic_parse_children(remaining)?;
 
     let (remaining, _close) = dynamic_context(
         || format!("Missing endblock for '{}' twig block", open),
         cut(twig_closing_structure("endblock")),
     )(remaining)?;
 
-    let block = TwigBlock {
-        name: open.to_owned(),
-        children,
-    };
-
     Ok((
         remaining,
-        SyntaxNode::TwigStructure(TwigStructure::TwigBlock(block)),
+        TwigBlock {
+            name: open.to_owned(),
+            children,
+        },
     ))
 }
 
-pub(crate) fn twig_for_block(input: Input) -> IResult<SyntaxNode> {
+pub(crate) fn twig_for_block<R, T: GenericChildParser<R>>(input: Input) -> IResult<TwigFor<R>> {
     let (remaining, expression) = twig_expression_opening_block(input)?;
-    let (remaining, children) = many0(document_node)(remaining)?;
+    let (remaining, children) = T::generic_parse_children(remaining)?;
 
     let (remaining, _close) = dynamic_context(
         || format!("Missing endfor for '{}' twig for expression", expression),
         cut(twig_closing_structure("endfor")),
     )(remaining)?;
 
-    let twig_for = TwigFor {
-        expression,
-        children,
-    };
-
     Ok((
         remaining,
-        SyntaxNode::TwigStructure(TwigStructure::TwigFor(twig_for)),
+        TwigFor {
+            expression,
+            children,
+        },
     ))
 }
 
-pub(crate) fn twig_apply_block(input: Input) -> IResult<SyntaxNode> {
+pub(crate) fn twig_apply_block<R, T: GenericChildParser<R>>(input: Input) -> IResult<TwigApply<R>> {
     let (remaining, expression) = twig_expression_opening_block(input)?;
-    let (remaining, children) = many0(document_node)(remaining)?;
+    let (remaining, children) = T::generic_parse_children(remaining)?;
 
     let (remaining, _close) = dynamic_context(
         || format!("Missing endapply for '{}' twig for expression", expression),
         cut(twig_closing_structure("endapply")),
     )(remaining)?;
 
-    let twig_apply = TwigApply {
-        expression,
-        children,
-    };
-
     Ok((
         remaining,
-        SyntaxNode::TwigStructure(TwigStructure::TwigApply(twig_apply)),
+        TwigApply {
+            expression,
+            children,
+        },
     ))
 }
 
-pub(crate) fn twig_set_capture_block(input: Input) -> IResult<SyntaxNode> {
+pub(crate) fn twig_set_capture_block<R, T: GenericChildParser<R>>(
+    input: Input,
+) -> IResult<TwigSetCapture<R>> {
     let (remaining, name) = twig_single_word_opening_block(input)?;
-    let (remaining, children) = many0(document_node)(remaining)?;
+    let (remaining, children) = T::generic_parse_children(remaining)?;
 
     let (remaining, _close) = dynamic_context(
         || format!("Missing endset for '{}' twig set expression", name),
         cut(twig_closing_structure("endset")),
     )(remaining)?;
 
-    let twig_set_capture = TwigSetCapture {
-        name: name.to_owned(),
-        children,
-    };
-
     Ok((
         remaining,
-        SyntaxNode::TwigStructure(TwigStructure::TwigSetCapture(twig_set_capture)),
+        TwigSetCapture {
+            name: name.to_owned(),
+            children,
+        },
     ))
 }
 
-pub(crate) fn twig_if_block(input: Input) -> IResult<SyntaxNode> {
+pub(crate) fn twig_if_block<R, T: GenericChildParser<R>>(input: Input) -> IResult<TwigIf<R>> {
     let (remaining, expression) = twig_expression_opening_block(input)?;
-    let (remaining, children) = many0(document_node)(remaining)?;
+    let (remaining, children) = T::generic_parse_children(remaining)?;
     let mut arms = vec![];
 
     arms.push(TwigIfArm {
@@ -192,7 +277,7 @@ pub(crate) fn twig_if_block(input: Input) -> IResult<SyntaxNode> {
             }
             "elseif" => {
                 let (remaining, expression) = twig_expression_opening_block(remaining)?;
-                let (remaining, children) = many0(document_node)(remaining)?;
+                let (remaining, children) = T::generic_parse_children(remaining)?;
                 outer_remaining = remaining;
 
                 arms.push(TwigIfArm {
@@ -202,7 +287,7 @@ pub(crate) fn twig_if_block(input: Input) -> IResult<SyntaxNode> {
             }
             "else" => {
                 let (remaining, _) = preceded(multispace0, tag("%}"))(remaining)?;
-                let (remaining, children) = many0(document_node)(remaining)?;
+                let (remaining, children) = T::generic_parse_children(remaining)?;
                 outer_remaining = remaining;
 
                 arms.push(TwigIfArm {
@@ -232,16 +317,16 @@ pub(crate) fn twig_if_block(input: Input) -> IResult<SyntaxNode> {
         };
     }
 
-    Ok((
-        outer_remaining,
-        SyntaxNode::TwigStructure(TwigStructure::TwigIf(TwigIf { if_arms: arms })),
-    ))
+    Ok((outer_remaining, TwigIf { if_arms: arms }))
 }
 
 /// Parses any {% ... %} syntax and only the inner content is saved (with stripped whitespace around it).
 /// An exception to this is the {% end... %} syntax, because there are
 /// other parsers for this hierarchical nodes (and it is not allowed to steal that from them).
-pub(crate) fn twig_statement<'a>(keyword: Input<'a>, input: Input<'a>) -> IResult<'a, SyntaxNode> {
+pub(crate) fn twig_statement<'a>(
+    keyword: Input<'a>,
+    input: Input<'a>,
+) -> IResult<'a, TwigStatement> {
     let (remaining, spaces) = multispace0(input)?;
 
     let (remaining, m) = map(
@@ -249,12 +334,9 @@ pub(crate) fn twig_statement<'a>(keyword: Input<'a>, input: Input<'a>) -> IResul
         |(v, _)| {
             let inner = v.iter().collect::<String>();
             if inner.is_empty() {
-                SyntaxNode::TwigStatement(TwigStatement::Raw(keyword.to_owned()))
+                TwigStatement::Raw(keyword.to_owned())
             } else {
-                SyntaxNode::TwigStatement(TwigStatement::Raw(format!(
-                    "{}{}{}",
-                    keyword, spaces, inner
-                )))
+                TwigStatement::Raw(format!("{}{}{}", keyword, spaces, inner))
             }
         },
     )(remaining)?;
@@ -318,12 +400,12 @@ mod tests {
                                     name: "p".to_string(),
                                     self_closed: false,
                                     attributes: vec![
-                                        HtmlAttribute {
+                                        TagAttribute::HtmlAttribute(HtmlAttribute {
                                             name: "class".to_string(),
                                             value: Some(
                                                 "swag-migration-index-modal-abort-migration-confirm-dialog-hint".to_string(),
                                             ),
-                                        },
+                                        }),
                                     ],
                                     children: vec![
                                         SyntaxNode::Whitespace,

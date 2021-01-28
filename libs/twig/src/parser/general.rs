@@ -1,11 +1,12 @@
 use crate::ast::*;
 use crate::error::{DynamicParseError, TwigParsingErrorInformation};
-use crate::parser::html::{html_comment, html_complete_tag, html_plain_text};
+use crate::parser::html::{html_comment, html_complete_tag, html_plain_text, html_tag_attribute};
 use crate::parser::twig::{twig_comment, twig_syntax};
 use crate::parser::vue::vue_block;
 use nom::branch::alt;
-use nom::character::complete::multispace1;
-use nom::multi::many1;
+use nom::character::complete::{multispace0, multispace1};
+use nom::multi::{many0, many1};
+use nom::sequence::delimited;
 use nom::Parser;
 
 pub(crate) type Input<'a> = &'a str;
@@ -40,7 +41,29 @@ where
     }
 }
 
-// whitespace because it matters in rendering!: https://prettier.io/blog/2018/11/07/1.15.0.html
+/// Trait that allows to parse a generic list of children.
+pub(crate) trait GenericChildParser<T> {
+    fn generic_parse_children(input: Input) -> IResult<Vec<T>>;
+}
+
+/// Struct that implements the GenericChildParser Trait for different children types.
+pub(crate) struct DynamicChildParser();
+
+/// In case of [SyntaxNode] the [document_node] parser is used.
+impl GenericChildParser<SyntaxNode> for DynamicChildParser {
+    fn generic_parse_children(input: Input) -> IResult<Vec<SyntaxNode>> {
+        many0(document_node)(input)
+    }
+}
+
+/// In case of [TagAttribute] the [html_tag_attribute] parser is used.
+impl GenericChildParser<TagAttribute> for DynamicChildParser {
+    fn generic_parse_children(input: Input) -> IResult<Vec<TagAttribute>> {
+        many0(delimited(multispace0, html_tag_attribute, multispace0))(input)
+    }
+}
+
+/// whitespace because it matters in rendering!: https://prettier.io/blog/2018/11/07/1.15.0.html
 pub(crate) fn some_whitespace(input: Input) -> IResult<SyntaxNode> {
     let (remainder, _) = multispace1(input)?;
 
@@ -117,18 +140,18 @@ mod tests {
                         name: "sw-button-group".to_string(),
                         self_closed: false,
                         attributes: vec![
-                            HtmlAttribute {
+                            TagAttribute::HtmlAttribute(HtmlAttribute {
                                 name: "v-if".to_string(),
                                 value: Some(
                                     "startButtonVisible".to_string(),
                                 ),
-                            },
-                            HtmlAttribute {
+                            }),
+                            TagAttribute::HtmlAttribute(HtmlAttribute {
                                 name: ":splitButton".to_string(),
                                 value: Some(
                                     "true".to_string(),
                                 ),
-                            },
+                            }),
                         ],
                         children: vec![
                             SyntaxNode::Whitespace,
@@ -137,24 +160,24 @@ mod tests {
                                     name: "sw-button".to_string(),
                                     self_closed: false,
                                     attributes: vec![
-                                        HtmlAttribute {
+                                        TagAttribute::HtmlAttribute(HtmlAttribute {
                                             name: "variant".to_string(),
                                             value: Some(
                                                 "primary".to_string(),
                                             ),
-                                        },
-                                        HtmlAttribute {
+                                        }),
+                                        TagAttribute::HtmlAttribute(HtmlAttribute {
                                             name: ":disabled".to_string(),
                                             value: Some(
                                                 "startButtonDisabled".to_string(),
                                             ),
-                                        },
-                                        HtmlAttribute {
+                                        }),
+                                        TagAttribute::HtmlAttribute(HtmlAttribute {
                                             name: "@click".to_string(),
                                             value: Some(
                                                 "onStartButtonClick".to_string(),
                                             ),
-                                        },
+                                        }),
                                     ],
                                     children: vec![
                                         SyntaxNode::Whitespace,
@@ -173,12 +196,12 @@ mod tests {
                                     name: "sw-context-button".to_string(),
                                     self_closed: false,
                                     attributes: vec![
-                                        HtmlAttribute {
+                                        TagAttribute::HtmlAttribute(HtmlAttribute {
                                             name: ":disabled".to_string(),
                                             value: Some(
                                                 "isLoading".to_string(),
                                             ),
-                                        },
+                                        }),
                                     ],
                                     children: vec![
                                         SyntaxNode::Whitespace,
@@ -187,12 +210,12 @@ mod tests {
                                                 name: "template".to_string(),
                                                 self_closed: false,
                                                 attributes: vec![
-                                                    HtmlAttribute {
+                                                    TagAttribute::HtmlAttribute(HtmlAttribute {
                                                         name: "slot".to_string(),
                                                         value: Some(
                                                             "button".to_string(),
                                                         ),
-                                                    },
+                                                    }),
                                                 ],
                                                 children: vec![
                                                     SyntaxNode::Whitespace,
@@ -201,22 +224,22 @@ mod tests {
                                                             name: "sw-button".to_string(),
                                                             self_closed: false,
                                                             attributes: vec![
-                                                                HtmlAttribute {
+                                                                TagAttribute::HtmlAttribute(HtmlAttribute {
                                                                     name: "square".to_string(),
                                                                     value: None,
-                                                                },
-                                                                HtmlAttribute {
+                                                                }),
+                                                                TagAttribute::HtmlAttribute(HtmlAttribute {
                                                                     name: "variant".to_string(),
                                                                     value: Some(
                                                                         "primary".to_string(),
                                                                     ),
-                                                                },
-                                                                HtmlAttribute {
+                                                                }),
+                                                                TagAttribute::HtmlAttribute(HtmlAttribute {
                                                                     name: ":disabled".to_string(),
                                                                     value: Some(
                                                                         "isLoading".to_string(),
                                                                     ),
-                                                                },
+                                                                }),
                                                             ],
                                                             children: vec![
                                                                 SyntaxNode::Whitespace,
@@ -225,18 +248,18 @@ mod tests {
                                                                         name: "sw-icon".to_string(),
                                                                         self_closed: false,
                                                                         attributes: vec![
-                                                                            HtmlAttribute {
+                                                                            TagAttribute::HtmlAttribute(HtmlAttribute {
                                                                                 name: "name".to_string(),
                                                                                 value: Some(
                                                                                     "small-arrow-medium-down".to_string(),
                                                                                 ),
-                                                                            },
-                                                                            HtmlAttribute {
+                                                                            }),
+                                                                            TagAttribute::HtmlAttribute(HtmlAttribute {
                                                                                 name: "size".to_string(),
                                                                                 value: Some(
                                                                                     "16".to_string(),
                                                                                 ),
-                                                                            },
+                                                                            }),
                                                                         ],
                                                                         children: vec![],
                                                                     },
@@ -255,18 +278,18 @@ mod tests {
                                                 name: "sw-context-menu-item".to_string(),
                                                 self_closed: false,
                                                 attributes: vec![
-                                                    HtmlAttribute {
+                                                    TagAttribute::HtmlAttribute(HtmlAttribute {
                                                         name: "@click".to_string(),
                                                         value: Some(
                                                             "onSaveButtonClick".to_string(),
                                                         ),
-                                                    },
-                                                    HtmlAttribute {
+                                                    }),
+                                                    TagAttribute::HtmlAttribute(HtmlAttribute {
                                                         name: ":disabled".to_string(),
                                                         value: Some(
                                                             "isLoading".to_string(),
                                                         ),
-                                                    },
+                                                    }),
                                                 ],
                                                 children: vec![
                                                     SyntaxNode::Whitespace,

@@ -1,4 +1,5 @@
 use crate::process::FileContext;
+use async_trait::async_trait;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -6,12 +7,15 @@ use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::{AsyncWrite, AsyncWriteExt, BufWriter};
 use twig::ast::{
-    HtmlComment, OutputExpression, Plain, SyntaxNode, Tag, TwigApply, TwigBlock, TwigComment,
-    TwigFor, TwigIf, TwigSetCapture, TwigStatement, TwigStructure,
+    HtmlComment, OutputExpression, Plain, SyntaxNode, Tag, TagAttribute, TwigApply, TwigBlock,
+    TwigComment, TwigFor, TwigIf, TwigSetCapture, TwigStatement, TwigStructure,
 };
 
+const MAX_LINE_LENGTH: usize = 120;
+const MIN_TAG_NAME_LENGTH_FOR_CONTINUATION_INDENT: usize = 9;
+
 /// Context for traversing the AST with printing in mind.
-#[derive(Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 struct PrintingContext<'a> {
     previous_node: Option<&'a SyntaxNode>,
     after_node: Option<&'a SyntaxNode>,
@@ -19,15 +23,22 @@ struct PrintingContext<'a> {
     /// the last node in the list is the current node. everything before that is up in the hierarchy.
     parent_nodes: Vec<&'a SyntaxNode>,
 
-    /// in tab (4 spaces) count
-    indentation: u16,
+    /// in spaces count (a tab is 4 spaces)
+    indentation_spaces: u32,
 }
 
 impl<'a> PrintingContext<'a> {
     /// Clones the current context and returns a new one with the increased indentation.
-    fn increase_indentation_by(&self, increase: u16) -> Self {
+    fn increase_indentation_by_tabs(&self, tabs: u32) -> Self {
         let mut copy = self.clone();
-        copy.indentation += increase;
+        copy.indentation_spaces += tabs * 4;
+        copy
+    }
+
+    /// Clones the current context and returns a new one with the increased indentation.
+    fn increase_indentation_by_spaces(&self, spaces: u32) -> Self {
+        let mut copy = self.clone();
+        copy.indentation_spaces += spaces;
         copy
     }
 
@@ -41,7 +52,79 @@ impl<'a> PrintingContext<'a> {
             .copied()
             .next()
     }
+
+    /// Returns the amount of tabs and spaces needed for the current indentation.
+    /// (tabs, spaces)
+    fn get_tabs_and_spaces(&self) -> (u32, u32) {
+        let tabs = self.indentation_spaces / 4;
+        let spaces = self.indentation_spaces % 4;
+
+        (tabs, spaces)
+    }
 }
+
+/// Trait that allows to print a generic list of children.
+#[async_trait]
+trait GenericChildPrinter<T: IsWhitespace> {
+    async fn generic_print_children<W: AsyncWrite + Unpin + Send + ?Sized>(
+        writer: &mut W,
+        nodes: &[T],
+        context: &PrintingContext<'_>,
+    );
+
+    fn is_whitespace_sensitive() -> bool {
+        true
+    }
+}
+
+/// Struct that implements the GenericChildPrinter Trait for different children types.
+struct DynamicChildPrinter();
+
+/// In case of [SyntaxNode]
+#[async_trait]
+impl GenericChildPrinter<SyntaxNode> for DynamicChildPrinter {
+    async fn generic_print_children<W: AsyncWrite + Unpin + Send + ?Sized>(
+        writer: &mut W,
+        nodes: &[SyntaxNode],
+        context: &PrintingContext<'_>,
+    ) {
+        print_node_list(writer, nodes, context).await;
+    }
+}
+
+/// In case of [TagAttribute]
+#[async_trait]
+impl GenericChildPrinter<TagAttribute> for DynamicChildPrinter {
+    async fn generic_print_children<W: AsyncWrite + Unpin + Send + ?Sized>(
+        writer: &mut W,
+        nodes: &[TagAttribute],
+        context: &PrintingContext<'_>,
+    ) {
+        print_attribute_list(writer, nodes, context).await;
+    }
+
+    fn is_whitespace_sensitive() -> bool {
+        false
+    }
+}
+
+trait IsWhitespace {
+    fn is_whitespace(&self) -> bool {
+        false
+    }
+}
+
+impl IsWhitespace for SyntaxNode {
+    fn is_whitespace(&self) -> bool {
+        if let SyntaxNode::Whitespace = self {
+            return true;
+        }
+
+        false
+    }
+}
+
+impl IsWhitespace for TagAttribute {}
 
 /// Entry function for writing the ast back into files.
 pub async fn write_tree(file_context: Arc<FileContext>) {
@@ -104,13 +187,16 @@ fn print_node<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
                 print_vue_block(writer, &vue, context).await;
             }
             SyntaxNode::TwigStructure(TwigStructure::TwigBlock(block)) => {
-                print_twig_block(writer, &block, context).await;
+                print_twig_block::<_, SyntaxNode, DynamicChildPrinter>(writer, &block, context)
+                    .await;
             }
             SyntaxNode::TwigStructure(TwigStructure::TwigFor(twig_for)) => {
-                print_twig_for(writer, &twig_for, context).await;
+                print_twig_for::<_, SyntaxNode, DynamicChildPrinter>(writer, &twig_for, context)
+                    .await;
             }
             SyntaxNode::TwigStructure(TwigStructure::TwigIf(twig_if)) => {
-                print_twig_if(writer, &twig_if, context).await;
+                print_twig_if::<_, SyntaxNode, DynamicChildPrinter>(writer, &twig_if, context)
+                    .await;
             }
             SyntaxNode::TwigStatement(statement) => {
                 print_twig_statement(writer, &statement, context).await;
@@ -119,10 +205,20 @@ fn print_node<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
                 print_twig_comment(writer, comment, context).await;
             }
             SyntaxNode::TwigStructure(TwigStructure::TwigApply(twig_apply)) => {
-                print_twig_apply(writer, &twig_apply, context).await;
+                print_twig_apply::<_, SyntaxNode, DynamicChildPrinter>(
+                    writer,
+                    &twig_apply,
+                    context,
+                )
+                .await;
             }
             SyntaxNode::TwigStructure(TwigStructure::TwigSetCapture(twig_set_capture)) => {
-                print_twig_set_capture(writer, &twig_set_capture, context).await;
+                print_twig_set_capture::<_, SyntaxNode, DynamicChildPrinter>(
+                    writer,
+                    &twig_set_capture,
+                    context,
+                )
+                .await;
             }
             SyntaxNode::Root(root) => {
                 print_node_list(writer, &root, context).await;
@@ -146,16 +242,83 @@ async fn print_node_list<W: AsyncWrite + Unpin + Send + ?Sized>(
             previous_node: previous,
             after_node: after,
             parent_nodes: context.parent_nodes.clone(),
-            indentation: context.indentation,
+            indentation_spaces: context.indentation_spaces,
         };
 
         print_node(writer, current, &mut context).await;
     }
 }
 
+/// Print a list of [TagAttribute]'s. this is generally called by [TwigStructure<TagAttribute>]
+/// and not by an [SyntaxNode::Tag] directly (because it does not do any calculations for
+/// inline and continuation mode).
+async fn print_attribute_list<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
+    attributes: &[TagAttribute],
+    context: &PrintingContext<'_>,
+) {
+    for attribute in attributes {
+        writer.write_all(b"\n").await.unwrap();
+        print_indentation(writer, &context).await;
+        print_attribute(writer, attribute, &context).await;
+    }
+}
+
+/// Print a single [TagAttribute].
+async fn print_attribute<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &'a mut W,
+    attribute: &'a TagAttribute,
+    context: &'a PrintingContext<'a>,
+) {
+    match attribute {
+        TagAttribute::HtmlAttribute(attribute) => {
+            writer.write_all(attribute.name.as_bytes()).await.unwrap();
+
+            if let Some(value) = &attribute.value {
+                writer.write_all(b"=\"").await.unwrap();
+                writer.write_all(value.as_bytes()).await.unwrap();
+                writer.write_all(b"\"").await.unwrap();
+            }
+        }
+        TagAttribute::TwigComment(twig_comment) => {
+            writer.write_all(b"{# ").await.unwrap();
+            writer
+                .write_all(twig_comment.content.as_bytes())
+                .await
+                .unwrap();
+            writer.write_all(b" #}").await.unwrap();
+        }
+        TagAttribute::TwigStructure(twig_structure) => {
+            match twig_structure {
+                TwigStructure::TwigBlock(t) => {
+                    print_twig_block::<_, TagAttribute, DynamicChildPrinter>(writer, t, context)
+                        .await
+                }
+                TwigStructure::TwigFor(t) => {
+                    print_twig_for::<_, TagAttribute, DynamicChildPrinter>(writer, t, context).await
+                }
+                TwigStructure::TwigIf(t) => {
+                    print_twig_if::<_, TagAttribute, DynamicChildPrinter>(writer, t, context).await
+                }
+                TwigStructure::TwigApply(t) => {
+                    print_twig_apply::<_, TagAttribute, DynamicChildPrinter>(writer, t, context)
+                        .await
+                }
+                TwigStructure::TwigSetCapture(t) => {
+                    print_twig_set_capture::<_, TagAttribute, DynamicChildPrinter>(
+                        writer, t, context,
+                    )
+                    .await
+                }
+            };
+        }
+    }
+}
+
+/// print a complete html tag with its attributes and children.
 async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
-    tag: &Tag<SyntaxNode>,
+    tag: &Tag,
     context: &PrintingContext<'_>,
 ) {
     print_indentation_if_whitespace_exists_before(writer, context).await;
@@ -163,45 +326,19 @@ async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer.write_all(b"<").await.unwrap();
     writer.write_all(tag.name.as_bytes()).await.unwrap();
 
-    let inline_mode = tag.attributes.len() <= 2 && calculate_tag_line_length(tag, context) <= 120;
-    let continuation_indent_mode = tag.name.len() > 8;
-
-    // attributes
-    for (index, attribute) in tag.attributes.iter().enumerate() {
-        if inline_mode {
-            writer.write_all(b" ").await.unwrap();
-        } else if continuation_indent_mode {
-            writer.write_all(b"\n").await.unwrap();
-            print_indentation(writer, &context.increase_indentation_by(2)).await;
-        } else {
-            // write attribute on first line (same as tag)
-            if index == 0 {
-                writer.write_all(b" ").await.unwrap();
-            } else {
-                writer.write_all(b"\n").await.unwrap();
-
-                print_indentation(writer, context).await;
-                for _ in 0..(tag.name.len() + 2) {
-                    writer.write_all(b" ").await.unwrap();
-                }
-            }
-        }
-
-        writer.write_all(attribute.name.as_bytes()).await.unwrap();
-
-        if let Some(value) = &attribute.value {
-            writer.write_all(b"=\"").await.unwrap();
-            writer.write_all(value.as_bytes()).await.unwrap();
-            writer.write_all(b"\"").await.unwrap();
-        }
-    }
+    print_tag_attributes(writer, tag, context).await;
 
     if tag.self_closed {
         writer.write_all(b"/>").await.unwrap();
     } else {
         writer.write_all(b">").await.unwrap();
         // only print children if tag is not self_closed!
-        print_node_list(writer, &tag.children, &context.increase_indentation_by(1)).await;
+        print_node_list(
+            writer,
+            &tag.children,
+            &context.increase_indentation_by_tabs(1),
+        )
+        .await;
     }
 
     if let Some(last) = tag.children.last() {
@@ -214,6 +351,45 @@ async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
         writer.write_all(b"</").await.unwrap();
         writer.write_all(tag.name.as_bytes()).await.unwrap();
         writer.write_all(b">").await.unwrap();
+    }
+}
+
+/// print all the attributes of an html tag.
+/// It does some calculations to print them in inline or continuation mode.
+async fn print_tag_attributes<W: AsyncWrite + Unpin + Send + ?Sized>(
+    writer: &mut W,
+    tag: &Tag,
+    context: &PrintingContext<'_>,
+) {
+    let inline_mode =
+        tag.attributes.len() <= 2 && calculate_tag_line_length(tag, context) <= MAX_LINE_LENGTH;
+    let continuation_indent_mode = tag.name.len() >= MIN_TAG_NAME_LENGTH_FOR_CONTINUATION_INDENT;
+
+    let context = if continuation_indent_mode {
+        context.increase_indentation_by_tabs(2)
+    } else {
+        context.increase_indentation_by_spaces(tag.name.len() as u32 + 2)
+    };
+
+    // attributes
+    for (index, attribute) in tag.attributes.iter().enumerate() {
+        if inline_mode {
+            writer.write_all(b" ").await.unwrap();
+        } else if continuation_indent_mode {
+            writer.write_all(b"\n").await.unwrap();
+            print_indentation(writer, &context).await;
+        } else {
+            // write attribute on first line (same as tag)
+            if index == 0 {
+                writer.write_all(b" ").await.unwrap();
+            } else {
+                writer.write_all(b"\n").await.unwrap();
+
+                print_indentation(writer, &context).await;
+            }
+        }
+
+        print_attribute(writer, attribute, &context).await;
     }
 }
 
@@ -248,34 +424,56 @@ async fn print_vue_block<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer.write_all(b" }}").await.unwrap();
 }
 
-async fn print_twig_block<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_twig_block<W, C, P>(
     writer: &mut W,
-    twig: &TwigBlock<SyntaxNode>,
+    twig: &TwigBlock<C>,
     context: &PrintingContext<'_>,
-) {
-    print_indentation_if_whitespace_exists_before(writer, context).await;
+) where
+    W: AsyncWrite + Unpin + Send + ?Sized,
+    C: IsWhitespace,
+    P: GenericChildPrinter<C>,
+{
+    if P::is_whitespace_sensitive() {
+        print_indentation_if_whitespace_exists_before(writer, context).await;
+    }
 
     writer.write_all(b"{% block ").await.unwrap();
     writer.write_all(twig.name.as_bytes()).await.unwrap();
     writer.write_all(b" %}").await.unwrap();
 
-    print_node_list(writer, &twig.children, &context.increase_indentation_by(1)).await;
+    P::generic_print_children(
+        writer,
+        &twig.children,
+        &context.increase_indentation_by_tabs(1),
+    )
+    .await;
 
-    if let Some(last) = twig.children.last() {
-        if let SyntaxNode::Whitespace = last {
-            print_indentation(writer, context).await;
+    if P::is_whitespace_sensitive() {
+        if let Some(last) = twig.children.last() {
+            if last.is_whitespace() {
+                print_indentation(writer, context).await;
+            }
         }
+    } else {
+        writer.write_all(b"\n").await.unwrap();
+        print_indentation(writer, context).await;
     }
 
     writer.write_all(b"{% endblock %}").await.unwrap();
 }
 
-async fn print_twig_for<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_twig_for<W, C, P>(
     writer: &mut W,
-    twig_for: &TwigFor<SyntaxNode>,
+    twig_for: &TwigFor<C>,
     context: &PrintingContext<'_>,
-) {
-    print_indentation_if_whitespace_exists_before(writer, context).await;
+) where
+    W: AsyncWrite + Unpin + Send + ?Sized,
+    C: IsWhitespace,
+    P: GenericChildPrinter<C>,
+{
+    if P::is_whitespace_sensitive() {
+        print_indentation_if_whitespace_exists_before(writer, context).await;
+    }
 
     writer.write_all(b"{% for ").await.unwrap();
     writer
@@ -284,32 +482,40 @@ async fn print_twig_for<W: AsyncWrite + Unpin + Send + ?Sized>(
         .unwrap();
     writer.write_all(b" %}").await.unwrap();
 
-    print_node_list(
+    P::generic_print_children(
         writer,
         &twig_for.children,
-        &context.increase_indentation_by(1),
+        &context.increase_indentation_by_tabs(1),
     )
     .await;
 
-    if let Some(last) = twig_for.children.last() {
-        if let SyntaxNode::Whitespace = last {
-            print_indentation(writer, context).await;
+    if P::is_whitespace_sensitive() {
+        if let Some(last) = twig_for.children.last() {
+            if last.is_whitespace() {
+                print_indentation(writer, context).await;
+            }
         }
+    } else {
+        writer.write_all(b"\n").await.unwrap();
+        print_indentation(writer, context).await;
     }
 
     writer.write_all(b"{% endfor %}").await.unwrap();
 }
 
-async fn print_twig_if<W: AsyncWrite + Unpin + Send + ?Sized>(
-    writer: &mut W,
-    twig_if: &TwigIf<SyntaxNode>,
-    context: &PrintingContext<'_>,
-) {
+async fn print_twig_if<W, C, P>(writer: &mut W, twig_if: &TwigIf<C>, context: &PrintingContext<'_>)
+where
+    W: AsyncWrite + Unpin + Send + ?Sized,
+    C: IsWhitespace,
+    P: GenericChildPrinter<C>,
+{
     for (index, arm) in twig_if.if_arms.iter().enumerate() {
-        print_indentation_if_whitespace_exists_before(writer, context).await;
-
         match (index, &arm.expression) {
             (0, Some(e)) => {
+                if P::is_whitespace_sensitive() {
+                    print_indentation_if_whitespace_exists_before(writer, context).await;
+                }
+
                 writer.write_all(b"{% if ").await.unwrap();
                 writer.write_all(e.as_bytes()).await.unwrap();
             }
@@ -324,24 +530,40 @@ async fn print_twig_if<W: AsyncWrite + Unpin + Send + ?Sized>(
 
         writer.write_all(b" %}").await.unwrap();
 
-        print_node_list(writer, &arm.children, &context.increase_indentation_by(1)).await;
+        P::generic_print_children(
+            writer,
+            &arm.children,
+            &context.increase_indentation_by_tabs(1),
+        )
+        .await;
 
-        if let Some(last) = arm.children.last() {
-            if let SyntaxNode::Whitespace = last {
-                print_indentation(writer, context).await;
+        if P::is_whitespace_sensitive() {
+            if let Some(last) = arm.children.last() {
+                if last.is_whitespace() {
+                    print_indentation(writer, context).await;
+                }
             }
+        } else {
+            writer.write_all(b"\n").await.unwrap();
+            print_indentation(writer, context).await;
         }
     }
 
     writer.write_all(b"{% endif %}").await.unwrap();
 }
 
-async fn print_twig_apply<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_twig_apply<W, C, P>(
     writer: &mut W,
-    twig_apply: &TwigApply<SyntaxNode>,
+    twig_apply: &TwigApply<C>,
     context: &PrintingContext<'_>,
-) {
-    print_indentation_if_whitespace_exists_before(writer, context).await;
+) where
+    W: AsyncWrite + Unpin + Send + ?Sized,
+    C: IsWhitespace,
+    P: GenericChildPrinter<C>,
+{
+    if P::is_whitespace_sensitive() {
+        print_indentation_if_whitespace_exists_before(writer, context).await;
+    }
 
     writer.write_all(b"{% apply ").await.unwrap();
     writer
@@ -350,28 +572,39 @@ async fn print_twig_apply<W: AsyncWrite + Unpin + Send + ?Sized>(
         .unwrap();
     writer.write_all(b" %}").await.unwrap();
 
-    print_node_list(
+    P::generic_print_children(
         writer,
         &twig_apply.children,
-        &context.increase_indentation_by(1),
+        &context.increase_indentation_by_tabs(1),
     )
     .await;
 
-    if let Some(last) = twig_apply.children.last() {
-        if let SyntaxNode::Whitespace = last {
-            print_indentation(writer, context).await;
+    if P::is_whitespace_sensitive() {
+        if let Some(last) = twig_apply.children.last() {
+            if last.is_whitespace() {
+                print_indentation(writer, context).await;
+            }
         }
+    } else {
+        writer.write_all(b"\n").await.unwrap();
+        print_indentation(writer, context).await;
     }
 
     writer.write_all(b"{% endapply %}").await.unwrap();
 }
 
-async fn print_twig_set_capture<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_twig_set_capture<W, C, P>(
     writer: &mut W,
-    twig_set_capture: &TwigSetCapture<SyntaxNode>,
+    twig_set_capture: &TwigSetCapture<C>,
     context: &PrintingContext<'_>,
-) {
-    print_indentation_if_whitespace_exists_before(writer, context).await;
+) where
+    W: AsyncWrite + Unpin + Send + ?Sized,
+    C: IsWhitespace,
+    P: GenericChildPrinter<C>,
+{
+    if P::is_whitespace_sensitive() {
+        print_indentation_if_whitespace_exists_before(writer, context).await;
+    }
 
     writer.write_all(b"{% set ").await.unwrap();
     writer
@@ -380,17 +613,22 @@ async fn print_twig_set_capture<W: AsyncWrite + Unpin + Send + ?Sized>(
         .unwrap();
     writer.write_all(b" %}").await.unwrap();
 
-    print_node_list(
+    P::generic_print_children(
         writer,
         &twig_set_capture.children,
-        &context.increase_indentation_by(1),
+        &context.increase_indentation_by_tabs(1),
     )
     .await;
 
-    if let Some(last) = twig_set_capture.children.last() {
-        if let SyntaxNode::Whitespace = last {
-            print_indentation(writer, context).await;
+    if P::is_whitespace_sensitive() {
+        if let Some(last) = twig_set_capture.children.last() {
+            if last.is_whitespace() {
+                print_indentation(writer, context).await;
+            }
         }
+    } else {
+        writer.write_all(b"\n").await.unwrap();
+        print_indentation(writer, context).await;
     }
 
     writer.write_all(b"{% endset %}").await.unwrap();
@@ -472,8 +710,15 @@ async fn print_indentation<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
-    for _ in 0..context.indentation {
+    let (tabs, spaces) = context.get_tabs_and_spaces();
+
+    for _ in 0..tabs {
+        // 1 tab = 4 spaces at once
         writer.write_all(b"    ").await.unwrap();
+    }
+
+    for _ in 0..spaces {
+        writer.write_all(b" ").await.unwrap();
     }
 }
 
@@ -492,15 +737,23 @@ async fn print_indentation_if_whitespace_exists_before<W: AsyncWrite + Unpin + S
 /// (everything above that will be ignored).
 /// It is possible that this function returns a very high line length (>1000) if this is
 /// a inline tag without whitespaces (like `<span>Hello</span>`)
-fn calculate_tag_line_length(tag: &Tag<SyntaxNode>, context: &PrintingContext) -> usize {
-    context.indentation as usize * 4
+
+fn calculate_tag_line_length(tag: &Tag, context: &PrintingContext) -> usize {
+    context.indentation_spaces as usize
         + 1
         + tag.name.len()
         + tag
             .attributes
             .iter()
             .take(2)
-            .map(|a| 1 + a.name.len() + a.value.as_ref().map(|v| v.len() + 3).unwrap_or(0))
+            .map(|a| {
+                match a {
+                    TagAttribute::HtmlAttribute(a) => {
+                        1 + a.name.len() + a.value.as_ref().map(|v| v.len() + 3).unwrap_or(0)
+                    }
+                    _ => 1000, // don't allow inline mode if the first two attributes contain something else than a normal HtmlAttribute
+                }
+            })
             .sum::<usize>()
         + tag.self_closed as usize
         + 1
@@ -697,10 +950,10 @@ mod tests {
                     children: vec![],
                 },
             ))],
-            attributes: vec![HtmlAttribute {
+            attributes: vec![TagAttribute::HtmlAttribute(HtmlAttribute {
                 name: "name".to_string(),
                 value: Some("pagination".to_string()),
-            }],
+            })],
             ..Default::default()
         });
 
@@ -725,10 +978,10 @@ mod tests {
                     })],
                 },
             ))],
-            attributes: vec![HtmlAttribute {
+            attributes: vec![TagAttribute::HtmlAttribute(HtmlAttribute {
                 name: "name".to_string(),
                 value: Some("pagination".to_string()),
-            }],
+            })],
             ..Default::default()
         });
 
@@ -866,6 +1119,58 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_write_twig_if_elseif_else_in_twig_block() {
+        let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
+            name: "my_block".to_string(),
+            children: vec![
+                SyntaxNode::Whitespace,
+                SyntaxNode::TwigStructure(TwigStructure::TwigIf(TwigIf {
+                    if_arms: vec![
+                        TwigIfArm {
+                            expression: Some("a > b".to_string()),
+                            children: vec![
+                                SyntaxNode::Whitespace,
+                                SyntaxNode::OutputExpression(OutputExpression {
+                                    content: "a".to_string(),
+                                }),
+                                SyntaxNode::Whitespace,
+                            ],
+                        },
+                        TwigIfArm {
+                            expression: Some("a == b".to_string()),
+                            children: vec![
+                                SyntaxNode::Whitespace,
+                                SyntaxNode::OutputExpression(OutputExpression {
+                                    content: "b".to_string(),
+                                }),
+                                SyntaxNode::Whitespace,
+                            ],
+                        },
+                        TwigIfArm {
+                            expression: None,
+                            children: vec![
+                                SyntaxNode::Whitespace,
+                                SyntaxNode::Plain(Plain {
+                                    plain: "TODO".to_string(),
+                                }),
+                                SyntaxNode::Whitespace,
+                            ],
+                        },
+                    ],
+                })),
+                SyntaxNode::Whitespace,
+            ],
+        }));
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "{% block my_block %}\r\n    {% if a > b %}\r\n        {{ a }}\r\n    {% elseif a == b %}\r\n        {{ b }}\r\n    {% else %}\r\n        TODO\r\n    {% endif %}\r\n{% endblock %}".to_string()
+        );
+    }
+
+    #[tokio::test]
     async fn test_write_twig_apply() {
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigApply(TwigApply {
             expression: "upper".to_string(),
@@ -904,6 +1209,240 @@ mod tests {
         assert_eq!(
             res,
             "{% set myVariable %}\r\n    hello world\r\n{% endset %}".to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_tag_with_twig_if_attribute() {
+        let tree = SyntaxNode::Tag(Tag {
+            name: "div".to_string(),
+            self_closed: false,
+            attributes: vec![
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "class".to_string(),
+                    value: Some("hello".to_string()),
+                }),
+                TagAttribute::TwigStructure(TwigStructure::TwigIf(TwigIf {
+                    if_arms: vec![TwigIfArm {
+                        expression: Some("isDisabled".to_string()),
+                        children: vec![TagAttribute::HtmlAttribute(HtmlAttribute {
+                            name: "disabled".to_string(),
+                            value: None,
+                        })],
+                    }],
+                })),
+            ],
+            children: vec![],
+        });
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% endif %}></div>"
+                .to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_tag_with_twig_if_else_attribute() {
+        let tree = SyntaxNode::Tag(Tag {
+            name: "div".to_string(),
+            self_closed: false,
+            attributes: vec![
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "class".to_string(),
+                    value: Some("hello".to_string()),
+                }),
+                TagAttribute::TwigStructure(TwigStructure::TwigIf(TwigIf {
+                    if_arms: vec![
+                        TwigIfArm {
+                            expression: Some("isDisabled".to_string()),
+                            children: vec![TagAttribute::HtmlAttribute(HtmlAttribute {
+                                name: "disabled".to_string(),
+                                value: None,
+                            })],
+                        },
+                        TwigIfArm {
+                            expression: None,
+                            children: vec![TagAttribute::HtmlAttribute(HtmlAttribute {
+                                name: "focus".to_string(),
+                                value: None,
+                            })],
+                        },
+                    ],
+                })),
+            ],
+            children: vec![],
+        });
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% else %}\n         focus\n     {% endif %}></div>"
+                .to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_tag_with_twig_if_elseif_else_attribute() {
+        let tree = SyntaxNode::Tag(Tag {
+            name: "div".to_string(),
+            self_closed: false,
+            attributes: vec![
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "class".to_string(),
+                    value: Some("hello".to_string()),
+                }),
+                TagAttribute::TwigStructure(TwigStructure::TwigIf(TwigIf {
+                    if_arms: vec![
+                        TwigIfArm {
+                            expression: Some("isDisabled".to_string()),
+                            children: vec![TagAttribute::HtmlAttribute(HtmlAttribute {
+                                name: "disabled".to_string(),
+                                value: None,
+                            })],
+                        },
+                        TwigIfArm {
+                            expression: Some("isFocus".to_string()),
+                            children: vec![TagAttribute::HtmlAttribute(HtmlAttribute {
+                                name: "focus".to_string(),
+                                value: None,
+                            })],
+                        },
+                        TwigIfArm {
+                            expression: None,
+                            children: vec![TagAttribute::TwigComment(TwigComment {
+                                content: "Nothing for now".to_string(),
+                            })],
+                        },
+                    ],
+                })),
+            ],
+            children: vec![],
+        });
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% elseif isFocus %}\n         focus\n     {% else %}\n         {# Nothing for now #}\n     {% endif %}></div>"
+                .to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_tag_with_twig_nested_if_attribute() {
+        let tree = SyntaxNode::Tag(Tag {
+            name: "div".to_string(),
+            self_closed: false,
+            attributes: vec![
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "class".to_string(),
+                    value: Some("hello".to_string()),
+                }),
+                TagAttribute::TwigStructure(TwigStructure::TwigIf(TwigIf {
+                    if_arms: vec![
+                        TwigIfArm {
+                            expression: Some("isDisabled".to_string()),
+                            children: vec![TagAttribute::TwigStructure(TwigStructure::TwigIf(
+                                TwigIf {
+                                    if_arms: vec![TwigIfArm {
+                                        expression: Some("!isFocus".to_string()),
+                                        children: vec![TagAttribute::HtmlAttribute(
+                                            HtmlAttribute {
+                                                name: "disabled".to_string(),
+                                                value: None,
+                                            },
+                                        )],
+                                    }],
+                                },
+                            ))],
+                        },
+                        TwigIfArm {
+                            expression: None,
+                            children: vec![TagAttribute::TwigComment(TwigComment {
+                                content: "Nothing for now".to_string(),
+                            })],
+                        },
+                    ],
+                })),
+            ],
+            children: vec![],
+        });
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "<div class=\"hello\"\n     {% if isDisabled %}\n         {% if !isFocus %}\n             disabled\n         {% endif %}\n     {% else %}\n         {# Nothing for now #}\n     {% endif %}></div>"
+                .to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_tag_with_twig_block_attribute() {
+        let tree = SyntaxNode::Tag(Tag {
+            name: "div".to_string(),
+            self_closed: false,
+            attributes: vec![
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "class".to_string(),
+                    value: Some("hello".to_string()),
+                }),
+                TagAttribute::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
+                    name: "my_custom_attribute_block".to_string(),
+                    children: vec![TagAttribute::HtmlAttribute(HtmlAttribute {
+                        name: "disabled".to_string(),
+                        value: None,
+                    })],
+                })),
+            ],
+            children: vec![],
+        });
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "<div class=\"hello\"\n     {% block my_custom_attribute_block %}\n         disabled\n     {% endblock %}></div>"
+                .to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_tag_with_twig_block_with_if_attribute() {
+        let tree = SyntaxNode::Tag(Tag {
+            name: "div".to_string(),
+            self_closed: false,
+            attributes: vec![
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "class".to_string(),
+                    value: Some("hello".to_string()),
+                }),
+                TagAttribute::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
+                    name: "my_custom_attribute_block".to_string(),
+                    children: vec![TagAttribute::TwigStructure(TwigStructure::TwigIf(TwigIf {
+                        if_arms: vec![TwigIfArm {
+                            expression: Some("isDisabled".to_string()),
+                            children: vec![TagAttribute::HtmlAttribute(HtmlAttribute {
+                                name: "disabled".to_string(),
+                                value: None,
+                            })],
+                        }],
+                    }))],
+                })),
+            ],
+            children: vec![],
+        });
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "<div class=\"hello\"\n     {% block my_custom_attribute_block %}\n         {% if isDisabled %}\n             disabled\n         {% endif %}\n     {% endblock %}></div>"
+                .to_string()
         );
     }
 }
