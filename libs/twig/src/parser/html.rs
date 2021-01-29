@@ -116,8 +116,11 @@ pub(crate) fn html_complete_tag(input: Input) -> IResult<SyntaxNode> {
         let (remaining_new, _close) = dynamic_context(
             || {
                 format!(
-                    "Missing closing tag for opening tag '{}' with attributes {:?}",
-                    open, attributes
+                    "Missing closing tag for opening tag '{}' with attributes [{} ]",
+                    open,
+                    attributes
+                        .iter()
+                        .fold(String::new(), |acc, att| format!("{} {}", acc, att))
                 )
             },
             cut(html_close_tag(open)),

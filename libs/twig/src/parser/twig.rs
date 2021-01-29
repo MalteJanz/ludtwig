@@ -221,7 +221,12 @@ pub(crate) fn twig_apply_block<R, T: GenericChildParser<R>>(input: Input) -> IRe
     let (remaining, children) = T::generic_parse_children(remaining)?;
 
     let (remaining, _close) = dynamic_context(
-        || format!("Missing endapply for '{}' twig for expression", expression),
+        || {
+            format!(
+                "Missing endapply for '{}' twig apply expression",
+                expression
+            )
+        },
         cut(twig_closing_structure("endapply")),
     )(remaining)?;
 
@@ -305,9 +310,9 @@ pub(crate) fn twig_if_block<R, T: GenericChildParser<R>>(input: Input) -> IResul
                 let error_info = TwigParsingErrorInformation::add_dynamic_context(
                     remaining,
                     format!(
-                        "no 'endif' found for if block with expression '{:?}'",
+                        "no 'endif' found for if block with expression '{}'",
                         // it's safe to unwrap here, because arms contains at least one element
-                        arms.first().unwrap().expression
+                        arms.first().unwrap().expression.clone().unwrap_or_default()
                     ),
                     error_info,
                 );
