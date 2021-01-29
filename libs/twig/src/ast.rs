@@ -1,6 +1,8 @@
 //! The AST (abstract syntax tree) represents the template syntax in a structured format.
 //! It mainly consists of an enum [SyntaxNode] which has different variants for each syntax.
 
+use std::fmt::{Display, Formatter};
+
 /// The base enum for each syntax element in a document.
 /// Each variant represents some sort of structured representation of the document syntax.
 /// This is the foundation for the AST (abstract syntax tree) that is produced by the parser.
@@ -123,6 +125,66 @@ pub enum TwigStructure<C> {
     TwigSetCapture(TwigSetCapture<C>),
 }
 
+/// implement the display trait for TwigStructure<TagAttribute> to easily display the user
+/// tag attributes as context, so they can find the tag that is causing parsing issues.
+impl Display for TwigStructure<TagAttribute> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TwigStructure::TwigBlock(t) => {
+                write!(f, "{{% block {} %}}", t.name)?;
+
+                for child in &t.children {
+                    write!(f, " {}", child)?;
+                }
+
+                write!(f, "{{% endblock %}}")
+            }
+            TwigStructure::TwigFor(t) => {
+                write!(f, "{{% for {} %}}", t.expression)?;
+
+                for child in &t.children {
+                    write!(f, " {}", child)?;
+                }
+
+                write!(f, "{{% endfor %}}")
+            }
+            TwigStructure::TwigIf(t) => {
+                for (i, arm) in t.if_arms.iter().enumerate() {
+                    match (i, &arm.expression) {
+                        (0, Some(expr)) => write!(f, "{{% if {} %}}", expr),
+                        (_, Some(expr)) => write!(f, "{{% elseif {} %}}", expr),
+                        (_, None) => write!(f, "{{% else %}}"),
+                    }?;
+
+                    for child in &arm.children {
+                        write!(f, " {}", child)?;
+                    }
+                    write!(f, " ")?;
+                }
+                write!(f, "{{% endif %}}")
+            }
+            TwigStructure::TwigApply(t) => {
+                write!(f, "{{% apply {} %}}", t.expression)?;
+
+                for child in &t.children {
+                    write!(f, " {}", child)?;
+                }
+
+                write!(f, "{{% endapply %}}")
+            }
+            TwigStructure::TwigSetCapture(t) => {
+                write!(f, "{{% set {} %}}", t.name)?;
+
+                for child in &t.children {
+                    write!(f, " {}", child)?;
+                }
+
+                write!(f, "{{% endset %}}")
+            }
+        }
+    }
+}
+
 /// Every AST data structure that implements this trait has a list of children (of type [SyntaxNode]).
 pub trait HasChildren<C> {
     /// Get the children of this AST node.
@@ -149,6 +211,22 @@ pub enum TagAttribute {
     TwigStructure(TwigStructure<TagAttribute>),
 }
 
+impl Display for TagAttribute {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TagAttribute::HtmlAttribute(a) => {
+                write!(f, "{}", a)
+            }
+            TagAttribute::TwigComment(c) => {
+                write!(f, "{}", c)
+            }
+            TagAttribute::TwigStructure(s) => {
+                write!(f, "{}", s)
+            }
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub struct HtmlAttribute {
     pub name: String,
@@ -158,6 +236,16 @@ pub struct HtmlAttribute {
 impl HtmlAttribute {
     pub fn new(name: String, value: Option<String>) -> Self {
         Self { name, value }
+    }
+}
+
+impl Display for HtmlAttribute {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if let Some(v) = &self.value {
+            write!(f, r#"{}="{}""#, self.name, v)
+        } else {
+            write!(f, "{}", self.name)
+        }
     }
 }
 
@@ -233,6 +321,12 @@ pub struct TwigComment {
 impl TwigComment {
     pub fn new(content: String) -> Self {
         Self { content }
+    }
+}
+
+impl Display for TwigComment {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{# {} #}}", self.content)
     }
 }
 

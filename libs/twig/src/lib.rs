@@ -82,7 +82,7 @@ mod tests {
 
         let pretty = result.pretty_helpful_error_string(input);
         //println!("{}", pretty);
-        assert_eq!(pretty, "Parsing goes wrong in line 6 and column 17 :\n                {% endblock %}\n                ^\n                |\nMissing closing tag for opening tag \'p\' with attributes [HtmlAttribute(HtmlAttribute { name: \"class\", value: Some(\"swag-migration-index-modal-abort-migration-confirm-dialog-hint\") })]");
+        assert_eq!(pretty, "Parsing goes wrong in line 6 and column 17 :\n                {% endblock %}\n                ^\n                |\nMissing closing tag for opening tag \'p\' with attributes [ class=\"swag-migration-index-modal-abort-migration-confirm-dialog-hint\" ]");
     }
 
     #[test]
@@ -112,7 +112,47 @@ mod tests {
 
         let pretty = result.pretty_helpful_error_string(input);
         //println!("{}", pretty);
-        assert_eq!(pretty, "Parsing goes wrong in line 7 and column 19 :\n                </div>\n                  ^\n                  |\nMissing closing tag for opening tag \'p\' with attributes [HtmlAttribute(HtmlAttribute { name: \"class\", value: Some(\"swag-migration-index-modal-abort-migration-confirm-dialog-hint\") })]");
+        assert_eq!(pretty, "Parsing goes wrong in line 7 and column 19 :\n                </div>\n                  ^\n                  |\nMissing closing tag for opening tag \'p\' with attributes [ class=\"swag-migration-index-modal-abort-migration-confirm-dialog-hint\" ]");
+    }
+
+    #[test]
+    fn test_missing_closing_tag_error_with_twig_if_in_attributes() {
+        let input = "{% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint %}
+                <p class=\"swag-migration-index-modal-abort-migration-confirm-dialog-hint\" {# this is a comment #}
+                   {% if isHidden %}
+                       style=\"display: none;\"
+                   {% endif %}>
+                    Hello world
+                <div>
+                </div>
+                {% endblock %}";
+        let result = parse(input).unwrap_err();
+
+        let pretty = result.pretty_helpful_error_string(input);
+        //println!("{}", pretty);
+        assert_eq!(pretty, "Parsing goes wrong in line 9 and column 17 :\n                {% endblock %}\n                ^\n                |\nMissing closing tag for opening tag \'p\' with attributes [ class=\"swag-migration-index-modal-abort-migration-confirm-dialog-hint\" {# this is a comment #} {% if isHidden %} style=\"display: none;\" {% endif %} ]");
+    }
+
+    #[test]
+    fn test_missing_closing_tag_error_with_twig_if_elseif_else_in_attributes() {
+        let input = "{% block swag_migration_index_main_page_modal_abort_migration_confirmDialog_message_hint %}
+                <p class=\"swag-migration-index-modal-abort-migration-confirm-dialog-hint\" {# this is a comment #}
+                   {% if isHidden %}
+                       style=\"display: none;\"
+                   {% elseif isInline %}
+                       style=\"display: inline;\"
+                   {% else %}
+                       style=\"display: block;\"
+                   {% endif %}>
+                    Hello world
+                <div>
+                </div>
+                {% endblock %}";
+        let result = parse(input).unwrap_err();
+
+        let pretty = result.pretty_helpful_error_string(input);
+        //println!("{}", pretty);
+        assert_eq!(pretty, "Parsing goes wrong in line 13 and column 17 :\n                {% endblock %}\n                ^\n                |\nMissing closing tag for opening tag \'p\' with attributes [ class=\"swag-migration-index-modal-abort-migration-confirm-dialog-hint\" {# this is a comment #} {% if isHidden %} style=\"display: none;\" {% elseif isInline %} style=\"display: inline;\" {% else %} style=\"display: block;\" {% endif %} ]");
     }
 
     #[test]
