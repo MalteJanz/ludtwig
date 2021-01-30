@@ -1,10 +1,10 @@
 use super::IResult;
 use crate::ast::*;
+use crate::parser::expression::expression_block;
 use crate::parser::general::{
     document_node, dynamic_context, DynamicChildParser, GenericChildParser, Input,
 };
 use crate::parser::twig::{twig_comment, twig_structure, twig_syntax};
-use crate::parser::vue::vue_block;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till1};
 use nom::character::complete::{anychar, char, multispace0, none_of};
@@ -49,7 +49,7 @@ pub(crate) fn html_tag_html_attribute(input: Input) -> IResult<TagAttribute> {
     // otherwise parse any input until the next quote " is found
     let (input, value) = recognize(many_till(
         alt((
-            recognize(vue_block),
+            recognize(expression_block),
             recognize(twig_syntax),
             recognize(twig_comment),
             recognize(none_of("\"")),
