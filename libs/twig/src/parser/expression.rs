@@ -7,7 +7,8 @@ use nom::combinator::map;
 use nom::multi::many_till;
 use nom::sequence::{preceded, terminated};
 
-pub(crate) fn vue_block(input: Input) -> IResult<SyntaxNode> {
+/// parses any {{ ... }} block. It could be a twig output expression or something like a vue print expression.
+pub(crate) fn expression_block(input: Input) -> IResult<SyntaxNode> {
     preceded(
         terminated(tag("{{"), multispace0),
         map(
@@ -35,7 +36,7 @@ mod tests {
 
     #[test]
     fn test_some_vue_variable_print() {
-        let res = vue_block("{{ $tc('swag-migration.index.confirmAbortDialog.hint') }}");
+        let res = expression_block("{{ $tc('swag-migration.index.confirmAbortDialog.hint') }}");
 
         assert_eq!(
             res,
@@ -50,7 +51,7 @@ mod tests {
 
     #[test]
     fn test_some_vue_variable_print_with_complex_logic() {
-        let res = vue_block(
+        let res = expression_block(
             "{{   if a { $tc('swag-migration.index.confirmAbortDialog.hint' ) } else {  $tc('nothing' ); }       }}",
         );
 
@@ -67,7 +68,7 @@ mod tests {
 
     #[test]
     fn test_some_vue_print_with_no_whitespace_and_more_content() {
-        let res = vue_block(
+        let res = expression_block(
             "{{currentOrder.transactions.last().paymentMethod.translated.name}}{{ counter }}",
         );
 

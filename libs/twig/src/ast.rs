@@ -227,6 +227,13 @@ impl Display for TagAttribute {
     }
 }
 
+/// Represents any html tag attribute like `class="hello"`.
+///
+/// ## It could also contain output expressions like
+/// ...="{{ ... }}"
+/// {{ ... }}="..."  
+/// {{ ... }}="{{ ... }}"
+/// {{ ... }}
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub struct HtmlAttribute {
     pub name: String,

@@ -1,11 +1,12 @@
 use super::IResult;
 use crate::ast::*;
+use crate::parser::expression::expression_block;
 use crate::parser::general::{
     document_node, dynamic_context, DynamicChildParser, GenericChildParser, Input,
 };
-use crate::parser::twig::{twig_comment, twig_structure};
+use crate::parser::twig::{twig_comment, twig_structure, twig_syntax};
 use nom::branch::alt;
-use nom::bytes::complete::{tag, take_till, take_till1};
+use nom::bytes::complete::{tag, take_till1};
 use nom::character::complete::{anychar, char, multispace0, none_of};
 use nom::combinator::{cut, map, map_opt, not, opt, peek, recognize, value};
 use nom::error::context;
@@ -15,8 +16,10 @@ use nom::sequence::{delimited, preceded, terminated};
 static NON_CLOSING_TAGS: [&str; 7] = ["!DOCTYPE", "meta", "input", "img", "br", "hr", "source"];
 
 pub(crate) fn html_tag_html_attribute(input: Input) -> IResult<TagAttribute> {
-    let (input, key) = take_till1(|c| {
-        c == '='
+    let (input, key) = alt((
+        recognize(expression_block), // allow the key to be an expression block but match the consumed input with {{ ... }}
+        take_till1(|c| {
+            c == '='
             || c == ' '
             || c == '>'
             || c == '/'
@@ -26,7 +29,8 @@ pub(crate) fn html_tag_html_attribute(input: Input) -> IResult<TagAttribute> {
             || c == '\n'
             || c == '\r'
             || c == '\t'
-    })(input)?;
+        }),
+    ))(input)?;
     let (input, _) = multispace0(input)?; // allow whitespace between equals
     let (input, equal) = opt(tag("="))(input)?;
     let (input, _) = multispace0(input)?; // allow whitespace between equals
@@ -44,7 +48,18 @@ pub(crate) fn html_tag_html_attribute(input: Input) -> IResult<TagAttribute> {
     }
 
     let (input, _) = context("missing '\"' quote", cut(tag("\"")))(input)?;
-    let (input, value) = take_till(|c| c == '"')(input)?;
+    // try first to parse any "{{ ... }}" output expression or twig syntax as value, because it could contain more quotes ""
+    // otherwise parse any input until the next quote " is found
+    let (input, value) = recognize(many_till(
+        alt((
+            recognize(expression_block),
+            recognize(twig_syntax),
+            recognize(twig_comment),
+            recognize(none_of("\"")),
+        )),
+        peek(tag("\"")),
+    ))(input)?;
+
     let (input, _) = context("missing '\"' quote", cut(tag("\"")))(input)?;
 
     Ok((
@@ -702,6 +717,140 @@ mod tests {
         assert_eq!(
             html_tag_attribute_map("href=\"#\" \n\t   {% if differentBrowserTab == true  %}  target=\"_blank\"  {% endif %}   "),
             Ok(("", attributes))
+        );
+    }
+
+    #[test]
+    fn test_html_attributes_with_nested_quotes() {
+        assert_eq!(
+            html_tag_html_attribute(
+                "alt=\"{{ \"wishlist.wishlistEmptyDescription\"|trans|striptags }}\""
+            ),
+            Ok((
+                "",
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "alt".to_string(),
+                    value: Some(
+                        "{{ \"wishlist.wishlistEmptyDescription\"|trans|striptags }}".to_string()
+                    )
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_tag_html_attribute(
+                "alt=\"{{ \"wishlist.wishlistEmptyDescription\"|trans|striptags }}-asdf\""
+            ),
+            Ok((
+                "",
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "alt".to_string(),
+                    value: Some(
+                        "{{ \"wishlist.wishlistEmptyDescription\"|trans|striptags }}-asdf"
+                            .to_string()
+                    )
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_tag_html_attribute(
+                "alt=\"asdf-{{ \"wishlist.wishlistEmptyDescription\"|trans|striptags }}\""
+            ),
+            Ok((
+                "",
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "alt".to_string(),
+                    value: Some(
+                        "asdf-{{ \"wishlist.wishlistEmptyDescription\"|trans|striptags }}"
+                            .to_string()
+                    )
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_tag_html_attribute(
+                "alt=\"hello world asdf-{{ \"wishlist.wishlistEmptyDescription\"|trans|striptags }}-asdf\""
+            ),
+            Ok((
+                "",
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "alt".to_string(),
+                    value: Some(
+                        "hello world asdf-{{ \"wishlist.wishlistEmptyDescription\"|trans|striptags }}-asdf".to_string()
+                    )
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_tag_html_attribute("alt=\"hello {% if w == \"world\" %} world {% endif %}\""),
+            Ok((
+                "",
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "alt".to_string(),
+                    value: Some("hello {% if w == \"world\" %} world {% endif %}".to_string())
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_tag_html_attribute("alt=\"hello-{{ \"world\"|trans }} {{ \"wishlist.wishlistEmptyDescription\"|trans|striptags }}\""),
+            Ok((
+                "",
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "alt".to_string(),
+                    value: Some("hello-{{ \"world\"|trans }} {{ \"wishlist.wishlistEmptyDescription\"|trans|striptags }}".to_string())
+                })
+            ))
+        );
+    }
+
+    #[test]
+    fn test_html_attributes_with_output_expressions() {
+        assert_eq!(
+            html_tag_html_attribute("class=\"{{ world }}\""),
+            Ok((
+                "",
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "class".to_string(),
+                    value: Some("{{ world }}".to_string())
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_tag_html_attribute("{{ custom }}=\"yes\""),
+            Ok((
+                "",
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "{{ custom }}".to_string(),
+                    value: Some("yes".to_string())
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_tag_html_attribute("{{ custom }}=\"{{ value }}\""),
+            Ok((
+                "",
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "{{ custom }}".to_string(),
+                    value: Some("{{ value }}".to_string())
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_tag_html_attribute("{{ completelyCustom }}"),
+            Ok((
+                "",
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "{{ completelyCustom }}".to_string(),
+                    value: None
+                })
+            ))
         );
     }
 }
