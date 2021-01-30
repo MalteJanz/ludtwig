@@ -9,6 +9,11 @@
   Enabled parsing support for output expressions as html tag attribute names and allow any twig structure or output expression inside attribute values.
   This also allows nested quotes `"` that are inside twig syntax inside of a value like  
   `alt="{{ "something.other"|trans|striptags }}"`
+- [REMOVED #21](https://github.com/MalteJanz/ludtwig/issues/21)
+  Removed example analyzer that has checked that twig block names contain their parent block name.
+  The reasoning behind this is that it looks not very useful in practice and clutters the output with warnings.
+- [FEATURE]
+  Added new analyzer that checks for duplicate twig block names.
 - \[BUGFIX\]: 
   Improved readability for parsing errors by displaying the error and its context in a way that is readable by the user.
   For example missing closing tags will give the context with each attribute to identify the right tag.
