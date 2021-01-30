@@ -16,8 +16,10 @@ use nom::sequence::{delimited, preceded, terminated};
 static NON_CLOSING_TAGS: [&str; 7] = ["!DOCTYPE", "meta", "input", "img", "br", "hr", "source"];
 
 pub(crate) fn html_tag_html_attribute(input: Input) -> IResult<TagAttribute> {
-    let (input, key) = take_till1(|c| {
-        c == '='
+    let (input, key) = alt((
+        recognize(expression_block), // allow the key to be an expression block but match the consumed input with {{ ... }}
+        take_till1(|c| {
+            c == '='
             || c == ' '
             || c == '>'
             || c == '/'
@@ -27,7 +29,8 @@ pub(crate) fn html_tag_html_attribute(input: Input) -> IResult<TagAttribute> {
             || c == '\n'
             || c == '\r'
             || c == '\t'
-    })(input)?;
+        }),
+    ))(input)?;
     let (input, _) = multispace0(input)?; // allow whitespace between equals
     let (input, equal) = opt(tag("="))(input)?;
     let (input, _) = multispace0(input)?; // allow whitespace between equals
@@ -799,6 +802,53 @@ mod tests {
                 TagAttribute::HtmlAttribute(HtmlAttribute {
                     name: "alt".to_string(),
                     value: Some("hello-{{ \"world\"|trans }} {{ \"wishlist.wishlistEmptyDescription\"|trans|striptags }}".to_string())
+                })
+            ))
+        );
+    }
+
+    #[test]
+    fn test_html_attributes_with_output_expressions() {
+        assert_eq!(
+            html_tag_html_attribute("class=\"{{ world }}\""),
+            Ok((
+                "",
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "class".to_string(),
+                    value: Some("{{ world }}".to_string())
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_tag_html_attribute("{{ custom }}=\"yes\""),
+            Ok((
+                "",
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "{{ custom }}".to_string(),
+                    value: Some("yes".to_string())
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_tag_html_attribute("{{ custom }}=\"{{ value }}\""),
+            Ok((
+                "",
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "{{ custom }}".to_string(),
+                    value: Some("{{ value }}".to_string())
+                })
+            ))
+        );
+
+        assert_eq!(
+            html_tag_html_attribute("{{ completelyCustom }}"),
+            Ok((
+                "",
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "{{ completelyCustom }}".to_string(),
+                    value: None
                 })
             ))
         );
