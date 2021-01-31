@@ -11,7 +11,7 @@ use async_std::sync::Arc;
 use async_std::{channel, task};
 use clap::{crate_authors, crate_version, Clap, ValueHint};
 use std::boxed::Box;
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 
 /// A CLI tool for '.twig' files with focus on formatting and detecting mistakes.
 #[derive(Clap, Debug, Clone)]
@@ -110,27 +110,47 @@ async fn handle_input_path(path: PathBuf, cli_context: Arc<CliContext>) {
     handle_input_dir(path, cli_context).await;
 }
 
+/// filters out hidden directories or files
+/// (that start with '.').
+fn is_hidden(entry: &DirEntry) -> bool {
+    !entry
+        .file_name()
+        .to_str()
+        .map(|s| s.starts_with('.'))
+        .unwrap_or(false)
+}
+
 /// Process a directory path.
 async fn handle_input_dir(path: PathBuf, cli_context: Arc<CliContext>) {
     let processes = task::spawn(async move {
         let mut futures_processes = Vec::new();
+        let walker = WalkDir::new(path).into_iter();
 
-        for entry in WalkDir::new(path) {
+        for entry in walker.filter_entry(|e| is_hidden(e)) {
             let entry = entry.unwrap();
-            let path = entry.path();
 
-            if !path.is_file() {
+            if !entry.file_type().is_file() {
                 continue;
             }
 
-            if let Some(file_type) = path.extension() {
-                if file_type == "twig" {
-                    futures_processes.push(task::spawn(process::process_file(
-                        path.into(),
-                        Arc::clone(&cli_context),
-                    )));
-                }
+            if !entry
+                .file_name()
+                .to_str() // also skips non utf-8 file names!
+                .map(|s| s.ends_with(".twig"))
+                .unwrap_or(false)
+            {
+                continue;
             }
+
+            let path = entry.path();
+            futures_processes.push(task::spawn(process::process_file(
+                path.into(),
+                Arc::clone(&cli_context),
+            )));
+
+            // cooperatively give up computation time in this thread to allow other futures to process.
+            // because WalkDir is not async this is in fact helpful for the overall performance.
+            task::yield_now().await;
         }
 
         futures_processes

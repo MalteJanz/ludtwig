@@ -53,7 +53,7 @@ pub async fn handle_processing_output(rx: Receiver<OutputMessage>) -> i32 {
             continue;
         }
 
-        println!("\nFile: {:?}", file_path);
+        println!("\nFile: {:?}", file_path.as_os_str());
 
         for output in output_list {
             match output {

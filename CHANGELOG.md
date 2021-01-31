@@ -1,4 +1,6 @@
 # NEXT-VERSION
+- Performance increase of around 91% (almost doubled) in some cases
+- Improved directory traversal to skip hidden directories and files
 
 # v0.2.1
 - Bump version for crates.io release.
