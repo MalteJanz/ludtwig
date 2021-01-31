@@ -1,5 +1,8 @@
 # NEXT-VERSION
 
+# v0.2.1
+- Bump version for crates.io release.
+- Extracted parser code into it's own repository and public crate.
 
 # v0.2.0
 - [FEATURE #4](https://github.com/MalteJanz/ludtwig/issues/4):
