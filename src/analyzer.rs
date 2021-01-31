@@ -1,10 +1,10 @@
 use crate::output::Output;
 use crate::process::FileContext;
+use ludtwig_parser::ast::{SyntaxNode, TwigBlock, TwigStructure};
 use std::collections::HashSet;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use twig::ast::{SyntaxNode, TwigBlock, TwigStructure};
 
 /// Entry function for doing the analyzing.
 /// It spawns all analyzer functions concurrently.

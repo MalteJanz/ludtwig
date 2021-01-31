@@ -177,9 +177,18 @@ dependencies = [
  "ansi_term",
  "async-trait",
  "clap",
+ "ludtwig-parser",
  "tokio",
- "twig",
  "walkdir",
+]
+
+[[package]]
+name = "ludtwig-parser"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3454a03ba6ad54cd64a43a709215de3e8fd1beb02c2385117dc316daf72d39c6"
+dependencies = [
+ "nom",
 ]
 
 [[package]]
@@ -190,9 +199,9 @@ checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
 
 [[package]]
 name = "nom"
-version = "6.0.1"
+version = "6.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88034cfd6b4a0d54dd14f4a507eceee36c0b70e5a02236c4e4df571102be17f0"
+checksum = "ab6f70b46d6325aa300f1c7bb3d470127dfc27806d8ea6bf294ee0ce643ce2b1"
 dependencies = [
  "bitvec",
  "lexical-core",
@@ -355,13 +364,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "twig"
-version = "0.1.0"
-dependencies = [
- "nom",
 ]
 
 [[package]]

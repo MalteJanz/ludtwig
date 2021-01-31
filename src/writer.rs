@@ -1,15 +1,15 @@
 use crate::process::FileContext;
 use async_trait::async_trait;
+use ludtwig_parser::ast::{
+    HtmlComment, OutputExpression, Plain, SyntaxNode, Tag, TagAttribute, TwigApply, TwigBlock,
+    TwigComment, TwigFor, TwigIf, TwigSetCapture, TwigStatement, TwigStructure,
+};
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::{AsyncWrite, AsyncWriteExt, BufWriter};
-use twig::ast::{
-    HtmlComment, OutputExpression, Plain, SyntaxNode, Tag, TagAttribute, TwigApply, TwigBlock,
-    TwigComment, TwigFor, TwigIf, TwigSetCapture, TwigStatement, TwigStructure,
-};
 
 const MAX_LINE_LENGTH: usize = 120;
 const MIN_TAG_NAME_LENGTH_FOR_CONTINUATION_INDENT: usize = 9;
@@ -782,8 +782,8 @@ fn calculate_tag_line_length(tag: &Tag, context: &PrintingContext) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ludtwig_parser::ast::{HtmlAttribute, TwigIfArm};
     use std::io::Cursor;
-    use twig::ast::{HtmlAttribute, TwigIfArm};
 
     /*
     The input or output data for testing purposes is partially from the following sources and under copyright!

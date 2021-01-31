@@ -2,10 +2,10 @@ use crate::analyzer::analyze;
 use crate::output::{Output, OutputMessage};
 use crate::writer::write_tree;
 use crate::CliContext;
+use ludtwig_parser::ast::SyntaxNode;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs;
-use twig::ast::SyntaxNode;
 
 /// The context for a single file.
 #[derive(Debug)]
@@ -49,7 +49,7 @@ pub async fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
     };
 
     let tree = tokio::task::spawn_blocking(move || {
-        let tree = match twig::parse(&file_content) {
+        let tree = match ludtwig_parser::parse(&file_content) {
             Ok(r) => r,
             Err(e) => {
                 return Err(e.pretty_helpful_error_string(&file_content));
