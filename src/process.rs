@@ -2,10 +2,11 @@ use crate::analyzer::analyze;
 use crate::output::{Output, OutputMessage};
 use crate::writer::write_tree;
 use crate::CliContext;
+use async_std::fs;
+use async_std::path::PathBuf;
+use async_std::sync::Arc;
+use async_std::task;
 use ludtwig_parser::ast::SyntaxNode;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::fs;
 
 /// The context for a single file.
 #[derive(Debug)]
@@ -48,7 +49,7 @@ pub async fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
         }
     };
 
-    let tree = tokio::task::spawn_blocking(move || {
+    let tree = task::spawn(async move {
         let tree = match ludtwig_parser::parse(&file_content) {
             Ok(r) => r,
             Err(e) => {
@@ -58,8 +59,7 @@ pub async fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
 
         Ok(tree)
     })
-    .await
-    .unwrap();
+    .await;
 
     let tree = match tree {
         Ok(t) => {
@@ -94,18 +94,18 @@ pub async fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
 
     if !file_context.cli_context.no_analysis {
         let clone = Arc::clone(&file_context);
-        futs.push(tokio::spawn(async move {
+        futs.push(task::spawn(async move {
             analyze(clone).await;
         }));
     }
 
     if !file_context.cli_context.no_writing {
-        futs.push(tokio::spawn(async move {
+        futs.push(task::spawn(async move {
             write_tree(file_context).await;
         }));
     }
 
     for fut in futs {
-        fut.await.unwrap();
+        fut.await;
     }
 }

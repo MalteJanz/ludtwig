@@ -1,29 +1,28 @@
 use crate::output::Output;
 use crate::process::FileContext;
+use async_std::future::Future;
+use async_std::sync::Arc;
+use async_std::task;
 use ludtwig_parser::ast::{SyntaxNode, TwigBlock, TwigStructure};
 use std::collections::HashSet;
-use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
 
 /// Entry function for doing the analyzing.
 /// It spawns all analyzer functions concurrently.
 pub async fn analyze<'a>(file_context: Arc<FileContext>) {
     let clone = Arc::clone(&file_context);
 
-    tokio::spawn(async move {
+    task::spawn(async move {
         let mut block_names = HashSet::new();
         analyze_blocks(&file_context.tree, &clone, &mut block_names).await;
     })
-    .await
-    .unwrap();
+    .await;
 
     /*
-    tokio::spawn(async move {
+    task::spawn(async move {
         analyze_blocks(&file_context.tree, &clone, None).await;
     })
-    .await
-    .unwrap();
+    .await;
     */
 
     // run more analyzers in parallel...

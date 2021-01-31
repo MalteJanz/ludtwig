@@ -1,15 +1,17 @@
 use crate::process::FileContext;
+use async_std::fs;
+use async_std::fs::File;
+use async_std::future::Future;
+use async_std::io::prelude::*;
+use async_std::io::{BufWriter, Write};
+use async_std::path::{Path, PathBuf};
+use async_std::sync::Arc;
 use async_trait::async_trait;
 use ludtwig_parser::ast::{
     HtmlComment, OutputExpression, Plain, SyntaxNode, Tag, TagAttribute, TwigApply, TwigBlock,
     TwigComment, TwigFor, TwigIf, TwigSetCapture, TwigStatement, TwigStructure,
 };
-use std::future::Future;
-use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::sync::Arc;
-use tokio::fs::File;
-use tokio::io::{AsyncWrite, AsyncWriteExt, BufWriter};
 
 const MAX_LINE_LENGTH: usize = 120;
 const MIN_TAG_NAME_LENGTH_FOR_CONTINUATION_INDENT: usize = 9;
@@ -66,7 +68,7 @@ impl<'a> PrintingContext<'a> {
 /// Trait that allows to print a generic list of children.
 #[async_trait]
 trait GenericChildPrinter<T: IsWhitespace> {
-    async fn generic_print_children<W: AsyncWrite + Unpin + Send + ?Sized>(
+    async fn generic_print_children<W: Write + Unpin + Send + ?Sized>(
         writer: &mut W,
         nodes: &[T],
         context: &PrintingContext<'_>,
@@ -83,7 +85,7 @@ struct DynamicChildPrinter();
 /// In case of [SyntaxNode]
 #[async_trait]
 impl GenericChildPrinter<SyntaxNode> for DynamicChildPrinter {
-    async fn generic_print_children<W: AsyncWrite + Unpin + Send + ?Sized>(
+    async fn generic_print_children<W: Write + Unpin + Send + ?Sized>(
         writer: &mut W,
         nodes: &[SyntaxNode],
         context: &PrintingContext<'_>,
@@ -95,7 +97,7 @@ impl GenericChildPrinter<SyntaxNode> for DynamicChildPrinter {
 /// In case of [TagAttribute]
 #[async_trait]
 impl GenericChildPrinter<TagAttribute> for DynamicChildPrinter {
-    async fn generic_print_children<W: AsyncWrite + Unpin + Send + ?Sized>(
+    async fn generic_print_children<W: Write + Unpin + Send + ?Sized>(
         writer: &mut W,
         nodes: &[TagAttribute],
         context: &PrintingContext<'_>,
@@ -153,7 +155,7 @@ async fn create_and_secure_output_path(file_context: &FileContext) -> PathBuf {
     let path = base_path.join(&*file_context.file_path);
 
     if let Some(parent) = path.parent() {
-        tokio::fs::create_dir_all(parent)
+        fs::create_dir_all(parent)
             .await
             .expect("can't create directory for output");
     }
@@ -162,7 +164,7 @@ async fn create_and_secure_output_path(file_context: &FileContext) -> PathBuf {
 }
 
 /// Print a single [SyntaxNode] from the AST, which can be anything.
-fn print_node<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
+fn print_node<'a, W: Write + Unpin + Send + ?Sized>(
     writer: &'a mut W,
     node: &'a SyntaxNode,
     context: &'a mut PrintingContext<'a>,
@@ -228,7 +230,7 @@ fn print_node<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
 }
 
 /// Print a list of [SyntaxNode]'s and prepare the context for each one.
-async fn print_node_list<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_node_list<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     nodes: &[SyntaxNode],
     context: &PrintingContext<'_>,
@@ -252,7 +254,7 @@ async fn print_node_list<W: AsyncWrite + Unpin + Send + ?Sized>(
 /// Print a list of [TagAttribute]'s. this is generally called by [TwigStructure<TagAttribute>]
 /// and not by an [SyntaxNode::Tag] directly (because it does not do any calculations for
 /// inline and continuation mode).
-async fn print_attribute_list<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_attribute_list<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     attributes: &[TagAttribute],
     context: &PrintingContext<'_>,
@@ -265,7 +267,7 @@ async fn print_attribute_list<W: AsyncWrite + Unpin + Send + ?Sized>(
 }
 
 /// Print a single [TagAttribute].
-async fn print_attribute<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_attribute<'a, W: Write + Unpin + Send + ?Sized>(
     writer: &'a mut W,
     attribute: &'a TagAttribute,
     context: &'a PrintingContext<'a>,
@@ -316,7 +318,7 @@ async fn print_attribute<'a, W: AsyncWrite + Unpin + Send + ?Sized>(
 }
 
 /// print a complete html tag with its attributes and children.
-async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_tag<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     tag: &Tag,
     context: &PrintingContext<'_>,
@@ -356,7 +358,7 @@ async fn print_tag<W: AsyncWrite + Unpin + Send + ?Sized>(
 
 /// print all the attributes of an html tag.
 /// It does some calculations to print them in inline or continuation mode.
-async fn print_tag_attributes<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_tag_attributes<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     tag: &Tag,
     context: &PrintingContext<'_>,
@@ -393,7 +395,7 @@ async fn print_tag_attributes<W: AsyncWrite + Unpin + Send + ?Sized>(
     }
 }
 
-async fn print_plain<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_plain<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     plain: &Plain,
     context: &PrintingContext<'_>,
@@ -402,7 +404,7 @@ async fn print_plain<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer.write_all(plain.plain.as_bytes()).await.unwrap();
 }
 
-async fn print_html_comment<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_html_comment<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     comment: &HtmlComment,
     context: &PrintingContext<'_>,
@@ -413,7 +415,7 @@ async fn print_html_comment<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer.write_all(b" -->").await.unwrap();
 }
 
-async fn print_vue_block<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_vue_block<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     vue: &OutputExpression,
     context: &PrintingContext<'_>,
@@ -429,7 +431,7 @@ async fn print_twig_block<W, C, P>(
     twig: &TwigBlock<C>,
     context: &PrintingContext<'_>,
 ) where
-    W: AsyncWrite + Unpin + Send + ?Sized,
+    W: Write + Unpin + Send + ?Sized,
     C: IsWhitespace,
     P: GenericChildPrinter<C>,
 {
@@ -467,7 +469,7 @@ async fn print_twig_for<W, C, P>(
     twig_for: &TwigFor<C>,
     context: &PrintingContext<'_>,
 ) where
-    W: AsyncWrite + Unpin + Send + ?Sized,
+    W: Write + Unpin + Send + ?Sized,
     C: IsWhitespace,
     P: GenericChildPrinter<C>,
 {
@@ -505,7 +507,7 @@ async fn print_twig_for<W, C, P>(
 
 async fn print_twig_if<W, C, P>(writer: &mut W, twig_if: &TwigIf<C>, context: &PrintingContext<'_>)
 where
-    W: AsyncWrite + Unpin + Send + ?Sized,
+    W: Write + Unpin + Send + ?Sized,
     C: IsWhitespace,
     P: GenericChildPrinter<C>,
 {
@@ -557,7 +559,7 @@ async fn print_twig_apply<W, C, P>(
     twig_apply: &TwigApply<C>,
     context: &PrintingContext<'_>,
 ) where
-    W: AsyncWrite + Unpin + Send + ?Sized,
+    W: Write + Unpin + Send + ?Sized,
     C: IsWhitespace,
     P: GenericChildPrinter<C>,
 {
@@ -598,7 +600,7 @@ async fn print_twig_set_capture<W, C, P>(
     twig_set_capture: &TwigSetCapture<C>,
     context: &PrintingContext<'_>,
 ) where
-    W: AsyncWrite + Unpin + Send + ?Sized,
+    W: Write + Unpin + Send + ?Sized,
     C: IsWhitespace,
     P: GenericChildPrinter<C>,
 {
@@ -634,7 +636,7 @@ async fn print_twig_set_capture<W, C, P>(
     writer.write_all(b"{% endset %}").await.unwrap();
 }
 
-async fn print_twig_statement<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_twig_statement<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     statement: &TwigStatement,
     context: &PrintingContext<'_>,
@@ -649,7 +651,7 @@ async fn print_twig_statement<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer.write_all(b" %}").await.unwrap();
 }
 
-async fn print_twig_comment<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_twig_comment<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     comment: &TwigComment,
     context: &PrintingContext<'_>,
@@ -660,7 +662,7 @@ async fn print_twig_comment<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer.write_all(b" #}").await.unwrap();
 }
 
-async fn print_whitespace<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_whitespace<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
@@ -706,7 +708,7 @@ async fn print_whitespace<W: AsyncWrite + Unpin + Send + ?Sized>(
     writer.write_all(b"\r\n").await.unwrap();
 }
 
-async fn print_indentation<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_indentation<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
@@ -722,7 +724,7 @@ async fn print_indentation<W: AsyncWrite + Unpin + Send + ?Sized>(
     }
 }
 
-async fn print_indentation_if_whitespace_exists_before<W: AsyncWrite + Unpin + Send + ?Sized>(
+async fn print_indentation_if_whitespace_exists_before<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
@@ -782,8 +784,8 @@ fn calculate_tag_line_length(tag: &Tag, context: &PrintingContext) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_std::io::Cursor;
     use ludtwig_parser::ast::{HtmlAttribute, TwigIfArm};
-    use std::io::Cursor;
 
     /*
     The input or output data for testing purposes is partially from the following sources and under copyright!
@@ -801,7 +803,7 @@ mod tests {
         String::from_utf8(writer_raw.into_inner()).unwrap()
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_empty_html_tag() {
         let tree = SyntaxNode::Tag(Tag {
             name: "this_is_a_test_one".to_string(),
@@ -825,7 +827,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_simple_twig_block() {
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
             name: "some_twig_block".to_string(),
@@ -846,7 +848,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_nested_twig_block() {
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
             name: "this_is_a_test_one".to_string(),
@@ -875,7 +877,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_nested_twig_block_separation() {
         let tree = SyntaxNode::Tag(Tag {
             name: "this_is_a_test_one".to_string(),
@@ -917,7 +919,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_empty_twig_block() {
         let tree = SyntaxNode::Tag(Tag {
             name: "this_is_a_test_one".to_string(),
@@ -940,7 +942,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_tag_and_twig_block_without_whitespace() {
         let tree = SyntaxNode::Tag(Tag {
             name: "slot".to_string(),
@@ -966,7 +968,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_tag_and_twig_block_content_without_whitespace() {
         let tree = SyntaxNode::Tag(Tag {
             name: "slot".to_string(),
@@ -994,7 +996,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_twig_for() {
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigFor(TwigFor {
             expression: "item in items".to_string(),
@@ -1015,7 +1017,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_twig_if() {
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigIf(TwigIf {
             if_arms: vec![TwigIfArm {
@@ -1038,7 +1040,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_twig_if_else() {
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigIf(TwigIf {
             if_arms: vec![
@@ -1073,7 +1075,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_twig_if_elseif_else() {
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigIf(TwigIf {
             if_arms: vec![
@@ -1118,7 +1120,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_twig_if_elseif_else_in_twig_block() {
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
             name: "my_block".to_string(),
@@ -1170,7 +1172,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_twig_apply() {
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigApply(TwigApply {
             expression: "upper".to_string(),
@@ -1191,7 +1193,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_twig_set_capture() {
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigSetCapture(TwigSetCapture {
             name: "myVariable".to_string(),
@@ -1212,7 +1214,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_tag_with_twig_if_attribute() {
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
@@ -1244,7 +1246,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_tag_with_twig_if_else_attribute() {
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
@@ -1285,7 +1287,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_tag_with_twig_if_elseif_else_attribute() {
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
@@ -1332,7 +1334,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_tag_with_twig_nested_if_attribute() {
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
@@ -1381,7 +1383,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_tag_with_twig_block_attribute() {
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
@@ -1411,7 +1413,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_write_tag_with_twig_block_with_if_attribute() {
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
