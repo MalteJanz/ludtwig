@@ -70,7 +70,7 @@ See the [LICENSE](./LICENSE) file for details.
 ### Dependencies / License notices*
 If you build this project locally or use the distributed binary keep also the following licenses in mind:
 - [ludtwig-parser](https://github.com/MalteJanz/ludtwig-parser) - [MIT](https://github.com/MalteJanz/ludtwig-parser/blob/main/LICENSE)
-- [tokio](https://github.com/tokio-rs/tokio) - [MIT](https://github.com/tokio-rs/tokio/blob/master/LICENSE)
+- [async-std](https://github.com/async-rs/async-std) - [MIT](https://github.com/async-rs/async-std/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/async-rs/async-std/blob/master/LICENSE-APACHE)
 - [clap](https://github.com/clap-rs/clap) - [MIT](https://github.com/clap-rs/clap/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/clap-rs/clap/blob/master/LICENSE-APACHE)
 - [ansi_term](https://github.com/ogham/rust-ansi-term) - [MIT](https://github.com/ogham/rust-ansi-term/blob/master/LICENCE)
 - [walkdir](https://github.com/BurntSushi/walkdir) - [MIT](https://github.com/BurntSushi/walkdir/blob/master/LICENSE-MIT) / [UNLICENSE](https://github.com/BurntSushi/walkdir/blob/master/UNLICENSE)
