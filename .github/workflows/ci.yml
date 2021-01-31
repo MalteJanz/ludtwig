@@ -39,15 +39,11 @@ jobs:
       with:
         command: build
         args: --verbose
-    - name: Cargo test main crate
+    - name: Cargo test
       uses: actions-rs/cargo@v1
       with:
         command: test
         args: --verbose
-    - name: Cargo test parser crate
-      working-directory: libs/twig/
-      run: |
-        cargo test --verbose
 
   rustfmt:
     name: Rustfmt
