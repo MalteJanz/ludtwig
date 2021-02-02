@@ -1,11 +1,9 @@
 use crate::output::Output;
 use crate::process::FileContext;
-use async_std::future::Future;
 use async_std::sync::Arc;
 use async_std::task;
-use ludtwig_parser::ast::{SyntaxNode, TwigBlock, TwigStructure};
+use ludtwig_parser::ast::{SyntaxNode, TagAttribute, TwigBlock, TwigStructure};
 use std::collections::HashSet;
-use std::pin::Pin;
 
 /// Entry function for doing the analyzing.
 /// It spawns all analyzer functions concurrently.
@@ -28,62 +26,28 @@ pub async fn analyze(file_context: Arc<FileContext>) {
     // run more analyzers in parallel...
 }
 
-fn analyze_blocks<'a>(
-    node: &'a SyntaxNode,
+async fn analyze_blocks<'a>(
+    tree: &'a SyntaxNode,
     file_context: &'a FileContext,
     block_names: &'a mut HashSet<String>,
-) -> Pin<Box<dyn Future<Output = ()> + 'a + Send>> {
-    Box::pin(async move {
-        match node {
-            SyntaxNode::Root(root) => {
-                for child in root {
-                    analyze_blocks(child, file_context, block_names).await;
-                }
-            }
-            SyntaxNode::Tag(tag) => {
-                // TODO: blocks in html tag attributes are not visited yet. Iteration logic should be refactored.
-                for child in &tag.children {
-                    analyze_blocks(child, file_context, block_names).await;
-                }
-            }
-            SyntaxNode::TwigStructure(twig_structure) => match twig_structure {
-                TwigStructure::TwigBlock(twig) => {
-                    check_twig_block_name_for_duplicate(twig, file_context, block_names).await;
-
-                    for child in &twig.children {
-                        analyze_blocks(child, file_context, block_names).await;
-                    }
-                }
-                TwigStructure::TwigFor(twig) => {
-                    for child in &twig.children {
-                        analyze_blocks(child, file_context, block_names).await;
-                    }
-                }
-                TwigStructure::TwigIf(twig) => {
-                    for arm in &twig.if_arms {
-                        for child in &arm.children {
-                            analyze_blocks(child, file_context, block_names).await;
-                        }
-                    }
-                }
-                TwigStructure::TwigApply(twig) => {
-                    for child in &twig.children {
-                        analyze_blocks(child, file_context, block_names).await;
-                    }
-                }
-                TwigStructure::TwigSetCapture(twig) => {
-                    for child in &twig.children {
-                        analyze_blocks(child, file_context, block_names).await;
-                    }
-                }
-            },
-            _ => {}
+) {
+    for node in tree.iter() {
+        if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(block)) = node {
+            check_twig_block_name_for_duplicate(block, file_context, block_names).await;
+            continue;
         }
-    })
+
+        for attr in node.attribute_iter() {
+            // also check attributes for twig blocks.
+            if let TagAttribute::TwigStructure(TwigStructure::TwigBlock(block)) = attr {
+                check_twig_block_name_for_duplicate(block, file_context, block_names).await;
+            }
+        }
+    }
 }
 
-async fn check_twig_block_name_for_duplicate(
-    block: &TwigBlock<SyntaxNode>,
+async fn check_twig_block_name_for_duplicate<C>(
+    block: &TwigBlock<C>,
     file_context: &FileContext,
     block_names: &mut HashSet<String>,
 ) {
@@ -98,46 +62,3 @@ async fn check_twig_block_name_for_duplicate(
         block_names.insert(block.name.clone());
     }
 }
-
-/*
-// Example analyzer:
-// Checks if the twig block name contains the block name of it's parent twig block.
-// This should reduce typing errors that humans will produce.
-fn analyze_blocks<'a>(
-    node: &'a SyntaxNode,
-    file_context: &'a FileContext,
-    parent_block_name: Option<&'a str>,
-) -> Pin<Box<dyn Future<Output = ()> + 'a + Send>> {
-    Box::pin(async move {
-        match node {
-            SyntaxNode::Root(root) => {
-                for child in root {
-                    analyze_blocks(child, file_context, parent_block_name).await;
-                }
-            }
-            SyntaxNode::Tag(tag) => {
-                for child in &tag.children {
-                    analyze_blocks(child, file_context, parent_block_name).await;
-                }
-            }
-            SyntaxNode::TwigStructure(TwigStructure::TwigBlock(twig)) => {
-                if let Some(parent) = parent_block_name {
-                    if !twig.name.contains(parent) {
-                        file_context
-                            .send_output(Output::Warning(format!(
-                                "Twig child with block name '{}' does not contain parent twig block name '{}'",
-                                twig.name, parent
-                            )))
-                            .await;
-                    }
-                }
-
-                for child in &twig.children {
-                    analyze_blocks(child, file_context, Some(&twig.name)).await;
-                }
-            }
-            _ => {}
-        }
-    })
-}
-*/
