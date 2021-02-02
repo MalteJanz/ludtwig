@@ -13,9 +13,10 @@ use ludtwig_parser::ast::SyntaxNode;
 pub struct FileContext {
     pub cli_context: Arc<CliContext>,
 
-    /// The file path that is associated with this context and the parsed [SyntaxNode] AST.
-    pub file_path: Arc<PathBuf>,
+    /// The file path that is associated with this context
+    pub file_path: PathBuf,
 
+    /// The parsed [SyntaxNode] AST for this file / context.
     pub tree: SyntaxNode,
 }
 
@@ -24,7 +25,7 @@ impl FileContext {
     pub async fn send_output(&self, output: Output) {
         self.cli_context
             .send_output(OutputMessage {
-                file: Arc::clone(&self.file_path),
+                file: self.file_path.clone(),
                 output,
             })
             .await;
@@ -33,14 +34,20 @@ impl FileContext {
 
 /// Process a single file with it's filepath.
 pub async fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
-    let path = Arc::new(path);
+    // notify the output about this file (to increase the processed file counter)
+    cli_context
+        .send_output(OutputMessage {
+            file: path.clone(),
+            output: Output::None,
+        })
+        .await;
 
-    let file_content = match fs::read_to_string(&*path).await {
+    let file_content = match fs::read_to_string(&path).await {
         Ok(f) => f,
         Err(_) => {
             cli_context
                 .send_output(OutputMessage {
-                    file: Arc::clone(&path),
+                    file: path.clone(),
                     output: Output::Error("Can't read file".into()),
                 })
                 .await;
@@ -49,34 +56,13 @@ pub async fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
         }
     };
 
-    let tree = task::spawn(async move {
-        let tree = match ludtwig_parser::parse(&file_content) {
-            Ok(r) => r,
-            Err(e) => {
-                return Err(e.pretty_helpful_error_string(&file_content));
-            }
-        };
-
-        Ok(tree)
-    })
-    .await;
-
-    let tree = match tree {
-        Ok(t) => {
-            cli_context
-                .send_output(OutputMessage {
-                    file: Arc::clone(&path),
-                    output: Output::None,
-                })
-                .await;
-
-            t
-        }
+    let tree = match ludtwig_parser::parse(&file_content) {
+        Ok(t) => t,
         Err(e) => {
             cli_context
                 .send_output(OutputMessage {
-                    file: Arc::clone(&path),
-                    output: Output::Error(e),
+                    file: path.clone(),
+                    output: Output::Error(e.pretty_helpful_error_string(&file_content)),
                 })
                 .await;
 
@@ -90,22 +76,30 @@ pub async fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
         tree,
     });
 
-    let mut futs = vec![];
+    work_with_file_context(file_context).await;
+}
+
+/// Do all the analyzing and writing work concurrently on the [FileContext].
+async fn work_with_file_context(file_context: Arc<FileContext>) {
+    let mut futures = vec![];
 
     if !file_context.cli_context.no_analysis {
         let clone = Arc::clone(&file_context);
-        futs.push(task::spawn(async move {
+        futures.push(task::spawn(async move {
             analyze(clone).await;
         }));
     }
 
     if !file_context.cli_context.no_writing {
-        futs.push(task::spawn(async move {
-            write_tree(file_context).await;
+        let clone = Arc::clone(&file_context);
+        futures.push(task::spawn(async move {
+            write_tree(clone).await;
         }));
     }
 
-    for fut in futs {
+    drop(file_context);
+
+    for fut in futures {
         fut.await;
     }
 }

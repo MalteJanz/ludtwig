@@ -9,7 +9,7 @@ use std::pin::Pin;
 
 /// Entry function for doing the analyzing.
 /// It spawns all analyzer functions concurrently.
-pub async fn analyze<'a>(file_context: Arc<FileContext>) {
+pub async fn analyze(file_context: Arc<FileContext>) {
     let clone = Arc::clone(&file_context);
 
     task::spawn(async move {
