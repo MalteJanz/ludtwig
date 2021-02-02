@@ -15,6 +15,130 @@ Ludtwig is currently in an early development state.
 Please use the tool with caution and validate the changes that is has made (backup your files before running this).
 Feel free to create new issues and help to steer this project in the right direction.
 
+## Overview
+- [Example](https://github.com/MalteJanz/ludtwig#example)
+- [Current features](https://github.com/MalteJanz/ludtwig#current-features)
+- [Current limitations](https://github.com/MalteJanz/ludtwig#current-limitations)
+- [Installation](https://github.com/MalteJanz/ludtwig#installation)
+- [How to use Ludtwig?](https://github.com/MalteJanz/ludtwig#how-to-use-ludtwig)
+- [Basic Concepts](https://github.com/MalteJanz/ludtwig#basic-concepts)
+- [Development setup](https://github.com/MalteJanz/ludtwig#development-setup)
+- [License](https://github.com/MalteJanz/ludtwig#license)
+
+## Example
+### Before
+```twig
+{% block my_component %}
+    <div class="my-component">
+        {% block my_component_header %}
+        <h2 :style="style"          class   =   "whitespace-sensitive">{{ header }}</h2>
+        {% endblock %}
+        {% block my_component_body %}
+            <my-component-body class="component-body" v-model="body" @change="if a > 0 { onChange(); }"
+                {% if isDisabled %}
+                    disabled
+                {% elseif hasCustomAttribute %}
+                    {{ customAttrName }}="{{ customAttrValue }}"
+                {% else %}
+                    {{ completeCustomAttr }}
+                {% endif %}>
+                <charlong9 some="custom" attributes="that" are="at least 3 or make the line long enough"> (whitespaces around this) </charlong9>
+                <span>(but here are no whitespaces)</span>
+                <p>
+                    This is a paragraph.       And the browser sees only whitespace and doesn't care about many spaces.
+                    Linebreaks are also no problem. they are kept.
+
+                    The browser also does not care about empty lines.
+                    So why not format text like this how the browser displays it (but keep single line breaks for visibility)?
+                </p>
+            </my-component-body>
+        {% endblock %}
+    </div>
+{% endblock %}
+```
+
+### After running ludtwig
+```twig
+{% block my_component %}
+    <div class="my-component">
+
+        {% block my_component_header %}
+            <h2 :style="style"
+                class="whitespace-sensitive">{{ header }}</h2>
+        {% endblock %}
+
+        {% block my_component_body %}
+            <my-component-body
+                    class="component-body"
+                    v-model="body"
+                    @change="if a > 0 { onChange(); }"
+                    {% if isDisabled %}
+                        disabled
+                    {% elseif hasCustomAttribute %}
+                        {{ customAttrName }}="{{ customAttrValue }}"
+                    {% else %}
+                        {{ completeCustomAttr }}
+                    {% endif %}>
+                <charlong9
+                        some="custom"
+                        attributes="that"
+                        are="at least 3 or make the line long enough">
+                    (whitespaces around this)
+                </charlong9>
+                <span>(but here are no whitespaces)</span>
+                <p>
+                    This is a paragraph.
+                    And the browser sees only whitespace and doesn't care about many spaces.
+                    Linebreaks are also no problem. they are kept.
+                    The browser also does not care about empty lines.
+                    So why not format text like this how the browser displays it (but keep single line breaks for visibility)?
+                </p>
+            </my-component-body>
+        {% endblock %}
+
+    </div>
+{% endblock %}
+```
+
+### It also catches errors / problems during parsing
+```text
+Parsing files...
+
+File: "./fixtures/showcase.html.twig"
+[Error] Parsing goes wrong in line 7 and column 38 :
+            <my-component-body class=component-body v-model="body" @change="if a > 0 { onChange(); }"
+                                     ^
+                                     |
+missing '"' quote
+
+Files scanned: 1, Errors: 1, Warnings: 0
+Happy bug fixing ;)
+```
+
+### And if the parsing succeeds it checks the AST (abstract syntax tree) for mistakes / best practices
+```text
+Parsing files...
+
+File: "./fixtures/showcase.html.twig"
+[Warning] Duplicate twig block name found: 'my_component'
+
+Files scanned: 1, Errors: 0, Warnings: 1
+Happy bug fixing ;)
+```
+
+## Current features
+- Fast / Highly concurrent execution
+- Parsing of idiomatic Html / Twig / Vue.js templating files
+  - It will not parse non idiomatic Html where for example closing tags are forgotten (that otherwise could still work in the browser).
+    In that case ludtwig will produce a helpful error message.
+- Write the AST (abstract syntax tree) in a formatted way back into files
+- Analyse the AST for common mistakes / suggestions
+
+## Current limitations
+- Twig syntax is still not fully supported ([Some hierarchical syntax is missing](https://github.com/MalteJanz/ludtwig/issues/17))
+- There is no customization of the formatting or analyzing yet - you should be fine with the provided code style for now (or make the changes for yourself and recompile)
+- You may encounter edge cases that result in parsing errors. Please create issues for them.
+
 ## Installation
 ### Cargo (rust toolchain)
 Run the following cargo command to install or update ludtwig:
@@ -26,19 +150,7 @@ If you don't want to install the rust toolchain / cargo you can still use the ma
 Download the latest [release binary](https://github.com/MalteJanz/ludtwig/releases) for your operating system and put it in your PATH for easy access.
 
 ## How to use Ludtwig?
-After installation have a look at `ludtwig --help` for more information. It should be self explanatory. 
-
-## Current features
-- Fast / Highly concurrent execution
-- Parsing of idiomatic Html / Twig / Vue.js templating files
-  - It will not parse non idiomatic Html where for example closing tags are forgotten (that otherwise could still work in the browser)
-- Write the AST (abstract syntax tree) in a formatted way back into files
-- Analyse the AST for common mistakes / suggestions
-
-## Current limitations
-- Twig syntax is still not fully supported ([Some hierarchical syntax is missing](https://github.com/MalteJanz/ludtwig/issues/17))
-- There is no customization of the formatting or analyzing yet - you should be fine with the provided code style for now (or make the changes for yourself and recompile)
-- You may encounter edge cases that result in parsing errors. Please create issues for them.
+After installation have a look at `ludtwig --help` for more information. It should be self explanatory.
 
 ## Basic Concepts
 - Every file is parsed concurrently and independent from each other into an AST (abstract syntax tree)
