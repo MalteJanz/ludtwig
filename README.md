@@ -26,7 +26,7 @@ Feel free to create new issues and help to steer this project in the right direc
 - [License](https://github.com/MalteJanz/ludtwig#license)
 
 ## Example
-### Before
+### Before*
 ```twig
 {% block my_component %}
     <div class="my-component">
@@ -56,6 +56,9 @@ Feel free to create new issues and help to steer this project in the right direc
     </div>
 {% endblock %}
 ```
+*This is not what a normal template should look like, but it demonstrates that ludtwig can work with
+any combination of Html / Twig / Vue.js (or other solutions that only need the {{...}} syntax and bring custom tags / attributes).
+For example you can use the powerful block feature of twig.js, but also every feature from vue.js and ludtwig can still work with the templates.
 
 ### After running ludtwig
 ```twig
@@ -100,7 +103,7 @@ Feel free to create new issues and help to steer this project in the right direc
 {% endblock %}
 ```
 
-### It also catches errors / problems during parsing
+### It also catches errors / problems during parsing*
 ```text
 Parsing files...
 
@@ -114,8 +117,9 @@ missing '"' quote
 Files scanned: 1, Errors: 1, Warnings: 0
 Happy bug fixing ;)
 ```
+*The example template was changed with missing quotes
 
-### And if the parsing succeeds it checks the AST (abstract syntax tree) for mistakes / best practices
+### And if the parsing succeeds it checks the AST (abstract syntax tree) for mistakes / best practices*
 ```text
 Parsing files...
 
@@ -125,18 +129,22 @@ File: "./fixtures/showcase.html.twig"
 Files scanned: 1, Errors: 0, Warnings: 1
 Happy bug fixing ;)
 ```
+*The example template was extended with another twig block with the name 'my_component'.
 
 ## Current features
 - Fast / Highly concurrent execution
 - Parsing of idiomatic Html / Twig / Vue.js templating files
-  - It will not parse non idiomatic Html where for example closing tags are forgotten (that otherwise could still work in the browser).
-    In that case ludtwig will produce a helpful error message.
+  - It will not parse non idiomatic Html where for example closing tags are forgotten
+    (that otherwise could still work in the browser).
+    In this case ludtwig tries to produce a helpful error message.
 - Write the AST (abstract syntax tree) in a formatted way back into files
 - Analyse the AST for common mistakes / suggestions
 
 ## Current limitations
 - Twig syntax is still not fully supported ([Some hierarchical syntax is missing](https://github.com/MalteJanz/ludtwig/issues/17))
-- There is no customization of the formatting or analyzing yet - you should be fine with the provided code style for now (or make the changes for yourself and recompile)
+- There is no customization of the formatting or analyzing yet - you should be fine with the provided code style for now
+  (or make the changes for yourself and recompile).
+  However, if you find something that looks wrong, feel free to create an issue.
 - You may encounter edge cases that result in parsing errors. Please create issues for them.
 
 ## Installation
