@@ -1,4 +1,8 @@
 # NEXT-VERSION
+- An Update of [ludtwig-parser](https://github.com/MalteJanz/ludtwig-parser/releases/tag/v0.3.0)
+  and the use of iterators for the analyzing has improved the performance of ludtwig itself by around 20%.
+- The analyzer for duplicate twig block names now also checks blocks that are inside html tag attributes.
+- Code cleanup and refactoring
 
 # v0.3.0
 - Performance increase of around 91% (almost doubled) in some cases.

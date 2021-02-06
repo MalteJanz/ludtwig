@@ -2,7 +2,6 @@ use ansi_term::Colour::*;
 use ansi_term::Style;
 use async_std::channel::Receiver;
 use async_std::path::PathBuf;
-use async_std::sync::Arc;
 use std::collections::HashMap;
 
 /// The user output has different variants.
@@ -18,7 +17,7 @@ pub enum Output {
 #[derive(Debug, Clone, PartialEq)]
 pub struct OutputMessage {
     /// The file path that is associated with this output message.
-    pub file: Arc<PathBuf>,
+    pub file: PathBuf,
 
     pub output: Output,
 }
@@ -31,6 +30,7 @@ pub async fn handle_processing_output(rx: Receiver<OutputMessage>) -> i32 {
     let mut warning_count = 0;
     let mut error_count = 0;
 
+    // receive all incoming messages until all sending ends are closed.
     while let Ok(msg) = rx.recv().await {
         let entry = map.entry(msg.file).or_insert_with(Vec::new);
 
@@ -46,6 +46,7 @@ pub async fn handle_processing_output(rx: Receiver<OutputMessage>) -> i32 {
     #[cfg(windows)]
     let _ansi_enabled = ansi_term::enable_ansi_support().is_ok();
 
+    // iterate through the messages for each file and print them out.
     for (file_path, output_list) in map {
         file_count += 1;
 
@@ -83,7 +84,7 @@ pub async fn handle_processing_output(rx: Receiver<OutputMessage>) -> i32 {
                 .fg(Black)
                 .paint("Happy bug fixing ;)")
         );
-        return 1;
+        return 1; // return exit code 1 if there were errors or warnings.
     } else if file_count > 0 {
         println!("{}", Style::new().on(Green).paint("Good job! o.O"));
         return 0;

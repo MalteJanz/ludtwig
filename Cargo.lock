@@ -476,9 +476,9 @@ dependencies = [
 
 [[package]]
 name = "ludtwig-parser"
-version = "0.2.1"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3454a03ba6ad54cd64a43a709215de3e8fd1beb02c2385117dc316daf72d39c6"
+checksum = "1c555f8c1bbd3406976ba00be140ea3d1b41c6bdb0c99888ac07e2a0cb459690"
 dependencies = [
  "nom",
 ]

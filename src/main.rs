@@ -5,7 +5,6 @@ mod writer;
 
 use crate::output::OutputMessage;
 use async_std::channel::Sender;
-use async_std::fs;
 use async_std::path::PathBuf;
 use async_std::sync::Arc;
 use async_std::{channel, task};
@@ -67,7 +66,9 @@ async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
     println!("Parsing files...");
 
     // sender and receiver channels for the communication between tasks and the user.
-    let (tx, rx) = channel::bounded(128);
+    // the channel is bounded to buffer 32 messages before sending will block (in an async way).
+    // this limit should be fine for one task continuously processing the incoming messages from the channel.
+    let (tx, rx) = channel::bounded(32);
 
     let cli_context = Arc::new(CliContext {
         output_tx: tx,
@@ -89,25 +90,10 @@ async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
         t.await;
     }
 
+    // the output_handler will finish execution if all the sending channel ends are closed.
     let process_code = output_handler.await;
 
     Ok(process_code)
-}
-
-/// Process one input path (CLI file argument).
-async fn handle_input_path(path: PathBuf, cli_context: Arc<CliContext>) {
-    let meta = fs::metadata(&path).await.unwrap();
-    if meta.is_file() {
-        if let Some(file_type) = path.extension() {
-            if file_type == "twig" {
-                process::process_file(path, cli_context).await;
-            }
-        }
-
-        return;
-    }
-
-    handle_input_dir(path, cli_context).await;
 }
 
 /// filters out hidden directories or files
@@ -121,43 +107,37 @@ fn is_hidden(entry: &DirEntry) -> bool {
 }
 
 /// Process a directory path.
-async fn handle_input_dir(path: PathBuf, cli_context: Arc<CliContext>) {
-    let processes = task::spawn(async move {
-        let mut futures_processes = Vec::new();
-        let walker = WalkDir::new(path).into_iter();
+async fn handle_input_path(path: PathBuf, cli_context: Arc<CliContext>) {
+    let mut futures_processes = Vec::new();
+    let walker = WalkDir::new(path).into_iter();
 
-        for entry in walker.filter_entry(|e| is_hidden(e)) {
-            let entry = entry.unwrap();
+    for entry in walker.filter_entry(|e| is_hidden(e)) {
+        let entry = entry.unwrap();
 
-            if !entry.file_type().is_file() {
-                continue;
-            }
-
-            if !entry
-                .file_name()
-                .to_str() // also skips non utf-8 file names!
-                .map(|s| s.ends_with(".twig"))
-                .unwrap_or(false)
-            {
-                continue;
-            }
-
-            let path = entry.path();
-            futures_processes.push(task::spawn(process::process_file(
-                path.into(),
-                Arc::clone(&cli_context),
-            )));
-
-            // cooperatively give up computation time in this thread to allow other futures to process.
-            // because WalkDir is not async this is in fact helpful for the overall performance.
-            task::yield_now().await;
+        if !entry.file_type().is_file() {
+            continue;
         }
 
-        futures_processes
-    })
-    .await;
+        if !entry
+            .file_name()
+            .to_str() // also skips non utf-8 file names!
+            .map(|s| s.ends_with(".twig"))
+            .unwrap_or(false)
+        {
+            continue;
+        }
 
-    for f in processes {
+        futures_processes.push(task::spawn(process::process_file(
+            entry.path().into(),
+            Arc::clone(&cli_context),
+        )));
+
+        // cooperatively give up computation time in this thread to allow other futures to process.
+        // because WalkDir is not async this is in fact helpful for the overall performance.
+        task::yield_now().await;
+    }
+
+    for f in futures_processes {
         f.await;
     }
 }
