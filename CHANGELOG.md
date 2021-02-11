@@ -1,5 +1,6 @@
 # NEXT-VERSION
-
+- [Bugfix #27](https://github.com/MalteJanz/ludtwig/issues/27):
+  Twig block nesting was causing missing empty lines around twig blocks in some cases.
 
 # v0.4.0
 - An Update of [ludtwig-parser (see changelog)](https://github.com/MalteJanz/ludtwig-parser/releases/tag/v0.3.0)

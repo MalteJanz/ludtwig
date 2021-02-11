@@ -666,46 +666,42 @@ async fn print_whitespace<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
-    // decide if additional whitespaces are needed (for example before and after twig blocks
-    match (
-        context.previous_node,
-        context.after_node,
-        context.get_parent(),
-    ) {
-        (Some(prev), Some(aft), Some(par)) => {
-            if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)) = par {
-                // don't print another whitespace if the parent is also a block.
-            } else if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)) = prev {
-                // print another whitespace.
-                writer.write_all(b"\r\n").await.unwrap();
-            } else if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)) = aft {
-                // print another whitespace.
-                writer.write_all(b"\r\n").await.unwrap();
-            }
-        }
+    writer.write_all(b"\r\n").await.unwrap();
 
-        (None, Some(aft), Some(par)) => {
-            if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)) = par {
-                // don't print another whitespace if the parent is also a block.
-            } else if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)) = aft {
-                // print another whitespace.
-                writer.write_all(b"\r\n").await.unwrap();
-            }
-        }
+    // decide if additional whitespaces are needed (for example before and after twig blocks)
+    check_and_print_additional_whitespace_around_twig_block(writer, context).await;
+}
 
-        (Some(prev), None, Some(par)) => {
-            if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)) = par {
-                // don't print another whitespace if the parent is also a block.
-            } else if let SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)) = prev {
-                // print another whitespace.
-                writer.write_all(b"\r\n").await.unwrap();
-            }
-        }
+async fn check_and_print_additional_whitespace_around_twig_block<
+    W: Write + Unpin + Send + ?Sized,
+>(
+    writer: &mut W,
+    context: &PrintingContext<'_>,
+) {
+    if let Some(SyntaxNode::TwigStructure(TwigStructure::TwigBlock(p))) = context.get_parent() {
+        // check for each child that it is either a twig block or a whitespace
+        let child_checker = |c: &SyntaxNode| {
+            matches!(c, SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_)))
+                || matches!(c, SyntaxNode::Whitespace)
+        };
 
-        (_, _, _) => {}
+        if p.children.len() <= 3 && p.children.iter().take(3).all(child_checker) {
+            // found a block with only one nested block (ignoring the optional whitespace around it)
+            // in this special case there should be no extra whitespace for twig blocks.
+            return;
+        }
     }
 
-    writer.write_all(b"\r\n").await.unwrap();
+    // check if the after or previous node is a twig block. In that case an extra whitespace is needed.
+    if let Some(SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_))) = context.after_node {
+        // print another whitespace.
+        writer.write_all(b"\r\n").await.unwrap();
+    } else if let Some(SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_))) =
+        context.previous_node
+    {
+        // print another whitespace.
+        writer.write_all(b"\r\n").await.unwrap();
+    }
 }
 
 async fn print_indentation<W: Write + Unpin + Send + ?Sized>(
@@ -916,6 +912,63 @@ mod tests {
         assert_eq!(
             res,
             "<this_is_a_test_one>\r\n\r\n    {% block this_is_a_test_two %}\r\n        {% parent %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n    {% block this_is_a_test_three %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n</this_is_a_test_one>".to_string()
+        );
+    }
+
+    #[async_std::test]
+    async fn test_write_nested_twig_block_separation_edge_case() {
+        let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
+            name: "this_is_a_test_one".to_string(),
+            children: vec![
+                SyntaxNode::Whitespace,
+                SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
+                    name: "this_is_a_test_two".to_string(),
+                    children: vec![
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
+                            name: "some_content_block_1".to_string(),
+                            children: vec![
+                                SyntaxNode::Whitespace,
+                                SyntaxNode::Plain(Plain {
+                                    plain: "content".to_string(),
+                                }),
+                                SyntaxNode::Whitespace,
+                            ],
+                        })),
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
+                            name: "some_content_block_2".to_string(),
+                            children: vec![
+                                SyntaxNode::Whitespace,
+                                SyntaxNode::Plain(Plain {
+                                    plain: "content".to_string(),
+                                }),
+                                SyntaxNode::Whitespace,
+                            ],
+                        })),
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
+                            name: "some_content_block_3".to_string(),
+                            children: vec![
+                                SyntaxNode::Whitespace,
+                                SyntaxNode::Plain(Plain {
+                                    plain: "content".to_string(),
+                                }),
+                                SyntaxNode::Whitespace,
+                            ],
+                        })),
+                        SyntaxNode::Whitespace,
+                    ],
+                })),
+                SyntaxNode::Whitespace,
+            ],
+        }));
+
+        let res = convert_tree_into_written_string(tree).await;
+
+        assert_eq!(
+            res,
+            "{% block this_is_a_test_one %}\r\n    {% block this_is_a_test_two %}\r\n\r\n        {% block some_content_block_1 %}\r\n            content\r\n        {% endblock %}\r\n\r\n        {% block some_content_block_2 %}\r\n            content\r\n        {% endblock %}\r\n\r\n        {% block some_content_block_3 %}\r\n            content\r\n        {% endblock %}\r\n\r\n    {% endblock %}\r\n{% endblock %}".to_string()
         );
     }
 
