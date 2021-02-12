@@ -1,4 +1,5 @@
 mod analyzer;
+mod config;
 mod output;
 mod process;
 mod writer;
@@ -54,6 +55,9 @@ impl CliContext {
 
 /// Parse the CLI arguments and bootstrap the async application.
 fn main() {
+    let config = config::read_or_default();
+    println!("{:?}", config);
+
     let opts: Opts = Opts::parse();
 
     let process_code = task::block_on(app(opts)).unwrap();

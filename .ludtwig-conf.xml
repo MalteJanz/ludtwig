@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ludtwig-config>
+    <indentation-mode>space</indentation-mode>
+    <indentation-count>4</indentation-count>
+    <indent-children-of-blocks>true</indent-children-of-blocks>
+    <linebreaks-around-blocks>true</linebreaks-around-blocks>
+</ludtwig-config>
