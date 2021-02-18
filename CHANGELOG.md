@@ -1,5 +1,6 @@
 # NEXT-VERSION
-
+- [Bugfix #29](https://github.com/MalteJanz/ludtwig/issues/29):
+  Allow `.` or `./` (current working directory paths) as input
 
 # v0.5.0
 - [Bugfix / Breaking change #27](https://github.com/MalteJanz/ludtwig/issues/27):
