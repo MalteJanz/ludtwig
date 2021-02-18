@@ -1,8 +1,13 @@
 # NEXT-VERSION
+
+
+# v0.5.1
 - [Bugfix #29](https://github.com/MalteJanz/ludtwig/issues/29):
-  Allow `.` or `./` (current working directory paths) as input
+  Allow `.` or `./` (current working directory paths) as input.
 - [Bugfix #30](https://github.com/MalteJanz/ludtwig/issues/30):
-  Fix ludtwig formatted files line endings to use CRLF on windows and LF on linux and macOS
+  Fix ludtwig formatted files line endings to use CRLF on windows and LF on linux and macOS.
+- [Kown Issue](https://github.com/MalteJanz/ludtwig-parser/issues/2) :
+  The parser does not report the correct line number on windows (CRLF line endings) for parsing errors.
 
 # v0.5.0
 - [Bugfix / Breaking change #27](https://github.com/MalteJanz/ludtwig/issues/27):
