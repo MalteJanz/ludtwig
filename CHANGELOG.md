@@ -1,6 +1,8 @@
 # NEXT-VERSION
 - [Bugfix #29](https://github.com/MalteJanz/ludtwig/issues/29):
   Allow `.` or `./` (current working directory paths) as input
+- [Bugfix #30](https://github.com/MalteJanz/ludtwig/issues/30):
+  Fix ludtwig formatted files line endings to use CRLF on windows and LF on linux and macOS
 
 # v0.5.0
 - [Bugfix / Breaking change #27](https://github.com/MalteJanz/ludtwig/issues/27):

@@ -16,6 +16,11 @@ use std::pin::Pin;
 const MAX_LINE_LENGTH: usize = 120;
 const MIN_TAG_NAME_LENGTH_FOR_CONTINUATION_INDENT: usize = 9;
 
+#[cfg(windows)]
+const LINE_BREAK: &str = "\r\n";
+#[cfg(not(windows))]
+const LINE_BREAK: &str = "\n";
+
 /// Context for traversing the AST with printing in mind.
 #[derive(Debug, Clone, PartialEq, Default)]
 struct PrintingContext<'a> {
@@ -260,7 +265,7 @@ async fn print_attribute_list<W: Write + Unpin + Send + ?Sized>(
     context: &PrintingContext<'_>,
 ) {
     for attribute in attributes {
-        writer.write_all(b"\n").await.unwrap();
+        writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
         print_indentation(writer, &context).await;
         print_attribute(writer, attribute, &context).await;
     }
@@ -378,14 +383,14 @@ async fn print_tag_attributes<W: Write + Unpin + Send + ?Sized>(
         if inline_mode {
             writer.write_all(b" ").await.unwrap();
         } else if continuation_indent_mode {
-            writer.write_all(b"\n").await.unwrap();
+            writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
             print_indentation(writer, &context).await;
         } else {
             // write attribute on first line (same as tag)
             if index == 0 {
                 writer.write_all(b" ").await.unwrap();
             } else {
-                writer.write_all(b"\n").await.unwrap();
+                writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
 
                 print_indentation(writer, &context).await;
             }
@@ -457,7 +462,7 @@ async fn print_twig_block<W, C, P>(
             }
         }
     } else {
-        writer.write_all(b"\n").await.unwrap();
+        writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
         print_indentation(writer, context).await;
     }
 
@@ -498,7 +503,7 @@ async fn print_twig_for<W, C, P>(
             }
         }
     } else {
-        writer.write_all(b"\n").await.unwrap();
+        writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
         print_indentation(writer, context).await;
     }
 
@@ -546,7 +551,7 @@ where
                 }
             }
         } else {
-            writer.write_all(b"\n").await.unwrap();
+            writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
             print_indentation(writer, context).await;
         }
     }
@@ -588,7 +593,7 @@ async fn print_twig_apply<W, C, P>(
             }
         }
     } else {
-        writer.write_all(b"\n").await.unwrap();
+        writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
         print_indentation(writer, context).await;
     }
 
@@ -629,7 +634,7 @@ async fn print_twig_set_capture<W, C, P>(
             }
         }
     } else {
-        writer.write_all(b"\n").await.unwrap();
+        writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
         print_indentation(writer, context).await;
     }
 
@@ -666,7 +671,7 @@ async fn print_whitespace<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
-    writer.write_all(b"\r\n").await.unwrap();
+    writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
 
     // decide if additional whitespaces are needed (for example before and after twig blocks)
     check_and_print_additional_whitespace_around_twig_block(writer, context).await;
@@ -695,12 +700,12 @@ async fn check_and_print_additional_whitespace_around_twig_block<
     // check if the after or previous node is a twig block. In that case an extra whitespace is needed.
     if let Some(SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_))) = context.after_node {
         // print another whitespace.
-        writer.write_all(b"\r\n").await.unwrap();
+        writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
     } else if let Some(SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_))) =
         context.previous_node
     {
         // print another whitespace.
-        writer.write_all(b"\r\n").await.unwrap();
+        writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
     }
 }
 
@@ -791,6 +796,13 @@ mod tests {
     Copyright (c) shopware AG (https://github.com/shopware/SwagMigrationAssistant)
      */
 
+    /// Supply a format string like "{% block some_twig_block %}\n    Hello world\n{% endblock %}"
+    /// and every '\n' or "\r\n" will be replaced with the right line ending for the current operating system.
+    fn correct_line_endings(input: &str) -> String {
+        // this could be optimized with a regex (but that's an extra dependency) and this is only needed for the tests
+        input.replace("\r\n", "\n").replace('\n', LINE_BREAK)
+    }
+
     async fn convert_tree_into_written_string(tree: SyntaxNode) -> String {
         let mut writer_raw: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
@@ -819,7 +831,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "<this_is_a_test_one>\r\n    <this_is_a_test_two></this_is_a_test_two>\r\n</this_is_a_test_one>".to_string()
+            correct_line_endings("<this_is_a_test_one>\r\n    <this_is_a_test_two></this_is_a_test_two>\r\n</this_is_a_test_one>")
         );
     }
 
@@ -840,7 +852,9 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% block some_twig_block %}\r\n    Hello world\r\n{% endblock %}".to_string()
+            correct_line_endings(
+                "{% block some_twig_block %}\r\n    Hello world\r\n{% endblock %}"
+            )
         );
     }
 
@@ -869,7 +883,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% block this_is_a_test_one %}\r\n    {% block this_is_a_test_two %}\r\n        {% block this_is_a_test_three %}\r\n        {% endblock %}\r\n    {% endblock %}\r\n{% endblock %}".to_string()
+            correct_line_endings("{% block this_is_a_test_one %}\r\n    {% block this_is_a_test_two %}\r\n        {% block this_is_a_test_three %}\r\n        {% endblock %}\r\n    {% endblock %}\r\n{% endblock %}")
         );
     }
 
@@ -911,7 +925,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "<this_is_a_test_one>\r\n\r\n    {% block this_is_a_test_two %}\r\n        {% parent %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n    {% block this_is_a_test_three %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n</this_is_a_test_one>".to_string()
+            correct_line_endings("<this_is_a_test_one>\r\n\r\n    {% block this_is_a_test_two %}\r\n        {% parent %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n    {% block this_is_a_test_three %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n</this_is_a_test_one>")
         );
     }
 
@@ -968,7 +982,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% block this_is_a_test_one %}\r\n    {% block this_is_a_test_two %}\r\n\r\n        {% block some_content_block_1 %}\r\n            content\r\n        {% endblock %}\r\n\r\n        {% block some_content_block_2 %}\r\n            content\r\n        {% endblock %}\r\n\r\n        {% block some_content_block_3 %}\r\n            content\r\n        {% endblock %}\r\n\r\n    {% endblock %}\r\n{% endblock %}".to_string()
+            correct_line_endings("{% block this_is_a_test_one %}\r\n    {% block this_is_a_test_two %}\r\n\r\n        {% block some_content_block_1 %}\r\n            content\r\n        {% endblock %}\r\n\r\n        {% block some_content_block_2 %}\r\n            content\r\n        {% endblock %}\r\n\r\n        {% block some_content_block_3 %}\r\n            content\r\n        {% endblock %}\r\n\r\n    {% endblock %}\r\n{% endblock %}")
         );
     }
 
@@ -991,7 +1005,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "<this_is_a_test_one>\r\n\r\n    {% block this_is_a_test_two %}{% endblock %}\r\n\r\n</this_is_a_test_one>".to_string()
+            correct_line_endings("<this_is_a_test_one>\r\n\r\n    {% block this_is_a_test_two %}{% endblock %}\r\n\r\n</this_is_a_test_one>")
         );
     }
 
@@ -1016,8 +1030,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "<slot name=\"pagination\">{% block sw_grid_slot_pagination %}{% endblock %}</slot>"
-                .to_string()
+            correct_line_endings("<slot name=\"pagination\">{% block sw_grid_slot_pagination %}{% endblock %}</slot>")
         );
     }
 
@@ -1044,8 +1057,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "<slot name=\"pagination\">{% block sw_grid_slot_pagination %}Hello world{% endblock %}</slot>"
-                .to_string()
+            correct_line_endings("<slot name=\"pagination\">{% block sw_grid_slot_pagination %}Hello world{% endblock %}</slot>")
         );
     }
 
@@ -1066,7 +1078,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% for item in items %}\r\n    {{ item }}\r\n{% endfor %}".to_string()
+            correct_line_endings("{% for item in items %}\r\n    {{ item }}\r\n{% endfor %}")
         );
     }
 
@@ -1089,7 +1101,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% if a > b %}\r\n    {{ a }}\r\n{% endif %}".to_string()
+            correct_line_endings("{% if a > b %}\r\n    {{ a }}\r\n{% endif %}")
         );
     }
 
@@ -1124,7 +1136,9 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% if a > b %}\r\n    {{ a }}\r\n{% else %}\r\n    {{ b }}\r\n{% endif %}".to_string()
+            correct_line_endings(
+                "{% if a > b %}\r\n    {{ a }}\r\n{% else %}\r\n    {{ b }}\r\n{% endif %}"
+            )
         );
     }
 
@@ -1169,7 +1183,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% if a > b %}\r\n    {{ a }}\r\n{% elseif a == b %}\r\n    {{ b }}\r\n{% else %}\r\n    TODO\r\n{% endif %}".to_string()
+            correct_line_endings("{% if a > b %}\r\n    {{ a }}\r\n{% elseif a == b %}\r\n    {{ b }}\r\n{% else %}\r\n    TODO\r\n{% endif %}")
         );
     }
 
@@ -1221,7 +1235,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% block my_block %}\r\n    {% if a > b %}\r\n        {{ a }}\r\n    {% elseif a == b %}\r\n        {{ b }}\r\n    {% else %}\r\n        TODO\r\n    {% endif %}\r\n{% endblock %}".to_string()
+            correct_line_endings("{% block my_block %}\r\n    {% if a > b %}\r\n        {{ a }}\r\n    {% elseif a == b %}\r\n        {{ b }}\r\n    {% else %}\r\n        TODO\r\n    {% endif %}\r\n{% endblock %}")
         );
     }
 
@@ -1242,7 +1256,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% apply upper %}\r\n    hello world\r\n{% endapply %}".to_string()
+            correct_line_endings("{% apply upper %}\r\n    hello world\r\n{% endapply %}")
         );
     }
 
@@ -1263,7 +1277,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% set myVariable %}\r\n    hello world\r\n{% endset %}".to_string()
+            correct_line_endings("{% set myVariable %}\r\n    hello world\r\n{% endset %}")
         );
     }
 
@@ -1294,8 +1308,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% endif %}></div>"
-                .to_string()
+            correct_line_endings("<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% endif %}></div>")
         );
     }
 
@@ -1335,8 +1348,8 @@ mod tests {
 
         assert_eq!(
             res,
-            "<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% else %}\n         focus\n     {% endif %}></div>"
-                .to_string()
+            correct_line_endings("<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% else %}\n         focus\n     {% endif %}></div>"
+            )
         );
     }
 
@@ -1382,8 +1395,8 @@ mod tests {
 
         assert_eq!(
             res,
-            "<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% elseif isFocus %}\n         focus\n     {% else %}\n         {# Nothing for now #}\n     {% endif %}></div>"
-                .to_string()
+            correct_line_endings("<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% elseif isFocus %}\n         focus\n     {% else %}\n         {# Nothing for now #}\n     {% endif %}></div>"
+                )
         );
     }
 
@@ -1431,8 +1444,8 @@ mod tests {
 
         assert_eq!(
             res,
-            "<div class=\"hello\"\n     {% if isDisabled %}\n         {% if !isFocus %}\n             disabled\n         {% endif %}\n     {% else %}\n         {# Nothing for now #}\n     {% endif %}></div>"
-                .to_string()
+            correct_line_endings("<div class=\"hello\"\n     {% if isDisabled %}\n         {% if !isFocus %}\n             disabled\n         {% endif %}\n     {% else %}\n         {# Nothing for now #}\n     {% endif %}></div>"
+                )
         );
     }
 
@@ -1461,8 +1474,8 @@ mod tests {
 
         assert_eq!(
             res,
-            "<div class=\"hello\"\n     {% block my_custom_attribute_block %}\n         disabled\n     {% endblock %}></div>"
-                .to_string()
+            correct_line_endings("<div class=\"hello\"\n     {% block my_custom_attribute_block %}\n         disabled\n     {% endblock %}></div>"
+                )
         );
     }
 
@@ -1496,8 +1509,8 @@ mod tests {
 
         assert_eq!(
             res,
-            "<div class=\"hello\"\n     {% block my_custom_attribute_block %}\n         {% if isDisabled %}\n             disabled\n         {% endif %}\n     {% endblock %}></div>"
-                .to_string()
+            correct_line_endings("<div class=\"hello\"\n     {% block my_custom_attribute_block %}\n         {% if isDisabled %}\n             disabled\n         {% endif %}\n     {% endblock %}></div>"
+                )
         );
     }
 }
