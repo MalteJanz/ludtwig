@@ -102,7 +102,9 @@ fn is_hidden(entry: &DirEntry) -> bool {
     !entry
         .file_name()
         .to_str()
-        .map(|s| s.starts_with('.'))
+        // '.' and './' is a valid path for the current working directory and not an hidden file / dir
+        // otherwise anything that starts with a '.' is considered hidden for ludtwig
+        .map(|s| s.starts_with('.') && s != "." && s != "./")
         .unwrap_or(false)
 }
 
