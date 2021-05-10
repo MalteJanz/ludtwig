@@ -1,0 +1,24 @@
+# Ludtwig configuration
+
+# To override any of these values with environment variables use the following format:
+# LUDTWIG_FORMAT__INDENTATION_COUNT=1
+
+[format]
+# How should the line endings look like? ["unix_LF", "windows_CRLF"]
+# unix_LF is a single '\n' character
+# windows_CRLF are the characters '\r\n'
+line-ending = "unix_LF"
+# Which character should be used for indentation ["space", "tab"]
+indentation-mode = "space"
+# How many times should this character be printed for one indentation [0-255]
+indentation-count = 4
+# What should be the maximum line length? [0-65535]
+# Ludtwig tries to arrange attributes that they don't go over that line length if possible
+preferred-max-line-length = 120
+# Maximum number of attributes in a single line (if the line length is still smaller than preferred-max-line-length) [0-255]
+# Any tag with more attributes than this will split the attributes in multiple lines.
+attribute-inline-max-count = 2
+# Should the children of twig blocks be indented? [true, false]
+indent-children-of-blocks = true
+# Should twig blocks have empty lines around them? [true, false]
+linebreaks-around-blocks = true

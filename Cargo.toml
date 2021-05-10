@@ -21,8 +21,10 @@ codegen-units = 1 # do not compile crates in parallel to allow for further optim
 [dependencies]
 #ludtwig-parser = { path = "../ludtwig-parser" } # for local development
 ludtwig-parser = "0.3.0"
-clap = "~3.0.0-beta.2"
+structopt = "0.3.21"
 async-std = { version = "~1.9.0", features = ["attributes"] }
 ansi_term = "~0.12.1"
 walkdir = "~2.3.1"
 async-trait = "0.1.42"
+figment = { version = "0.10", features = ["toml", "env"] }
+serde = { version = "1.0", features = ["derive"] }
