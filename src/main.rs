@@ -1,36 +1,53 @@
 mod analyzer;
+mod config;
 mod output;
 mod process;
 mod writer;
 
+use crate::config::Config;
 use crate::output::OutputMessage;
 use async_std::channel::Sender;
 use async_std::path::PathBuf;
 use async_std::sync::Arc;
 use async_std::{channel, task};
-use clap::{crate_authors, crate_version, Clap, ValueHint};
 use std::boxed::Box;
+use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
 
 /// A CLI tool for '.twig' files with focus on formatting and detecting mistakes.
-#[derive(Clap, Debug, Clone)]
-#[clap(version = crate_version!(), author = crate_authors!())]
-struct Opts {
+#[derive(StructOpt, Debug, Clone)]
+#[structopt(author = env!("CARGO_PKG_AUTHORS"))]
+pub struct Opts {
     /// Files or directories to scan and format
-    #[clap(value_name = "FILE", min_values = 1, required = true, value_hint = ValueHint::AnyPath)]
+    #[structopt(
+        value_name = "FILE",
+        min_values = 1,
+        required = true,
+        conflicts_with = "create_config",
+        parse(from_os_str),
+        name = "files"
+    )]
     files: Vec<PathBuf>,
 
     /// Disable the analysis of the syntax tree. There will still be parsing errors.
-    #[clap(short = 'A', long)]
+    #[structopt(short = "A", long)]
     no_analysis: bool,
 
     /// Disable the formatted writing of the syntax tree to disk. With this option the tool will not write to any files.
-    #[clap(short = 'W', long)]
+    #[structopt(short = "W", long)]
     no_writing: bool,
 
     /// Specify a custom output directory instead of modifying the files in place.
-    #[clap(short, long, value_hint = ValueHint::AnyPath)]
+    #[structopt(short, long, parse(from_os_str))]
     output_path: Option<PathBuf>,
+
+    /// Specify where the ludtwig configuration file is. Ludtwig looks in the current directory for a 'ludtwig-config.toml' by default.
+    #[structopt(short = "c", long, parse(from_os_str))]
+    config_path: Option<PathBuf>,
+
+    /// Create the default configuration file in the config path. Defaults to the current directory.
+    #[structopt(short = "C", long, name = "create_config")]
+    create_config: bool,
 }
 
 #[derive(Debug)]
@@ -43,6 +60,8 @@ pub struct CliContext {
     pub no_writing: bool,
     /// Specify a custom output directory instead of modifying the files in place.
     pub output_path: Option<PathBuf>,
+    /// The config values to use.
+    pub config: Config,
 }
 
 impl CliContext {
@@ -54,15 +73,15 @@ impl CliContext {
 
 /// Parse the CLI arguments and bootstrap the async application.
 fn main() {
-    let opts: Opts = Opts::parse();
+    let opts: Opts = Opts::from_args();
+    let config = config::handle_config_or_exit(&opts);
 
-    let process_code = task::block_on(app(opts)).unwrap();
-
+    let process_code = task::block_on(app(opts, config)).unwrap();
     std::process::exit(process_code);
 }
 
 /// The entry point of the async application.
-async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
+async fn app(opts: Opts, config: Config) -> Result<i32, Box<dyn std::error::Error>> {
     println!("Parsing files...");
 
     // sender and receiver channels for the communication between tasks and the user.
@@ -75,6 +94,7 @@ async fn app(opts: Opts) -> Result<i32, Box<dyn std::error::Error>> {
         no_analysis: opts.no_analysis,
         no_writing: opts.no_writing,
         output_path: opts.output_path,
+        config,
     });
 
     let output_handler = task::spawn(output::handle_processing_output(rx));

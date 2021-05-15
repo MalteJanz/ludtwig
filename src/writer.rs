@@ -1,3 +1,4 @@
+use crate::config::{Config, IndentationMode, LineEnding};
 use crate::process::FileContext;
 use async_std::fs;
 use async_std::fs::File;
@@ -13,16 +14,8 @@ use ludtwig_parser::ast::{
 };
 use std::pin::Pin;
 
-const MAX_LINE_LENGTH: usize = 120;
-const MIN_TAG_NAME_LENGTH_FOR_CONTINUATION_INDENT: usize = 9;
-
-#[cfg(windows)]
-const LINE_BREAK: &str = "\r\n";
-#[cfg(not(windows))]
-const LINE_BREAK: &str = "\n";
-
 /// Context for traversing the AST with printing in mind.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone)]
 struct PrintingContext<'a> {
     previous_node: Option<&'a SyntaxNode>,
     after_node: Option<&'a SyntaxNode>,
@@ -30,15 +23,21 @@ struct PrintingContext<'a> {
     /// the last node in the list is the current node. everything before that is up in the hierarchy.
     parent_nodes: Vec<&'a SyntaxNode>,
 
-    /// in spaces count (a tab is 4 spaces)
+    /// in 'tab' count (a tab can be configured in the config)
+    indentation_tabs: u32,
+
+    /// in spaces count (gets added to the 'tab' count for more precise placement in attributes for example)
     indentation_spaces: u32,
+
+    /// reference to context
+    file_context: &'a FileContext,
 }
 
 impl<'a> PrintingContext<'a> {
     /// Clones the current context and returns a new one with the increased indentation.
     fn increase_indentation_by_tabs(&self, tabs: u32) -> Self {
         let mut copy = self.clone();
-        copy.indentation_spaces += tabs * 4;
+        copy.indentation_tabs += tabs;
         copy
     }
 
@@ -63,10 +62,21 @@ impl<'a> PrintingContext<'a> {
     /// Returns the amount of tabs and spaces needed for the current indentation.
     /// (tabs, spaces)
     fn get_tabs_and_spaces(&self) -> (u32, u32) {
-        let tabs = self.indentation_spaces / 4;
-        let spaces = self.indentation_spaces % 4;
+        (self.indentation_tabs, self.indentation_spaces)
+    }
 
-        (tabs, spaces)
+    fn get_config(&self) -> &Config {
+        &self.file_context.cli_context.config
+    }
+
+    fn get_line_break_bytes(&self) -> &[u8] {
+        const LF: &[u8; 1] = b"\n";
+        const CRLF: &[u8; 2] = b"\r\n";
+
+        match self.get_config().format.line_ending {
+            LineEnding::UnixLF => LF,
+            LineEnding::WindowsCRLF => CRLF,
+        }
     }
 }
 
@@ -142,7 +152,14 @@ pub async fn write_tree(file_context: Arc<FileContext>) {
     print_node(
         &mut writer,
         &file_context.tree,
-        &mut PrintingContext::default(),
+        &mut PrintingContext {
+            previous_node: None,
+            after_node: None,
+            parent_nodes: vec![],
+            indentation_tabs: 0,
+            indentation_spaces: 0,
+            file_context: &file_context,
+        },
     )
     .await;
 
@@ -249,7 +266,9 @@ async fn print_node_list<W: Write + Unpin + Send + ?Sized>(
             previous_node: previous,
             after_node: after,
             parent_nodes: context.parent_nodes.clone(),
+            indentation_tabs: context.indentation_tabs,
             indentation_spaces: context.indentation_spaces,
+            file_context: context.file_context,
         };
 
         print_node(writer, current, &mut context).await;
@@ -265,7 +284,10 @@ async fn print_attribute_list<W: Write + Unpin + Send + ?Sized>(
     context: &PrintingContext<'_>,
 ) {
     for attribute in attributes {
-        writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
+        writer
+            .write_all(context.get_line_break_bytes())
+            .await
+            .unwrap();
         print_indentation(writer, &context).await;
         print_attribute(writer, attribute, &context).await;
     }
@@ -348,10 +370,8 @@ async fn print_tag<W: Write + Unpin + Send + ?Sized>(
         .await;
     }
 
-    if let Some(last) = tag.children.last() {
-        if let SyntaxNode::Whitespace = last {
-            print_indentation(writer, context).await;
-        }
+    if let Some(SyntaxNode::Whitespace) = tag.children.last() {
+        print_indentation(writer, context).await;
     }
 
     if !tag.self_closed {
@@ -368,9 +388,15 @@ async fn print_tag_attributes<W: Write + Unpin + Send + ?Sized>(
     tag: &Tag,
     context: &PrintingContext<'_>,
 ) {
-    let inline_mode =
-        tag.attributes.len() <= 2 && calculate_tag_line_length(tag, context) <= MAX_LINE_LENGTH;
-    let continuation_indent_mode = tag.name.len() >= MIN_TAG_NAME_LENGTH_FOR_CONTINUATION_INDENT;
+    let inline_mode = tag.attributes.len()
+        <= context.get_config().format.attribute_inline_max_count as usize
+        && calculate_tag_line_length(tag, context)
+            <= context.get_config().format.preferred_max_line_length as usize;
+    let continuation_indent_length = match context.get_config().format.indentation_mode {
+        IndentationMode::Space => context.get_config().format.indentation_count as usize * 2,
+        IndentationMode::Tab => 4 * context.get_config().format.indentation_count as usize * 2,
+    };
+    let continuation_indent_mode = tag.name.len() > continuation_indent_length;
 
     let context = if continuation_indent_mode {
         context.increase_indentation_by_tabs(2)
@@ -383,14 +409,20 @@ async fn print_tag_attributes<W: Write + Unpin + Send + ?Sized>(
         if inline_mode {
             writer.write_all(b" ").await.unwrap();
         } else if continuation_indent_mode {
-            writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
+            writer
+                .write_all(context.get_line_break_bytes())
+                .await
+                .unwrap();
             print_indentation(writer, &context).await;
         } else {
             // write attribute on first line (same as tag)
             if index == 0 {
                 writer.write_all(b" ").await.unwrap();
             } else {
-                writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
+                writer
+                    .write_all(context.get_line_break_bytes())
+                    .await
+                    .unwrap();
 
                 print_indentation(writer, &context).await;
             }
@@ -448,12 +480,12 @@ async fn print_twig_block<W, C, P>(
     writer.write_all(twig.name.as_bytes()).await.unwrap();
     writer.write_all(b" %}").await.unwrap();
 
-    P::generic_print_children(
-        writer,
-        &twig.children,
-        &context.increase_indentation_by_tabs(1),
-    )
-    .await;
+    let child_context = match context.get_config().format.indent_children_of_blocks {
+        true => context.increase_indentation_by_tabs(1),
+        false => context.clone(),
+    };
+
+    P::generic_print_children(writer, &twig.children, &child_context).await;
 
     if P::is_whitespace_sensitive() {
         if let Some(last) = twig.children.last() {
@@ -462,7 +494,10 @@ async fn print_twig_block<W, C, P>(
             }
         }
     } else {
-        writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
+        writer
+            .write_all(context.get_line_break_bytes())
+            .await
+            .unwrap();
         print_indentation(writer, context).await;
     }
 
@@ -503,7 +538,10 @@ async fn print_twig_for<W, C, P>(
             }
         }
     } else {
-        writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
+        writer
+            .write_all(context.get_line_break_bytes())
+            .await
+            .unwrap();
         print_indentation(writer, context).await;
     }
 
@@ -551,7 +589,10 @@ where
                 }
             }
         } else {
-            writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
+            writer
+                .write_all(context.get_line_break_bytes())
+                .await
+                .unwrap();
             print_indentation(writer, context).await;
         }
     }
@@ -593,7 +634,10 @@ async fn print_twig_apply<W, C, P>(
             }
         }
     } else {
-        writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
+        writer
+            .write_all(context.get_line_break_bytes())
+            .await
+            .unwrap();
         print_indentation(writer, context).await;
     }
 
@@ -634,7 +678,10 @@ async fn print_twig_set_capture<W, C, P>(
             }
         }
     } else {
-        writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
+        writer
+            .write_all(context.get_line_break_bytes())
+            .await
+            .unwrap();
         print_indentation(writer, context).await;
     }
 
@@ -671,10 +718,15 @@ async fn print_whitespace<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
-    writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
+    writer
+        .write_all(context.get_line_break_bytes())
+        .await
+        .unwrap();
 
-    // decide if additional whitespaces are needed (for example before and after twig blocks)
-    check_and_print_additional_whitespace_around_twig_block(writer, context).await;
+    if context.get_config().format.linebreaks_around_blocks {
+        // decide if additional whitespaces are needed (for example before and after twig blocks)
+        check_and_print_additional_whitespace_around_twig_block(writer, context).await;
+    }
 }
 
 async fn check_and_print_additional_whitespace_around_twig_block<
@@ -700,12 +752,18 @@ async fn check_and_print_additional_whitespace_around_twig_block<
     // check if the after or previous node is a twig block. In that case an extra whitespace is needed.
     if let Some(SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_))) = context.after_node {
         // print another whitespace.
-        writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
+        writer
+            .write_all(context.get_line_break_bytes())
+            .await
+            .unwrap();
     } else if let Some(SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_))) =
         context.previous_node
     {
         // print another whitespace.
-        writer.write_all(LINE_BREAK.as_bytes()).await.unwrap();
+        writer
+            .write_all(context.get_line_break_bytes())
+            .await
+            .unwrap();
     }
 }
 
@@ -716,8 +774,16 @@ async fn print_indentation<W: Write + Unpin + Send + ?Sized>(
     let (tabs, spaces) = context.get_tabs_and_spaces();
 
     for _ in 0..tabs {
-        // 1 tab = 4 spaces at once
-        writer.write_all(b"    ").await.unwrap();
+        for _ in 0..context.get_config().format.indentation_count {
+            match context.get_config().format.indentation_mode {
+                IndentationMode::Space => {
+                    writer.write_all(b" ").await.unwrap();
+                }
+                IndentationMode::Tab => {
+                    writer.write_all(b"\t").await.unwrap();
+                }
+            }
+        }
     }
 
     for _ in 0..spaces {
@@ -729,26 +795,24 @@ async fn print_indentation_if_whitespace_exists_before<W: Write + Unpin + Send +
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
-    if let Some(prev) = context.previous_node {
-        if let SyntaxNode::Whitespace = prev {
-            print_indentation(writer, context).await;
-        }
+    if let Some(SyntaxNode::Whitespace) = context.previous_node {
+        print_indentation(writer, context).await;
     }
 }
 
-/// Calculates the line length including indentation but only with a maximum of two attributes
-/// (everything above that will be ignored).
+/// Calculates the line length including indentation but only with a maximum of MAX attributes
+/// (everything above that will be ignored and should result in not inlining anyways).
 /// It is possible that this function returns a very high line length (>1000) if this is
 /// a inline tag without whitespaces (like `<span>Hello</span>`)
-
 fn calculate_tag_line_length(tag: &Tag, context: &PrintingContext) -> usize {
-    context.indentation_spaces as usize
+    4 * context.indentation_tabs as usize
+        + context.indentation_spaces as usize
         + 1
         + tag.name.len()
         + tag
             .attributes
             .iter()
-            .take(2)
+            .take(context.get_config().format.attribute_inline_max_count as usize) // only count the length of up to max attributes (otherwise it can't be written in one line anyways)
             .map(|a| {
                 match a {
                     TagAttribute::HtmlAttribute(a) => {
@@ -785,6 +849,9 @@ fn calculate_tag_line_length(tag: &Tag, context: &PrintingContext) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::Format;
+    use crate::{config, CliContext};
+    use async_std::channel;
     use async_std::io::Cursor;
     use ludtwig_parser::ast::{HtmlAttribute, TwigIfArm};
 
@@ -796,23 +863,148 @@ mod tests {
     Copyright (c) shopware AG (https://github.com/shopware/SwagMigrationAssistant)
      */
 
-    /// Supply a format string like "{% block some_twig_block %}\n    Hello world\n{% endblock %}"
-    /// and every '\n' or "\r\n" will be replaced with the right line ending for the current operating system.
-    fn correct_line_endings(input: &str) -> String {
-        // this could be optimized with a regex (but that's an extra dependency) and this is only needed for the tests
-        input.replace("\r\n", "\n").replace('\n', LINE_BREAK)
+    fn create_default_config() -> Config {
+        Config::new(config::DEFAULT_CONFIG_PATH).expect("can't create default config")
     }
 
-    async fn convert_tree_into_written_string(tree: SyntaxNode) -> String {
+    async fn convert_tree_into_written_string(tree: SyntaxNode, config: &Config) -> String {
         let mut writer_raw: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-        print_node(&mut writer_raw, &tree, &mut PrintingContext::default()).await;
+        let (tx, _) = channel::bounded(1);
+        let mut context = PrintingContext {
+            previous_node: None,
+            after_node: None,
+            parent_nodes: vec![],
+            indentation_tabs: 0,
+            indentation_spaces: 0,
+            file_context: &FileContext {
+                cli_context: Arc::new(CliContext {
+                    output_tx: tx,
+                    no_analysis: false,
+                    no_writing: false,
+                    output_path: None,
+                    config: config.to_owned(),
+                }),
+                file_path: Default::default(),
+                tree: SyntaxNode::Root(vec![]), // not used during write
+            },
+        };
+
+        print_node(&mut writer_raw, &tree, &mut context).await;
 
         String::from_utf8(writer_raw.into_inner()).unwrap()
     }
 
+    fn create_tree_for_config_tests() -> SyntaxNode {
+        SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
+            name: "this_is_a_test_one".to_string(),
+            children: vec![
+                SyntaxNode::Whitespace,
+                SyntaxNode::Tag(Tag {
+                    name: "div".to_string(),
+                    self_closed: false,
+                    attributes: vec![
+                        TagAttribute::HtmlAttribute(HtmlAttribute::new(
+                            "id".to_string(),
+                            Some("customized-thing".to_string()),
+                        )),
+                        TagAttribute::HtmlAttribute(HtmlAttribute::new(
+                            "class".to_string(),
+                            Some("thing".to_string()),
+                        )),
+                    ],
+                    children: vec![
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::Tag(Tag {
+                            name: "span".to_string(),
+                            self_closed: false,
+                            attributes: vec![],
+                            children: vec![SyntaxNode::Plain(Plain::new(
+                                "Whitespace sensitive".to_string(),
+                            ))],
+                        }),
+                        SyntaxNode::Whitespace,
+                    ],
+                }),
+                SyntaxNode::Whitespace,
+                SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
+                    name: "this_is_a_test_two".to_string(),
+                    children: vec![
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
+                            name: "some_content_block_1".to_string(),
+                            children: vec![
+                                SyntaxNode::Whitespace,
+                                SyntaxNode::Tag(Tag {
+                                    name: "h2".to_string(),
+                                    self_closed: false,
+                                    attributes: vec![
+                                        TagAttribute::HtmlAttribute(HtmlAttribute::new(
+                                            "class".to_string(),
+                                            Some("headline".to_string()),
+                                        )),
+                                        TagAttribute::HtmlAttribute(HtmlAttribute::new(
+                                            "@click".to_string(),
+                                            Some("onHeadlineClick".to_string()),
+                                        )),
+                                        TagAttribute::HtmlAttribute(HtmlAttribute::new(
+                                            "v-if".to_string(),
+                                            Some("showHeadline".to_string()),
+                                        )),
+                                    ],
+                                    children: vec![
+                                        SyntaxNode::Whitespace,
+                                        SyntaxNode::Plain(Plain {
+                                            plain: "hello".to_string(),
+                                        }),
+                                        SyntaxNode::Whitespace,
+                                    ],
+                                }),
+                                SyntaxNode::Whitespace,
+                            ],
+                        })),
+                        SyntaxNode::Whitespace,
+                        SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
+                            name: "some_content_block_2".to_string(),
+                            children: vec![
+                                SyntaxNode::Whitespace,
+                                SyntaxNode::Tag(Tag {
+                                    name: "my-custom-component-that-is-long".to_string(),
+                                    self_closed: false,
+                                    attributes: vec![
+                                        TagAttribute::HtmlAttribute(HtmlAttribute::new(
+                                            "class".to_string(),
+                                            Some("component".to_string()),
+                                        )),
+                                        TagAttribute::HtmlAttribute(HtmlAttribute::new(
+                                            "@click".to_string(),
+                                            Some("onComponentClick".to_string()),
+                                        )),
+                                        TagAttribute::HtmlAttribute(HtmlAttribute::new(
+                                            "v-if".to_string(),
+                                            Some("showComponent".to_string()),
+                                        )),
+                                        TagAttribute::HtmlAttribute(HtmlAttribute::new(
+                                            "v-model".to_string(),
+                                            Some("data".to_string()),
+                                        )),
+                                    ],
+                                    children: vec![SyntaxNode::Whitespace],
+                                }),
+                                SyntaxNode::Whitespace,
+                            ],
+                        })),
+                        SyntaxNode::Whitespace,
+                    ],
+                })),
+                SyntaxNode::Whitespace,
+            ],
+        }))
+    }
+
     #[async_std::test]
     async fn test_write_empty_html_tag() {
+        let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "this_is_a_test_one".to_string(),
             children: vec![
@@ -827,16 +1019,17 @@ mod tests {
             ..Default::default()
         });
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("<this_is_a_test_one>\r\n    <this_is_a_test_two></this_is_a_test_two>\r\n</this_is_a_test_one>")
+            "<this_is_a_test_one>\n    <this_is_a_test_two></this_is_a_test_two>\n</this_is_a_test_one>"
         );
     }
 
     #[async_std::test]
     async fn test_write_simple_twig_block() {
+        let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
             name: "some_twig_block".to_string(),
             children: vec![
@@ -848,18 +1041,17 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings(
-                "{% block some_twig_block %}\r\n    Hello world\r\n{% endblock %}"
-            )
+            "{% block some_twig_block %}\n    Hello world\n{% endblock %}"
         );
     }
 
     #[async_std::test]
     async fn test_write_nested_twig_block() {
+        let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
             name: "this_is_a_test_one".to_string(),
             children: vec![
@@ -879,16 +1071,17 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("{% block this_is_a_test_one %}\r\n    {% block this_is_a_test_two %}\r\n        {% block this_is_a_test_three %}\r\n        {% endblock %}\r\n    {% endblock %}\r\n{% endblock %}")
+            "{% block this_is_a_test_one %}\n    {% block this_is_a_test_two %}\n        {% block this_is_a_test_three %}\n        {% endblock %}\n    {% endblock %}\n{% endblock %}"
         );
     }
 
     #[async_std::test]
     async fn test_write_nested_twig_block_separation() {
+        let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "this_is_a_test_one".to_string(),
             children: vec![
@@ -921,16 +1114,17 @@ mod tests {
             ..Default::default()
         });
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("<this_is_a_test_one>\r\n\r\n    {% block this_is_a_test_two %}\r\n        {% parent %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n    {% block this_is_a_test_three %}\r\n        Some content\r\n    {% endblock %}\r\n\r\n</this_is_a_test_one>")
+            "<this_is_a_test_one>\n\n    {% block this_is_a_test_two %}\n        {% parent %}\n        Some content\n    {% endblock %}\n\n    {% block this_is_a_test_three %}\n        Some content\n    {% endblock %}\n\n</this_is_a_test_one>"
         );
     }
 
     #[async_std::test]
     async fn test_write_nested_twig_block_separation_edge_case() {
+        let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
             name: "this_is_a_test_one".to_string(),
             children: vec![
@@ -978,16 +1172,17 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("{% block this_is_a_test_one %}\r\n    {% block this_is_a_test_two %}\r\n\r\n        {% block some_content_block_1 %}\r\n            content\r\n        {% endblock %}\r\n\r\n        {% block some_content_block_2 %}\r\n            content\r\n        {% endblock %}\r\n\r\n        {% block some_content_block_3 %}\r\n            content\r\n        {% endblock %}\r\n\r\n    {% endblock %}\r\n{% endblock %}")
+            "{% block this_is_a_test_one %}\n    {% block this_is_a_test_two %}\n\n        {% block some_content_block_1 %}\n            content\n        {% endblock %}\n\n        {% block some_content_block_2 %}\n            content\n        {% endblock %}\n\n        {% block some_content_block_3 %}\n            content\n        {% endblock %}\n\n    {% endblock %}\n{% endblock %}"
         );
     }
 
     #[async_std::test]
     async fn test_write_empty_twig_block() {
+        let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "this_is_a_test_one".to_string(),
             children: vec![
@@ -1001,16 +1196,17 @@ mod tests {
             ..Default::default()
         });
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("<this_is_a_test_one>\r\n\r\n    {% block this_is_a_test_two %}{% endblock %}\r\n\r\n</this_is_a_test_one>")
+            "<this_is_a_test_one>\n\n    {% block this_is_a_test_two %}{% endblock %}\n\n</this_is_a_test_one>"
         );
     }
 
     #[async_std::test]
     async fn test_write_tag_and_twig_block_without_whitespace() {
+        let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "slot".to_string(),
             children: vec![SyntaxNode::TwigStructure(TwigStructure::TwigBlock(
@@ -1026,16 +1222,17 @@ mod tests {
             ..Default::default()
         });
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("<slot name=\"pagination\">{% block sw_grid_slot_pagination %}{% endblock %}</slot>")
+            "<slot name=\"pagination\">{% block sw_grid_slot_pagination %}{% endblock %}</slot>"
         );
     }
 
     #[async_std::test]
     async fn test_write_tag_and_twig_block_content_without_whitespace() {
+        let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "slot".to_string(),
             children: vec![SyntaxNode::TwigStructure(TwigStructure::TwigBlock(
@@ -1053,16 +1250,17 @@ mod tests {
             ..Default::default()
         });
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("<slot name=\"pagination\">{% block sw_grid_slot_pagination %}Hello world{% endblock %}</slot>")
+            "<slot name=\"pagination\">{% block sw_grid_slot_pagination %}Hello world{% endblock %}</slot>"
         );
     }
 
     #[async_std::test]
     async fn test_write_twig_for() {
+        let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigFor(TwigFor {
             expression: "item in items".to_string(),
             children: vec![
@@ -1074,16 +1272,14 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
-        assert_eq!(
-            res,
-            correct_line_endings("{% for item in items %}\r\n    {{ item }}\r\n{% endfor %}")
-        );
+        assert_eq!(res, "{% for item in items %}\n    {{ item }}\n{% endfor %}");
     }
 
     #[async_std::test]
     async fn test_write_twig_if() {
+        let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigIf(TwigIf {
             if_arms: vec![TwigIfArm {
                 expression: Some("a > b".to_string()),
@@ -1097,16 +1293,14 @@ mod tests {
             }],
         }));
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
-        assert_eq!(
-            res,
-            correct_line_endings("{% if a > b %}\r\n    {{ a }}\r\n{% endif %}")
-        );
+        assert_eq!(res, "{% if a > b %}\n    {{ a }}\n{% endif %}");
     }
 
     #[async_std::test]
     async fn test_write_twig_if_else() {
+        let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigIf(TwigIf {
             if_arms: vec![
                 TwigIfArm {
@@ -1132,18 +1326,17 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings(
-                "{% if a > b %}\r\n    {{ a }}\r\n{% else %}\r\n    {{ b }}\r\n{% endif %}"
-            )
+            "{% if a > b %}\n    {{ a }}\n{% else %}\n    {{ b }}\n{% endif %}"
         );
     }
 
     #[async_std::test]
     async fn test_write_twig_if_elseif_else() {
+        let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigIf(TwigIf {
             if_arms: vec![
                 TwigIfArm {
@@ -1179,16 +1372,17 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("{% if a > b %}\r\n    {{ a }}\r\n{% elseif a == b %}\r\n    {{ b }}\r\n{% else %}\r\n    TODO\r\n{% endif %}")
+            "{% if a > b %}\n    {{ a }}\n{% elseif a == b %}\n    {{ b }}\n{% else %}\n    TODO\n{% endif %}"
         );
     }
 
     #[async_std::test]
     async fn test_write_twig_if_elseif_else_in_twig_block() {
+        let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
             name: "my_block".to_string(),
             children: vec![
@@ -1231,16 +1425,17 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("{% block my_block %}\r\n    {% if a > b %}\r\n        {{ a }}\r\n    {% elseif a == b %}\r\n        {{ b }}\r\n    {% else %}\r\n        TODO\r\n    {% endif %}\r\n{% endblock %}")
+            "{% block my_block %}\n    {% if a > b %}\n        {{ a }}\n    {% elseif a == b %}\n        {{ b }}\n    {% else %}\n        TODO\n    {% endif %}\n{% endblock %}"
         );
     }
 
     #[async_std::test]
     async fn test_write_twig_apply() {
+        let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigApply(TwigApply {
             expression: "upper".to_string(),
             children: vec![
@@ -1252,16 +1447,14 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
-        assert_eq!(
-            res,
-            correct_line_endings("{% apply upper %}\r\n    hello world\r\n{% endapply %}")
-        );
+        assert_eq!(res, "{% apply upper %}\n    hello world\n{% endapply %}");
     }
 
     #[async_std::test]
     async fn test_write_twig_set_capture() {
+        let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigSetCapture(TwigSetCapture {
             name: "myVariable".to_string(),
             children: vec![
@@ -1273,16 +1466,14 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
-        assert_eq!(
-            res,
-            correct_line_endings("{% set myVariable %}\r\n    hello world\r\n{% endset %}")
-        );
+        assert_eq!(res, "{% set myVariable %}\n    hello world\n{% endset %}");
     }
 
     #[async_std::test]
     async fn test_write_tag_with_twig_if_attribute() {
+        let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
             self_closed: false,
@@ -1304,16 +1495,17 @@ mod tests {
             children: vec![],
         });
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% endif %}></div>")
+            "<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% endif %}></div>"
         );
     }
 
     #[async_std::test]
     async fn test_write_tag_with_twig_if_else_attribute() {
+        let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
             self_closed: false,
@@ -1344,17 +1536,17 @@ mod tests {
             children: vec![],
         });
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% else %}\n         focus\n     {% endif %}></div>"
-            )
+            "<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% else %}\n         focus\n     {% endif %}></div>"
         );
     }
 
     #[async_std::test]
     async fn test_write_tag_with_twig_if_elseif_else_attribute() {
+        let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
             self_closed: false,
@@ -1391,17 +1583,17 @@ mod tests {
             children: vec![],
         });
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% elseif isFocus %}\n         focus\n     {% else %}\n         {# Nothing for now #}\n     {% endif %}></div>"
-                )
+            "<div class=\"hello\"\n     {% if isDisabled %}\n         disabled\n     {% elseif isFocus %}\n         focus\n     {% else %}\n         {# Nothing for now #}\n     {% endif %}></div>"
         );
     }
 
     #[async_std::test]
     async fn test_write_tag_with_twig_nested_if_attribute() {
+        let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
             self_closed: false,
@@ -1440,17 +1632,17 @@ mod tests {
             children: vec![],
         });
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("<div class=\"hello\"\n     {% if isDisabled %}\n         {% if !isFocus %}\n             disabled\n         {% endif %}\n     {% else %}\n         {# Nothing for now #}\n     {% endif %}></div>"
-                )
+            "<div class=\"hello\"\n     {% if isDisabled %}\n         {% if !isFocus %}\n             disabled\n         {% endif %}\n     {% else %}\n         {# Nothing for now #}\n     {% endif %}></div>"
         );
     }
 
     #[async_std::test]
     async fn test_write_tag_with_twig_block_attribute() {
+        let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
             self_closed: false,
@@ -1470,17 +1662,17 @@ mod tests {
             children: vec![],
         });
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("<div class=\"hello\"\n     {% block my_custom_attribute_block %}\n         disabled\n     {% endblock %}></div>"
-                )
+            "<div class=\"hello\"\n     {% block my_custom_attribute_block %}\n         disabled\n     {% endblock %}></div>"
         );
     }
 
     #[async_std::test]
     async fn test_write_tag_with_twig_block_with_if_attribute() {
+        let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
             self_closed: false,
@@ -1505,12 +1697,143 @@ mod tests {
             children: vec![],
         });
 
-        let res = convert_tree_into_written_string(tree).await;
+        let res = convert_tree_into_written_string(tree, &config).await;
 
         assert_eq!(
             res,
-            correct_line_endings("<div class=\"hello\"\n     {% block my_custom_attribute_block %}\n         {% if isDisabled %}\n             disabled\n         {% endif %}\n     {% endblock %}></div>"
-                )
+            "<div class=\"hello\"\n     {% block my_custom_attribute_block %}\n         {% if isDisabled %}\n             disabled\n         {% endif %}\n     {% endblock %}></div>"
+        );
+    }
+
+    #[async_std::test]
+    async fn test_config_line_ending_windows() {
+        let config = Config {
+            format: Format {
+                line_ending: LineEnding::WindowsCRLF,
+                indentation_mode: IndentationMode::Space,
+                indentation_count: 4,
+                preferred_max_line_length: 120,
+                attribute_inline_max_count: 2,
+                indent_children_of_blocks: true,
+                linebreaks_around_blocks: true,
+            },
+        };
+        let tree = create_tree_for_config_tests();
+        let res = convert_tree_into_written_string(tree, &config).await;
+
+        assert_eq!(
+            res,
+            "{% block this_is_a_test_one %}\r\n    <div id=\"customized-thing\" class=\"thing\">\r\n        <span>Whitespace sensitive</span>\r\n    </div>\r\n\r\n    {% block this_is_a_test_two %}\r\n\r\n        {% block some_content_block_1 %}\r\n            <h2 class=\"headline\"\r\n                @click=\"onHeadlineClick\"\r\n                v-if=\"showHeadline\">\r\n                hello\r\n            </h2>\r\n        {% endblock %}\r\n\r\n        {% block some_content_block_2 %}\r\n            <my-custom-component-that-is-long\r\n                    class=\"component\"\r\n                    @click=\"onComponentClick\"\r\n                    v-if=\"showComponent\"\r\n                    v-model=\"data\">\r\n            </my-custom-component-that-is-long>\r\n        {% endblock %}\r\n\r\n    {% endblock %}\r\n\r\n{% endblock %}"
+        );
+    }
+
+    #[async_std::test]
+    async fn test_config_indentation_mode_and_indentation_count_with_tabs() {
+        let config = Config {
+            format: Format {
+                line_ending: LineEnding::UnixLF,
+                indentation_mode: IndentationMode::Tab,
+                indentation_count: 1,
+                preferred_max_line_length: 120,
+                attribute_inline_max_count: 2,
+                indent_children_of_blocks: true,
+                linebreaks_around_blocks: true,
+            },
+        };
+        let tree = create_tree_for_config_tests();
+        let res = convert_tree_into_written_string(tree, &config).await;
+
+        assert_eq!(
+            res,
+            "{% block this_is_a_test_one %}\n\t<div id=\"customized-thing\" class=\"thing\">\n\t\t<span>Whitespace sensitive</span>\n\t</div>\n\n\t{% block this_is_a_test_two %}\n\n\t\t{% block some_content_block_1 %}\n\t\t\t<h2 class=\"headline\"\n\t\t\t    @click=\"onHeadlineClick\"\n\t\t\t    v-if=\"showHeadline\">\n\t\t\t\thello\n\t\t\t</h2>\n\t\t{% endblock %}\n\n\t\t{% block some_content_block_2 %}\n\t\t\t<my-custom-component-that-is-long\n\t\t\t\t\tclass=\"component\"\n\t\t\t\t\t@click=\"onComponentClick\"\n\t\t\t\t\tv-if=\"showComponent\"\n\t\t\t\t\tv-model=\"data\">\n\t\t\t</my-custom-component-that-is-long>\n\t\t{% endblock %}\n\n\t{% endblock %}\n\n{% endblock %}"
+        );
+    }
+
+    #[async_std::test]
+    async fn test_config_preferred_max_line_length_small() {
+        let config = Config {
+            format: Format {
+                line_ending: LineEnding::UnixLF,
+                indentation_mode: IndentationMode::Space,
+                indentation_count: 4,
+                preferred_max_line_length: 44,
+                attribute_inline_max_count: 10,
+                indent_children_of_blocks: true,
+                linebreaks_around_blocks: true,
+            },
+        };
+        let tree = create_tree_for_config_tests();
+        let res = convert_tree_into_written_string(tree, &config).await;
+
+        assert_eq!(
+            res,
+            "{% block this_is_a_test_one %}\n    <div id=\"customized-thing\"\n         class=\"thing\">\n        <span>Whitespace sensitive</span>\n    </div>\n\n    {% block this_is_a_test_two %}\n\n        {% block some_content_block_1 %}\n            <h2 class=\"headline\"\n                @click=\"onHeadlineClick\"\n                v-if=\"showHeadline\">\n                hello\n            </h2>\n        {% endblock %}\n\n        {% block some_content_block_2 %}\n            <my-custom-component-that-is-long\n                    class=\"component\"\n                    @click=\"onComponentClick\"\n                    v-if=\"showComponent\"\n                    v-model=\"data\">\n            </my-custom-component-that-is-long>\n        {% endblock %}\n\n    {% endblock %}\n\n{% endblock %}"
+        );
+    }
+
+    #[async_std::test]
+    async fn test_config_attribute_inline_max_count_large() {
+        let config = Config {
+            format: Format {
+                line_ending: LineEnding::UnixLF,
+                indentation_mode: IndentationMode::Space,
+                indentation_count: 4,
+                preferred_max_line_length: 999,
+                attribute_inline_max_count: 10,
+                indent_children_of_blocks: true,
+                linebreaks_around_blocks: true,
+            },
+        };
+        let tree = create_tree_for_config_tests();
+        let res = convert_tree_into_written_string(tree, &config).await;
+
+        assert_eq!(
+            res,
+            "{% block this_is_a_test_one %}\n    <div id=\"customized-thing\" class=\"thing\">\n        <span>Whitespace sensitive</span>\n    </div>\n\n    {% block this_is_a_test_two %}\n\n        {% block some_content_block_1 %}\n            <h2 class=\"headline\" @click=\"onHeadlineClick\" v-if=\"showHeadline\">\n                hello\n            </h2>\n        {% endblock %}\n\n        {% block some_content_block_2 %}\n            <my-custom-component-that-is-long class=\"component\" @click=\"onComponentClick\" v-if=\"showComponent\" v-model=\"data\">\n            </my-custom-component-that-is-long>\n        {% endblock %}\n\n    {% endblock %}\n\n{% endblock %}"
+        );
+    }
+
+    #[async_std::test]
+    async fn test_config_indent_children_of_blocks_false() {
+        let config = Config {
+            format: Format {
+                line_ending: LineEnding::UnixLF,
+                indentation_mode: IndentationMode::Space,
+                indentation_count: 4,
+                preferred_max_line_length: 120,
+                attribute_inline_max_count: 2,
+                indent_children_of_blocks: false,
+                linebreaks_around_blocks: true,
+            },
+        };
+        let tree = create_tree_for_config_tests();
+        let res = convert_tree_into_written_string(tree, &config).await;
+
+        assert_eq!(
+            res,
+            "{% block this_is_a_test_one %}\n<div id=\"customized-thing\" class=\"thing\">\n    <span>Whitespace sensitive</span>\n</div>\n\n{% block this_is_a_test_two %}\n\n{% block some_content_block_1 %}\n<h2 class=\"headline\"\n    @click=\"onHeadlineClick\"\n    v-if=\"showHeadline\">\n    hello\n</h2>\n{% endblock %}\n\n{% block some_content_block_2 %}\n<my-custom-component-that-is-long\n        class=\"component\"\n        @click=\"onComponentClick\"\n        v-if=\"showComponent\"\n        v-model=\"data\">\n</my-custom-component-that-is-long>\n{% endblock %}\n\n{% endblock %}\n\n{% endblock %}"
+        );
+    }
+
+    #[async_std::test]
+    async fn test_config_linebreaks_around_blocks_false() {
+        let config = Config {
+            format: Format {
+                line_ending: LineEnding::UnixLF,
+                indentation_mode: IndentationMode::Space,
+                indentation_count: 4,
+                preferred_max_line_length: 120,
+                attribute_inline_max_count: 2,
+                indent_children_of_blocks: true,
+                linebreaks_around_blocks: false,
+            },
+        };
+        let tree = create_tree_for_config_tests();
+        let res = convert_tree_into_written_string(tree, &config).await;
+
+        assert_eq!(
+            res,
+            "{% block this_is_a_test_one %}\n    <div id=\"customized-thing\" class=\"thing\">\n        <span>Whitespace sensitive</span>\n    </div>\n    {% block this_is_a_test_two %}\n        {% block some_content_block_1 %}\n            <h2 class=\"headline\"\n                @click=\"onHeadlineClick\"\n                v-if=\"showHeadline\">\n                hello\n            </h2>\n        {% endblock %}\n        {% block some_content_block_2 %}\n            <my-custom-component-that-is-long\n                    class=\"component\"\n                    @click=\"onComponentClick\"\n                    v-if=\"showComponent\"\n                    v-model=\"data\">\n            </my-custom-component-that-is-long>\n        {% endblock %}\n    {% endblock %}\n{% endblock %}"
         );
     }
 }
