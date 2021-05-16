@@ -1,8 +1,8 @@
 use ansi_term::Colour::*;
 use ansi_term::Style;
-use async_std::channel::Receiver;
-use async_std::path::PathBuf;
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::mpsc::Receiver;
 
 /// The user output has different variants.
 #[derive(Debug, Clone, PartialEq)]
@@ -24,14 +24,14 @@ pub struct OutputMessage {
 
 /// This function receives all the [OutputMessage] instances from the receiver channel and
 /// prints information to the console / user.
-pub async fn handle_processing_output(rx: Receiver<OutputMessage>) -> i32 {
+pub fn handle_processing_output(rx: Receiver<OutputMessage>) -> i32 {
     let mut map = HashMap::new();
     let mut file_count = 0;
     let mut warning_count = 0;
     let mut error_count = 0;
 
     // receive all incoming messages until all sending ends are closed.
-    while let Ok(msg) = rx.recv().await {
+    while let Ok(msg) = rx.recv() {
         let entry = map.entry(msg.file).or_insert_with(Vec::new);
 
         match msg.output {
@@ -90,5 +90,5 @@ pub async fn handle_processing_output(rx: Receiver<OutputMessage>) -> i32 {
         return 0;
     }
 
-    return 0;
+    0
 }
