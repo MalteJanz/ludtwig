@@ -6,11 +6,12 @@ mod writer;
 
 use crate::config::Config;
 use crate::output::OutputMessage;
-use async_std::channel::Sender;
-use async_std::path::PathBuf;
-use async_std::sync::Arc;
-use async_std::{channel, task};
+use rayon::prelude::*;
 use std::boxed::Box;
+use std::path::PathBuf;
+use std::sync::mpsc::SyncSender;
+use std::sync::{mpsc, Arc};
+use std::thread;
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
 
@@ -53,7 +54,7 @@ pub struct Opts {
 #[derive(Debug)]
 pub struct CliContext {
     /// Channel sender for transmitting messages back to the user.
-    pub output_tx: Sender<OutputMessage>,
+    pub output_tx: SyncSender<OutputMessage>,
     /// Disable the analysis of the syntax tree. There will still be parsing errors.
     pub no_analysis: bool,
     /// Disable the formatted writing of the syntax tree to disk. With this option the tool will not write to any files.
@@ -66,28 +67,28 @@ pub struct CliContext {
 
 impl CliContext {
     /// Helper function to send a [OutputMessage] back to the user.
-    pub async fn send_output(&self, msg: OutputMessage) {
-        self.output_tx.send(msg).await.unwrap();
+    pub fn send_output(&self, msg: OutputMessage) {
+        self.output_tx.send(msg).unwrap();
     }
 }
 
-/// Parse the CLI arguments and bootstrap the async application.
+/// Parse the CLI arguments and bootstrap the application.
 fn main() {
     let opts: Opts = Opts::from_args();
     let config = config::handle_config_or_exit(&opts);
 
-    let process_code = task::block_on(app(opts, config)).unwrap();
+    let process_code = app(opts, config).unwrap();
     std::process::exit(process_code);
 }
 
 /// The entry point of the async application.
-async fn app(opts: Opts, config: Config) -> Result<i32, Box<dyn std::error::Error>> {
+fn app(opts: Opts, config: Config) -> Result<i32, Box<dyn std::error::Error>> {
     println!("Parsing files...");
 
     // sender and receiver channels for the communication between tasks and the user.
-    // the channel is bounded to buffer 32 messages before sending will block (in an async way).
-    // this limit should be fine for one task continuously processing the incoming messages from the channel.
-    let (tx, rx) = channel::bounded(32);
+    // the channel is bounded to buffer 32 messages before sending will block.
+    // this limit should be fine for one thread continuously processing the incoming messages from the channel.
+    let (tx, rx) = mpsc::sync_channel(32);
 
     let cli_context = Arc::new(CliContext {
         output_tx: tx,
@@ -97,21 +98,17 @@ async fn app(opts: Opts, config: Config) -> Result<i32, Box<dyn std::error::Erro
         config,
     });
 
-    let output_handler = task::spawn(output::handle_processing_output(rx));
+    let output_handler = thread::spawn(|| output::handle_processing_output(rx));
 
-    let mut futures = Vec::with_capacity(opts.files.len());
-    for path in opts.files {
-        let context = Arc::clone(&cli_context);
-        futures.push(task::spawn(handle_input_path(path, context)));
-    }
+    // work on each user specified file / directory path concurrently
+    opts.files.into_par_iter().for_each(|path| {
+        handle_input_path(path, Arc::clone(&cli_context));
+    });
+
     drop(cli_context);
 
-    for t in futures {
-        t.await;
-    }
-
     // the output_handler will finish execution if all the sending channel ends are closed.
-    let process_code = output_handler.await;
+    let process_code = output_handler.join().unwrap();
 
     Ok(process_code)
 }
@@ -129,37 +126,29 @@ fn is_hidden(entry: &DirEntry) -> bool {
 }
 
 /// Process a directory path.
-async fn handle_input_path(path: PathBuf, cli_context: Arc<CliContext>) {
-    let mut futures_processes = Vec::new();
+fn handle_input_path(path: PathBuf, cli_context: Arc<CliContext>) {
     let walker = WalkDir::new(path).into_iter();
 
-    for entry in walker.filter_entry(|e| is_hidden(e)) {
-        let entry = entry.unwrap();
+    // synchronous directory traversal but move the work for each file to a different thread in the thread pool.
+    rayon::scope(move |s| {
+        for entry in walker.filter_entry(|e| is_hidden(e)) {
+            let entry = entry.unwrap();
 
-        if !entry.file_type().is_file() {
-            continue;
+            if !entry.file_type().is_file() {
+                continue;
+            }
+
+            if !entry
+                .file_name()
+                .to_str() // also skips non utf-8 file names!
+                .map(|s| s.ends_with(".twig"))
+                .unwrap_or(false)
+            {
+                continue;
+            }
+
+            let clone = Arc::clone(&cli_context);
+            s.spawn(move |_s1| process::process_file(entry.path().into(), clone));
         }
-
-        if !entry
-            .file_name()
-            .to_str() // also skips non utf-8 file names!
-            .map(|s| s.ends_with(".twig"))
-            .unwrap_or(false)
-        {
-            continue;
-        }
-
-        futures_processes.push(task::spawn(process::process_file(
-            entry.path().into(),
-            Arc::clone(&cli_context),
-        )));
-
-        // cooperatively give up computation time in this thread to allow other futures to process.
-        // because WalkDir is not async this is in fact helpful for the overall performance.
-        task::yield_now().await;
-    }
-
-    for f in futures_processes {
-        f.await;
-    }
+    });
 }

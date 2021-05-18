@@ -2,7 +2,7 @@ use crate::Opts;
 use figment::providers::{Env, Format as FigFormat, Toml};
 use figment::Figment;
 use serde::Deserialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "kebab-case")]
@@ -63,7 +63,7 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
     let config_path = opts
         .config_path
         .clone()
-        .unwrap_or_else(|| async_std::path::PathBuf::from(DEFAULT_CONFIG_PATH));
+        .unwrap_or_else(|| PathBuf::from(DEFAULT_CONFIG_PATH));
 
     if opts.create_config {
         if std::path::Path::exists(config_path.as_ref()) {

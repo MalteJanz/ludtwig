@@ -1,18 +1,14 @@
 use crate::config::{Config, IndentationMode, LineEnding};
 use crate::process::FileContext;
-use async_std::fs;
-use async_std::fs::File;
-use async_std::future::Future;
-use async_std::io::prelude::*;
-use async_std::io::{BufWriter, Write};
-use async_std::path::{Path, PathBuf};
-use async_std::sync::Arc;
-use async_trait::async_trait;
 use ludtwig_parser::ast::{
     HtmlComment, OutputExpression, Plain, SyntaxNode, Tag, TagAttribute, TwigApply, TwigBlock,
     TwigComment, TwigFor, TwigIf, TwigSetCapture, TwigStatement, TwigStructure,
 };
-use std::pin::Pin;
+use std::fs;
+use std::fs::File;
+use std::io::{BufWriter, Write};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 /// Context for traversing the AST with printing in mind.
 #[derive(Debug, Clone)]
@@ -81,9 +77,8 @@ impl<'a> PrintingContext<'a> {
 }
 
 /// Trait that allows to print a generic list of children.
-#[async_trait]
 trait GenericChildPrinter<T: IsWhitespace> {
-    async fn generic_print_children<W: Write + Unpin + Send + ?Sized>(
+    fn generic_print_children<W: Write + Unpin + Send + ?Sized>(
         writer: &mut W,
         nodes: &[T],
         context: &PrintingContext<'_>,
@@ -98,26 +93,24 @@ trait GenericChildPrinter<T: IsWhitespace> {
 struct DynamicChildPrinter();
 
 /// In case of [SyntaxNode]
-#[async_trait]
 impl GenericChildPrinter<SyntaxNode> for DynamicChildPrinter {
-    async fn generic_print_children<W: Write + Unpin + Send + ?Sized>(
+    fn generic_print_children<W: Write + Unpin + Send + ?Sized>(
         writer: &mut W,
         nodes: &[SyntaxNode],
         context: &PrintingContext<'_>,
     ) {
-        print_node_list(writer, nodes, context).await;
+        print_node_list(writer, nodes, context);
     }
 }
 
 /// In case of [TagAttribute]
-#[async_trait]
 impl GenericChildPrinter<TagAttribute> for DynamicChildPrinter {
-    async fn generic_print_children<W: Write + Unpin + Send + ?Sized>(
+    fn generic_print_children<W: Write + Unpin + Send + ?Sized>(
         writer: &mut W,
         nodes: &[TagAttribute],
         context: &PrintingContext<'_>,
     ) {
-        print_attribute_list(writer, nodes, context).await;
+        print_attribute_list(writer, nodes, context);
     }
 
     fn is_whitespace_sensitive() -> bool {
@@ -144,9 +137,9 @@ impl IsWhitespace for SyntaxNode {
 impl IsWhitespace for TagAttribute {}
 
 /// Entry function for writing the ast back into files.
-pub async fn write_tree(file_context: Arc<FileContext>) {
-    let path = create_and_secure_output_path(&file_context).await;
-    let file = File::create(path).await.expect("can't create file.");
+pub fn write_tree(file_context: Arc<FileContext>) {
+    let path = create_and_secure_output_path(&file_context);
+    let file = File::create(path).expect("can't create file.");
     let mut writer = BufWriter::new(file);
 
     print_node(
@@ -160,16 +153,15 @@ pub async fn write_tree(file_context: Arc<FileContext>) {
             indentation_spaces: 0,
             file_context: &file_context,
         },
-    )
-    .await;
+    );
 
-    writer.flush().await.unwrap();
+    writer.flush().unwrap();
 }
 
 /// Append the CLI output path if it is given and
 /// create all directories if they do not exists.
 /// Returns the full path which is secure to use.
-async fn create_and_secure_output_path(file_context: &FileContext) -> PathBuf {
+fn create_and_secure_output_path(file_context: &FileContext) -> PathBuf {
     let base_path = match &file_context.cli_context.output_path {
         None => Path::new(""),
         Some(p) => p,
@@ -177,9 +169,7 @@ async fn create_and_secure_output_path(file_context: &FileContext) -> PathBuf {
     let path = base_path.join(&*file_context.file_path);
 
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .await
-            .expect("can't create directory for output");
+        fs::create_dir_all(parent).expect("can't create directory for output");
     }
 
     path
@@ -190,69 +180,58 @@ fn print_node<'a, W: Write + Unpin + Send + ?Sized>(
     writer: &'a mut W,
     node: &'a SyntaxNode,
     context: &'a mut PrintingContext<'a>,
-) -> Pin<Box<dyn Future<Output = ()> + 'a + Send>> {
-    Box::pin(async move {
-        context.parent_nodes.push(&node);
+) {
+    context.parent_nodes.push(&node);
 
-        match node {
-            SyntaxNode::Whitespace => {
-                print_whitespace(writer, context).await;
-            }
-            SyntaxNode::Tag(tag) => {
-                print_tag(writer, &tag, context).await;
-            }
-            SyntaxNode::Plain(plain) => {
-                print_plain(writer, &plain, context).await;
-            }
-            SyntaxNode::HtmlComment(comment) => {
-                print_html_comment(writer, comment, context).await;
-            }
-            SyntaxNode::OutputExpression(vue) => {
-                print_vue_block(writer, &vue, context).await;
-            }
-            SyntaxNode::TwigStructure(TwigStructure::TwigBlock(block)) => {
-                print_twig_block::<_, SyntaxNode, DynamicChildPrinter>(writer, &block, context)
-                    .await;
-            }
-            SyntaxNode::TwigStructure(TwigStructure::TwigFor(twig_for)) => {
-                print_twig_for::<_, SyntaxNode, DynamicChildPrinter>(writer, &twig_for, context)
-                    .await;
-            }
-            SyntaxNode::TwigStructure(TwigStructure::TwigIf(twig_if)) => {
-                print_twig_if::<_, SyntaxNode, DynamicChildPrinter>(writer, &twig_if, context)
-                    .await;
-            }
-            SyntaxNode::TwigStatement(statement) => {
-                print_twig_statement(writer, &statement, context).await;
-            }
-            SyntaxNode::TwigComment(comment) => {
-                print_twig_comment(writer, comment, context).await;
-            }
-            SyntaxNode::TwigStructure(TwigStructure::TwigApply(twig_apply)) => {
-                print_twig_apply::<_, SyntaxNode, DynamicChildPrinter>(
-                    writer,
-                    &twig_apply,
-                    context,
-                )
-                .await;
-            }
-            SyntaxNode::TwigStructure(TwigStructure::TwigSetCapture(twig_set_capture)) => {
-                print_twig_set_capture::<_, SyntaxNode, DynamicChildPrinter>(
-                    writer,
-                    &twig_set_capture,
-                    context,
-                )
-                .await;
-            }
-            SyntaxNode::Root(root) => {
-                print_node_list(writer, &root, context).await;
-            }
+    match node {
+        SyntaxNode::Whitespace => {
+            print_whitespace(writer, context);
         }
-    })
+        SyntaxNode::Tag(tag) => {
+            print_tag(writer, &tag, context);
+        }
+        SyntaxNode::Plain(plain) => {
+            print_plain(writer, &plain, context);
+        }
+        SyntaxNode::HtmlComment(comment) => {
+            print_html_comment(writer, comment, context);
+        }
+        SyntaxNode::OutputExpression(vue) => {
+            print_vue_block(writer, &vue, context);
+        }
+        SyntaxNode::TwigStructure(TwigStructure::TwigBlock(block)) => {
+            print_twig_block::<_, SyntaxNode, DynamicChildPrinter>(writer, &block, context);
+        }
+        SyntaxNode::TwigStructure(TwigStructure::TwigFor(twig_for)) => {
+            print_twig_for::<_, SyntaxNode, DynamicChildPrinter>(writer, &twig_for, context);
+        }
+        SyntaxNode::TwigStructure(TwigStructure::TwigIf(twig_if)) => {
+            print_twig_if::<_, SyntaxNode, DynamicChildPrinter>(writer, &twig_if, context);
+        }
+        SyntaxNode::TwigStatement(statement) => {
+            print_twig_statement(writer, &statement, context);
+        }
+        SyntaxNode::TwigComment(comment) => {
+            print_twig_comment(writer, comment, context);
+        }
+        SyntaxNode::TwigStructure(TwigStructure::TwigApply(twig_apply)) => {
+            print_twig_apply::<_, SyntaxNode, DynamicChildPrinter>(writer, &twig_apply, context);
+        }
+        SyntaxNode::TwigStructure(TwigStructure::TwigSetCapture(twig_set_capture)) => {
+            print_twig_set_capture::<_, SyntaxNode, DynamicChildPrinter>(
+                writer,
+                &twig_set_capture,
+                context,
+            );
+        }
+        SyntaxNode::Root(root) => {
+            print_node_list(writer, &root, context);
+        }
+    }
 }
 
 /// Print a list of [SyntaxNode]'s and prepare the context for each one.
-async fn print_node_list<W: Write + Unpin + Send + ?Sized>(
+fn print_node_list<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     nodes: &[SyntaxNode],
     context: &PrintingContext<'_>,
@@ -271,73 +250,64 @@ async fn print_node_list<W: Write + Unpin + Send + ?Sized>(
             file_context: context.file_context,
         };
 
-        print_node(writer, current, &mut context).await;
+        print_node(writer, current, &mut context);
     }
 }
 
 /// Print a list of [TagAttribute]'s. this is generally called by [TwigStructure<TagAttribute>]
 /// and not by an [SyntaxNode::Tag] directly (because it does not do any calculations for
 /// inline and continuation mode).
-async fn print_attribute_list<W: Write + Unpin + Send + ?Sized>(
+fn print_attribute_list<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     attributes: &[TagAttribute],
     context: &PrintingContext<'_>,
 ) {
     for attribute in attributes {
-        writer
-            .write_all(context.get_line_break_bytes())
-            .await
-            .unwrap();
-        print_indentation(writer, &context).await;
-        print_attribute(writer, attribute, &context).await;
+        writer.write_all(context.get_line_break_bytes()).unwrap();
+        print_indentation(writer, &context);
+        print_attribute(writer, attribute, &context);
     }
 }
 
 /// Print a single [TagAttribute].
-async fn print_attribute<'a, W: Write + Unpin + Send + ?Sized>(
+fn print_attribute<'a, W: Write + Unpin + Send + ?Sized>(
     writer: &'a mut W,
     attribute: &'a TagAttribute,
     context: &'a PrintingContext<'a>,
 ) {
     match attribute {
         TagAttribute::HtmlAttribute(attribute) => {
-            writer.write_all(attribute.name.as_bytes()).await.unwrap();
+            writer.write_all(attribute.name.as_bytes()).unwrap();
 
             if let Some(value) = &attribute.value {
-                writer.write_all(b"=\"").await.unwrap();
-                writer.write_all(value.as_bytes()).await.unwrap();
-                writer.write_all(b"\"").await.unwrap();
+                writer.write_all(b"=\"").unwrap();
+                writer.write_all(value.as_bytes()).unwrap();
+                writer.write_all(b"\"").unwrap();
             }
         }
         TagAttribute::TwigComment(twig_comment) => {
-            writer.write_all(b"{# ").await.unwrap();
-            writer
-                .write_all(twig_comment.content.as_bytes())
-                .await
-                .unwrap();
-            writer.write_all(b" #}").await.unwrap();
+            writer.write_all(b"{# ").unwrap();
+            writer.write_all(twig_comment.content.as_bytes()).unwrap();
+            writer.write_all(b" #}").unwrap();
         }
         TagAttribute::TwigStructure(twig_structure) => {
             match twig_structure {
                 TwigStructure::TwigBlock(t) => {
                     print_twig_block::<_, TagAttribute, DynamicChildPrinter>(writer, t, context)
-                        .await
                 }
                 TwigStructure::TwigFor(t) => {
-                    print_twig_for::<_, TagAttribute, DynamicChildPrinter>(writer, t, context).await
+                    print_twig_for::<_, TagAttribute, DynamicChildPrinter>(writer, t, context)
                 }
                 TwigStructure::TwigIf(t) => {
-                    print_twig_if::<_, TagAttribute, DynamicChildPrinter>(writer, t, context).await
+                    print_twig_if::<_, TagAttribute, DynamicChildPrinter>(writer, t, context)
                 }
                 TwigStructure::TwigApply(t) => {
                     print_twig_apply::<_, TagAttribute, DynamicChildPrinter>(writer, t, context)
-                        .await
                 }
                 TwigStructure::TwigSetCapture(t) => {
                     print_twig_set_capture::<_, TagAttribute, DynamicChildPrinter>(
                         writer, t, context,
                     )
-                    .await
                 }
             };
         }
@@ -345,45 +315,44 @@ async fn print_attribute<'a, W: Write + Unpin + Send + ?Sized>(
 }
 
 /// print a complete html tag with its attributes and children.
-async fn print_tag<W: Write + Unpin + Send + ?Sized>(
+fn print_tag<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     tag: &Tag,
     context: &PrintingContext<'_>,
 ) {
-    print_indentation_if_whitespace_exists_before(writer, context).await;
+    print_indentation_if_whitespace_exists_before(writer, context);
 
-    writer.write_all(b"<").await.unwrap();
-    writer.write_all(tag.name.as_bytes()).await.unwrap();
+    writer.write_all(b"<").unwrap();
+    writer.write_all(tag.name.as_bytes()).unwrap();
 
-    print_tag_attributes(writer, tag, context).await;
+    print_tag_attributes(writer, tag, context);
 
     if tag.self_closed {
-        writer.write_all(b"/>").await.unwrap();
+        writer.write_all(b"/>").unwrap();
     } else {
-        writer.write_all(b">").await.unwrap();
+        writer.write_all(b">").unwrap();
         // only print children if tag is not self_closed!
         print_node_list(
             writer,
             &tag.children,
             &context.increase_indentation_by_tabs(1),
-        )
-        .await;
+        );
     }
 
     if let Some(SyntaxNode::Whitespace) = tag.children.last() {
-        print_indentation(writer, context).await;
+        print_indentation(writer, context);
     }
 
     if !tag.self_closed {
-        writer.write_all(b"</").await.unwrap();
-        writer.write_all(tag.name.as_bytes()).await.unwrap();
-        writer.write_all(b">").await.unwrap();
+        writer.write_all(b"</").unwrap();
+        writer.write_all(tag.name.as_bytes()).unwrap();
+        writer.write_all(b">").unwrap();
     }
 }
 
 /// print all the attributes of an html tag.
 /// It does some calculations to print them in inline or continuation mode.
-async fn print_tag_attributes<W: Write + Unpin + Send + ?Sized>(
+fn print_tag_attributes<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     tag: &Tag,
     context: &PrintingContext<'_>,
@@ -407,148 +376,126 @@ async fn print_tag_attributes<W: Write + Unpin + Send + ?Sized>(
     // attributes
     for (index, attribute) in tag.attributes.iter().enumerate() {
         if inline_mode {
-            writer.write_all(b" ").await.unwrap();
+            writer.write_all(b" ").unwrap();
         } else if continuation_indent_mode {
-            writer
-                .write_all(context.get_line_break_bytes())
-                .await
-                .unwrap();
-            print_indentation(writer, &context).await;
+            writer.write_all(context.get_line_break_bytes()).unwrap();
+            print_indentation(writer, &context);
         } else {
             // write attribute on first line (same as tag)
             if index == 0 {
-                writer.write_all(b" ").await.unwrap();
+                writer.write_all(b" ").unwrap();
             } else {
-                writer
-                    .write_all(context.get_line_break_bytes())
-                    .await
-                    .unwrap();
+                writer.write_all(context.get_line_break_bytes()).unwrap();
 
-                print_indentation(writer, &context).await;
+                print_indentation(writer, &context);
             }
         }
 
-        print_attribute(writer, attribute, &context).await;
+        print_attribute(writer, attribute, &context);
     }
 }
 
-async fn print_plain<W: Write + Unpin + Send + ?Sized>(
+fn print_plain<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     plain: &Plain,
     context: &PrintingContext<'_>,
 ) {
-    print_indentation_if_whitespace_exists_before(writer, context).await;
-    writer.write_all(plain.plain.as_bytes()).await.unwrap();
+    print_indentation_if_whitespace_exists_before(writer, context);
+    writer.write_all(plain.plain.as_bytes()).unwrap();
 }
 
-async fn print_html_comment<W: Write + Unpin + Send + ?Sized>(
+fn print_html_comment<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     comment: &HtmlComment,
     context: &PrintingContext<'_>,
 ) {
-    print_indentation_if_whitespace_exists_before(writer, context).await;
-    writer.write_all(b"<!-- ").await.unwrap();
-    writer.write_all(comment.content.as_bytes()).await.unwrap();
-    writer.write_all(b" -->").await.unwrap();
+    print_indentation_if_whitespace_exists_before(writer, context);
+    writer.write_all(b"<!-- ").unwrap();
+    writer.write_all(comment.content.as_bytes()).unwrap();
+    writer.write_all(b" -->").unwrap();
 }
 
-async fn print_vue_block<W: Write + Unpin + Send + ?Sized>(
+fn print_vue_block<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     vue: &OutputExpression,
     context: &PrintingContext<'_>,
 ) {
-    print_indentation_if_whitespace_exists_before(writer, context).await;
-    writer.write_all(b"{{ ").await.unwrap();
-    writer.write_all(vue.content.as_bytes()).await.unwrap();
-    writer.write_all(b" }}").await.unwrap();
+    print_indentation_if_whitespace_exists_before(writer, context);
+    writer.write_all(b"{{ ").unwrap();
+    writer.write_all(vue.content.as_bytes()).unwrap();
+    writer.write_all(b" }}").unwrap();
 }
 
-async fn print_twig_block<W, C, P>(
-    writer: &mut W,
-    twig: &TwigBlock<C>,
-    context: &PrintingContext<'_>,
-) where
+fn print_twig_block<W, C, P>(writer: &mut W, twig: &TwigBlock<C>, context: &PrintingContext<'_>)
+where
     W: Write + Unpin + Send + ?Sized,
     C: IsWhitespace,
     P: GenericChildPrinter<C>,
 {
     if P::is_whitespace_sensitive() {
-        print_indentation_if_whitespace_exists_before(writer, context).await;
+        print_indentation_if_whitespace_exists_before(writer, context);
     }
 
-    writer.write_all(b"{% block ").await.unwrap();
-    writer.write_all(twig.name.as_bytes()).await.unwrap();
-    writer.write_all(b" %}").await.unwrap();
+    writer.write_all(b"{% block ").unwrap();
+    writer.write_all(twig.name.as_bytes()).unwrap();
+    writer.write_all(b" %}").unwrap();
 
     let child_context = match context.get_config().format.indent_children_of_blocks {
         true => context.increase_indentation_by_tabs(1),
         false => context.clone(),
     };
 
-    P::generic_print_children(writer, &twig.children, &child_context).await;
+    P::generic_print_children(writer, &twig.children, &child_context);
 
     if P::is_whitespace_sensitive() {
         if let Some(last) = twig.children.last() {
             if last.is_whitespace() {
-                print_indentation(writer, context).await;
+                print_indentation(writer, context);
             }
         }
     } else {
-        writer
-            .write_all(context.get_line_break_bytes())
-            .await
-            .unwrap();
-        print_indentation(writer, context).await;
+        writer.write_all(context.get_line_break_bytes()).unwrap();
+        print_indentation(writer, context);
     }
 
-    writer.write_all(b"{% endblock %}").await.unwrap();
+    writer.write_all(b"{% endblock %}").unwrap();
 }
 
-async fn print_twig_for<W, C, P>(
-    writer: &mut W,
-    twig_for: &TwigFor<C>,
-    context: &PrintingContext<'_>,
-) where
+fn print_twig_for<W, C, P>(writer: &mut W, twig_for: &TwigFor<C>, context: &PrintingContext<'_>)
+where
     W: Write + Unpin + Send + ?Sized,
     C: IsWhitespace,
     P: GenericChildPrinter<C>,
 {
     if P::is_whitespace_sensitive() {
-        print_indentation_if_whitespace_exists_before(writer, context).await;
+        print_indentation_if_whitespace_exists_before(writer, context);
     }
 
-    writer.write_all(b"{% for ").await.unwrap();
-    writer
-        .write_all(twig_for.expression.as_bytes())
-        .await
-        .unwrap();
-    writer.write_all(b" %}").await.unwrap();
+    writer.write_all(b"{% for ").unwrap();
+    writer.write_all(twig_for.expression.as_bytes()).unwrap();
+    writer.write_all(b" %}").unwrap();
 
     P::generic_print_children(
         writer,
         &twig_for.children,
         &context.increase_indentation_by_tabs(1),
-    )
-    .await;
+    );
 
     if P::is_whitespace_sensitive() {
         if let Some(last) = twig_for.children.last() {
             if last.is_whitespace() {
-                print_indentation(writer, context).await;
+                print_indentation(writer, context);
             }
         }
     } else {
-        writer
-            .write_all(context.get_line_break_bytes())
-            .await
-            .unwrap();
-        print_indentation(writer, context).await;
+        writer.write_all(context.get_line_break_bytes()).unwrap();
+        print_indentation(writer, context);
     }
 
-    writer.write_all(b"{% endfor %}").await.unwrap();
+    writer.write_all(b"{% endfor %}").unwrap();
 }
 
-async fn print_twig_if<W, C, P>(writer: &mut W, twig_if: &TwigIf<C>, context: &PrintingContext<'_>)
+fn print_twig_if<W, C, P>(writer: &mut W, twig_if: &TwigIf<C>, context: &PrintingContext<'_>)
 where
     W: Write + Unpin + Send + ?Sized,
     C: IsWhitespace,
@@ -558,49 +505,45 @@ where
         match (index, &arm.expression) {
             (0, Some(e)) => {
                 if P::is_whitespace_sensitive() {
-                    print_indentation_if_whitespace_exists_before(writer, context).await;
+                    print_indentation_if_whitespace_exists_before(writer, context);
                 }
 
-                writer.write_all(b"{% if ").await.unwrap();
-                writer.write_all(e.as_bytes()).await.unwrap();
+                writer.write_all(b"{% if ").unwrap();
+                writer.write_all(e.as_bytes()).unwrap();
             }
             (_, Some(e)) => {
-                writer.write_all(b"{% elseif ").await.unwrap();
-                writer.write_all(e.as_bytes()).await.unwrap();
+                writer.write_all(b"{% elseif ").unwrap();
+                writer.write_all(e.as_bytes()).unwrap();
             }
             (_, None) => {
-                writer.write_all(b"{% else").await.unwrap();
+                writer.write_all(b"{% else").unwrap();
             }
         }
 
-        writer.write_all(b" %}").await.unwrap();
+        writer.write_all(b" %}").unwrap();
 
         P::generic_print_children(
             writer,
             &arm.children,
             &context.increase_indentation_by_tabs(1),
-        )
-        .await;
+        );
 
         if P::is_whitespace_sensitive() {
             if let Some(last) = arm.children.last() {
                 if last.is_whitespace() {
-                    print_indentation(writer, context).await;
+                    print_indentation(writer, context);
                 }
             }
         } else {
-            writer
-                .write_all(context.get_line_break_bytes())
-                .await
-                .unwrap();
-            print_indentation(writer, context).await;
+            writer.write_all(context.get_line_break_bytes()).unwrap();
+            print_indentation(writer, context);
         }
     }
 
-    writer.write_all(b"{% endif %}").await.unwrap();
+    writer.write_all(b"{% endif %}").unwrap();
 }
 
-async fn print_twig_apply<W, C, P>(
+fn print_twig_apply<W, C, P>(
     writer: &mut W,
     twig_apply: &TwigApply<C>,
     context: &PrintingContext<'_>,
@@ -610,41 +553,34 @@ async fn print_twig_apply<W, C, P>(
     P: GenericChildPrinter<C>,
 {
     if P::is_whitespace_sensitive() {
-        print_indentation_if_whitespace_exists_before(writer, context).await;
+        print_indentation_if_whitespace_exists_before(writer, context);
     }
 
-    writer.write_all(b"{% apply ").await.unwrap();
-    writer
-        .write_all(twig_apply.expression.as_bytes())
-        .await
-        .unwrap();
-    writer.write_all(b" %}").await.unwrap();
+    writer.write_all(b"{% apply ").unwrap();
+    writer.write_all(twig_apply.expression.as_bytes()).unwrap();
+    writer.write_all(b" %}").unwrap();
 
     P::generic_print_children(
         writer,
         &twig_apply.children,
         &context.increase_indentation_by_tabs(1),
-    )
-    .await;
+    );
 
     if P::is_whitespace_sensitive() {
         if let Some(last) = twig_apply.children.last() {
             if last.is_whitespace() {
-                print_indentation(writer, context).await;
+                print_indentation(writer, context);
             }
         }
     } else {
-        writer
-            .write_all(context.get_line_break_bytes())
-            .await
-            .unwrap();
-        print_indentation(writer, context).await;
+        writer.write_all(context.get_line_break_bytes()).unwrap();
+        print_indentation(writer, context);
     }
 
-    writer.write_all(b"{% endapply %}").await.unwrap();
+    writer.write_all(b"{% endapply %}").unwrap();
 }
 
-async fn print_twig_set_capture<W, C, P>(
+fn print_twig_set_capture<W, C, P>(
     writer: &mut W,
     twig_set_capture: &TwigSetCapture<C>,
     context: &PrintingContext<'_>,
@@ -654,84 +590,72 @@ async fn print_twig_set_capture<W, C, P>(
     P: GenericChildPrinter<C>,
 {
     if P::is_whitespace_sensitive() {
-        print_indentation_if_whitespace_exists_before(writer, context).await;
+        print_indentation_if_whitespace_exists_before(writer, context);
     }
 
-    writer.write_all(b"{% set ").await.unwrap();
-    writer
-        .write_all(twig_set_capture.name.as_bytes())
-        .await
-        .unwrap();
-    writer.write_all(b" %}").await.unwrap();
+    writer.write_all(b"{% set ").unwrap();
+    writer.write_all(twig_set_capture.name.as_bytes()).unwrap();
+    writer.write_all(b" %}").unwrap();
 
     P::generic_print_children(
         writer,
         &twig_set_capture.children,
         &context.increase_indentation_by_tabs(1),
-    )
-    .await;
+    );
 
     if P::is_whitespace_sensitive() {
         if let Some(last) = twig_set_capture.children.last() {
             if last.is_whitespace() {
-                print_indentation(writer, context).await;
+                print_indentation(writer, context);
             }
         }
     } else {
-        writer
-            .write_all(context.get_line_break_bytes())
-            .await
-            .unwrap();
-        print_indentation(writer, context).await;
+        writer.write_all(context.get_line_break_bytes()).unwrap();
+        print_indentation(writer, context);
     }
 
-    writer.write_all(b"{% endset %}").await.unwrap();
+    writer.write_all(b"{% endset %}").unwrap();
 }
 
-async fn print_twig_statement<W: Write + Unpin + Send + ?Sized>(
+fn print_twig_statement<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     statement: &TwigStatement,
     context: &PrintingContext<'_>,
 ) {
-    print_indentation_if_whitespace_exists_before(writer, context).await;
-    writer.write_all(b"{% ").await.unwrap();
+    print_indentation_if_whitespace_exists_before(writer, context);
+    writer.write_all(b"{% ").unwrap();
     match statement {
         TwigStatement::Raw(raw) => {
-            writer.write_all(raw.as_bytes()).await.unwrap();
+            writer.write_all(raw.as_bytes()).unwrap();
         }
     }
-    writer.write_all(b" %}").await.unwrap();
+    writer.write_all(b" %}").unwrap();
 }
 
-async fn print_twig_comment<W: Write + Unpin + Send + ?Sized>(
+fn print_twig_comment<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     comment: &TwigComment,
     context: &PrintingContext<'_>,
 ) {
-    print_indentation_if_whitespace_exists_before(writer, context).await;
-    writer.write_all(b"{# ").await.unwrap();
-    writer.write_all(comment.content.as_bytes()).await.unwrap();
-    writer.write_all(b" #}").await.unwrap();
+    print_indentation_if_whitespace_exists_before(writer, context);
+    writer.write_all(b"{# ").unwrap();
+    writer.write_all(comment.content.as_bytes()).unwrap();
+    writer.write_all(b" #}").unwrap();
 }
 
-async fn print_whitespace<W: Write + Unpin + Send + ?Sized>(
+fn print_whitespace<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
-    writer
-        .write_all(context.get_line_break_bytes())
-        .await
-        .unwrap();
+    writer.write_all(context.get_line_break_bytes()).unwrap();
 
     if context.get_config().format.linebreaks_around_blocks {
         // decide if additional whitespaces are needed (for example before and after twig blocks)
-        check_and_print_additional_whitespace_around_twig_block(writer, context).await;
+        check_and_print_additional_whitespace_around_twig_block(writer, context);
     }
 }
 
-async fn check_and_print_additional_whitespace_around_twig_block<
-    W: Write + Unpin + Send + ?Sized,
->(
+fn check_and_print_additional_whitespace_around_twig_block<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
@@ -752,22 +676,16 @@ async fn check_and_print_additional_whitespace_around_twig_block<
     // check if the after or previous node is a twig block. In that case an extra whitespace is needed.
     if let Some(SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_))) = context.after_node {
         // print another whitespace.
-        writer
-            .write_all(context.get_line_break_bytes())
-            .await
-            .unwrap();
+        writer.write_all(context.get_line_break_bytes()).unwrap();
     } else if let Some(SyntaxNode::TwigStructure(TwigStructure::TwigBlock(_))) =
         context.previous_node
     {
         // print another whitespace.
-        writer
-            .write_all(context.get_line_break_bytes())
-            .await
-            .unwrap();
+        writer.write_all(context.get_line_break_bytes()).unwrap();
     }
 }
 
-async fn print_indentation<W: Write + Unpin + Send + ?Sized>(
+fn print_indentation<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
@@ -777,26 +695,26 @@ async fn print_indentation<W: Write + Unpin + Send + ?Sized>(
         for _ in 0..context.get_config().format.indentation_count {
             match context.get_config().format.indentation_mode {
                 IndentationMode::Space => {
-                    writer.write_all(b" ").await.unwrap();
+                    writer.write_all(b" ").unwrap();
                 }
                 IndentationMode::Tab => {
-                    writer.write_all(b"\t").await.unwrap();
+                    writer.write_all(b"\t").unwrap();
                 }
             }
         }
     }
 
     for _ in 0..spaces {
-        writer.write_all(b" ").await.unwrap();
+        writer.write_all(b" ").unwrap();
     }
 }
 
-async fn print_indentation_if_whitespace_exists_before<W: Write + Unpin + Send + ?Sized>(
+fn print_indentation_if_whitespace_exists_before<W: Write + Unpin + Send + ?Sized>(
     writer: &mut W,
     context: &PrintingContext<'_>,
 ) {
     if let Some(SyntaxNode::Whitespace) = context.previous_node {
-        print_indentation(writer, context).await;
+        print_indentation(writer, context);
     }
 }
 
@@ -851,9 +769,9 @@ mod tests {
     use super::*;
     use crate::config::Format;
     use crate::{config, CliContext};
-    use async_std::channel;
-    use async_std::io::Cursor;
     use ludtwig_parser::ast::{HtmlAttribute, TwigIfArm};
+    use std::io::Cursor;
+    use std::sync::mpsc;
 
     /*
     The input or output data for testing purposes is partially from the following sources and under copyright!
@@ -867,10 +785,10 @@ mod tests {
         Config::new(config::DEFAULT_CONFIG_PATH).expect("can't create default config")
     }
 
-    async fn convert_tree_into_written_string(tree: SyntaxNode, config: &Config) -> String {
+    fn convert_tree_into_written_string(tree: SyntaxNode, config: &Config) -> String {
         let mut writer_raw: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-        let (tx, _) = channel::bounded(1);
+        let (tx, _) = mpsc::sync_channel(1);
         let mut context = PrintingContext {
             previous_node: None,
             after_node: None,
@@ -890,7 +808,7 @@ mod tests {
             },
         };
 
-        print_node(&mut writer_raw, &tree, &mut context).await;
+        print_node(&mut writer_raw, &tree, &mut context);
 
         String::from_utf8(writer_raw.into_inner()).unwrap()
     }
@@ -1002,8 +920,8 @@ mod tests {
         }))
     }
 
-    #[async_std::test]
-    async fn test_write_empty_html_tag() {
+    #[test]
+    fn test_write_empty_html_tag() {
         let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "this_is_a_test_one".to_string(),
@@ -1019,7 +937,7 @@ mod tests {
             ..Default::default()
         });
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1027,8 +945,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_simple_twig_block() {
+    #[test]
+    fn test_write_simple_twig_block() {
         let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
             name: "some_twig_block".to_string(),
@@ -1041,7 +959,7 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1049,8 +967,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_nested_twig_block() {
+    #[test]
+    fn test_write_nested_twig_block() {
         let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
             name: "this_is_a_test_one".to_string(),
@@ -1071,7 +989,7 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1079,8 +997,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_nested_twig_block_separation() {
+    #[test]
+    fn test_write_nested_twig_block_separation() {
         let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "this_is_a_test_one".to_string(),
@@ -1114,7 +1032,7 @@ mod tests {
             ..Default::default()
         });
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1122,8 +1040,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_nested_twig_block_separation_edge_case() {
+    #[test]
+    fn test_write_nested_twig_block_separation_edge_case() {
         let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
             name: "this_is_a_test_one".to_string(),
@@ -1172,7 +1090,7 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1180,8 +1098,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_empty_twig_block() {
+    #[test]
+    fn test_write_empty_twig_block() {
         let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "this_is_a_test_one".to_string(),
@@ -1196,7 +1114,7 @@ mod tests {
             ..Default::default()
         });
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1204,8 +1122,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_tag_and_twig_block_without_whitespace() {
+    #[test]
+    fn test_write_tag_and_twig_block_without_whitespace() {
         let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "slot".to_string(),
@@ -1222,7 +1140,7 @@ mod tests {
             ..Default::default()
         });
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1230,8 +1148,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_tag_and_twig_block_content_without_whitespace() {
+    #[test]
+    fn test_write_tag_and_twig_block_content_without_whitespace() {
         let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "slot".to_string(),
@@ -1250,7 +1168,7 @@ mod tests {
             ..Default::default()
         });
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1258,8 +1176,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_twig_for() {
+    #[test]
+    fn test_write_twig_for() {
         let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigFor(TwigFor {
             expression: "item in items".to_string(),
@@ -1272,13 +1190,13 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(res, "{% for item in items %}\n    {{ item }}\n{% endfor %}");
     }
 
-    #[async_std::test]
-    async fn test_write_twig_if() {
+    #[test]
+    fn test_write_twig_if() {
         let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigIf(TwigIf {
             if_arms: vec![TwigIfArm {
@@ -1293,13 +1211,13 @@ mod tests {
             }],
         }));
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(res, "{% if a > b %}\n    {{ a }}\n{% endif %}");
     }
 
-    #[async_std::test]
-    async fn test_write_twig_if_else() {
+    #[test]
+    fn test_write_twig_if_else() {
         let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigIf(TwigIf {
             if_arms: vec![
@@ -1326,7 +1244,7 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1334,8 +1252,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_twig_if_elseif_else() {
+    #[test]
+    fn test_write_twig_if_elseif_else() {
         let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigIf(TwigIf {
             if_arms: vec![
@@ -1372,7 +1290,7 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1380,8 +1298,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_twig_if_elseif_else_in_twig_block() {
+    #[test]
+    fn test_write_twig_if_elseif_else_in_twig_block() {
         let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigBlock(TwigBlock {
             name: "my_block".to_string(),
@@ -1425,7 +1343,7 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1433,8 +1351,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_twig_apply() {
+    #[test]
+    fn test_write_twig_apply() {
         let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigApply(TwigApply {
             expression: "upper".to_string(),
@@ -1447,13 +1365,13 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(res, "{% apply upper %}\n    hello world\n{% endapply %}");
     }
 
-    #[async_std::test]
-    async fn test_write_twig_set_capture() {
+    #[test]
+    fn test_write_twig_set_capture() {
         let config = create_default_config();
         let tree = SyntaxNode::TwigStructure(TwigStructure::TwigSetCapture(TwigSetCapture {
             name: "myVariable".to_string(),
@@ -1466,13 +1384,13 @@ mod tests {
             ],
         }));
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(res, "{% set myVariable %}\n    hello world\n{% endset %}");
     }
 
-    #[async_std::test]
-    async fn test_write_tag_with_twig_if_attribute() {
+    #[test]
+    fn test_write_tag_with_twig_if_attribute() {
         let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
@@ -1495,7 +1413,7 @@ mod tests {
             children: vec![],
         });
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1503,8 +1421,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_tag_with_twig_if_else_attribute() {
+    #[test]
+    fn test_write_tag_with_twig_if_else_attribute() {
         let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
@@ -1536,7 +1454,7 @@ mod tests {
             children: vec![],
         });
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1544,8 +1462,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_tag_with_twig_if_elseif_else_attribute() {
+    #[test]
+    fn test_write_tag_with_twig_if_elseif_else_attribute() {
         let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
@@ -1583,7 +1501,7 @@ mod tests {
             children: vec![],
         });
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1591,8 +1509,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_tag_with_twig_nested_if_attribute() {
+    #[test]
+    fn test_write_tag_with_twig_nested_if_attribute() {
         let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
@@ -1632,7 +1550,7 @@ mod tests {
             children: vec![],
         });
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1640,8 +1558,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_tag_with_twig_block_attribute() {
+    #[test]
+    fn test_write_tag_with_twig_block_attribute() {
         let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
@@ -1662,7 +1580,7 @@ mod tests {
             children: vec![],
         });
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1670,8 +1588,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_write_tag_with_twig_block_with_if_attribute() {
+    #[test]
+    fn test_write_tag_with_twig_block_with_if_attribute() {
         let config = create_default_config();
         let tree = SyntaxNode::Tag(Tag {
             name: "div".to_string(),
@@ -1697,7 +1615,7 @@ mod tests {
             children: vec![],
         });
 
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1705,8 +1623,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_config_line_ending_windows() {
+    #[test]
+    fn test_config_line_ending_windows() {
         let config = Config {
             format: Format {
                 line_ending: LineEnding::WindowsCRLF,
@@ -1719,7 +1637,7 @@ mod tests {
             },
         };
         let tree = create_tree_for_config_tests();
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1727,8 +1645,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_config_indentation_mode_and_indentation_count_with_tabs() {
+    #[test]
+    fn test_config_indentation_mode_and_indentation_count_with_tabs() {
         let config = Config {
             format: Format {
                 line_ending: LineEnding::UnixLF,
@@ -1741,7 +1659,7 @@ mod tests {
             },
         };
         let tree = create_tree_for_config_tests();
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1749,8 +1667,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_config_preferred_max_line_length_small() {
+    #[test]
+    fn test_config_preferred_max_line_length_small() {
         let config = Config {
             format: Format {
                 line_ending: LineEnding::UnixLF,
@@ -1763,7 +1681,7 @@ mod tests {
             },
         };
         let tree = create_tree_for_config_tests();
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1771,8 +1689,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_config_attribute_inline_max_count_large() {
+    #[test]
+    fn test_config_attribute_inline_max_count_large() {
         let config = Config {
             format: Format {
                 line_ending: LineEnding::UnixLF,
@@ -1785,7 +1703,7 @@ mod tests {
             },
         };
         let tree = create_tree_for_config_tests();
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1793,8 +1711,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_config_indent_children_of_blocks_false() {
+    #[test]
+    fn test_config_indent_children_of_blocks_false() {
         let config = Config {
             format: Format {
                 line_ending: LineEnding::UnixLF,
@@ -1807,7 +1725,7 @@ mod tests {
             },
         };
         let tree = create_tree_for_config_tests();
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
@@ -1815,8 +1733,8 @@ mod tests {
         );
     }
 
-    #[async_std::test]
-    async fn test_config_linebreaks_around_blocks_false() {
+    #[test]
+    fn test_config_linebreaks_around_blocks_false() {
         let config = Config {
             format: Format {
                 line_ending: LineEnding::UnixLF,
@@ -1829,7 +1747,7 @@ mod tests {
             },
         };
         let tree = create_tree_for_config_tests();
-        let res = convert_tree_into_written_string(tree, &config).await;
+        let res = convert_tree_into_written_string(tree, &config);
 
         assert_eq!(
             res,
