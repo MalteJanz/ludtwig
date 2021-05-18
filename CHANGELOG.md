@@ -11,6 +11,13 @@
   Ludtwig will still utilize all the processor cores that are available with a thread pool.
   This change comes with a massive performance improvement (around 2x on my machine) and slightly
   decreases the size of the compiled release binary.
+- [Feature #33](https://github.com/MalteJanz/ludtwig/issues/33):
+  The first iteration of attribute reordering is implemented together with it's own configuration.
+  The default ordering configuration is not final yet.
+  Also, any tags which contain twig syntax skip reordering their attributes for now.
+  This feature also discards part of the previously mentioned performance improvement.
+  Documentation for this can be found in the default config.
+  Feel free to play with this feature and provide feedback.
 
 # v0.5.1
 - [Bugfix #29](https://github.com/MalteJanz/ludtwig/issues/29):

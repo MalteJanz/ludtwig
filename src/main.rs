@@ -1,9 +1,11 @@
 mod analyzer;
+mod attribute;
 mod config;
 mod output;
 mod process;
 mod writer;
 
+use crate::attribute::LudtwigRegex;
 use crate::config::Config;
 use crate::output::OutputMessage;
 use rayon::prelude::*;
@@ -63,6 +65,8 @@ pub struct CliContext {
     pub output_path: Option<PathBuf>,
     /// The config values to use.
     pub config: Config,
+    /// vector of compiled regular expressions for attribute sorting
+    pub attribute_regex: Vec<LudtwigRegex>,
 }
 
 impl CliContext {
@@ -76,13 +80,25 @@ impl CliContext {
 fn main() {
     let opts: Opts = Opts::from_args();
     let config = config::handle_config_or_exit(&opts);
+    let attribute_regex = match config.get_compiled_attribute_regex() {
+        Ok(v) => v,
+        Err(e) => {
+            println!("Error reading configuration (One value of the attribute-ordering-regex array can not be compiled to a regex):");
+            println!("{}", e);
+            std::process::exit(1);
+        }
+    };
 
-    let process_code = app(opts, config).unwrap();
+    let process_code = app(opts, config, attribute_regex).unwrap();
     std::process::exit(process_code);
 }
 
 /// The entry point of the async application.
-fn app(opts: Opts, config: Config) -> Result<i32, Box<dyn std::error::Error>> {
+fn app(
+    opts: Opts,
+    config: Config,
+    attribute_regex: Vec<LudtwigRegex>,
+) -> Result<i32, Box<dyn std::error::Error>> {
     println!("Parsing files...");
 
     // sender and receiver channels for the communication between tasks and the user.
@@ -96,6 +112,7 @@ fn app(opts: Opts, config: Config) -> Result<i32, Box<dyn std::error::Error>> {
         no_writing: opts.no_writing,
         output_path: opts.output_path,
         config,
+        attribute_regex,
     });
 
     let output_handler = thread::spawn(|| output::handle_processing_output(rx));
