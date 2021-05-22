@@ -1,3 +1,4 @@
+use crate::attribute::{apply_attribute_ordering, LudtwigRegex};
 use crate::config::{Config, IndentationMode, LineEnding};
 use crate::process::FileContext;
 use ludtwig_parser::ast::{
@@ -63,6 +64,10 @@ impl<'a> PrintingContext<'a> {
 
     fn get_config(&self) -> &Config {
         &self.file_context.cli_context.config
+    }
+
+    fn get_attribute_regex(&self) -> &Vec<LudtwigRegex> {
+        &self.file_context.cli_context.attribute_regex
     }
 
     fn get_line_break_bytes(&self) -> &[u8] {
@@ -357,7 +362,9 @@ fn print_tag_attributes<W: Write + Unpin + Send + ?Sized>(
     tag: &Tag,
     context: &PrintingContext<'_>,
 ) {
-    let inline_mode = tag.attributes.len()
+    let attributes = apply_attribute_ordering(&tag.attributes, context.get_attribute_regex());
+
+    let inline_mode = attributes.len()
         <= context.get_config().format.attribute_inline_max_count as usize
         && calculate_tag_line_length(tag, context)
             <= context.get_config().format.preferred_max_line_length as usize;
@@ -374,7 +381,7 @@ fn print_tag_attributes<W: Write + Unpin + Send + ?Sized>(
     };
 
     // attributes
-    for (index, attribute) in tag.attributes.iter().enumerate() {
+    for (index, attribute) in attributes.iter().enumerate() {
         if inline_mode {
             writer.write_all(b" ").unwrap();
         } else if continuation_indent_mode {
@@ -802,6 +809,9 @@ mod tests {
                     no_writing: false,
                     output_path: None,
                     config: config.to_owned(),
+                    attribute_regex: config
+                        .get_compiled_attribute_regex()
+                        .expect("can't compile attribute regex"),
                 }),
                 file_path: Default::default(),
                 tree: SyntaxNode::Root(vec![]), // not used during write
@@ -1628,12 +1638,7 @@ mod tests {
         let config = Config {
             format: Format {
                 line_ending: LineEnding::WindowsCRLF,
-                indentation_mode: IndentationMode::Space,
-                indentation_count: 4,
-                preferred_max_line_length: 120,
-                attribute_inline_max_count: 2,
-                indent_children_of_blocks: true,
-                linebreaks_around_blocks: true,
+                ..create_default_config().format
             },
         };
         let tree = create_tree_for_config_tests();
@@ -1641,7 +1646,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% block this_is_a_test_one %}\r\n    <div id=\"customized-thing\" class=\"thing\">\r\n        <span>Whitespace sensitive</span>\r\n    </div>\r\n\r\n    {% block this_is_a_test_two %}\r\n\r\n        {% block some_content_block_1 %}\r\n            <h2 class=\"headline\"\r\n                @click=\"onHeadlineClick\"\r\n                v-if=\"showHeadline\">\r\n                hello\r\n            </h2>\r\n        {% endblock %}\r\n\r\n        {% block some_content_block_2 %}\r\n            <my-custom-component-that-is-long\r\n                    class=\"component\"\r\n                    @click=\"onComponentClick\"\r\n                    v-if=\"showComponent\"\r\n                    v-model=\"data\">\r\n            </my-custom-component-that-is-long>\r\n        {% endblock %}\r\n\r\n    {% endblock %}\r\n\r\n{% endblock %}"
+            "{% block this_is_a_test_one %}\r\n    <div id=\"customized-thing\" class=\"thing\">\r\n        <span>Whitespace sensitive</span>\r\n    </div>\r\n\r\n    {% block this_is_a_test_two %}\r\n\r\n        {% block some_content_block_1 %}\r\n            <h2 v-if=\"showHeadline\"\r\n                class=\"headline\"\r\n                @click=\"onHeadlineClick\">\r\n                hello\r\n            </h2>\r\n        {% endblock %}\r\n\r\n        {% block some_content_block_2 %}\r\n            <my-custom-component-that-is-long\r\n                    v-if=\"showComponent\"\r\n                    v-model=\"data\"\r\n                    class=\"component\"\r\n                    @click=\"onComponentClick\">\r\n            </my-custom-component-that-is-long>\r\n        {% endblock %}\r\n\r\n    {% endblock %}\r\n\r\n{% endblock %}"
         );
     }
 
@@ -1649,13 +1654,9 @@ mod tests {
     fn test_config_indentation_mode_and_indentation_count_with_tabs() {
         let config = Config {
             format: Format {
-                line_ending: LineEnding::UnixLF,
                 indentation_mode: IndentationMode::Tab,
                 indentation_count: 1,
-                preferred_max_line_length: 120,
-                attribute_inline_max_count: 2,
-                indent_children_of_blocks: true,
-                linebreaks_around_blocks: true,
+                ..create_default_config().format
             },
         };
         let tree = create_tree_for_config_tests();
@@ -1663,7 +1664,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% block this_is_a_test_one %}\n\t<div id=\"customized-thing\" class=\"thing\">\n\t\t<span>Whitespace sensitive</span>\n\t</div>\n\n\t{% block this_is_a_test_two %}\n\n\t\t{% block some_content_block_1 %}\n\t\t\t<h2 class=\"headline\"\n\t\t\t    @click=\"onHeadlineClick\"\n\t\t\t    v-if=\"showHeadline\">\n\t\t\t\thello\n\t\t\t</h2>\n\t\t{% endblock %}\n\n\t\t{% block some_content_block_2 %}\n\t\t\t<my-custom-component-that-is-long\n\t\t\t\t\tclass=\"component\"\n\t\t\t\t\t@click=\"onComponentClick\"\n\t\t\t\t\tv-if=\"showComponent\"\n\t\t\t\t\tv-model=\"data\">\n\t\t\t</my-custom-component-that-is-long>\n\t\t{% endblock %}\n\n\t{% endblock %}\n\n{% endblock %}"
+            "{% block this_is_a_test_one %}\n\t<div id=\"customized-thing\" class=\"thing\">\n\t\t<span>Whitespace sensitive</span>\n\t</div>\n\n\t{% block this_is_a_test_two %}\n\n\t\t{% block some_content_block_1 %}\n\t\t\t<h2 v-if=\"showHeadline\"\n\t\t\t    class=\"headline\"\n\t\t\t    @click=\"onHeadlineClick\">\n\t\t\t\thello\n\t\t\t</h2>\n\t\t{% endblock %}\n\n\t\t{% block some_content_block_2 %}\n\t\t\t<my-custom-component-that-is-long\n\t\t\t\t\tv-if=\"showComponent\"\n\t\t\t\t\tv-model=\"data\"\n\t\t\t\t\tclass=\"component\"\n\t\t\t\t\t@click=\"onComponentClick\">\n\t\t\t</my-custom-component-that-is-long>\n\t\t{% endblock %}\n\n\t{% endblock %}\n\n{% endblock %}"
         );
     }
 
@@ -1671,13 +1672,9 @@ mod tests {
     fn test_config_preferred_max_line_length_small() {
         let config = Config {
             format: Format {
-                line_ending: LineEnding::UnixLF,
-                indentation_mode: IndentationMode::Space,
-                indentation_count: 4,
                 preferred_max_line_length: 44,
                 attribute_inline_max_count: 10,
-                indent_children_of_blocks: true,
-                linebreaks_around_blocks: true,
+                ..create_default_config().format
             },
         };
         let tree = create_tree_for_config_tests();
@@ -1685,7 +1682,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% block this_is_a_test_one %}\n    <div id=\"customized-thing\"\n         class=\"thing\">\n        <span>Whitespace sensitive</span>\n    </div>\n\n    {% block this_is_a_test_two %}\n\n        {% block some_content_block_1 %}\n            <h2 class=\"headline\"\n                @click=\"onHeadlineClick\"\n                v-if=\"showHeadline\">\n                hello\n            </h2>\n        {% endblock %}\n\n        {% block some_content_block_2 %}\n            <my-custom-component-that-is-long\n                    class=\"component\"\n                    @click=\"onComponentClick\"\n                    v-if=\"showComponent\"\n                    v-model=\"data\">\n            </my-custom-component-that-is-long>\n        {% endblock %}\n\n    {% endblock %}\n\n{% endblock %}"
+            "{% block this_is_a_test_one %}\n    <div id=\"customized-thing\"\n         class=\"thing\">\n        <span>Whitespace sensitive</span>\n    </div>\n\n    {% block this_is_a_test_two %}\n\n        {% block some_content_block_1 %}\n            <h2 v-if=\"showHeadline\"\n                class=\"headline\"\n                @click=\"onHeadlineClick\">\n                hello\n            </h2>\n        {% endblock %}\n\n        {% block some_content_block_2 %}\n            <my-custom-component-that-is-long\n                    v-if=\"showComponent\"\n                    v-model=\"data\"\n                    class=\"component\"\n                    @click=\"onComponentClick\">\n            </my-custom-component-that-is-long>\n        {% endblock %}\n\n    {% endblock %}\n\n{% endblock %}"
         );
     }
 
@@ -1693,13 +1690,9 @@ mod tests {
     fn test_config_attribute_inline_max_count_large() {
         let config = Config {
             format: Format {
-                line_ending: LineEnding::UnixLF,
-                indentation_mode: IndentationMode::Space,
-                indentation_count: 4,
                 preferred_max_line_length: 999,
                 attribute_inline_max_count: 10,
-                indent_children_of_blocks: true,
-                linebreaks_around_blocks: true,
+                ..create_default_config().format
             },
         };
         let tree = create_tree_for_config_tests();
@@ -1707,7 +1700,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% block this_is_a_test_one %}\n    <div id=\"customized-thing\" class=\"thing\">\n        <span>Whitespace sensitive</span>\n    </div>\n\n    {% block this_is_a_test_two %}\n\n        {% block some_content_block_1 %}\n            <h2 class=\"headline\" @click=\"onHeadlineClick\" v-if=\"showHeadline\">\n                hello\n            </h2>\n        {% endblock %}\n\n        {% block some_content_block_2 %}\n            <my-custom-component-that-is-long class=\"component\" @click=\"onComponentClick\" v-if=\"showComponent\" v-model=\"data\">\n            </my-custom-component-that-is-long>\n        {% endblock %}\n\n    {% endblock %}\n\n{% endblock %}"
+            "{% block this_is_a_test_one %}\n    <div id=\"customized-thing\" class=\"thing\">\n        <span>Whitespace sensitive</span>\n    </div>\n\n    {% block this_is_a_test_two %}\n\n        {% block some_content_block_1 %}\n            <h2 v-if=\"showHeadline\" class=\"headline\" @click=\"onHeadlineClick\">\n                hello\n            </h2>\n        {% endblock %}\n\n        {% block some_content_block_2 %}\n            <my-custom-component-that-is-long v-if=\"showComponent\" v-model=\"data\" class=\"component\" @click=\"onComponentClick\">\n            </my-custom-component-that-is-long>\n        {% endblock %}\n\n    {% endblock %}\n\n{% endblock %}"
         );
     }
 
@@ -1715,13 +1708,8 @@ mod tests {
     fn test_config_indent_children_of_blocks_false() {
         let config = Config {
             format: Format {
-                line_ending: LineEnding::UnixLF,
-                indentation_mode: IndentationMode::Space,
-                indentation_count: 4,
-                preferred_max_line_length: 120,
-                attribute_inline_max_count: 2,
                 indent_children_of_blocks: false,
-                linebreaks_around_blocks: true,
+                ..create_default_config().format
             },
         };
         let tree = create_tree_for_config_tests();
@@ -1729,7 +1717,7 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% block this_is_a_test_one %}\n<div id=\"customized-thing\" class=\"thing\">\n    <span>Whitespace sensitive</span>\n</div>\n\n{% block this_is_a_test_two %}\n\n{% block some_content_block_1 %}\n<h2 class=\"headline\"\n    @click=\"onHeadlineClick\"\n    v-if=\"showHeadline\">\n    hello\n</h2>\n{% endblock %}\n\n{% block some_content_block_2 %}\n<my-custom-component-that-is-long\n        class=\"component\"\n        @click=\"onComponentClick\"\n        v-if=\"showComponent\"\n        v-model=\"data\">\n</my-custom-component-that-is-long>\n{% endblock %}\n\n{% endblock %}\n\n{% endblock %}"
+            "{% block this_is_a_test_one %}\n<div id=\"customized-thing\" class=\"thing\">\n    <span>Whitespace sensitive</span>\n</div>\n\n{% block this_is_a_test_two %}\n\n{% block some_content_block_1 %}\n<h2 v-if=\"showHeadline\"\n    class=\"headline\"\n    @click=\"onHeadlineClick\">\n    hello\n</h2>\n{% endblock %}\n\n{% block some_content_block_2 %}\n<my-custom-component-that-is-long\n        v-if=\"showComponent\"\n        v-model=\"data\"\n        class=\"component\"\n        @click=\"onComponentClick\">\n</my-custom-component-that-is-long>\n{% endblock %}\n\n{% endblock %}\n\n{% endblock %}"
         );
     }
 
@@ -1737,13 +1725,8 @@ mod tests {
     fn test_config_linebreaks_around_blocks_false() {
         let config = Config {
             format: Format {
-                line_ending: LineEnding::UnixLF,
-                indentation_mode: IndentationMode::Space,
-                indentation_count: 4,
-                preferred_max_line_length: 120,
-                attribute_inline_max_count: 2,
-                indent_children_of_blocks: true,
                 linebreaks_around_blocks: false,
+                ..create_default_config().format
             },
         };
         let tree = create_tree_for_config_tests();
@@ -1751,7 +1734,113 @@ mod tests {
 
         assert_eq!(
             res,
-            "{% block this_is_a_test_one %}\n    <div id=\"customized-thing\" class=\"thing\">\n        <span>Whitespace sensitive</span>\n    </div>\n    {% block this_is_a_test_two %}\n        {% block some_content_block_1 %}\n            <h2 class=\"headline\"\n                @click=\"onHeadlineClick\"\n                v-if=\"showHeadline\">\n                hello\n            </h2>\n        {% endblock %}\n        {% block some_content_block_2 %}\n            <my-custom-component-that-is-long\n                    class=\"component\"\n                    @click=\"onComponentClick\"\n                    v-if=\"showComponent\"\n                    v-model=\"data\">\n            </my-custom-component-that-is-long>\n        {% endblock %}\n    {% endblock %}\n{% endblock %}"
+            "{% block this_is_a_test_one %}\n    <div id=\"customized-thing\" class=\"thing\">\n        <span>Whitespace sensitive</span>\n    </div>\n    {% block this_is_a_test_two %}\n        {% block some_content_block_1 %}\n            <h2 v-if=\"showHeadline\"\n                class=\"headline\"\n                @click=\"onHeadlineClick\">\n                hello\n            </h2>\n        {% endblock %}\n        {% block some_content_block_2 %}\n            <my-custom-component-that-is-long\n                    v-if=\"showComponent\"\n                    v-model=\"data\"\n                    class=\"component\"\n                    @click=\"onComponentClick\">\n            </my-custom-component-that-is-long>\n        {% endblock %}\n    {% endblock %}\n{% endblock %}"
+        );
+    }
+
+    #[test]
+    fn test_config_default_attribute_ordering() {
+        let config = create_default_config();
+        let tree = SyntaxNode::Tag(Tag {
+            name: "my-component".to_string(),
+            self_closed: false,
+            attributes: vec![
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: ":some-binding".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "v-my-custom".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "is".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "v-else-if".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "disabled".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "v-show".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "v-cloak".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "v-pre".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "v-once".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "id".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "ref".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "key".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "v-for".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "v-html".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "v-model".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "custom".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "v-else".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "v-on:click".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "@update".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "class".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "v-text".to_string(),
+                    value: Some("v".to_string()),
+                }),
+                TagAttribute::HtmlAttribute(HtmlAttribute {
+                    name: "v-if".to_string(),
+                    value: Some("v".to_string()),
+                }),
+            ],
+            children: vec![],
+        });
+        let res = convert_tree_into_written_string(tree, &config);
+
+        assert_eq!(
+            res,
+            "<my-component\n        is=\"v\"\n        v-for=\"v\"\n        v-if=\"v\"\n        v-else-if=\"v\"\n        v-else=\"v\"\n        v-show=\"v\"\n        v-cloak=\"v\"\n        v-pre=\"v\"\n        v-once=\"v\"\n        id=\"v\"\n        ref=\"v\"\n        key=\"v\"\n        v-model=\"v\"\n        class=\"v\"\n        :some-binding=\"v\"\n        v-my-custom=\"v\"\n        disabled=\"v\"\n        custom=\"v\"\n        v-on:click=\"v\"\n        @update=\"v\"\n        v-html=\"v\"\n        v-text=\"v\"></my-component>"
         );
     }
 }

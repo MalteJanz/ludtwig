@@ -27,3 +27,4 @@ ansi_term = "~0.12.1"
 walkdir = "~2.3.1"
 figment = { version = "0.10", features = ["toml", "env"] }
 serde = { version = "1.0", features = ["derive"] }
+regex = "1.5.4"
