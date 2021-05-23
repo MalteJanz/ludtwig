@@ -9,6 +9,7 @@
 A CLI tool for developers that tries to speedup the development workflow while working with templating (`.twig`) files.
 It focuses mainly on formatting the files with a uniform code style and detecting mistakes.
 It is only a "formatter" that can be run locally or in the pipeline, it will not report anything to your IDE.
+It is easy to configure with a config file or environment variables.
 
 ## Status / Disclaimer
 Ludtwig is currently in an early development state.
@@ -132,20 +133,20 @@ Happy bug fixing ;)
 *The example template was extended with another twig block with the name 'my_component'.
 
 ## Current features
-- Fast / Highly concurrent execution
+- Fast + concurrent execution
 - Parsing of idiomatic Html / Twig / Vue.js templating files
   - It will not parse non idiomatic Html where for example closing tags are forgotten
     (that otherwise could still work in the browser).
     In this case ludtwig tries to produce a helpful error message.
-- Write the AST (abstract syntax tree) in a formatted way back into files
+- Write the AST (abstract syntax tree) in a formatted way back into files.
+  The formatting can be configured with a config file
+  (create one with `ludtwig -C` which also contains documentation).
 - Analyse the AST for common mistakes / suggestions
 
 ## Current limitations
 - Twig syntax is still not fully supported ([Some hierarchical syntax is missing](https://github.com/MalteJanz/ludtwig/issues/17))
-- There is no customization of the formatting or analyzing yet - you should be fine with the provided code style for now
-  (or make the changes for yourself and recompile).
-  However, if you find something that looks wrong, feel free to create an issue.
 - You may encounter edge cases that result in parsing errors. Please create issues for them.
+- The analyzing of the AST can currently not be configured and is pretty much in a WIP state.
 
 ## Installation
 ### Cargo (rust toolchain)
@@ -158,10 +159,12 @@ If you don't want to install the rust toolchain / cargo you can still use the ma
 Download the latest [release binary](https://github.com/MalteJanz/ludtwig/releases) for your operating system and put it in your PATH for easy access.
 
 ## How to use Ludtwig?
-After installation have a look at `ludtwig --help` for more information. It should be self explanatory.
+After the installation have a look at `ludtwig --help` for more information. It should be self-explanatory.
+Also have a look at the default config file if you want to customize the way how ludtwig formats your files.
+To create it in your current working directory run `ludtwig -C`.
 
 ## Basic Concepts
-- Every file is parsed concurrently and independent from each other into an AST (abstract syntax tree)
+- Every file is parsed concurrently and independent of each other into an AST (abstract syntax tree)
   - Parsing errors will result in not writing / analysing the file
 - After the parsing was successful the following happens concurrently with the AST:
   - the writer prints the AST in a formatted way back into a file
@@ -190,15 +193,17 @@ See the [LICENSE](./LICENSE) file for details.
 ### Dependencies / License notices*
 If you build this project locally or use the distributed binary keep also the following licenses in mind:
 - [ludtwig-parser](https://github.com/MalteJanz/ludtwig-parser) - [MIT](https://github.com/MalteJanz/ludtwig-parser/blob/main/LICENSE)
-- [async-std](https://github.com/async-rs/async-std) - [MIT](https://github.com/async-rs/async-std/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/async-rs/async-std/blob/master/LICENSE-APACHE)
-- [clap](https://github.com/clap-rs/clap) - [MIT](https://github.com/clap-rs/clap/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/clap-rs/clap/blob/master/LICENSE-APACHE)
+- [rayon](https://github.com/rayon-rs/rayon) - [MIT](https://github.com/rayon-rs/rayon/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/rayon-rs/rayon/blob/master/LICENSE-APACHE)
+- [structopt](https://github.com/TeXitoi/structopt) - [MIT](https://github.com/TeXitoi/structopt/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/TeXitoi/structopt/blob/master/LICENSE-APACHE)
 - [ansi_term](https://github.com/ogham/rust-ansi-term) - [MIT](https://github.com/ogham/rust-ansi-term/blob/master/LICENCE)
-- [walkdir](https://github.com/BurntSushi/walkdir) - [MIT](https://github.com/BurntSushi/walkdir/blob/master/LICENSE-MIT) / [UNLICENSE](https://github.com/BurntSushi/walkdir/blob/master/UNLICENSE)
-- [async-trait](https://github.com/dtolnay/async-trait) - [MIT](https://github.com/dtolnay/async-trait/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/dtolnay/async-trait/blob/master/LICENSE-APACHE)
+- [walkdir](https://github.com/BurntSushi/walkdir) - [MIT](https://github.com/BurntSushi/walkdir/blob/master/LICENSE-MIT)
+- [figment](https://github.com/SergioBenitez/Figment) - [MIT](https://github.com/SergioBenitez/Figment/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/SergioBenitez/Figment/blob/master/LICENSE-APACHE)
+- [serde](https://github.com/serde-rs/serde) - [MIT](https://github.com/serde-rs/serde/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/serde-rs/serde/blob/master/LICENSE-APACHE)
+- [regex](https://github.com/rust-lang/regex) - [MIT](https://github.com/rust-lang/regex/blob/master/LICENSE-MIT) / [Apache 2.0](https://github.com/rust-lang/regex/blob/master/LICENSE-APACHE)
 
 For testing purposes this repository also includes code from the following sources (not included in distributed binary):
 - [Shopware](https://github.com/shopware/platform) - [MIT](https://github.com/shopware/platform/blob/master/LICENSE)
 - [SwagMigrationAssistant](https://github.com/shopware/SwagMigrationAssistant) - [MIT](https://github.com/shopware/SwagMigrationAssistant/blob/master/LICENSE)
 
 Special thanks goes to the authors of these dependencies.  
-*This list and the links may not be up to date and you should do your own research. Also deeper dependencies are not listed.
+*This list, and the links may not be up to date, you should do your own research. Deeper dependencies are not listed.

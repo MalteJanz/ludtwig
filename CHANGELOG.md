@@ -1,4 +1,6 @@
 # NEXT-VERSION
+
+# v0.6.0
 - [Feature #5](https://github.com/MalteJanz/ludtwig/issues/5):
   Implemented layered configuration via environment variables or `.toml` files.
   The default configuration file can be generated on the fly with the `-C` flag and
@@ -18,6 +20,9 @@
   This feature also discards part of the previously mentioned performance improvement.
   Documentation for this can be found in the default config.
   Feel free to play with this feature and provide feedback.
+- [Parser Bugfix #2](https://github.com/MalteJanz/ludtwig-parser/issues/2):
+  Line and column numbers for the human-readable errors should now be correct regardless of the line ending.
+  They now also work correctly with utf-8 files.
 
 # v0.5.1
 - [Bugfix #29](https://github.com/MalteJanz/ludtwig/issues/29):
