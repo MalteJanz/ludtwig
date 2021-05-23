@@ -220,7 +220,7 @@ checksum = "18794a8ad5b29321f790b55d93dfba91e125cb1a9edbd4f8e3150acc771c1a5e"
 
 [[package]]
 name = "ludtwig"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "ansi_term 0.12.1",
  "figment",
@@ -234,9 +234,9 @@ dependencies = [
 
 [[package]]
 name = "ludtwig-parser"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65a73b9234b877f9a8833465ce5cc8b5283b4e342c70b14576b2796f0a8ba152"
+checksum = "fc3b3eb3d488fe69753c73388bf4b28360ea9e299a2d32cee3bfa1e5e3d26a61"
 dependencies = [
  "nom",
 ]

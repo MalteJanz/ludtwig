@@ -1,5 +1,10 @@
 # NEXT-VERSION
 
+# v0.6.1
+- Hotfix for the parser:
+  fixed a panic (attempt to subtract with overflow) for the parsing error line and column numbers reconstruction.
+  this panic most likely only occurred on empty `.twig` files.
+
 # v0.6.0
 - [Feature #5](https://github.com/MalteJanz/ludtwig/issues/5):
   Implemented layered configuration via environment variables or `.toml` files.
