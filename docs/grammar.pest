@@ -1,0 +1,35 @@
+// PEG Grammar which can be used interactively to create a parser at https://pest.rs/#editor
+
+// any element in the document (including twig structures)
+element = { ws? ~ (twig | any_tag | text) }
+
+// twig definitions
+twig = { twig_structure | twig_expression }
+// TODO: refine twig expression further
+twig_structure = { twig_block }
+twig_expression = { "{{" ~ ws? ~ text ~ ws? ~ "}}" }
+
+// twig structure definitions
+twig_block = { "{%" ~ ws? ~ "block" ~ ws? ~ name ~ ws? ~ "%}" ~ children? ~ ws? ~ "{%" ~ ws? ~ "endblock" ~ ws? ~ "%}" }
+
+// any html tag
+any_tag = { div_tag | p_tag }
+
+// tag defintions
+div_tag = { "<div" ~ ws? ~ attribute* ~ ("/>" | ">" ~ children? ~ ws? ~ "</div>") }
+p_tag = { "<p" ~ ws? ~ attribute* ~ ("/>" | ">" ~ children? ~ ws? ~ "</p>") }
+
+// tag children and attribute definitions
+children = { element+ ~ ws? }
+attribute = { name ~ "=" ~ string ~ ws? }
+
+// general text and whitespace
+name = { ('a'..'z' | 'A'..'Z' | '0'..'9' | "_" | "-" | ":" | "@" | "#")+ }
+text = { (!(ws | "<" | "{{" | "{%") ~ ANY)+ }
+ws = { (" " | "\t" | "\n")+ }
+
+// quoted "strings"
+string = { "\"" ~ (raw_string | escape)* ~ "\"" }
+raw_string = { (!("\\" | "\"") ~ ANY)+ }
+predefined = { "n" | "r" | "t" | "\\" | "0" | "\"" | "'" }
+escape     = { "\\" ~ (predefined) }
