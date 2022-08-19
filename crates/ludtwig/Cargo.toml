@@ -1,0 +1,29 @@
+[package]
+name = "ludtwig"
+description = "CLI tool for developers working with twig files with focus on formatting and detecting mistakes."
+keywords = ["formatter", "analyzer", "html", "twig", "template"]
+categories = ["command-line-utilities", "development-tools", "web-programming"]
+repository = "https://github.com/MalteJanz/ludtwig"
+version = "0.6.1"
+authors = ["Malte Janz <service.malte.j@protonmail.com>"]
+license = "MIT"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[profile.release]
+lto = true # does increase runtime performance for longer build times
+opt-level = 3 # maximum of code optimization (use "s" for optimized binary size)
+codegen-units = 1 # do not compile crates in parallel to allow for further optimization
+#only for profiling! remove for release
+#debug = 1
+
+[dependencies]
+ludtwig-parser = { path = "../ludtwig-parser", version = "0.3.3" }
+structopt = "~0.3.21"
+rayon = "1.5"
+ansi_term = "~0.12.1"
+walkdir = "~2.3.1"
+figment = { version = "0.10", features = ["toml", "env"] }
+serde = { version = "1.0", features = ["derive"] }
+regex = "~1.5.4"
