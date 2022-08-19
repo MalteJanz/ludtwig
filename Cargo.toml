@@ -1,6 +1,6 @@
 [workspace]
+edition = "2021"
 members = [
     "crates/ludtwig",
     "crates/ludtwig-parser"
 ]
-resolver = "2"

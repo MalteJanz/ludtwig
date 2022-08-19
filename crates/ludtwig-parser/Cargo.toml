@@ -26,4 +26,3 @@ harness = false
 criterion = "^0.3.3"
 
 [dependencies]
-nom = "~6.1"

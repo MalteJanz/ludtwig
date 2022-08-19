@@ -1,9 +1,7 @@
-mod analyzer;
 mod attribute;
 mod config;
 mod output;
 mod process;
-mod writer;
 
 use crate::attribute::LudtwigRegex;
 use crate::config::Config;
@@ -14,15 +12,15 @@ use std::path::PathBuf;
 use std::sync::mpsc::SyncSender;
 use std::sync::{mpsc, Arc};
 use std::thread;
-use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
+use clap::Parser;
 
 /// A CLI tool for '.twig' files with focus on formatting and detecting mistakes.
-#[derive(StructOpt, Debug, Clone)]
-#[structopt(author = env!("CARGO_PKG_AUTHORS"))]
+#[derive(Parser, Debug, Clone)]
+#[clap(author = env!("CARGO_PKG_AUTHORS"))]
 pub struct Opts {
     /// Files or directories to scan and format
-    #[structopt(
+    #[clap(
         value_name = "FILE",
         min_values = 1,
         required = true,
@@ -33,23 +31,23 @@ pub struct Opts {
     files: Vec<PathBuf>,
 
     /// Disable the analysis of the syntax tree. There will still be parsing errors.
-    #[structopt(short = "A", long)]
+    #[clap(short = 'A', long)]
     no_analysis: bool,
 
     /// Disable the formatted writing of the syntax tree to disk. With this option the tool will not write to any files.
-    #[structopt(short = "W", long)]
+    #[clap(short = 'W', long)]
     no_writing: bool,
 
     /// Specify a custom output directory instead of modifying the files in place.
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     output_path: Option<PathBuf>,
 
     /// Specify where the ludtwig configuration file is. Ludtwig looks in the current directory for a 'ludtwig-config.toml' by default.
-    #[structopt(short = "c", long, parse(from_os_str))]
+    #[clap(short = 'c', long, parse(from_os_str))]
     config_path: Option<PathBuf>,
 
     /// Create the default configuration file in the config path. Defaults to the current directory.
-    #[structopt(short = "C", long, name = "create_config")]
+    #[clap(short = 'C', long, name = "create_config")]
     create_config: bool,
 }
 

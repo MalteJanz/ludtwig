@@ -1,0 +1,73 @@
+# Ludtwig configuration
+
+# To override any of these values with environment variables use the following format:
+# LUDTWIG_FORMAT__INDENTATION_COUNT=1
+
+[format]
+# How should the line endings look like? ["unix_LF", "windows_CRLF"]
+# unix_LF is a single '\n' character
+# windows_CRLF are the characters '\r\n'
+line-ending = "unix_LF"
+# Which character should be used for indentation ["space", "tab"]
+indentation-mode = "space"
+# How many times should this character be printed for one indentation [0-255]
+indentation-count = 4
+# What should be the maximum line length? [0-65535]
+# Ludtwig tries to arrange attributes that they don't go over that line length if possible
+preferred-max-line-length = 120
+# Maximum number of attributes in a single line (if the line length is still smaller than preferred-max-line-length) [0-255]
+# Any tag with more attributes than this will split the attributes in multiple lines.
+attribute-inline-max-count = 2
+# Should the children of twig blocks be indented? [true, false]
+indent-children-of-blocks = true
+# Should twig blocks have empty lines around them? [true, false]
+linebreaks-around-blocks = true
+# attribute ordering:
+# ludtwig runs each attribute against each regex and the first regex that matches gives the sorting order.
+# ludtwig uses stable sorting which means that if multiple attributes match the same regex they will keep their old order.
+# based on the recommended vue attribute ordering: https://v3.vuejs.org/style-guide/#element-attribute-order-recommended
+attribute-ordering-regex = [
+    # 1. Definition
+    "^is",
+
+    # 2. List rendering
+    "^v-for",
+
+    # 3. Conditionals
+    "^v-if",
+    "^v-else-if",
+    "^v-else",
+    "^v-show",
+    "^v-cloak",
+
+    # 4. Render Modifiers
+    "^v-pre",
+    "^v-once",
+
+    # 5. Globals awareness
+    "^id",
+
+    # 6. Unique attributes
+    "^ref",
+    "^key",
+
+    # 7. Two-Way Binding
+    "^v-model",
+
+    # 8.0 Custom class attribute priority (before all the other attributes)
+    "^:?class",
+
+    # 8.1 Other Attributes (all unspecified bound & unbound attributes)
+    # NOTE: '?' at the beginning is not valid regex syntax and is removed by ludtwig.
+    # this will invert the regex (apply this order rank for any attributes that don't match this regex)
+    # this inverted regex in particuallar should match anything that is not in the 9. Events or 10. Content
+    "?^((v-on.*)|(@.+)|(v-html)|(v-text))",
+
+    # 9. Events
+    "^v-on.*",
+    "^@.+",
+
+    # 10. Content
+    "^v-html",
+    "^v-text",
+]

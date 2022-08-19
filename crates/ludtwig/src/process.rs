@@ -1,8 +1,5 @@
-use crate::analyzer::analyze;
 use crate::output::{Output, OutputMessage};
-use crate::writer::write_tree;
 use crate::CliContext;
-use ludtwig_parser::ast::SyntaxNode;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -15,8 +12,8 @@ pub struct FileContext {
     /// The file path that is associated with this context
     pub file_path: PathBuf,
 
-    /// The parsed [SyntaxNode] AST for this file / context.
-    pub tree: SyntaxNode,
+    // The parsed [SyntaxNode] AST for this file / context.
+    // pub tree: SyntaxNode,
 }
 
 impl FileContext {
@@ -49,6 +46,8 @@ pub fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
         }
     };
 
+    // TODO: reimplement parsing
+    /*
     let tree = match ludtwig_parser::parse(&file_content) {
         Ok(t) => t,
         Err(e) => {
@@ -60,11 +59,12 @@ pub fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
             return;
         }
     };
+     */
 
     let file_context = Arc::new(FileContext {
         cli_context,
         file_path: path,
-        tree,
+        // tree,
     });
 
     work_with_file_context(file_context);
@@ -72,6 +72,9 @@ pub fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
 
 /// Do all the analyzing and writing work concurrently on the [FileContext].
 fn work_with_file_context(file_context: Arc<FileContext>) {
+    todo!("refactor concept for working with the parsed tree");
+    // TODO: refactor this
+    /*
     if !file_context.cli_context.no_analysis && !file_context.cli_context.no_writing {
         // write and analyze concurrently:
         rayon::join(
@@ -91,4 +94,5 @@ fn work_with_file_context(file_context: Arc<FileContext>) {
         let clone = Arc::clone(&file_context);
         write_tree(clone);
     }
+     */
 }
