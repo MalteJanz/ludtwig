@@ -1,27 +1,32 @@
 // PEG Grammar which can be used interactively to create a parser at https://pest.rs/#editor
 
+// This grammar concept represents the idea where twig syntax is allowed inside html.
+// It does not contain every possible html tag or twig syntax
+
+
 // any element in the document (including twig structures)
 element = { ws? ~ (twig | any_tag | text) }
 
 // twig definitions
 twig = { twig_structure | twig_expression }
-// TODO: refine twig expression further
 twig_structure = { twig_block }
 twig_expression = { "{{" ~ ws? ~ text ~ ws? ~ "}}" }
 
 // twig structure definitions
-twig_block = { "{%" ~ ws? ~ "block" ~ ws? ~ name ~ ws? ~ "%}" ~ children? ~ ws? ~ "{%" ~ ws? ~ "endblock" ~ ws? ~ "%}" }
+inner_twig = { inner_tag | element }
+twig_block = { "{%" ~ ws? ~ "block" ~ ws? ~ name ~ ws? ~ "%}" ~ ws? ~ inner_twig* ~ ws? ~ "{%" ~ ws? ~ "endblock" ~ ws? ~ "%}" }
+// more structures like for loops of if conditions...
 
-// any html tag
+// tag definitions
 any_tag = { div_tag | p_tag }
+div_tag = { "<div" ~ ws? ~ inner_tag* ~ ("/>" | ">" ~ children? ~ ws? ~ "</div>") }
+p_tag = { "<p" ~ ws? ~ inner_tag* ~ ("/>" | ">" ~ children? ~ ws? ~ "</p>") }
+// more html tags...
 
-// tag defintions
-div_tag = { "<div" ~ ws? ~ attribute* ~ ("/>" | ">" ~ children? ~ ws? ~ "</div>") }
-p_tag = { "<p" ~ ws? ~ attribute* ~ ("/>" | ">" ~ children? ~ ws? ~ "</p>") }
-
+inner_tag = { (attribute | twig) ~ ws? }
 // tag children and attribute definitions
 children = { element+ ~ ws? }
-attribute = { name ~ "=" ~ string ~ ws? }
+attribute = { name ~ "=" ~ string }
 
 // general text and whitespace
 name = { ('a'..'z' | 'A'..'Z' | '0'..'9' | "_" | "-" | ":" | "@" | "#")+ }
@@ -29,7 +34,7 @@ text = { (!(ws | "<" | "{{" | "{%") ~ ANY)+ }
 ws = { (" " | "\t" | "\n")+ }
 
 // quoted "strings"
-string = { "\"" ~ (raw_string | escape)* ~ "\"" }
-raw_string = { (!("\\" | "\"") ~ ANY)+ }
+string = { "\"" ~ (raw_string | escape | twig)* ~ "\"" }
+raw_string = { (!("\\" | "\"" | "{{" | "{%") ~ ANY)+ }
 predefined = { "n" | "r" | "t" | "\\" | "0" | "\"" | "'" }
 escape     = { "\\" ~ (predefined) }
