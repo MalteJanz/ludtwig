@@ -26,3 +26,4 @@ harness = false
 criterion = "^0.3.3"
 
 [dependencies]
+rowan = "0.15.8"

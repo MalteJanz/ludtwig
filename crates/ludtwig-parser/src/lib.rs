@@ -1,3 +1,4 @@
+mod syntax;
 
 pub fn parse() {
     todo!("implement parsing")
