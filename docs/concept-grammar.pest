@@ -3,6 +3,20 @@
 // This grammar concept represents the idea where twig syntax is allowed inside html.
 // It does not contain every possible html tag or twig syntax
 
+// accepted language example
+//
+// {% block my_block %}
+// <div class="my-block-div {{ additional_class }}">
+//     <div {{ some_attribute }}/>
+//     <p {% block if_block %}
+//            style="color: red"
+//        {% endblock %}
+//     >
+//          hello {{ world }}
+//     </p>
+// </div>
+// {% endblock %}
+
 
 // any element in the document (including twig structures)
 element = { ws? ~ (twig | any_tag | text) }
