@@ -22,12 +22,18 @@ pub enum SyntaxKind {
     HTML_EQUAL_SIGN,
     HTML_DOUBLE_QUOTE,
     /*
-     Composite nodes (which have children)
-     */
+    Composite nodes (which have children and ast / typed counterparts)
+    */
+    BODY,
     TWIG_BLOCK,
+    TWIG_STARTING_BLOCK,
+    TWIG_ENDING_BLOCK,
+
     TWIG_VAR,
     HTML_ATTRIBUTE,
     HTML_TAG,
+    HTML_STARTING_TAG,
+    HTML_ENDING_TAG,
     ROOT, // top-level node: list of elements inside the template
 }
 
@@ -77,8 +83,6 @@ pub type SyntaxNode = rowan::SyntaxNode<Lang>;
 pub type SyntaxToken = rowan::SyntaxToken<Lang>;
 pub type SyntaxElement = rowan::NodeOrToken<SyntaxNode, SyntaxToken>;
 
-
-
 pub fn print_syntax_tree(indent: usize, element: SyntaxElement) {
     let kind: SyntaxKind = element.kind();
     print!("{:indent$}", "", indent = indent);
@@ -114,6 +118,7 @@ pub fn build_example_tree() -> SyntaxNode {
 
     // Outer twig block
     builder.start_node(SyntaxKind::TWIG_BLOCK.into());
+    builder.start_node(SyntaxKind::TWIG_STARTING_BLOCK.into());
     builder.token(SyntaxKind::TWIG_BLOCK_START.into(), "{%");
     builder.token(SyntaxKind::WHITESPACE.into(), " ");
     builder.token(SyntaxKind::TWIG_KEYWORD_BLOCK.into(), "block");
@@ -121,11 +126,14 @@ pub fn build_example_tree() -> SyntaxNode {
     builder.token(SyntaxKind::WORD.into(), "my_block");
     builder.token(SyntaxKind::WHITESPACE.into(), " ");
     builder.token(SyntaxKind::TWIG_BLOCK_END.into(), "%}");
+    builder.finish_node(); // close TWIG_STARTING_BLOCK
+    builder.start_node(SyntaxKind::BODY.into());
     builder.token(SyntaxKind::LINE_BREAK.into(), "\n");
     builder.token(SyntaxKind::WHITESPACE.into(), "    ");
 
     // Inner div
     builder.start_node(SyntaxKind::HTML_TAG.into());
+    builder.start_node(SyntaxKind::HTML_STARTING_TAG.into());
     builder.token(SyntaxKind::HTML_OPENING_ANGLE_BRACKET.into(), "<");
     builder.token(SyntaxKind::WORD.into(), "div");
     builder.token(SyntaxKind::WHITESPACE.into(), " ");
@@ -141,25 +149,33 @@ pub fn build_example_tree() -> SyntaxNode {
     builder.finish_node();
 
     builder.token(SyntaxKind::HTML_CLOSING_ANGLE_BRACKET.into(), ">");
+    builder.finish_node(); // close HTML_STARTING_TAG
+    builder.start_node(SyntaxKind::BODY.into());
     builder.token(SyntaxKind::LINE_BREAK.into(), "\n");
     builder.token(SyntaxKind::WHITESPACE.into(), "        ");
     builder.token(SyntaxKind::WORD.into(), "world");
     builder.token(SyntaxKind::LINE_BREAK.into(), "\n");
     builder.token(SyntaxKind::WHITESPACE.into(), "    ");
+    builder.finish_node(); // close BODY
+    builder.start_node(SyntaxKind::HTML_ENDING_TAG.into());
     builder.token(SyntaxKind::HTML_OPENING_ANGLE_BRACKET.into(), "<");
     builder.token(SyntaxKind::HTML_FORWARD_SLASH.into(), "/");
     builder.token(SyntaxKind::WORD.into(), "div");
     builder.token(SyntaxKind::HTML_CLOSING_ANGLE_BRACKET.into(), ">");
+    builder.finish_node(); // close HTML_ENDING_TAG
     builder.token(SyntaxKind::LINE_BREAK.into(), "\n");
 
     // Close inner div
     builder.finish_node();
 
+    builder.finish_node(); // close BODY
+    builder.start_node(SyntaxKind::TWIG_ENDING_BLOCK.into());
     builder.token(SyntaxKind::TWIG_BLOCK_START.into(), "{%");
     builder.token(SyntaxKind::WHITESPACE.into(), " ");
     builder.token(SyntaxKind::TWIG_KEYWORD_ENDBLOCK.into(), "endblock");
     builder.token(SyntaxKind::WHITESPACE.into(), " ");
     builder.token(SyntaxKind::TWIG_BLOCK_END.into(), "%}");
+    builder.finish_node(); // close TWIG_ENDING_BLOCK
     builder.token(SyntaxKind::LINE_BREAK.into(), "\n");
 
     // Close outer twig block
