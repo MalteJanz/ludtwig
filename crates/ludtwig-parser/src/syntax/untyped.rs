@@ -31,10 +31,11 @@ pub enum SyntaxKind {
 
     TWIG_VAR,
     HTML_ATTRIBUTE,
+    HTML_STRING, // used as attribute values
     HTML_TAG,
     HTML_STARTING_TAG,
     HTML_ENDING_TAG,
-    ROOT, // top-level node: list of elements inside the template
+    ROOT, // top-level node: list of elements inside the template (must be last item of enum for safety check!)
 }
 
 /// Some boilerplate is needed, as rowan settled on using its own
@@ -52,8 +53,8 @@ impl From<SyntaxKind> for rowan::SyntaxKind {
 /// these two SyntaxKind types, allowing for a nicer SyntaxNode API where
 /// "kinds" are values from our `enum SyntaxKind`, instead of plain u16 values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Lang {}
-impl rowan::Language for Lang {
+pub enum TwigHtmlLanguage {}
+impl rowan::Language for TwigHtmlLanguage {
     type Kind = SyntaxKind;
     fn kind_from_raw(raw: rowan::SyntaxKind) -> Self::Kind {
         assert!(raw.0 <= SyntaxKind::ROOT as u16);
@@ -79,34 +80,24 @@ pub use rowan::GreenNodeBuilder;
 /// but it contains parent pointers, offsets, and
 /// has identity semantics.
 
-pub type SyntaxNode = rowan::SyntaxNode<Lang>;
-pub type SyntaxToken = rowan::SyntaxToken<Lang>;
+pub type SyntaxNode = rowan::SyntaxNode<TwigHtmlLanguage>;
+pub type SyntaxToken = rowan::SyntaxToken<TwigHtmlLanguage>;
 pub type SyntaxElement = rowan::NodeOrToken<SyntaxNode, SyntaxToken>;
+pub type SyntaxNodeChildren = rowan::SyntaxNodeChildren<TwigHtmlLanguage>;
+pub type SyntaxElementChildren = rowan::SyntaxElementChildren<TwigHtmlLanguage>;
+pub type PreorderWithTokens = rowan::api::PreorderWithTokens<TwigHtmlLanguage>;
 
 pub fn print_syntax_tree(indent: usize, element: SyntaxElement) {
-    let kind: SyntaxKind = element.kind();
     print!("{:indent$}", "", indent = indent);
     match element {
         rowan::NodeOrToken::Node(node) => {
-            println!("- {:?}", kind);
+            println!("- {:?}", node);
             for child in node.children_with_tokens() {
                 print_syntax_tree(indent + 2, child);
             }
         }
 
-        rowan::NodeOrToken::Token(token) => println!("- {:?} {:?}", token.text(), kind),
-    }
-}
-
-pub fn print_syntax_tree_text(indent: usize, element: SyntaxElement) {
-    match element {
-        rowan::NodeOrToken::Node(node) => {
-            for child in node.children_with_tokens() {
-                print_syntax_tree_text(indent + 2, child);
-            }
-        }
-
-        rowan::NodeOrToken::Token(token) => print!("{}", token.text()),
+        rowan::NodeOrToken::Token(token) => println!("- {:?}", token),
     }
 }
 
@@ -141,8 +132,11 @@ pub fn build_example_tree() -> SyntaxNode {
     // Inner div attribute
     builder.start_node(SyntaxKind::HTML_ATTRIBUTE.into());
     builder.token(SyntaxKind::WORD.into(), "class");
+    builder.token(SyntaxKind::HTML_EQUAL_SIGN.into(), "=");
     builder.token(SyntaxKind::HTML_DOUBLE_QUOTE.into(), "\"");
+    builder.start_node(SyntaxKind::HTML_STRING.into());
     builder.token(SyntaxKind::WORD.into(), "my-div");
+    builder.finish_node(); // Close HTML_STRING
     builder.token(SyntaxKind::HTML_DOUBLE_QUOTE.into(), "\"");
 
     // Close inner div attribute
@@ -194,10 +188,18 @@ mod tests {
     fn it_works() {
         let tree = build_example_tree();
         println!("syntax tree underlying text:");
-        print_syntax_tree_text(0, tree.clone().into());
-        println!();
+        println!("{}", tree.text());
 
         println!("syntax tree:");
         print_syntax_tree(0, tree.into());
+    }
+
+    #[test]
+    fn it_should_print_the_original_text() {
+        let tree = build_example_tree();
+        assert_eq!(
+            tree.text(),
+            "{% block my_block %}\n    <div class=\"my-div\">\n        world\n    </div>\n{% endblock %}\n"
+        );
     }
 }

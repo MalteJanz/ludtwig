@@ -1,4 +1,5 @@
-use super::untyped::{Lang, SyntaxKind, SyntaxNode, SyntaxToken};
+use super::untyped::{SyntaxKind, SyntaxNode, SyntaxToken, TwigHtmlLanguage};
+use rowan::ast::AstChildren;
 
 pub use rowan::ast::support;
 pub use rowan::ast::AstNode;
@@ -22,7 +23,7 @@ macro_rules! ast_node {
         }
 
         impl AstNode for $ast {
-            type Language = Lang;
+            type Language = TwigHtmlLanguage;
 
             fn can_cast(kind: <Self::Language as rowan::Language>::Kind) -> bool
             where
@@ -55,6 +56,7 @@ ast_node!(Body, SyntaxKind::BODY);
 ast_node!(TwigEndingBlock, SyntaxKind::TWIG_ENDING_BLOCK);
 ast_node!(TwigVar, SyntaxKind::TWIG_VAR);
 ast_node!(HtmlAttribute, SyntaxKind::HTML_ATTRIBUTE);
+ast_node!(HtmlString, SyntaxKind::HTML_STRING);
 ast_node!(HtmlTag, SyntaxKind::HTML_TAG);
 ast_node!(HtmlStartingTag, SyntaxKind::HTML_STARTING_TAG);
 ast_node!(HtmlEndingTag, SyntaxKind::HTML_ENDING_TAG);
@@ -94,6 +96,23 @@ impl HtmlStartingTag {
     pub fn name(&self) -> Option<SyntaxToken> {
         support::token(&self.syntax, SyntaxKind::WORD)
     }
+
+    /// Attributes of the tag
+    pub fn attributes(&self) -> AstChildren<HtmlAttribute> {
+        support::children(&self.syntax)
+    }
+}
+
+impl HtmlAttribute {
+    /// Name of the attribute (left side of the equal sign)
+    pub fn name(&self) -> Option<SyntaxToken> {
+        support::token(&self.syntax, SyntaxKind::WORD)
+    }
+
+    /// Value of the attribute
+    pub fn value(&self) -> Option<HtmlString> {
+        support::child(&self.syntax)
+    }
 }
 
 impl HtmlTag {
@@ -105,7 +124,14 @@ impl HtmlTag {
         }
     }
 
-    // TODO: add attributes accessor
+    /// Attributes of the tag
+    pub fn attributes(&self) -> AstChildren<HtmlAttribute> {
+        match self.starting_tag() {
+            Some(n) => n.attributes(),
+            // create an iterator for HtmlAttribute over the tag itself, which should yield no results
+            None => support::children(&self.syntax),
+        }
+    }
 
     pub fn starting_tag(&self) -> Option<HtmlStartingTag> {
         support::child(&self.syntax)
@@ -126,7 +152,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_twig_block_name_getter() {
+    fn test_twig_block_getters() {
         let tree = build_example_tree();
 
         let typed: TwigBlock = support::child(&tree).unwrap();
@@ -135,11 +161,16 @@ mod tests {
     }
 
     #[test]
-    fn test_html_tag_name_getter() {
+    fn test_html_tag_getters() {
         let tree = build_example_tree();
 
         let typed = tree.descendants().find_map(HtmlTag::cast).unwrap();
         assert!(typed.name().is_some());
         assert_eq!(typed.name().unwrap().text(), "div");
+
+        assert!(typed.starting_tag().is_some());
+        let first_attribute = typed.attributes().next().unwrap();
+        assert_eq!(first_attribute.name().unwrap().text(), "class");
+        assert_eq!(first_attribute.value().unwrap().syntax().text(), "my-div");
     }
 }
