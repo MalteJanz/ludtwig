@@ -1,5 +1,8 @@
-use crate::output::{Output, OutputMessage};
+use crate::check::rule::Severity;
+use crate::check::{get_cli_outputs_from_rule_results, run_rules};
+use crate::output::{CliOutput, CliOutputMessage};
 use crate::CliContext;
+use ludtwig_parser::syntax::typed::Root;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -13,13 +16,15 @@ pub struct FileContext {
     pub file_path: PathBuf,
 
     // The parsed [SyntaxNode] AST for this file / context.
-    // pub tree: SyntaxNode,
+    pub tree_root: Root,
+
+    pub source_code: String,
 }
 
 impl FileContext {
     /// Helper function to send some [Output] to the user for this specific file.
-    pub fn send_output(&self, output: Output) {
-        self.cli_context.send_output(OutputMessage {
+    pub fn send_output(&self, output: CliOutput) {
+        self.cli_context.send_output(CliOutputMessage {
             file: self.file_path.clone(),
             output,
         });
@@ -29,42 +34,36 @@ impl FileContext {
 /// Process a single file with it's filepath.
 pub fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
     // notify the output about this file (to increase the processed file counter)
-    cli_context.send_output(OutputMessage {
+    cli_context.send_output(CliOutputMessage {
         file: path.clone(),
-        output: Output::None,
+        output: CliOutput {
+            severity: Severity::Info,
+            message: "".to_string(),
+        },
     });
 
     let file_content = match fs::read_to_string(&path) {
         Ok(f) => f,
         Err(_) => {
-            cli_context.send_output(OutputMessage {
+            cli_context.send_output(CliOutputMessage {
                 file: path,
-                output: Output::Error("Can't read file".into()),
+                output: CliOutput {
+                    severity: Severity::Error,
+                    message: "Can't read file".to_string(),
+                },
             });
 
             return;
         }
     };
 
-    // TODO: reimplement parsing
-    /*
-    let tree = match ludtwig_parser::parse(&file_content) {
-        Ok(t) => t,
-        Err(e) => {
-            cli_context.send_output(OutputMessage {
-                file: path,
-                output: Output::Error(e.pretty_helpful_error_string(&file_content)),
-            });
-
-            return;
-        }
-    };
-     */
+    let tree_root = ludtwig_parser::parse(&file_content);
 
     let file_context = Arc::new(FileContext {
         cli_context,
         file_path: path,
-        // tree,
+        tree_root,
+        source_code: file_content,
     });
 
     work_with_file_context(file_context);
@@ -72,27 +71,11 @@ pub fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
 
 /// Do all the analyzing and writing work concurrently on the [FileContext].
 fn work_with_file_context(file_context: Arc<FileContext>) {
-    todo!("refactor concept for working with the parsed tree");
-    // TODO: refactor this
-    /*
-    if !file_context.cli_context.no_analysis && !file_context.cli_context.no_writing {
-        // write and analyze concurrently:
-        rayon::join(
-            || analyze(Arc::clone(&file_context)),
-            || write_tree(Arc::clone(&file_context)),
-        );
+    let rule_result_context = run_rules(&file_context);
+    let cli_outputs = get_cli_outputs_from_rule_results(&file_context, rule_result_context);
 
-        return;
+    // send cli outputs over to output thread
+    for out in cli_outputs {
+        file_context.send_output(out);
     }
-
-    if !file_context.cli_context.no_analysis {
-        let clone = Arc::clone(&file_context);
-        analyze(clone);
-    }
-
-    if !file_context.cli_context.no_writing {
-        let clone = Arc::clone(&file_context);
-        write_tree(clone);
-    }
-     */
 }

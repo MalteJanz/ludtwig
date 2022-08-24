@@ -1,11 +1,13 @@
 mod attribute;
+mod check;
 mod config;
 mod output;
 mod process;
 
 use crate::attribute::LudtwigRegex;
 use crate::config::Config;
-use crate::output::OutputMessage;
+use crate::output::CliOutputMessage;
+use clap::Parser;
 use rayon::prelude::*;
 use std::boxed::Box;
 use std::path::PathBuf;
@@ -13,7 +15,6 @@ use std::sync::mpsc::SyncSender;
 use std::sync::{mpsc, Arc};
 use std::thread;
 use walkdir::{DirEntry, WalkDir};
-use clap::Parser;
 
 /// A CLI tool for '.twig' files with focus on formatting and detecting mistakes.
 #[derive(Parser, Debug, Clone)]
@@ -54,7 +55,7 @@ pub struct Opts {
 #[derive(Debug)]
 pub struct CliContext {
     /// Channel sender for transmitting messages back to the user.
-    pub output_tx: SyncSender<OutputMessage>,
+    pub output_tx: SyncSender<CliOutputMessage>,
     /// Disable the analysis of the syntax tree. There will still be parsing errors.
     pub no_analysis: bool,
     /// Disable the formatted writing of the syntax tree to disk. With this option the tool will not write to any files.
@@ -69,7 +70,7 @@ pub struct CliContext {
 
 impl CliContext {
     /// Helper function to send a [OutputMessage] back to the user.
-    pub fn send_output(&self, msg: OutputMessage) {
+    pub fn send_output(&self, msg: CliOutputMessage) {
         self.output_tx.send(msg).unwrap();
     }
 }

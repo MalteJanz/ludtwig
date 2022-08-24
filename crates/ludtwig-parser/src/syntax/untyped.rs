@@ -87,6 +87,9 @@ pub type SyntaxNodeChildren = rowan::SyntaxNodeChildren<TwigHtmlLanguage>;
 pub type SyntaxElementChildren = rowan::SyntaxElementChildren<TwigHtmlLanguage>;
 pub type PreorderWithTokens = rowan::api::PreorderWithTokens<TwigHtmlLanguage>;
 
+pub use rowan::TextRange;
+pub use rowan::WalkEvent;
+
 pub fn print_syntax_tree(indent: usize, element: SyntaxElement) {
     print!("{:indent$}", "", indent = indent);
     match element {
@@ -114,7 +117,7 @@ pub fn build_example_tree() -> SyntaxNode {
     builder.token(SyntaxKind::WHITESPACE.into(), " ");
     builder.token(SyntaxKind::TWIG_KEYWORD_BLOCK.into(), "block");
     builder.token(SyntaxKind::WHITESPACE.into(), " ");
-    builder.token(SyntaxKind::WORD.into(), "my_block");
+    builder.token(SyntaxKind::WORD.into(), "my-block"); // temporary issue for rule test
     builder.token(SyntaxKind::WHITESPACE.into(), " ");
     builder.token(SyntaxKind::TWIG_BLOCK_END.into(), "%}");
     builder.finish_node(); // close TWIG_STARTING_BLOCK

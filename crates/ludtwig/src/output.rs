@@ -1,45 +1,40 @@
+use crate::check::rule::Severity;
 use ansi_term::Colour::*;
 use ansi_term::Style;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 
-/// The user output has different variants.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Output {
-    /// only to notify the output processing about a file, that was processed (does not show in CLI, only for counting purposes)
-    None,
-    Error(String),
-    Warning(String),
+/// The user output message which is rendered in the command line interface.
+#[derive(Debug, Clone)]
+pub struct CliOutput {
+    pub severity: Severity,
+    pub message: String,
 }
 
-/// This is a single output message which is associated with a file path.
-#[derive(Debug, Clone, PartialEq)]
-pub struct OutputMessage {
+/// This single output message is send through a channel from other threads and
+/// associates a [CliOutput] with a file path.
+#[derive(Debug, Clone)]
+pub struct CliOutputMessage {
     /// The file path that is associated with this output message.
     pub file: PathBuf,
 
-    pub output: Output,
+    pub output: CliOutput,
 }
 
-/// This function receives all the [OutputMessage] instances from the receiver channel and
-/// prints information to the console / user.
-pub fn handle_processing_output(rx: Receiver<OutputMessage>) -> i32 {
+/// This function receives all the [CliOutputMessage] instances from the receiver channel and
+/// prints information to the command line interface.
+pub fn handle_processing_output(rx: Receiver<CliOutputMessage>) -> i32 {
     let mut map = HashMap::new();
     let mut file_count = 0;
-    let mut warning_count = 0;
     let mut error_count = 0;
+    let mut warning_count = 0;
+    let mut info_count = 0;
 
     // receive all incoming messages until all sending ends are closed.
     while let Ok(msg) = rx.recv() {
         let entry = map.entry(msg.file).or_insert_with(Vec::new);
-
-        match msg.output {
-            Output::None => {}
-            _ => {
-                entry.push(msg.output);
-            }
-        }
+        entry.push(msg.output);
     }
 
     // enable ansi codes support on windows 10 if the environment supports it.
@@ -54,26 +49,30 @@ pub fn handle_processing_output(rx: Receiver<OutputMessage>) -> i32 {
             continue;
         }
 
-        println!("\nFile: {:?}", file_path.as_os_str());
-
         for output in output_list {
-            match output {
-                Output::Error(message) => {
-                    error_count += 1;
-                    println!("[Error] {}", Red.paint(message));
-                }
-                Output::Warning(message) => {
-                    warning_count += 1;
-                    println!("[Warning] {}", Yellow.paint(message));
-                }
-                Output::None => {}
+            if output.message == "" {
+                continue;
             }
+
+            match output.severity {
+                Severity::Error => {
+                    error_count += 1;
+                }
+                Severity::Warning => {
+                    warning_count += 1;
+                }
+                Severity::Info => {
+                    info_count += 1;
+                }
+            }
+
+            println!("{}", output.message);
         }
     }
 
     println!(
-        "\nFiles scanned: {}, Errors: {}, Warnings: {}",
-        file_count, error_count, warning_count
+        "\nFiles scanned: {}, Errors: {}, Warnings: {}, Info: {}",
+        file_count, error_count, warning_count, info_count
     );
 
     if file_count > 0 && (error_count > 0 || warning_count > 0) {

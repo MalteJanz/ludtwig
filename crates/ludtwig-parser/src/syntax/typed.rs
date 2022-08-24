@@ -1,7 +1,7 @@
 use super::untyped::{SyntaxKind, SyntaxNode, SyntaxToken, TwigHtmlLanguage};
-use rowan::ast::AstChildren;
 
 pub use rowan::ast::support;
+pub use rowan::ast::AstChildren;
 pub use rowan::ast::AstNode;
 
 /// So far, we've been working with a homogeneous untyped tree.
@@ -36,7 +36,7 @@ macro_rules! ast_node {
             where
                 Self: Sized,
             {
-                if node.kind() == $kind {
+                if Self::can_cast(node.kind()) {
                     Some(Self { syntax: node })
                 } else {
                     None
