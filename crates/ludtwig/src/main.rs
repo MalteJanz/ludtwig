@@ -147,7 +147,7 @@ fn handle_input_path(path: PathBuf, cli_context: Arc<CliContext>) {
 
     // synchronous directory traversal but move the work for each file to a different thread in the thread pool.
     rayon::scope(move |s| {
-        for entry in walker.filter_entry(|e| is_hidden(e)) {
+        for entry in walker.filter_entry(is_hidden) {
             let entry = entry.unwrap();
 
             if !entry.file_type().is_file() {

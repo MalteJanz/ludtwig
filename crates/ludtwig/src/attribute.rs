@@ -9,7 +9,7 @@ pub struct LudtwigRegex {
 impl LudtwigRegex {
     pub fn from_raw_config_string(raw: &str) -> Result<LudtwigRegex, regex::Error> {
         let inverted = raw.chars().next().map_or(false, |c| c == '?');
-        let raw_regex = if inverted { &raw[1..] } else { &raw };
+        let raw_regex = if inverted { &raw[1..] } else { raw };
         let regex = Regex::new(raw_regex)?;
 
         Ok(LudtwigRegex { inverted, regex })

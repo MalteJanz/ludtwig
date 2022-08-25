@@ -1,6 +1,6 @@
 use crate::check::rule::{Rule, RuleContext, Severity};
 use ludtwig_parser::syntax::typed::{AstNode, TwigStartingBlock};
-use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxNode, SyntaxToken};
+use ludtwig_parser::syntax::untyped::SyntaxNode;
 
 pub struct RuleTwigBlockNameSnakeCase;
 
@@ -33,3 +33,5 @@ impl Rule for RuleTwigBlockNameSnakeCase {
         None
     }
 }
+
+// TODO: write a test (after parsing / generating syntax trees is possible)

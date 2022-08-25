@@ -60,14 +60,8 @@ ast_node!(HtmlString, SyntaxKind::HTML_STRING);
 ast_node!(HtmlTag, SyntaxKind::HTML_TAG);
 ast_node!(HtmlStartingTag, SyntaxKind::HTML_STARTING_TAG);
 ast_node!(HtmlEndingTag, SyntaxKind::HTML_ENDING_TAG);
+ast_node!(Error, SyntaxKind::ERROR);
 ast_node!(Root, SyntaxKind::ROOT);
-
-impl TwigStartingBlock {
-    /// Name of the twig block
-    pub fn name(&self) -> Option<SyntaxToken> {
-        support::token(&self.syntax, SyntaxKind::WORD)
-    }
-}
 
 impl TwigBlock {
     /// Name of the twig block
@@ -91,27 +85,28 @@ impl TwigBlock {
     }
 }
 
-impl HtmlStartingTag {
-    /// Name of the tag
+impl TwigStartingBlock {
+    /// Name of the twig block
     pub fn name(&self) -> Option<SyntaxToken> {
         support::token(&self.syntax, SyntaxKind::WORD)
     }
 
-    /// Attributes of the tag
-    pub fn attributes(&self) -> AstChildren<HtmlAttribute> {
-        support::children(&self.syntax)
+    /// Parent complete twig block
+    pub fn twig_block(&self) -> Option<TwigBlock> {
+        match self.syntax.parent() {
+            Some(p) => TwigBlock::cast(p),
+            None => None,
+        }
     }
 }
 
-impl HtmlAttribute {
-    /// Name of the attribute (left side of the equal sign)
-    pub fn name(&self) -> Option<SyntaxToken> {
-        support::token(&self.syntax, SyntaxKind::WORD)
-    }
-
-    /// Value of the attribute
-    pub fn value(&self) -> Option<HtmlString> {
-        support::child(&self.syntax)
+impl TwigEndingBlock {
+    /// Parent complete twig block
+    pub fn twig_block(&self) -> Option<TwigBlock> {
+        match self.syntax.parent() {
+            Some(p) => TwigBlock::cast(p),
+            None => None,
+        }
     }
 }
 
@@ -146,6 +141,56 @@ impl HtmlTag {
     }
 }
 
+impl HtmlStartingTag {
+    /// Name of the tag
+    pub fn name(&self) -> Option<SyntaxToken> {
+        support::token(&self.syntax, SyntaxKind::WORD)
+    }
+
+    /// Attributes of the tag
+    pub fn attributes(&self) -> AstChildren<HtmlAttribute> {
+        support::children(&self.syntax)
+    }
+
+    /// Parent complete html tag
+    pub fn html_tag(&self) -> Option<HtmlTag> {
+        match self.syntax.parent() {
+            Some(p) => HtmlTag::cast(p),
+            None => None,
+        }
+    }
+}
+
+impl HtmlAttribute {
+    /// Name of the attribute (left side of the equal sign)
+    pub fn name(&self) -> Option<SyntaxToken> {
+        support::token(&self.syntax, SyntaxKind::WORD)
+    }
+
+    /// Value of the attribute
+    pub fn value(&self) -> Option<HtmlString> {
+        support::child(&self.syntax)
+    }
+
+    /// Parent starting html tag
+    pub fn html_tag(&self) -> Option<HtmlStartingTag> {
+        match self.syntax.parent() {
+            Some(p) => HtmlStartingTag::cast(p),
+            None => None,
+        }
+    }
+}
+
+impl HtmlEndingTag {
+    /// Parent complete html tag
+    pub fn html_tag(&self) -> Option<HtmlTag> {
+        match self.syntax.parent() {
+            Some(p) => HtmlTag::cast(p),
+            None => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::untyped::build_example_tree;
@@ -157,7 +202,7 @@ mod tests {
 
         let typed: TwigBlock = support::child(&tree).unwrap();
         assert!(typed.name().is_some());
-        assert_eq!(typed.name().unwrap().text(), "my_block");
+        assert_eq!(typed.name().unwrap().text(), "my-block");
     }
 
     #[test]

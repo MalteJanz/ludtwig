@@ -35,6 +35,7 @@ pub enum SyntaxKind {
     HTML_TAG,
     HTML_STARTING_TAG,
     HTML_ENDING_TAG,
+    ERROR, // contains invalid syntax (used for error recovery)
     ROOT, // top-level node: list of elements inside the template (must be last item of enum for safety check!)
 }
 
@@ -171,6 +172,10 @@ pub fn build_example_tree() -> SyntaxNode {
     builder.token(SyntaxKind::WHITESPACE.into(), " ");
     builder.token(SyntaxKind::TWIG_KEYWORD_ENDBLOCK.into(), "endblock");
     builder.token(SyntaxKind::WHITESPACE.into(), " ");
+    builder.start_node(SyntaxKind::ERROR.into());
+    builder.token(SyntaxKind::WORD.into(), "SomeInvalidSyntax");
+    builder.token(SyntaxKind::WHITESPACE.into(), " ");
+    builder.finish_node(); // close ERROR
     builder.token(SyntaxKind::TWIG_BLOCK_END.into(), "%}");
     builder.finish_node(); // close TWIG_ENDING_BLOCK
     builder.token(SyntaxKind::LINE_BREAK.into(), "\n");
@@ -202,7 +207,7 @@ mod tests {
         let tree = build_example_tree();
         assert_eq!(
             tree.text(),
-            "{% block my_block %}\n    <div class=\"my-div\">\n        world\n    </div>\n{% endblock %}\n"
+            "{% block my-block %}\n    <div class=\"my-div\">\n        world\n    </div>\n{% endblock SomeInvalidSyntax %}\n"
         );
     }
 }

@@ -10,6 +10,7 @@ pub trait Rule {
     ///
     /// The return type is `Option<()>` to allow usage of the `?` (early return if not found) on the properties of the AST nodes
     /// which are all optional.
+    #[allow(unused_variables)]
     fn check_node(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
         None
     }
@@ -20,6 +21,7 @@ pub trait Rule {
     ///
     /// The return type is `Option<()>` to allow usage of the `?` (early return if not found) on the properties of the AST nodes
     /// which are all optional.
+    #[allow(unused_variables)]
     fn check_token(&self, token: SyntaxToken, ctx: &mut RuleContext) -> Option<()> {
         None
     }
@@ -30,6 +32,7 @@ pub trait Rule {
     ///
     /// The return type is `Option<()>` to allow usage of the `?` (early return if not found) on the properties of the AST nodes
     /// which are all optional.
+    #[allow(unused_variables)]
     fn check_root(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
         None
     }
@@ -91,11 +94,6 @@ impl CheckResult {
             syntax_range,
             message: message.into(),
         });
-        self
-    }
-
-    pub fn severity(mut self, severity: Severity) -> Self {
-        self.severity = severity;
         self
     }
 }

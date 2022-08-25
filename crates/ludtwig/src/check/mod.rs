@@ -1,41 +1,48 @@
-use crate::check::rule::{CheckResult, RuleContext};
-use crate::check::rules::get_rules;
+pub mod rule;
+mod rules;
+
+use crate::check::rule::RuleContext;
+use crate::check::rules::RULES;
 use crate::output::CliOutput;
 use crate::process::FileContext;
 use ansi_term::Color;
+use ludtwig_parser::syntax::typed;
 use ludtwig_parser::syntax::typed::AstNode;
 use ludtwig_parser::syntax::untyped::{SyntaxElement, WalkEvent};
 use std::fmt::Write;
-use std::path::PathBuf;
-
-pub mod rule;
-mod rules;
 
 pub fn run_rules(file_context: &FileContext) -> RuleContext {
     let mut ctx = RuleContext {
         check_results: vec![],
     };
 
-    let all_rules = get_rules();
+    let all_rules = RULES;
 
     // run root node checks once for each rule
-    for rule in &all_rules {
+    for rule in all_rules {
         rule.check_root(file_context.tree_root.syntax().to_owned(), &mut ctx);
     }
 
     // iterate through syntax tree
-    for walk_event in file_context.tree_root.syntax().preorder_with_tokens() {
+    let mut preorder = file_context.tree_root.syntax().preorder_with_tokens();
+    while let Some(walk_event) = preorder.next() {
         if let WalkEvent::Enter(element) = walk_event {
             match element {
                 SyntaxElement::Node(n) => {
+                    if typed::Error::can_cast(n.kind()) {
+                        preorder.skip_subtree();
+                        continue; // Skip error nodes in rules for now
+                                  // TODO: maybe also pass errors to specific rules to generate CLI output?
+                    }
+
                     // run node checks for every rule
-                    for rule in &all_rules {
+                    for rule in all_rules {
                         rule.check_node(n.clone(), &mut ctx);
                     }
                 }
                 SyntaxElement::Token(t) => {
                     // run token checks for every rule
-                    for rule in &all_rules {
+                    for rule in all_rules {
                         rule.check_token(t.clone(), &mut ctx);
                     }
                 }
@@ -66,9 +73,10 @@ pub fn get_cli_outputs_from_rule_results(
             let _ = writeln!(s, "          {:?}", note.syntax_range);
             let _ = writeln!(
                 s,
-                "          {}",
+                "          {} <- {}",
                 &file_context.source_code
-                    [usize::from(note.syntax_range.start())..usize::from(note.syntax_range.end())]
+                    [usize::from(note.syntax_range.start())..usize::from(note.syntax_range.end())],
+                note.message
             );
         }
 

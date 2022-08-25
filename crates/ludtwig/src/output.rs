@@ -42,7 +42,7 @@ pub fn handle_processing_output(rx: Receiver<CliOutputMessage>) -> i32 {
     let _ansi_enabled = ansi_term::enable_ansi_support().is_ok();
 
     // iterate through the messages for each file and print them out.
-    for (file_path, output_list) in map {
+    for (_, output_list) in map {
         file_count += 1;
 
         if output_list.is_empty() {
@@ -50,7 +50,7 @@ pub fn handle_processing_output(rx: Receiver<CliOutputMessage>) -> i32 {
         }
 
         for output in output_list {
-            if output.message == "" {
+            if output.message.is_empty() {
                 continue;
             }
 

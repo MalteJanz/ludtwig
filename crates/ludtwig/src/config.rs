@@ -5,13 +5,13 @@ use figment::Figment;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
     pub format: Format,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct Format {
     pub line_ending: LineEnding,
@@ -24,14 +24,14 @@ pub struct Format {
     pub attribute_ordering_regex: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub enum IndentationMode {
     Space,
     Tab,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 pub enum LineEnding {
     #[serde(rename = "unix_LF")]
     UnixLF,
@@ -53,7 +53,7 @@ impl Config {
             .merge(
                 Env::prefixed("LUDTWIG_")
                     .split("__")
-                    .map(|key| key.as_str().replace("_", "-").into()),
+                    .map(|key| key.as_str().replace('_', "-").into()),
             )
             .extract()?;
 
@@ -91,14 +91,12 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
         std::process::exit(0);
     }
 
-    let config = match Config::new(config_path) {
+    match Config::new(config_path) {
         Ok(c) => c,
         Err(e) => {
             println!("Error reading configuration:");
             println!("{}", e);
             std::process::exit(1);
         }
-    };
-
-    config
+    }
 }
