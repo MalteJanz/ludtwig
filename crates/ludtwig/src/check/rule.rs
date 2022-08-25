@@ -58,6 +58,7 @@ impl RuleContext {
             message: message.into(),
             primary: None,
             secondary: vec![],
+            suggestions: vec![],
         }
     }
 
@@ -74,6 +75,7 @@ pub struct CheckResult {
     pub(super) message: String,
     pub(super) primary: Option<CheckNote>,
     pub(super) secondary: Vec<CheckNote>,
+    pub(super) suggestions: Vec<CheckSuggestion>,
 }
 
 impl CheckResult {
@@ -96,11 +98,33 @@ impl CheckResult {
         });
         self
     }
+
+    /// Add a code suggestion which the user can follow or is replaced automatically
+    pub fn suggestion<R: Into<String>, S: Into<String>>(
+        mut self,
+        syntax_range: TextRange,
+        replace_with: R,
+        message: S,
+    ) -> Self {
+        self.suggestions.push(CheckSuggestion {
+            syntax_range,
+            replace_with: replace_with.into(),
+            message: message.into(),
+        });
+        self
+    }
 }
 
 #[derive(Debug)]
 pub struct CheckNote {
     pub(super) syntax_range: TextRange,
+    pub(super) message: String,
+}
+
+#[derive(Debug)]
+pub struct CheckSuggestion {
+    pub(super) syntax_range: TextRange,
+    pub(super) replace_with: String,
     pub(super) message: String,
 }
 

@@ -80,6 +80,14 @@ pub fn get_cli_outputs_from_rule_results(
             );
         }
 
+        for suggestion in result.suggestions {
+            let _ = writeln!(
+                s,
+                "          {} <- {}",
+                suggestion.replace_with, suggestion.message
+            );
+        }
+
         // TODO: line and column numbers with view into file
         // TODO: There is a nice crate for all of this called codespan-reporting
 

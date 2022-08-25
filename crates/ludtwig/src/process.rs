@@ -2,7 +2,7 @@ use crate::check::rule::Severity;
 use crate::check::{get_cli_outputs_from_rule_results, run_rules};
 use crate::output::{CliOutput, CliOutputMessage};
 use crate::CliContext;
-use ludtwig_parser::syntax::typed::Root;
+use ludtwig_parser::syntax::typed::{AstNode, Root};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -62,8 +62,8 @@ pub fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
     let file_context = Arc::new(FileContext {
         cli_context,
         file_path: path,
+        source_code: tree_root.syntax().text().to_string(), // TODO: replace with actual content?
         tree_root,
-        source_code: file_content,
     });
 
     work_with_file_context(file_context);
