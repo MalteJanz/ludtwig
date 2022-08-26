@@ -1,9 +1,10 @@
-use crate::attribute::LudtwigRegex;
 use crate::Opts;
 use figment::providers::{Env, Format as FigFormat, Toml};
 use figment::Figment;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
+
+// TODO: refactor config to fit the needs of the new rules
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "kebab-case")]
@@ -21,7 +22,6 @@ pub struct Format {
     pub attribute_inline_max_count: u8,
     pub indent_children_of_blocks: bool,
     pub linebreaks_around_blocks: bool,
-    pub attribute_ordering_regex: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
@@ -59,14 +59,6 @@ impl Config {
 
         Ok(config)
     }
-
-    pub fn get_compiled_attribute_regex(&self) -> Result<Vec<LudtwigRegex>, regex::Error> {
-        self.format
-            .attribute_ordering_regex
-            .iter()
-            .map(|s| LudtwigRegex::from_raw_config_string(s))
-            .collect()
-    }
 }
 
 pub fn handle_config_or_exit(opts: &Opts) -> Config {
@@ -76,7 +68,7 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
         .unwrap_or_else(|| PathBuf::from(DEFAULT_CONFIG_PATH));
 
     if opts.create_config {
-        if std::path::Path::exists(config_path.as_ref()) {
+        if Path::exists(config_path.as_ref()) {
             println!("The configuration file already exists at that location. \
             Try choosing a different location with '-c my-path' or make a backup of your current config file (rename it).");
             std::process::exit(1);

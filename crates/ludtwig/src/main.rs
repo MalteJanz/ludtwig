@@ -1,14 +1,11 @@
-mod attribute;
 mod check;
 mod config;
 mod output;
 mod process;
 
-use crate::attribute::LudtwigRegex;
 use crate::config::Config;
 use crate::output::CliOutputMessage;
 use clap::Parser;
-use rayon::prelude::*;
 use std::boxed::Box;
 use std::path::PathBuf;
 use std::sync::mpsc::SyncSender;
@@ -16,11 +13,11 @@ use std::sync::{mpsc, Arc};
 use std::thread;
 use walkdir::{DirEntry, WalkDir};
 
-/// A CLI tool for '.twig' files with focus on formatting and detecting mistakes.
+/// A CLI tool for template files (Twig + HTML) with focus on formatting and detecting mistakes.
 #[derive(Parser, Debug, Clone)]
 #[clap(author = env!("CARGO_PKG_AUTHORS"))]
 pub struct Opts {
-    /// Files or directories to scan and format
+    /// Files or directories to scan
     #[clap(
         value_name = "FILE",
         min_values = 1,
@@ -31,15 +28,11 @@ pub struct Opts {
     )]
     files: Vec<PathBuf>,
 
-    /// Disable the analysis of the syntax tree. There will still be parsing errors.
-    #[clap(short = 'A', long)]
-    no_analysis: bool,
+    /// Apply all code suggestions automatically. This changes the original files!
+    #[clap(short = 'f', long)]
+    fix: bool,
 
-    /// Disable the formatted writing of the syntax tree to disk. With this option the tool will not write to any files.
-    #[clap(short = 'W', long)]
-    no_writing: bool,
-
-    /// Specify a custom output directory instead of modifying the files in place.
+    /// Specify a custom output directory instead of fixing the files in place.
     #[clap(short, long, parse(from_os_str))]
     output_path: Option<PathBuf>,
 
@@ -54,22 +47,18 @@ pub struct Opts {
 
 #[derive(Debug)]
 pub struct CliContext {
-    /// Channel sender for transmitting messages back to the user.
+    /// Channel sender for transmitting messages back to the CLI.
     pub output_tx: SyncSender<CliOutputMessage>,
-    /// Disable the analysis of the syntax tree. There will still be parsing errors.
-    pub no_analysis: bool,
-    /// Disable the formatted writing of the syntax tree to disk. With this option the tool will not write to any files.
-    pub no_writing: bool,
+    /// Apply all code suggestions automatically. This changes the original files!
+    pub fix: bool,
     /// Specify a custom output directory instead of modifying the files in place.
     pub output_path: Option<PathBuf>,
     /// The config values to use.
     pub config: Config,
-    /// vector of compiled regular expressions for attribute sorting
-    pub attribute_regex: Vec<LudtwigRegex>,
 }
 
 impl CliContext {
-    /// Helper function to send a [OutputMessage] back to the user.
+    /// Helper function to send a [CliOutputMessage] back to the user.
     pub fn send_output(&self, msg: CliOutputMessage) {
         self.output_tx.send(msg).unwrap();
     }
@@ -79,26 +68,14 @@ impl CliContext {
 fn main() {
     let opts: Opts = Opts::from_args();
     let config = config::handle_config_or_exit(&opts);
-    let attribute_regex = match config.get_compiled_attribute_regex() {
-        Ok(v) => v,
-        Err(e) => {
-            println!("Error reading configuration (One value of the attribute-ordering-regex array can not be compiled to a regex):");
-            println!("{}", e);
-            std::process::exit(1);
-        }
-    };
 
-    let process_code = app(opts, config, attribute_regex).unwrap();
+    let process_code = app(opts, config).unwrap();
     std::process::exit(process_code);
 }
 
 /// The entry point of the async application.
-fn app(
-    opts: Opts,
-    config: Config,
-    attribute_regex: Vec<LudtwigRegex>,
-) -> Result<i32, Box<dyn std::error::Error>> {
-    println!("Parsing files...");
+fn app(opts: Opts, config: Config) -> Result<i32, Box<dyn std::error::Error>> {
+    println!("Scanning files...");
 
     // sender and receiver channels for the communication between tasks and the user.
     // the channel is bounded to buffer 32 messages before sending will block.
@@ -107,23 +84,21 @@ fn app(
 
     let cli_context = Arc::new(CliContext {
         output_tx: tx,
-        no_analysis: opts.no_analysis,
-        no_writing: opts.no_writing,
+        fix: opts.fix,
         output_path: opts.output_path,
         config,
-        attribute_regex,
     });
 
     let output_handler = thread::spawn(|| output::handle_processing_output(rx));
 
     // work on each user specified file / directory path concurrently
-    opts.files.into_par_iter().for_each(|path| {
+    opts.files.into_iter().for_each(|path| {
         handle_input_path(path, Arc::clone(&cli_context));
     });
 
-    drop(cli_context);
+    drop(cli_context); // drop this tx channel
 
-    // the output_handler will finish execution if all the sending channel ends are closed.
+    // the output_handler will finish execution if all the tx (sending channel) ends are closed.
     let process_code = output_handler.join().unwrap();
 
     Ok(process_code)
@@ -157,7 +132,7 @@ fn handle_input_path(path: PathBuf, cli_context: Arc<CliContext>) {
             if !entry
                 .file_name()
                 .to_str() // also skips non utf-8 file names!
-                .map(|s| s.ends_with(".twig"))
+                .map(|s| s.ends_with(".twig") || s.ends_with(".html"))
                 .unwrap_or(false)
             {
                 continue;

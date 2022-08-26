@@ -26,48 +26,48 @@ linebreaks-around-blocks = true
 # ludtwig runs each attribute against each regex and the first regex that matches gives the sorting order.
 # ludtwig uses stable sorting which means that if multiple attributes match the same regex they will keep their old order.
 # based on the recommended vue attribute ordering: https://v3.vuejs.org/style-guide/#element-attribute-order-recommended
-attribute-ordering-regex = [
-    # 1. Definition
-    "^is",
-
-    # 2. List rendering
-    "^v-for",
-
-    # 3. Conditionals
-    "^v-if",
-    "^v-else-if",
-    "^v-else",
-    "^v-show",
-    "^v-cloak",
-
-    # 4. Render Modifiers
-    "^v-pre",
-    "^v-once",
-
-    # 5. Globals awareness
-    "^id",
-
-    # 6. Unique attributes
-    "^ref",
-    "^key",
-
-    # 7. Two-Way Binding
-    "^v-model",
-
-    # 8.0 Custom class attribute priority (before all the other attributes)
-    "^:?class",
-
-    # 8.1 Other Attributes (all unspecified bound & unbound attributes)
-    # NOTE: '?' at the beginning is not valid regex syntax and is removed by ludtwig.
-    # this will invert the regex (apply this order rank for any attributes that don't match this regex)
-    # this inverted regex in particuallar should match anything that is not in the 9. Events or 10. Content
-    "?^((v-on.*)|(@.+)|(v-html)|(v-text))",
-
-    # 9. Events
-    "^v-on.*",
-    "^@.+",
-
-    # 10. Content
-    "^v-html",
-    "^v-text",
-]
+#attribute-ordering-regex = [
+#    # 1. Definition
+#    "^is",
+#
+#    # 2. List rendering
+#    "^v-for",
+#
+#    # 3. Conditionals
+#    "^v-if",
+#    "^v-else-if",
+#    "^v-else",
+#    "^v-show",
+#    "^v-cloak",
+#
+#    # 4. Render Modifiers
+#    "^v-pre",
+#    "^v-once",
+#
+#    # 5. Globals awareness
+#    "^id",
+#
+#    # 6. Unique attributes
+#    "^ref",
+#    "^key",
+#
+#    # 7. Two-Way Binding
+#    "^v-model",
+#
+#    # 8.0 Custom class attribute priority (before all the other attributes)
+#    "^:?class",
+#
+#    # 8.1 Other Attributes (all unspecified bound & unbound attributes)
+#    # NOTE: '?' at the beginning is not valid regex syntax and is removed by ludtwig.
+#    # this will invert the regex (apply this order rank for any attributes that don't match this regex)
+#    # this inverted regex in particuallar should match anything that is not in the 9. Events or 10. Content
+#    "?^((v-on.*)|(@.+)|(v-html)|(v-text))",
+#
+#    # 9. Events
+#    "^v-on.*",
+#    "^@.+",
+#
+#    # 10. Content
+#    "^v-html",
+#    "^v-text",
+#]

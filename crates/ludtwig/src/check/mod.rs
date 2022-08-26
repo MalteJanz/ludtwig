@@ -1,7 +1,7 @@
 pub mod rule;
 mod rules;
 
-use crate::check::rule::RuleContext;
+use crate::check::rule::{CheckSuggestion, RuleContext, Severity};
 use crate::check::rules::RULES;
 use crate::output::CliOutput;
 use crate::process::FileContext;
@@ -9,6 +9,7 @@ use ansi_term::Color;
 use ludtwig_parser::syntax::typed;
 use ludtwig_parser::syntax::typed::AstNode;
 use ludtwig_parser::syntax::untyped::{SyntaxElement, WalkEvent};
+use std::borrow::Borrow;
 use std::fmt::Write;
 
 pub fn run_rules(file_context: &FileContext) -> RuleContext {
@@ -20,11 +21,11 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
 
     // run root node checks once for each rule
     for rule in all_rules {
-        rule.check_root(file_context.tree_root.syntax().to_owned(), &mut ctx);
+        rule.check_root(file_context.tree_root.clone(), &mut ctx);
     }
 
     // iterate through syntax tree
-    let mut preorder = file_context.tree_root.syntax().preorder_with_tokens();
+    let mut preorder = file_context.tree_root.preorder_with_tokens();
     while let Some(walk_event) = preorder.next() {
         if let WalkEvent::Enter(element) = walk_event {
             match element {
@@ -53,6 +54,17 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
     ctx
 }
 
+pub fn get_rule_context_suggestions(rule_ctx: &RuleContext) -> Vec<(&str, &CheckSuggestion)> {
+    rule_ctx
+        .check_results
+        .iter()
+        .flat_map(|res| {
+            let rule_name = res.rule_name.borrow();
+            res.suggestions.iter().map(move |sug| (rule_name, sug))
+        })
+        .collect()
+}
+
 pub fn get_cli_outputs_from_rule_results(
     file_context: &FileContext,
     result_rule_ctx: RuleContext,
@@ -61,11 +73,30 @@ pub fn get_cli_outputs_from_rule_results(
 
     for result in result_rule_ctx.check_results {
         let mut s = String::new();
-        let _ = write!(
-            s,
-            "{}",
-            Color::Red.paint(format!("Error[{}]", result.rule_name))
-        );
+        match result.severity {
+            Severity::Error => {
+                let _ = write!(
+                    s,
+                    "{}",
+                    Color::Red.paint(format!("Error[{}]", result.rule_name))
+                );
+            }
+            Severity::Warning => {
+                let _ = write!(
+                    s,
+                    "{}",
+                    Color::Yellow.paint(format!("Warning[{}]", result.rule_name))
+                );
+            }
+            Severity::Info => {
+                let _ = write!(
+                    s,
+                    "{}",
+                    Color::White.paint(format!("Info[{}]", result.rule_name))
+                );
+            }
+        }
+
         let _ = writeln!(s, ": {}", result.message);
         let _ = writeln!(s, "    {:?}", file_context.file_path.as_os_str());
 

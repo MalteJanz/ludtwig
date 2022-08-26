@@ -1,11 +1,9 @@
-use crate::syntax::typed::Root;
-use crate::syntax::untyped::build_example_tree;
-use rowan::ast::AstNode;
+use crate::syntax::untyped::{build_example_tree, SyntaxNode};
 
 pub mod syntax;
 
-pub fn parse(input_text: &str) -> Root {
-    Root::cast(build_example_tree()).unwrap()
+pub fn parse(input_text: &str) -> SyntaxNode {
+    build_example_tree()
 }
 
 #[cfg(test)]

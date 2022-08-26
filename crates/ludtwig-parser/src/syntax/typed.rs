@@ -215,7 +215,7 @@ mod tests {
 
         assert!(typed.starting_tag().is_some());
         let first_attribute = typed.attributes().next().unwrap();
-        assert_eq!(first_attribute.name().unwrap().text(), "class");
+        assert_eq!(first_attribute.name().unwrap().text(), "claSs");
         assert_eq!(first_attribute.value().unwrap().syntax().text(), "my-div");
     }
 }

@@ -117,15 +117,15 @@ impl CheckResult {
 
 #[derive(Debug)]
 pub struct CheckNote {
-    pub(super) syntax_range: TextRange,
-    pub(super) message: String,
+    pub syntax_range: TextRange,
+    pub message: String,
 }
 
 #[derive(Debug)]
 pub struct CheckSuggestion {
-    pub(super) syntax_range: TextRange,
-    pub(super) replace_with: String,
-    pub(super) message: String,
+    pub syntax_range: TextRange,
+    pub replace_with: String,
+    pub message: String,
 }
 
 #[derive(Debug, Clone)]

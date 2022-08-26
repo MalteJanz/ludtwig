@@ -135,7 +135,7 @@ pub fn build_example_tree() -> SyntaxNode {
 
     // Inner div attribute
     builder.start_node(SyntaxKind::HTML_ATTRIBUTE.into());
-    builder.token(SyntaxKind::WORD.into(), "class");
+    builder.token(SyntaxKind::WORD.into(), "claSs");
     builder.token(SyntaxKind::HTML_EQUAL_SIGN.into(), "=");
     builder.token(SyntaxKind::HTML_DOUBLE_QUOTE.into(), "\"");
     builder.start_node(SyntaxKind::HTML_STRING.into());
@@ -207,7 +207,7 @@ mod tests {
         let tree = build_example_tree();
         assert_eq!(
             tree.text(),
-            "{% block my-block %}\n    <div class=\"my-div\">\n        world\n    </div>\n{% endblock SomeInvalidSyntax %}\n"
+            "{% block my-block %}\n    <div claSs=\"my-div\">\n        world\n    </div>\n{% endblock SomeInvalidSyntax %}\n"
         );
     }
 }

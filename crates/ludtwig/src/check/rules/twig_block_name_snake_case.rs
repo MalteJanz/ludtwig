@@ -129,7 +129,10 @@ mod tests {
         assert!(!is_valid_ascii_alpha_snake_case("MyBlock"));
         assert!(!is_valid_ascii_alpha_snake_case("my__block"));
         assert!(!is_valid_ascii_alpha_snake_case("_my_block"));
+        assert!(!is_valid_ascii_alpha_snake_case("__my_block"));
         assert!(!is_valid_ascii_alpha_snake_case("my_block_"));
+        assert!(!is_valid_ascii_alpha_snake_case("my_block__"));
+        assert!(!is_valid_ascii_alpha_snake_case("__my_block__"));
     }
 
     #[test]
