@@ -89,6 +89,7 @@ pub type SyntaxElementChildren = rowan::SyntaxElementChildren<TwigHtmlLanguage>;
 pub type PreorderWithTokens = rowan::api::PreorderWithTokens<TwigHtmlLanguage>;
 
 pub use rowan::TextRange;
+pub use rowan::TextSize;
 pub use rowan::WalkEvent;
 
 pub fn print_syntax_tree(indent: usize, element: SyntaxElement) {

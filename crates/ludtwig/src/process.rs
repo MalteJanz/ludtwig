@@ -4,6 +4,7 @@ use crate::output::{CliOutput, CliOutputMessage};
 use crate::CliContext;
 use ludtwig_parser::syntax::typed::{AstNode, Root};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -93,6 +94,7 @@ fn iteratively_apply_suggestions(
     rule_result_context: RuleContext,
 ) -> (FileContext, RuleContext) {
     let mut current_results = (file_context, rule_result_context);
+    let mut original_source_code_dirty = false;
 
     // try at maximum 10 parsing iterations
     for _ in 0..10 {
@@ -109,11 +111,16 @@ fn iteratively_apply_suggestions(
             .sort_by(|(_, sug_a), (_, sug_b)| sug_a.syntax_range.ordering(sug_b.syntax_range));
 
         // filter out overlapping suggestions
-        let mut overlapping_rules = vec![];
+        let mut overlapping_rules = HashSet::new();
         suggestions.iter().zip(suggestions.iter().skip(1)).for_each(
             |((rule_a, sug_a), (rule_b, sug_b))| {
                 if sug_a.syntax_range.ordering(sug_b.syntax_range).is_eq() {
-                    overlapping_rules.push(*rule_b);
+                    if rule_a == rule_b {
+                        // TODO: better error handling -> all other file threads can continue?
+                        panic!("Suggestion collision inside the same rule, check rule {} or write bug report", rule_a);
+                    }
+
+                    overlapping_rules.insert(*rule_b);
                 }
             },
         );
@@ -130,6 +137,7 @@ fn iteratively_apply_suggestions(
         println!("apply suggestions: {:#?}", suggestions);
 
         // transform source code according to non overlapping suggestions
+        original_source_code_dirty = true;
         let source_code = apply_suggestions_to_text(suggestions, current_results.0.source_code);
 
         // Parse the new source code again
@@ -145,6 +153,12 @@ fn iteratively_apply_suggestions(
         // Run all rules again
         let rule_result_context = run_rules(&file_context);
         current_results = (file_context, rule_result_context);
+    }
+
+    if original_source_code_dirty {
+        // Todo: better error handling -> maybe other files can be written
+        fs::write(&current_results.0.file_path, &current_results.0.source_code)
+            .expect("Can't write back into file");
     }
 
     current_results
