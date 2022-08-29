@@ -27,3 +27,4 @@ criterion = "^0.3.3"
 
 [dependencies]
 rowan = "0.15.8"
+logos = "0.12.1"

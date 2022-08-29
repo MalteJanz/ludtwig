@@ -1,5 +1,6 @@
 use crate::syntax::untyped::{build_example_tree, SyntaxNode};
 
+pub mod lexer;
 pub mod syntax;
 
 pub fn parse(input_text: &str) -> SyntaxNode {
