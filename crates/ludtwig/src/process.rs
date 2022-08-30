@@ -2,7 +2,6 @@ use crate::check::rule::{CheckSuggestion, RuleContext, Severity};
 use crate::check::{get_cli_outputs_from_rule_results, get_rule_context_suggestions, run_rules};
 use crate::output::{CliOutput, CliOutputMessage};
 use crate::CliContext;
-use ludtwig_parser::syntax::typed::{AstNode, Root};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 use std::collections::HashSet;
 use std::fs;

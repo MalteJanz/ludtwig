@@ -1,5 +1,5 @@
 use crate::check::rule::{Rule, RuleContext, Severity};
-use ludtwig_parser::syntax::typed::{AstNode, HtmlAttribute, TwigStartingBlock};
+use ludtwig_parser::syntax::typed::{AstNode, HtmlAttribute};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 
 pub struct HtmlAttributeNameKebabCase;

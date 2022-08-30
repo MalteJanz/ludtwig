@@ -1,5 +1,6 @@
 use super::untyped::{SyntaxKind, SyntaxNode, SyntaxToken, TwigHtmlLanguage};
 
+use crate::T;
 pub use rowan::ast::support;
 pub use rowan::ast::AstChildren;
 pub use rowan::ast::AstNode;
@@ -88,7 +89,7 @@ impl TwigBlock {
 impl TwigStartingBlock {
     /// Name of the twig block
     pub fn name(&self) -> Option<SyntaxToken> {
-        support::token(&self.syntax, SyntaxKind::WORD)
+        support::token(&self.syntax, T![word])
     }
 
     /// Parent complete twig block
@@ -144,7 +145,7 @@ impl HtmlTag {
 impl HtmlStartingTag {
     /// Name of the tag
     pub fn name(&self) -> Option<SyntaxToken> {
-        support::token(&self.syntax, SyntaxKind::WORD)
+        support::token(&self.syntax, T![word])
     }
 
     /// Attributes of the tag
@@ -164,7 +165,7 @@ impl HtmlStartingTag {
 impl HtmlAttribute {
     /// Name of the attribute (left side of the equal sign)
     pub fn name(&self) -> Option<SyntaxToken> {
-        support::token(&self.syntax, SyntaxKind::WORD)
+        support::token(&self.syntax, T![word])
     }
 
     /// Value of the attribute

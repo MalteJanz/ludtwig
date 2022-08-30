@@ -1,42 +1,85 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+use logos::Logos;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Logos)]
 #[allow(non_camel_case_types)]
 #[repr(u16)]
 pub enum SyntaxKind {
     /*
-    Tokens
+    Tokens without any meaning / semantic attached to them.
+    These are produced by the lexer and provide a small abstraction over plain text
      */
-    WHITESPACE = 0,
-    LINE_BREAK,
-    WORD, // a single word containing only characters or symbols
-    // Twig specific
-    TWIG_BLOCK_START,
-    TWIG_BLOCK_END,
-    TWIG_VAR_START,
-    TWIG_VAR_END,
-    TWIG_KEYWORD_BLOCK,
-    TWIG_KEYWORD_ENDBLOCK,
-    // Html specific
-    HTML_OPENING_ANGLE_BRACKET,
-    HTML_CLOSING_ANGLE_BRACKET,
-    HTML_FORWARD_SLASH,
-    HTML_EQUAL_SIGN,
-    HTML_DOUBLE_QUOTE,
+    #[regex(r"[ \t]+")]
+    TK_WHITESPACE = 0,
+    #[regex(r"[\n\r\f]+")]
+    TK_LINE_BREAK,
+    /// a single word containing only characters, numbers or symbols
+    #[regex(r"[a-zA-Z0-9_.,@:#!$&-]+")]
+    TK_WORD,
+    #[token("<")]
+    TK_LESS_THAN,
+    #[token("</")]
+    TK_LESS_THAN_SLASH,
+    #[token(">")]
+    TK_GREATER_THAN,
+    #[token("/>")]
+    TK_SLASH_GREATER_THAN,
+    #[token("=")]
+    TK_EQUAL,
+    #[token("\"")]
+    TK_DOUBLE_QUOTES,
+    #[token("{%")]
+    TK_CURLY_PERCENT,
+    #[token("%}")]
+    TK_PERCENT_CURLY,
+    #[token("{{")]
+    TK_OPEN_CURLY_CURLY,
+    #[token("}}")]
+    TK_CLOSE_CURLY_CURLY,
+    #[token("block")]
+    TK_BLOCK,
+    #[token("endblock")]
+    TK_ENDBLOCK,
+
     /*
-    Composite nodes (which have children and ast / typed counterparts)
+    Composite nodes (which can have children and ast / typed counterparts)
+    These do have a meaning and are constructed by the parser
     */
     BODY,
     TWIG_BLOCK,
     TWIG_STARTING_BLOCK,
     TWIG_ENDING_BLOCK,
-
     TWIG_VAR,
     HTML_ATTRIBUTE,
     HTML_STRING, // used as attribute values
     HTML_TAG,
     HTML_STARTING_TAG,
     HTML_ENDING_TAG,
-    ERROR, // contains invalid syntax (used for error recovery)
+    /*
+    Special Nodes
+     */
+    #[error]
+    ERROR, // contains invalid syntax (used for error recovery). Can be a node or token
+    /// SAFETY: this must be the last enum element for u16 conversion!
     ROOT, // top-level node: list of elements inside the template (must be last item of enum for safety check!)
+}
+
+#[macro_export]
+macro_rules! T {
+    [ws] => { $crate::syntax::untyped::SyntaxKind::TK_WHITESPACE };
+    [lb] => { $crate::syntax::untyped::SyntaxKind::TK_LINE_BREAK };
+    [word] => { $crate::syntax::untyped::SyntaxKind::TK_WORD };
+    ["<"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN };
+    ["</"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_SLASH };
+    [">"] => { $crate::syntax::untyped::SyntaxKind::TK_GREATER_THAN };
+    ["/>"] => { $crate::syntax::untyped::SyntaxKind::TK_SLASH_GREATER_THAN };
+    ["="] => { $crate::syntax::untyped::SyntaxKind::TK_EQUAL };
+    ["\""] => { $crate::syntax::untyped::SyntaxKind::TK_DOUBLE_QUOTES };
+    ["{%"] => { $crate::syntax::untyped::SyntaxKind::TK_CURLY_PERCENT };
+    ["%}"] => { $crate::syntax::untyped::SyntaxKind::TK_PERCENT_CURLY };
+    ["{{"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY_CURLY };
+    ["}}"] => { $crate::syntax::untyped::SyntaxKind::TK_CLOSE_CURLY_CURLY };
+    ["block"] => { $crate::syntax::untyped::SyntaxKind::TK_BLOCK };
+    ["endblock"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDBLOCK };
 }
 
 /// Some boilerplate is needed, as rowan settled on using its own
@@ -115,71 +158,70 @@ pub fn build_example_tree() -> SyntaxNode {
     // Outer twig block
     builder.start_node(SyntaxKind::TWIG_BLOCK.into());
     builder.start_node(SyntaxKind::TWIG_STARTING_BLOCK.into());
-    builder.token(SyntaxKind::TWIG_BLOCK_START.into(), "{%");
-    builder.token(SyntaxKind::WHITESPACE.into(), " ");
-    builder.token(SyntaxKind::TWIG_KEYWORD_BLOCK.into(), "block");
-    builder.token(SyntaxKind::WHITESPACE.into(), " ");
-    builder.token(SyntaxKind::WORD.into(), "my-block"); // temporary issue for rule test
-    builder.token(SyntaxKind::WHITESPACE.into(), " ");
-    builder.token(SyntaxKind::TWIG_BLOCK_END.into(), "%}");
+    builder.token(T!["{%"].into(), "{%");
+    builder.token(T![ws].into(), " ");
+    builder.token(T!["block"].into(), "block");
+    builder.token(T![ws].into(), " ");
+    builder.token(T![word].into(), "my-block"); // temporary issue for rule test
+    builder.token(T![ws].into(), " ");
+    builder.token(T!["%}"].into(), "%}");
     builder.finish_node(); // close TWIG_STARTING_BLOCK
     builder.start_node(SyntaxKind::BODY.into());
-    builder.token(SyntaxKind::LINE_BREAK.into(), "\n");
-    builder.token(SyntaxKind::WHITESPACE.into(), "    ");
+    builder.token(T![lb].into(), "\n");
+    builder.token(T![ws].into(), "    ");
 
     // Inner div
     builder.start_node(SyntaxKind::HTML_TAG.into());
     builder.start_node(SyntaxKind::HTML_STARTING_TAG.into());
-    builder.token(SyntaxKind::HTML_OPENING_ANGLE_BRACKET.into(), "<");
-    builder.token(SyntaxKind::WORD.into(), "div");
-    builder.token(SyntaxKind::WHITESPACE.into(), " ");
+    builder.token(T!["<"].into(), "<");
+    builder.token(T![word].into(), "div");
+    builder.token(T![ws].into(), " ");
 
     // Inner div attribute
     builder.start_node(SyntaxKind::HTML_ATTRIBUTE.into());
-    builder.token(SyntaxKind::WORD.into(), "claSs");
-    builder.token(SyntaxKind::HTML_EQUAL_SIGN.into(), "=");
-    builder.token(SyntaxKind::HTML_DOUBLE_QUOTE.into(), "\"");
+    builder.token(T![word].into(), "claSs");
+    builder.token(T!["="].into(), "=");
+    builder.token(T!["\""].into(), "\"");
     builder.start_node(SyntaxKind::HTML_STRING.into());
-    builder.token(SyntaxKind::WORD.into(), "my-div");
+    builder.token(T![word].into(), "my-div");
     builder.finish_node(); // Close HTML_STRING
-    builder.token(SyntaxKind::HTML_DOUBLE_QUOTE.into(), "\"");
+    builder.token(T!["\""].into(), "\"");
 
     // Close inner div attribute
     builder.finish_node();
 
-    builder.token(SyntaxKind::HTML_CLOSING_ANGLE_BRACKET.into(), ">");
+    builder.token(T![">"].into(), ">");
     builder.finish_node(); // close HTML_STARTING_TAG
     builder.start_node(SyntaxKind::BODY.into());
-    builder.token(SyntaxKind::LINE_BREAK.into(), "\n");
-    builder.token(SyntaxKind::WHITESPACE.into(), "        ");
-    builder.token(SyntaxKind::WORD.into(), "world");
-    builder.token(SyntaxKind::LINE_BREAK.into(), "\n");
-    builder.token(SyntaxKind::WHITESPACE.into(), "    ");
+    builder.token(T![lb].into(), "\n");
+    builder.token(T![ws].into(), "        ");
+    builder.token(T![word].into(), "world");
+    builder.token(T![lb].into(), "\n");
+    builder.token(T![ws].into(), "    ");
     builder.finish_node(); // close BODY
     builder.start_node(SyntaxKind::HTML_ENDING_TAG.into());
-    builder.token(SyntaxKind::HTML_OPENING_ANGLE_BRACKET.into(), "<");
-    builder.token(SyntaxKind::HTML_FORWARD_SLASH.into(), "/");
-    builder.token(SyntaxKind::WORD.into(), "div");
-    builder.token(SyntaxKind::HTML_CLOSING_ANGLE_BRACKET.into(), ">");
+    builder.token(T!["</"].into(), "</");
+    builder.token(T![word].into(), "div");
+    builder.token(T![">"].into(), ">");
     builder.finish_node(); // close HTML_ENDING_TAG
-    builder.token(SyntaxKind::LINE_BREAK.into(), "\n");
+    builder.token(T![lb].into(), "\n");
 
     // Close inner div
     builder.finish_node();
 
     builder.finish_node(); // close BODY
     builder.start_node(SyntaxKind::TWIG_ENDING_BLOCK.into());
-    builder.token(SyntaxKind::TWIG_BLOCK_START.into(), "{%");
-    builder.token(SyntaxKind::WHITESPACE.into(), " ");
-    builder.token(SyntaxKind::TWIG_KEYWORD_ENDBLOCK.into(), "endblock");
-    builder.token(SyntaxKind::WHITESPACE.into(), " ");
+    builder.token(T!["{%"].into(), "{%");
+    builder.token(T![ws].into(), " ");
+    builder.token(T!["endblock"].into(), "endblock");
+    builder.token(T![ws].into(), " ");
     builder.start_node(SyntaxKind::ERROR.into());
-    builder.token(SyntaxKind::WORD.into(), "SomeInvalidSyntax");
-    builder.token(SyntaxKind::WHITESPACE.into(), " ");
+    builder.token(T![word].into(), "SomeInvalidSyntax");
+    builder.token(T![ws].into(), " ");
     builder.finish_node(); // close ERROR
-    builder.token(SyntaxKind::TWIG_BLOCK_END.into(), "%}");
+    builder.token(T!["%}"].into(), "%}");
     builder.finish_node(); // close TWIG_ENDING_BLOCK
-    builder.token(SyntaxKind::LINE_BREAK.into(), "\n");
+    builder.token(T![lb].into(), "\n");
 
     // Close outer twig block
     builder.finish_node();
