@@ -1,4 +1,4 @@
-use super::untyped::{SyntaxKind, SyntaxNode, SyntaxToken, TwigHtmlLanguage};
+use super::untyped::{SyntaxKind, SyntaxNode, SyntaxToken, TemplateLanguage};
 
 use crate::T;
 pub use rowan::ast::support;
@@ -24,7 +24,7 @@ macro_rules! ast_node {
         }
 
         impl AstNode for $ast {
-            type Language = TwigHtmlLanguage;
+            type Language = TemplateLanguage;
 
             fn can_cast(kind: <Self::Language as rowan::Language>::Kind) -> bool
             where

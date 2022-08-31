@@ -93,12 +93,14 @@ impl From<SyntaxKind> for rowan::SyntaxKind {
     }
 }
 
+pub use rowan::Language;
+
 /// Second, implementing the `Language` trait teaches rowan to convert between
 /// these two SyntaxKind types, allowing for a nicer SyntaxNode API where
 /// "kinds" are values from our `enum SyntaxKind`, instead of plain u16 values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum TwigHtmlLanguage {}
-impl rowan::Language for TwigHtmlLanguage {
+pub enum TemplateLanguage {}
+impl Language for TemplateLanguage {
     type Kind = SyntaxKind;
     fn kind_from_raw(raw: rowan::SyntaxKind) -> Self::Kind {
         assert!(raw.0 <= SyntaxKind::ROOT as u16);
@@ -124,12 +126,12 @@ pub use rowan::GreenNodeBuilder;
 /// but it contains parent pointers, offsets, and
 /// has identity semantics.
 
-pub type SyntaxNode = rowan::SyntaxNode<TwigHtmlLanguage>;
-pub type SyntaxToken = rowan::SyntaxToken<TwigHtmlLanguage>;
+pub type SyntaxNode = rowan::SyntaxNode<TemplateLanguage>;
+pub type SyntaxToken = rowan::SyntaxToken<TemplateLanguage>;
 pub type SyntaxElement = rowan::NodeOrToken<SyntaxNode, SyntaxToken>;
-pub type SyntaxNodeChildren = rowan::SyntaxNodeChildren<TwigHtmlLanguage>;
-pub type SyntaxElementChildren = rowan::SyntaxElementChildren<TwigHtmlLanguage>;
-pub type PreorderWithTokens = rowan::api::PreorderWithTokens<TwigHtmlLanguage>;
+pub type SyntaxNodeChildren = rowan::SyntaxNodeChildren<TemplateLanguage>;
+pub type SyntaxElementChildren = rowan::SyntaxElementChildren<TemplateLanguage>;
+pub type PreorderWithTokens = rowan::api::PreorderWithTokens<TemplateLanguage>;
 
 pub use rowan::TextRange;
 pub use rowan::TextSize;

@@ -7,12 +7,12 @@ fn parsing_benchmark(c: &mut Criterion) {
         .expect("can't find fixtures/complex.html.twig in project folder");
 
     c.bench_function("parsing complex.html.twig", |b| {
-        b.iter(|| parse())
+        b.iter(|| {
+            let result = parse(&input);
+            black_box(result)
+        })
     });
 }
 
-criterion_group!(
-    benches,
-    parsing_benchmark,
-);
+criterion_group!(benches, parsing_benchmark,);
 criterion_main!(benches);

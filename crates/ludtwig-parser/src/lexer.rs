@@ -1,10 +1,32 @@
 use crate::syntax::untyped::SyntaxKind;
-use logos::{Logos, Span};
+use logos::Logos;
 
 /// Lex the source code into a Vec of tokens with their corresponding span (position in source code).
 /// These tokens are produced by a dumb lexer and don't have any meaning / semantic attached to them.
-pub(crate) fn lex(source: &str) -> Vec<(SyntaxKind, Span)> {
-    SyntaxKind::lexer(source).spanned().collect()
+pub(crate) fn lex(source: &str) -> Vec<Lexeme> {
+    let mut lexer = SyntaxKind::lexer(source);
+    let mut result = vec![];
+
+    while let Some(kind) = lexer.next() {
+        result.push(Lexeme {
+            kind,
+            text: lexer.slice(),
+        })
+    }
+
+    result
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub(crate) struct Lexeme<'source> {
+    pub(crate) kind: SyntaxKind,
+    pub(crate) text: &'source str,
+}
+
+impl<'source> Lexeme<'source> {
+    pub(crate) fn new(kind: SyntaxKind, text: &'source str) -> Self {
+        Self { kind, text }
+    }
 }
 
 #[cfg(test)]
@@ -16,11 +38,7 @@ mod tests {
         let lexer_results = lex(input);
 
         // compare lex result
-        assert_eq!(lexer_results, vec![(kind, 0..input.len())]);
-
-        // compare span referenced value
-        let (_, span) = &lexer_results[0];
-        assert_eq!(input, &input[span.start..span.end]);
+        assert_eq!(lexer_results, vec![Lexeme { kind, text: input }]);
     }
 
     #[test]
@@ -29,7 +47,11 @@ mod tests {
 
         assert_eq!(
             results,
-            vec![(T!["</"], 0..2), (T![word], 2..5), (T![">"], 5..6)]
+            vec![
+                Lexeme::new(T!["</"], "</"),
+                Lexeme::new(T![word], "div"),
+                Lexeme::new(T![">"], ">")
+            ]
         );
     }
 

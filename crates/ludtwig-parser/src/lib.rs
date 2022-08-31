@@ -1,14 +1,10 @@
 use crate::lexer::lex;
-use crate::syntax::untyped::{build_example_tree, SyntaxNode};
 
 mod lexer;
+mod parser;
 pub mod syntax;
 
-pub fn parse(input_text: &str) -> SyntaxNode {
-    let lex_result = lex(input_text);
-    // TODO: add real parsing call here
-    build_example_tree()
-}
+pub use parser::parse;
 
 #[cfg(test)]
 mod tests {
