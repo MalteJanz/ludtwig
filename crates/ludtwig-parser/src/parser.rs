@@ -1,15 +1,17 @@
 mod event;
+mod marker;
 mod sink;
 mod source;
 mod twig;
 
 use crate::lex;
-use crate::lexer::Lexeme;
+use crate::lexer::Token;
 use crate::parser::event::Event;
+use crate::parser::marker::Marker;
 use crate::parser::sink::Sink;
 use crate::parser::source::Source;
 use crate::parser::twig::parse_twig_block;
-use crate::syntax::untyped::{print_syntax_tree, SyntaxKind, SyntaxNode};
+use crate::syntax::untyped::{debug_tree, SyntaxKind, SyntaxNode};
 use crate::T;
 
 pub fn parse(input_text: &str) -> SyntaxNode {
@@ -25,7 +27,7 @@ pub fn parse(input_text: &str) -> SyntaxNode {
     let syntax_tree = SyntaxNode::new_root(sink.finish());
 
     // TODO: remove debug print statements
-    print_syntax_tree(0, syntax_tree.clone().into());
+    println!("{}", debug_tree(syntax_tree.clone()));
 
     syntax_tree
 }
@@ -33,21 +35,21 @@ pub fn parse(input_text: &str) -> SyntaxNode {
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct Parser<'source> {
     source: Source<'source>,
-    events: Vec<Event<'source>>,
+    events: Vec<Event>,
 }
 
 impl<'source> Parser<'source> {
-    fn new(lexemes: &'source [Lexeme<'source>]) -> Self {
+    fn new(tokens: &'source [Token<'source>]) -> Self {
         Self {
-            source: Source::new(lexemes),
+            source: Source::new(tokens),
             events: vec![],
         }
     }
 
-    fn parse(mut self) -> Vec<Event<'source>> {
-        self.start_node(SyntaxKind::ROOT);
+    fn parse(mut self) -> Vec<Event> {
+        let root_marker = self.start();
         parse_item(&mut self);
-        self.finish_node();
+        root_marker.complete(&mut self, SyntaxKind::ROOT);
         self.events
     }
 
@@ -55,29 +57,22 @@ impl<'source> Parser<'source> {
         self.source.peek_kind()
     }
 
+    fn at(&mut self, kind: SyntaxKind) -> bool {
+        self.peek() == Some(kind)
+    }
+
     fn bump(&mut self) {
-        let Lexeme { kind, text } = self
-            .source
-            .next_lexeme()
+        self.source
+            .next_token()
             .expect("bump called, but there are no more tokens!");
 
-        self.events.push(Event::AddToken { kind: *kind, text });
+        self.events.push(Event::AddToken);
     }
 
-    fn start_node(&mut self, kind: SyntaxKind) {
-        self.events.push(Event::StartNode { kind });
-    }
-
-    fn start_node_at(&mut self, checkpoint: usize, kind: SyntaxKind) {
-        self.events.push(Event::StartNodeAt { kind, checkpoint });
-    }
-
-    fn finish_node(&mut self) {
-        self.events.push(Event::FinishNode);
-    }
-
-    fn checkpoint(&self) -> usize {
-        self.events.len()
+    fn start(&mut self) -> Marker {
+        let pos = self.events.len();
+        self.events.push(Event::Placeholder);
+        Marker::new(pos)
     }
 }
 
@@ -93,16 +88,10 @@ fn parse_item(parser: &mut Parser) {
     }
 }
 
-pub fn debug_tree(syntax_node: SyntaxNode) -> String {
-    let formatted = format!("{:#?}", syntax_node);
-    // We cut off the last byte because formatting the SyntaxNode adds on a newline at the end.
-    formatted[0..formatted.len() - 1].to_string()
-}
-
 #[cfg(test)]
 fn check_tree(input: &str, expected_tree: expect_test::Expect) {
     let tree = parse(input);
-    expected_tree.assert_eq(&debug_tree(tree));
+    expected_tree.assert_eq(&crate::syntax::untyped::debug_tree(tree));
 }
 
 #[cfg(test)]

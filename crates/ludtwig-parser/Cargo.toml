@@ -15,9 +15,6 @@ edition = "2021"
 [lib]
 bench = false
 
-[profile.release]
-lto = true # does increase runtime performance for longer build times
-
 [[bench]]
 name = "parsing_benchmark"
 harness = false

@@ -1,64 +1,66 @@
-use crate::lexer::Lexeme;
+use crate::lexer::Token;
 use crate::syntax::untyped::SyntaxKind;
-use crate::T;
 
-/// Wrapper around lexemes (lexing tokens) to only get the non-whitespace tokens back
+/// Wrapper around lexing tokens to only get the non-whitespace tokens back
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(super) struct Source<'source> {
-    lexemes: &'source [Lexeme<'source>],
+    tokens: &'source [Token<'source>],
     cursor: usize,
 }
 
 impl<'source> Source<'source> {
-    pub(super) fn new(lexemes: &'source [Lexeme<'source>]) -> Self {
-        Self { lexemes, cursor: 0 }
+    pub(super) fn new(tokens: &'source [Token<'source>]) -> Self {
+        Self { tokens, cursor: 0 }
     }
 
-    pub(super) fn next_lexeme(&mut self) -> Option<&'source Lexeme<'source>> {
-        self.eat_whitespace();
+    pub(super) fn next_token(&mut self) -> Option<&'source Token<'source>> {
+        self.eat_trivia();
 
-        let lexeme = self.lexemes.get(self.cursor)?;
+        let token = self.tokens.get(self.cursor)?;
         self.cursor += 1;
 
-        Some(lexeme)
+        Some(token)
     }
 
     pub(super) fn peek_kind(&mut self) -> Option<SyntaxKind> {
-        self.eat_whitespace();
+        self.eat_trivia();
         self.peek_kind_raw()
     }
 
-    fn eat_whitespace(&mut self) {
-        while matches!(self.peek_kind_raw(), Some(T![ws] | T![lb])) {
+    fn eat_trivia(&mut self) {
+        while self.at_trivia() {
             self.cursor += 1;
         }
     }
 
+    fn at_trivia(&self) -> bool {
+        self.peek_kind_raw().map_or(false, SyntaxKind::is_trivia)
+    }
+
     fn peek_kind_raw(&self) -> Option<SyntaxKind> {
-        self.lexemes
-            .get(self.cursor)
-            .map(|Lexeme { kind, .. }| *kind)
+        self.tokens.get(self.cursor).map(|Token { kind, .. }| *kind)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::T;
 
     #[test]
     fn source_skip_whitespace() {
-        let lexemes = vec![
-            Lexeme::new(T![ws], "  "),
-            Lexeme::new(T![lb], "\n"),
-            Lexeme::new(T![word], "word"),
-            Lexeme::new(T![lb], "\n"),
-            Lexeme::new(T![ws], "  "),
+        let tokens = vec![
+            Token::new(T![ws], "  "),
+            Token::new(T![lb], "\n"),
+            Token::new(T![word], "word"),
+            Token::new(T![lb], "\n"),
+            Token::new(T![ws], "  "),
         ];
 
-        let mut source = Source::new(&lexemes);
+        let mut source = Source::new(&tokens);
         assert_eq!(source.peek_kind(), Some(T![word]));
-        assert_eq!(source.next_lexeme(), Some(&Lexeme::new(T![word], "word")));
+        assert_eq!(source.next_token(), Some(&Token::new(T![word], "word")));
         assert_eq!(source.peek_kind(), None);
-        assert_eq!(source.next_lexeme(), None);
+        assert_eq!(source.next_token(), None);
     }
 }

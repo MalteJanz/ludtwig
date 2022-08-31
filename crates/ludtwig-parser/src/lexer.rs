@@ -3,12 +3,12 @@ use logos::Logos;
 
 /// Lex the source code into a Vec of tokens with their corresponding span (position in source code).
 /// These tokens are produced by a dumb lexer and don't have any meaning / semantic attached to them.
-pub(crate) fn lex(source: &str) -> Vec<Lexeme> {
+pub(crate) fn lex(source: &str) -> Vec<Token> {
     let mut lexer = SyntaxKind::lexer(source);
     let mut result = vec![];
 
     while let Some(kind) = lexer.next() {
-        result.push(Lexeme {
+        result.push(Token {
             kind,
             text: lexer.slice(),
         })
@@ -18,12 +18,13 @@ pub(crate) fn lex(source: &str) -> Vec<Lexeme> {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub(crate) struct Lexeme<'source> {
+pub(crate) struct Token<'source> {
     pub(crate) kind: SyntaxKind,
     pub(crate) text: &'source str,
 }
 
-impl<'source> Lexeme<'source> {
+impl<'source> Token<'source> {
+    #[cfg(test)]
     pub(crate) fn new(kind: SyntaxKind, text: &'source str) -> Self {
         Self { kind, text }
     }
@@ -38,7 +39,7 @@ mod tests {
         let lexer_results = lex(input);
 
         // compare lex result
-        assert_eq!(lexer_results, vec![Lexeme { kind, text: input }]);
+        assert_eq!(lexer_results, vec![Token { kind, text: input }]);
     }
 
     #[test]
@@ -48,9 +49,9 @@ mod tests {
         assert_eq!(
             results,
             vec![
-                Lexeme::new(T!["</"], "</"),
-                Lexeme::new(T![word], "div"),
-                Lexeme::new(T![">"], ">")
+                Token::new(T!["</"], "</"),
+                Token::new(T![word], "div"),
+                Token::new(T![">"], ">")
             ]
         );
     }

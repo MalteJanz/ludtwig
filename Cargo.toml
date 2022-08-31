@@ -1,6 +1,8 @@
 [workspace]
-edition = "2021"
 members = [
     "crates/ludtwig",
     "crates/ludtwig-parser"
 ]
+
+[profile.release]
+lto = true # does increase runtime performance for longer build times

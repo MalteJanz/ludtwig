@@ -82,6 +82,13 @@ macro_rules! T {
     ["endblock"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDBLOCK };
 }
 
+impl SyntaxKind {
+    pub fn is_trivia(self) -> bool {
+        // Add comments and other non interesting things for the parser here in the future
+        matches!(self, T![ws] | T![lb])
+    }
+}
+
 /// Some boilerplate is needed, as rowan settled on using its own
 /// `struct SyntaxKind(u16)` internally, instead of accepting the
 /// user's `enum SyntaxKind` as a type parameter.
@@ -137,18 +144,10 @@ pub use rowan::TextRange;
 pub use rowan::TextSize;
 pub use rowan::WalkEvent;
 
-pub fn print_syntax_tree(indent: usize, element: SyntaxElement) {
-    print!("{:indent$}", "", indent = indent);
-    match element {
-        rowan::NodeOrToken::Node(node) => {
-            println!("- {:?}", node);
-            for child in node.children_with_tokens() {
-                print_syntax_tree(indent + 2, child);
-            }
-        }
-
-        rowan::NodeOrToken::Token(token) => println!("- {:?}", token),
-    }
+pub fn debug_tree(syntax_node: SyntaxNode) -> String {
+    let formatted = format!("{:#?}", syntax_node);
+    // We cut off the last byte because formatting the SyntaxNode adds on a newline at the end.
+    formatted[0..formatted.len() - 1].to_string()
 }
 
 // TODO: remove me when parser is implemented
@@ -243,8 +242,7 @@ mod tests {
         println!("syntax tree underlying text:");
         println!("{}", tree.text());
 
-        println!("syntax tree:");
-        print_syntax_tree(0, tree.into());
+        println!("syntax tree:\n{}", debug_tree(tree));
     }
 
     #[test]
