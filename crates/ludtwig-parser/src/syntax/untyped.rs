@@ -1,4 +1,6 @@
 use logos::Logos;
+use std::fmt;
+use std::fmt::Formatter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Logos)]
 #[allow(non_camel_case_types)]
@@ -89,6 +91,29 @@ impl SyntaxKind {
     }
 }
 
+impl fmt::Display for SyntaxKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            SyntaxKind::TK_WHITESPACE => "whitespace",
+            SyntaxKind::TK_LINE_BREAK => "line break",
+            SyntaxKind::TK_WORD => "word",
+            SyntaxKind::TK_LESS_THAN => "<",
+            SyntaxKind::TK_LESS_THAN_SLASH => "</",
+            SyntaxKind::TK_GREATER_THAN => ">",
+            SyntaxKind::TK_SLASH_GREATER_THAN => "/>",
+            SyntaxKind::TK_EQUAL => "=",
+            SyntaxKind::TK_DOUBLE_QUOTES => "\"",
+            SyntaxKind::TK_CURLY_PERCENT => "{%",
+            SyntaxKind::TK_PERCENT_CURLY => "%}",
+            SyntaxKind::TK_OPEN_CURLY_CURLY => "{{",
+            SyntaxKind::TK_CLOSE_CURLY_CURLY => "}}",
+            SyntaxKind::TK_BLOCK => "block",
+            SyntaxKind::TK_ENDBLOCK => "endblock",
+            _ => unreachable!(),
+        })
+    }
+}
+
 /// Some boilerplate is needed, as rowan settled on using its own
 /// `struct SyntaxKind(u16)` internally, instead of accepting the
 /// user's `enum SyntaxKind` as a type parameter.
@@ -140,6 +165,7 @@ pub type SyntaxNodeChildren = rowan::SyntaxNodeChildren<TemplateLanguage>;
 pub type SyntaxElementChildren = rowan::SyntaxElementChildren<TemplateLanguage>;
 pub type PreorderWithTokens = rowan::api::PreorderWithTokens<TemplateLanguage>;
 
+pub use rowan::TextLen;
 pub use rowan::TextRange;
 pub use rowan::TextSize;
 pub use rowan::WalkEvent;

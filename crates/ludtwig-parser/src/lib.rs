@@ -2,6 +2,7 @@ extern crate core;
 
 use crate::lexer::lex;
 
+mod grammar;
 mod lexer;
 mod parser;
 pub mod syntax;

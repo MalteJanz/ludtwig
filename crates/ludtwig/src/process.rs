@@ -62,13 +62,16 @@ pub fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
 }
 
 fn run_analysis(path: PathBuf, original_file_content: String, cli_context: Arc<CliContext>) {
-    let tree_root = ludtwig_parser::parse(&original_file_content);
+    let parse = ludtwig_parser::parse(&original_file_content);
+    // TODO: also use the parse errors!
+    let root = SyntaxNode::new_root(parse.green_node);
+
     let apply_suggestions = cli_context.fix;
     let file_context = FileContext {
         cli_context,
         file_path: path,
-        source_code: tree_root.text().to_string(),
-        tree_root,
+        source_code: root.text().to_string(),
+        tree_root: root,
     };
 
     // run all the rules
@@ -140,7 +143,8 @@ fn iteratively_apply_suggestions(
         let source_code = apply_suggestions_to_text(suggestions, current_results.0.source_code);
 
         // Parse the new source code again
-        let tree_root = ludtwig_parser::parse(&source_code);
+        let new_parse = ludtwig_parser::parse(&source_code);
+        let tree_root = SyntaxNode::new_root(new_parse.green_node);
         let source_code = tree_root.text().to_string();
 
         let file_context = FileContext {

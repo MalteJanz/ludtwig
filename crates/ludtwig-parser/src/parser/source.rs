@@ -1,5 +1,6 @@
 use crate::lexer::Token;
 use crate::syntax::untyped::SyntaxKind;
+use rowan::TextRange;
 
 /// Wrapper around lexing tokens to only get the non-whitespace tokens back
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -27,6 +28,15 @@ impl<'source> Source<'source> {
         self.peek_kind_raw()
     }
 
+    pub(super) fn peek_token(&mut self) -> Option<&Token> {
+        self.eat_trivia();
+        self.peek_token_raw()
+    }
+
+    pub(super) fn last_token_range(&self) -> Option<TextRange> {
+        self.tokens.last().map(|Token { range, .. }| *range)
+    }
+
     fn eat_trivia(&mut self) {
         while self.at_trivia() {
             self.cursor += 1;
@@ -38,7 +48,11 @@ impl<'source> Source<'source> {
     }
 
     fn peek_kind_raw(&self) -> Option<SyntaxKind> {
-        self.tokens.get(self.cursor).map(|Token { kind, .. }| *kind)
+        self.peek_token_raw().map(|Token { kind, .. }| *kind)
+    }
+
+    fn peek_token_raw(&self) -> Option<&Token> {
+        self.tokens.get(self.cursor)
     }
 }
 
@@ -50,16 +64,19 @@ mod tests {
     #[test]
     fn source_skip_whitespace() {
         let tokens = vec![
-            Token::new(T![ws], "  "),
-            Token::new(T![lb], "\n"),
-            Token::new(T![word], "word"),
-            Token::new(T![lb], "\n"),
-            Token::new(T![ws], "  "),
+            Token::new_wrong_range(T![ws], "  "),
+            Token::new_wrong_range(T![lb], "\n"),
+            Token::new_wrong_range(T![word], "word"),
+            Token::new_wrong_range(T![lb], "\n"),
+            Token::new_wrong_range(T![ws], "  "),
         ];
 
         let mut source = Source::new(&tokens);
         assert_eq!(source.peek_kind(), Some(T![word]));
-        assert_eq!(source.next_token(), Some(&Token::new(T![word], "word")));
+        assert_eq!(
+            source.next_token(),
+            Some(&Token::new_wrong_range(T![word], "word"))
+        );
         assert_eq!(source.peek_kind(), None);
         assert_eq!(source.next_token(), None);
     }

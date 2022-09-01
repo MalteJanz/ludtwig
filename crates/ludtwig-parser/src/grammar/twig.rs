@@ -4,28 +4,14 @@ use crate::T;
 
 pub(super) fn parse_twig_block(parser: &mut Parser) {
     debug_assert!(parser.at(T!["{%"]));
-
     let m = parser.start();
+
     parser.bump();
+    parser.expect(T!["block"]);
+    parser.expect(T![word]);
+    parser.expect(T!["%}"]);
 
-    // TODO: implement me completely
-
-    match parser.peek() {
-        Some(T!["block"]) => parser.bump(),
-        _ => {} // TODO: error handling
-    }
-
-    match parser.peek() {
-        Some(T![word]) => parser.bump(),
-        _ => {} // TODO: error handling
-    }
-
-    match parser.peek() {
-        Some(T!["%}"]) => parser.bump(),
-        _ => {} // TODO: error handling
-    }
-
-    m.complete(parser, SyntaxKind::TWIG_STARTING_BLOCK);
+    parser.complete(m, SyntaxKind::TWIG_STARTING_BLOCK);
 }
 
 #[cfg(test)]
