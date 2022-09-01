@@ -109,7 +109,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_CLOSE_CURLY_CURLY => "}}",
             SyntaxKind::TK_BLOCK => "block",
             SyntaxKind::TK_ENDBLOCK => "endblock",
-            _ => unreachable!(),
+            t => unreachable!("Display not implemented for {:?}", t),
         })
     }
 }

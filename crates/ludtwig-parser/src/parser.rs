@@ -29,11 +29,9 @@ pub fn parse(input_text: &str) -> Parse {
     let sink = Sink::new(&lex_result, parse_events);
     let parse = sink.finish();
 
-    println!("parsing errors: {:#?}", parse.errors);
     // TODO: remove debug print statements
-    // println!("{}", debug_tree(syntax_tree.clone()));
+    println!("{}", parse.debug_parse());
 
-    //syntax_tree
     parse
 }
 
@@ -41,6 +39,19 @@ pub fn parse(input_text: &str) -> Parse {
 pub struct Parse {
     pub green_node: GreenNode,
     pub errors: Vec<ParseError>,
+}
+
+impl Parse {
+    pub fn debug_parse(&self) -> String {
+        let syntax_node = SyntaxNode::new_root(self.green_node.clone());
+        let mut s = debug_tree(syntax_node);
+
+        for error in &self.errors {
+            s.push_str(&format!("\n{}", error));
+        }
+
+        s
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -68,13 +79,13 @@ impl<'source> Parser<'source> {
         self.source.peek_kind()
     }
 
+    fn at_set(&mut self, set: &[SyntaxKind]) -> bool {
+        self.peek().map_or(false, |k| set.contains(&k))
+    }
+
     pub(crate) fn at(&mut self, kind: SyntaxKind) -> bool {
         self.expected_kinds.push(kind);
         self.peek() == Some(kind)
-    }
-
-    fn at_set(&mut self, set: &[SyntaxKind]) -> bool {
-        self.peek().map_or(false, |k| set.contains(&k))
     }
 
     pub(crate) fn at_end(&mut self) -> bool {
@@ -129,13 +140,24 @@ impl<'source> Parser<'source> {
     pub(crate) fn complete(&mut self, marker: Marker, kind: SyntaxKind) -> CompletedMarker {
         marker.complete(&mut self.event_collection, kind)
     }
+
+    #[track_caller]
+    pub(crate) fn precede(&mut self, completed_marker: CompletedMarker) -> Marker {
+        completed_marker.precede(&mut self.event_collection)
+    }
 }
 
 #[cfg(test)]
-pub(crate) fn check_tree(input: &str, expected_tree: expect_test::Expect) {
+pub(crate) fn check_parse(input: &str, expected_tree: expect_test::Expect) {
+    use crate::syntax::untyped::TextLen;
+
     let parse = parse(input);
-    let root = SyntaxNode::new_root(parse.green_node);
-    expected_tree.assert_eq(&crate::syntax::untyped::debug_tree(root));
+    expected_tree.assert_eq(&parse.debug_parse());
+    assert_eq!(
+        parse.green_node.text_len(),
+        input.text_len(),
+        "unparsed source left"
+    );
 }
 
 #[cfg(test)]
@@ -145,6 +167,6 @@ mod tests {
 
     #[test]
     fn parse_nothing() {
-        check_tree("", expect!["ROOT@0..0"]);
+        check_parse("", expect!["ROOT@0..0"]);
     }
 }
