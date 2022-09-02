@@ -78,7 +78,7 @@ fn parse_html_attribute(parser: &mut Parser) -> Option<CompletedMarker> {
         let str_m = parser.start();
         parser.expect(T!["\""]);
         // consume anything for now?
-        while !parser.at(T!["\""]) {
+        while !parser.at(T!["\""]) && !parser.at(T![">"]) && !parser.at(T!["/>"]) {
             parser.bump();
         }
         parser.expect(T!["\""]);
@@ -284,6 +284,47 @@ mod tests {
                       TK_GREATER_THAN@27..28 ">"
                 parsing consumed all tokens: true
                 error at 22..22: expected word, </, word, {%, < or word, but found </"#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_with_single_quotes() {
+        check_parse(
+            "<div claSs='my-div'>
+        hello world
+    </div>",
+            expect![[r#"
+                ROOT@0..51
+                  HTML_TAG@0..51
+                    HTML_STARTING_TAG@0..29
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      TK_WHITESPACE@4..5 " "
+                      HTML_ATTRIBUTE@5..19
+                        TK_WORD@5..10 "claSs"
+                        TK_EQUAL@10..11 "="
+                        HTML_STRING@11..19
+                          ERROR@11..12
+                            TK_SINGLE_QUOTES@11..12 "'"
+                          TK_WORD@12..18 "my-div"
+                          TK_SINGLE_QUOTES@18..19 "'"
+                      TK_GREATER_THAN@19..20 ">"
+                      TK_LINE_BREAK@20..21 "\n"
+                      TK_WHITESPACE@21..29 "        "
+                    BODY@29..45
+                      HTML_TEXT@29..45
+                        TK_WORD@29..34 "hello"
+                        TK_WHITESPACE@34..35 " "
+                        TK_WORD@35..40 "world"
+                        TK_LINE_BREAK@40..41 "\n"
+                        TK_WHITESPACE@41..45 "    "
+                    HTML_ENDING_TAG@45..51
+                      TK_LESS_THAN_SLASH@45..47 "</"
+                      TK_WORD@47..50 "div"
+                      TK_GREATER_THAN@50..51 ">"
+                parsing consumed all tokens: true
+                error at 11..11: expected ", but found '
+                error at 19..19: expected ", > or ", but found >"#]],
         );
     }
 }

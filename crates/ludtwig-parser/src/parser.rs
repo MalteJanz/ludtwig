@@ -15,7 +15,16 @@ use crate::parser::source::Source;
 use crate::syntax::untyped::{debug_tree, SyntaxKind, SyntaxNode};
 use crate::{lex, T};
 
-static RECOVERY_SET: &[SyntaxKind] = &[T!["{%"], T!["{{"], T!["<"], T!["</"]];
+static RECOVERY_SET: &[SyntaxKind] = &[
+    T!["{%"],
+    T!["{{"],
+    T!["%}"],
+    T!["}}"],
+    T!["<"],
+    T!["</"],
+    T![">"],
+    T!["/>"],
+];
 
 pub fn parse(input_text: &str) -> Parse {
     let lex_result = lex(input_text);
@@ -30,7 +39,7 @@ pub fn parse(input_text: &str) -> Parse {
     let parse = sink.finish();
 
     // TODO: remove debug print statements
-    // println!("{}", parse.debug_parse());
+    println!("{}", parse.debug_parse());
 
     parse
 }

@@ -1,7 +1,7 @@
 use crate::lexer::Token;
 use crate::parser::event::{Event, EventCollection};
 use crate::parser::{Parse, ParseError};
-use crate::syntax::untyped::{GreenNode, GreenNodeBuilder, Language, TemplateLanguage};
+use crate::syntax::untyped::{GreenNodeBuilder, Language, TemplateLanguage};
 use std::mem;
 
 /// Sink for all the generated Events by the parser which

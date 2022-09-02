@@ -29,6 +29,8 @@ pub enum SyntaxKind {
     TK_EQUAL,
     #[token("\"")]
     TK_DOUBLE_QUOTES,
+    #[token("'")]
+    TK_SINGLE_QUOTES,
     #[token("{%")]
     TK_CURLY_PERCENT,
     #[token("%}")]
@@ -77,6 +79,7 @@ macro_rules! T {
     ["/>"] => { $crate::syntax::untyped::SyntaxKind::TK_SLASH_GREATER_THAN };
     ["="] => { $crate::syntax::untyped::SyntaxKind::TK_EQUAL };
     ["\""] => { $crate::syntax::untyped::SyntaxKind::TK_DOUBLE_QUOTES };
+    ["'"] => { $crate::syntax::untyped::SyntaxKind::TK_SINGLE_QUOTES };
     ["{%"] => { $crate::syntax::untyped::SyntaxKind::TK_CURLY_PERCENT };
     ["%}"] => { $crate::syntax::untyped::SyntaxKind::TK_PERCENT_CURLY };
     ["{{"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY_CURLY };
@@ -104,12 +107,14 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_SLASH_GREATER_THAN => "/>",
             SyntaxKind::TK_EQUAL => "=",
             SyntaxKind::TK_DOUBLE_QUOTES => "\"",
+            SyntaxKind::TK_SINGLE_QUOTES => "'",
             SyntaxKind::TK_CURLY_PERCENT => "{%",
             SyntaxKind::TK_PERCENT_CURLY => "%}",
             SyntaxKind::TK_OPEN_CURLY_CURLY => "{{",
             SyntaxKind::TK_CLOSE_CURLY_CURLY => "}}",
             SyntaxKind::TK_BLOCK => "block",
             SyntaxKind::TK_ENDBLOCK => "endblock",
+            SyntaxKind::ERROR => "error", // can also be a unknown token
             t => unreachable!("Display not implemented for {:?}", t),
         })
     }

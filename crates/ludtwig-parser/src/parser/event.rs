@@ -109,7 +109,7 @@ impl Marker {
 
     #[track_caller]
     pub(crate) fn complete(
-        mut self,
+        self,
         event_collection: &mut EventCollection,
         kind: SyntaxKind,
     ) -> CompletedMarker {
