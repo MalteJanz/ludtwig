@@ -53,6 +53,7 @@ pub enum SyntaxKind {
     TWIG_VAR,
     HTML_ATTRIBUTE,
     HTML_STRING, // used as attribute values
+    HTML_TEXT,   // used as plain text between html tags / twig blocks
     HTML_TAG,
     HTML_STARTING_TAG,
     HTML_ENDING_TAG,

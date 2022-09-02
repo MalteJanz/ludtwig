@@ -11,8 +11,6 @@ pub(super) fn parse_twig_block_statement(parser: &mut Parser) -> Option<Complete
 
     if parser.at(T!["block"]) {
         Some(parse_twig_block(parser, m))
-    } else if parser.at(T!["endblock"]) {
-        Some(parse_twig_end_block(parser, m))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
         parser.error();
@@ -31,19 +29,26 @@ fn parse_twig_block(parser: &mut Parser, outer: Marker) -> CompletedMarker {
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_STARTING_BLOCK);
     let wrapper_m = parser.precede(wrapper_m);
 
-    // parse all the children (including twig end block if exists)
-    while parse_any_element(parser).is_some() {}
+    // parse all the children except endblock
+    let body_m = parser.start();
+    loop {
+        if parser.at_following(&[T!["{%"], T!["endblock"]]) {
+            break;
+        }
+        if parse_any_element(parser).is_none() {
+            break;
+        };
+    }
+    parser.complete(body_m, SyntaxKind::BODY);
+
+    let end_block_m = parser.start();
+    parser.expect(T!["{%"]);
+    parser.expect(T!["endblock"]);
+    parser.expect(T!["%}"]);
+    parser.complete(end_block_m, SyntaxKind::TWIG_ENDING_BLOCK);
 
     // close overall twig block
     parser.complete(wrapper_m, SyntaxKind::TWIG_BLOCK)
-}
-
-fn parse_twig_end_block(parser: &mut Parser, outer: Marker) -> CompletedMarker {
-    debug_assert!(parser.at(T!["endblock"]));
-    parser.bump();
-
-    parser.expect(T!["%}"]);
-    parser.complete(outer, SyntaxKind::TWIG_ENDING_BLOCK)
 }
 
 #[cfg(test)]
@@ -68,16 +73,18 @@ mod tests {
                       TK_PERCENT_CURLY@20..22 "%}"
                       TK_WHITESPACE@22..23 " "
                     BODY@23..35
-                      TK_WORD@23..28 "hello"
-                      TK_WHITESPACE@28..29 " "
-                      TK_WORD@29..34 "world"
-                      TK_WHITESPACE@34..35 " "
+                      HTML_TEXT@23..35
+                        TK_WORD@23..28 "hello"
+                        TK_WHITESPACE@28..29 " "
+                        TK_WORD@29..34 "world"
+                        TK_WHITESPACE@34..35 " "
                     TWIG_ENDING_BLOCK@35..49
                       TK_CURLY_PERCENT@35..37 "{%"
                       TK_WHITESPACE@37..38 " "
                       TK_ENDBLOCK@38..46 "endblock"
                       TK_WHITESPACE@46..47 " "
-                      TK_PERCENT_CURLY@47..49 "%}""#]],
+                      TK_PERCENT_CURLY@47..49 "%}"
+                parsing consumed all tokens: true"#]],
         );
     }
 
@@ -92,7 +99,8 @@ mod tests {
                     TK_WHITESPACE@2..3 " "
                     ERROR@3..7
                       TK_WORD@3..7 "asdf"
-                error at 3..3: expected block or endblock, but found word"#]],
+                parsing consumed all tokens: true
+                error at 3..3: expected block, but found word"#]],
         )
     }
 }

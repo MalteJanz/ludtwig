@@ -33,6 +33,28 @@ impl<'source> Source<'source> {
         self.peek_token_raw()
     }
 
+    pub(super) fn at_following(&mut self, set: &[SyntaxKind]) -> bool {
+        self.eat_trivia();
+        if self.cursor == self.tokens.len() {
+            return false; // end already reached
+        }
+
+        let mut tokens_iter = self.tokens[self.cursor..]
+            .iter()
+            .map(|t| t.kind)
+            .filter(|k| !k.is_trivia());
+        let mut set_iter = set.iter();
+
+        loop {
+            match (tokens_iter.next(), set_iter.next()) {
+                (Some(token), Some(set)) if token == *set => continue,
+                (None, None) => return true,
+                (Some(_), None) => return true,
+                _ => return false,
+            }
+        }
+    }
+
     pub(super) fn last_token_range(&self) -> Option<TextRange> {
         self.tokens.last().map(|Token { range, .. }| *range)
     }
@@ -79,5 +101,36 @@ mod tests {
         );
         assert_eq!(source.peek_kind(), None);
         assert_eq!(source.next_token(), None);
+    }
+
+    #[test]
+    fn source_at_following() {
+        let tokens = vec![
+            Token::new_wrong_range(T![ws], "  "),
+            Token::new_wrong_range(T![lb], "\n"),
+            Token::new_wrong_range(T![word], "hello"),
+            Token::new_wrong_range(T![lb], "\n"),
+            Token::new_wrong_range(T![ws], "  "),
+            Token::new_wrong_range(T!["<"], "<"),
+            Token::new_wrong_range(T![lb], "\n"),
+            Token::new_wrong_range(T![">"], ">"),
+            Token::new_wrong_range(T![ws], "  "),
+        ];
+
+        let mut source = Source::new(&tokens);
+        assert!(source.at_following(&[T![word], T!["<"], T![">"]]));
+        assert!(source.at_following(&[T![word], T!["<"]]));
+        assert!(source.at_following(&[T![word]]));
+
+        assert!(!source.at_following(&[T![word], T!["<"], T![">"], T![word]]));
+        assert!(!source.at_following(&[T!["<"]]));
+        assert!(!source.at_following(&[T![word], T![">"]]));
+
+        source.next_token();
+        source.next_token();
+        source.next_token();
+
+        // nothing more to compare
+        assert!(!source.at_following(&[T![word]]));
     }
 }

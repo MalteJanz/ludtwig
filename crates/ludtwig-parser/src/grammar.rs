@@ -1,4 +1,4 @@
-use crate::grammar::html::{parse_html_element, parse_html_text};
+use crate::grammar::html::{parse_html_element, parse_html_end_tag, parse_html_text};
 use crate::grammar::twig::parse_twig_block_statement;
 use crate::parser::event::CompletedMarker;
 use crate::parser::Parser;
@@ -23,6 +23,8 @@ fn parse_any_element(parser: &mut Parser) -> Option<CompletedMarker> {
         parse_twig_block_statement(parser)
     } else if parser.at(T!["<"]) {
         Some(parse_html_element(parser))
+    } else if parser.at(T!["</"]) {
+        Some(parse_html_end_tag(parser))
     } else if parser.at(T![word]) {
         Some(parse_html_text(parser))
     } else {

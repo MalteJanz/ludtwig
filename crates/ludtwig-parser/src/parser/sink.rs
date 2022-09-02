@@ -80,6 +80,7 @@ impl<'source> Sink<'source> {
         Parse {
             green_node: self.builder.finish(),
             errors: self.errors,
+            finished: self.cursor == self.tokens.len(),
         }
     }
 

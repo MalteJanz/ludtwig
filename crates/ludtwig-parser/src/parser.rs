@@ -30,7 +30,7 @@ pub fn parse(input_text: &str) -> Parse {
     let parse = sink.finish();
 
     // TODO: remove debug print statements
-    println!("{}", parse.debug_parse());
+    // println!("{}", parse.debug_parse());
 
     parse
 }
@@ -39,12 +39,20 @@ pub fn parse(input_text: &str) -> Parse {
 pub struct Parse {
     pub green_node: GreenNode,
     pub errors: Vec<ParseError>,
+    /// returns false if the parse has not consumed all the tokens!
+    /// That means the syntax tree doesn't represent the complete original file!
+    pub finished: bool,
 }
 
 impl Parse {
     pub fn debug_parse(&self) -> String {
         let syntax_node = SyntaxNode::new_root(self.green_node.clone());
         let mut s = debug_tree(syntax_node);
+
+        s.push_str(&*format!(
+            "\nparsing consumed all tokens: {}",
+            self.finished
+        ));
 
         for error in &self.errors {
             s.push_str(&format!("\n{}", error));
@@ -88,24 +96,37 @@ impl<'source> Parser<'source> {
         self.peek() == Some(kind)
     }
 
+    /// Only use this if absolutely necessary, because it is expensive to lookahead!
+    pub(crate) fn at_following(&mut self, set: &[SyntaxKind]) -> bool {
+        for kind in set {
+            self.expected_kinds.push(*kind);
+        }
+
+        self.source.at_following(set)
+    }
+
     pub(crate) fn at_end(&mut self) -> bool {
         self.peek().is_none()
     }
 
-    pub(crate) fn bump(&mut self) {
+    pub(crate) fn bump(&mut self) -> &Token {
         self.expected_kinds.clear();
-        self.source
+        let consumed = self
+            .source
             .next_token()
             .expect("bump called, but there are no more tokens!");
 
         self.event_collection.add_token();
+
+        consumed
     }
 
-    pub(crate) fn expect(&mut self, kind: SyntaxKind) {
+    pub(crate) fn expect(&mut self, kind: SyntaxKind) -> Option<&Token> {
         if self.at(kind) {
-            self.bump();
+            Some(self.bump())
         } else {
             self.error();
+            None
         }
     }
 
@@ -153,11 +174,7 @@ pub(crate) fn check_parse(input: &str, expected_tree: expect_test::Expect) {
 
     let parse = parse(input);
     expected_tree.assert_eq(&parse.debug_parse());
-    assert_eq!(
-        parse.green_node.text_len(),
-        input.text_len(),
-        "unparsed source left"
-    );
+    assert!(parse.finished, "unparsed source tokens left");
 }
 
 #[cfg(test)]
@@ -167,6 +184,6 @@ mod tests {
 
     #[test]
     fn parse_nothing() {
-        check_parse("", expect!["ROOT@0..0"]);
+        check_parse("", expect!["ROOT@0..0\nparsing consumed all tokens: true"]);
     }
 }
