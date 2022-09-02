@@ -89,6 +89,84 @@ mod tests {
     }
 
     #[test]
+    fn parse_nested_twig_blocks() {
+        check_parse(
+            "{% block outer %}\
+                    out\
+                    {% block middle %}\
+                        mid\
+                        {% block inner %}\
+                        in\
+                        {% endblock %}\
+                        mid\
+                    {% endblock %}\
+                    out\
+                    {% endblock %}",
+            expect![[r#"
+                ROOT@0..108
+                  TWIG_BLOCK@0..108
+                    TWIG_STARTING_BLOCK@0..17
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_BLOCK@3..8 "block"
+                      TK_WHITESPACE@8..9 " "
+                      TK_WORD@9..14 "outer"
+                      TK_WHITESPACE@14..15 " "
+                      TK_PERCENT_CURLY@15..17 "%}"
+                    BODY@17..94
+                      HTML_TEXT@17..20
+                        TK_WORD@17..20 "out"
+                      TWIG_BLOCK@20..91
+                        TWIG_STARTING_BLOCK@20..38
+                          TK_CURLY_PERCENT@20..22 "{%"
+                          TK_WHITESPACE@22..23 " "
+                          TK_BLOCK@23..28 "block"
+                          TK_WHITESPACE@28..29 " "
+                          TK_WORD@29..35 "middle"
+                          TK_WHITESPACE@35..36 " "
+                          TK_PERCENT_CURLY@36..38 "%}"
+                        BODY@38..77
+                          HTML_TEXT@38..41
+                            TK_WORD@38..41 "mid"
+                          TWIG_BLOCK@41..74
+                            TWIG_STARTING_BLOCK@41..58
+                              TK_CURLY_PERCENT@41..43 "{%"
+                              TK_WHITESPACE@43..44 " "
+                              TK_BLOCK@44..49 "block"
+                              TK_WHITESPACE@49..50 " "
+                              TK_WORD@50..55 "inner"
+                              TK_WHITESPACE@55..56 " "
+                              TK_PERCENT_CURLY@56..58 "%}"
+                            BODY@58..60
+                              HTML_TEXT@58..60
+                                TK_WORD@58..60 "in"
+                            TWIG_ENDING_BLOCK@60..74
+                              TK_CURLY_PERCENT@60..62 "{%"
+                              TK_WHITESPACE@62..63 " "
+                              TK_ENDBLOCK@63..71 "endblock"
+                              TK_WHITESPACE@71..72 " "
+                              TK_PERCENT_CURLY@72..74 "%}"
+                          HTML_TEXT@74..77
+                            TK_WORD@74..77 "mid"
+                        TWIG_ENDING_BLOCK@77..91
+                          TK_CURLY_PERCENT@77..79 "{%"
+                          TK_WHITESPACE@79..80 " "
+                          TK_ENDBLOCK@80..88 "endblock"
+                          TK_WHITESPACE@88..89 " "
+                          TK_PERCENT_CURLY@89..91 "%}"
+                      HTML_TEXT@91..94
+                        TK_WORD@91..94 "out"
+                    TWIG_ENDING_BLOCK@94..108
+                      TK_CURLY_PERCENT@94..96 "{%"
+                      TK_WHITESPACE@96..97 " "
+                      TK_ENDBLOCK@97..105 "endblock"
+                      TK_WHITESPACE@105..106 " "
+                      TK_PERCENT_CURLY@106..108 "%}"
+                parsing consumed all tokens: true"#]],
+        );
+    }
+
+    #[test]
     fn parse_error() {
         check_parse(
             "{% asdf",

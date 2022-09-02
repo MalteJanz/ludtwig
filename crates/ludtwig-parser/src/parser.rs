@@ -15,7 +15,7 @@ use crate::parser::source::Source;
 use crate::syntax::untyped::{debug_tree, SyntaxKind, SyntaxNode};
 use crate::{lex, T};
 
-static RECOVERY_SET: &[SyntaxKind] = &[T!["{%"] /*T!["{{"], T!["<"], T!["</"] */];
+static RECOVERY_SET: &[SyntaxKind] = &[T!["{%"], T!["{{"], T!["<"], T!["</"]];
 
 pub fn parse(input_text: &str) -> Parse {
     let lex_result = lex(input_text);
@@ -94,6 +94,21 @@ impl<'source> Parser<'source> {
     pub(crate) fn at(&mut self, kind: SyntaxKind) -> bool {
         self.expected_kinds.push(kind);
         self.peek() == Some(kind)
+    }
+
+    /// Look at the nth (zero indexed, zero means next, one is the one after that, ...) [SyntaxToken]
+    /// but only if it matches the correct [SyntaxKind].
+    /// Only use this if absolutely necessary, because it is expensive to lookahead!
+    pub(crate) fn at_nth_token(&mut self, kind: SyntaxKind, nth: usize) -> Option<&Token> {
+        self.expected_kinds.push(kind);
+        let peek = self.source.peek_nth_token(nth);
+        if let Some(Token { kind: found, .. }) = peek {
+            if *found == kind {
+                return peek;
+            }
+        }
+
+        None
     }
 
     /// Only use this if absolutely necessary, because it is expensive to lookahead!

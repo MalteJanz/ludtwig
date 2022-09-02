@@ -33,6 +33,18 @@ impl<'source> Source<'source> {
         self.peek_token_raw()
     }
 
+    pub(super) fn peek_nth_token(&mut self, nth: usize) -> Option<&Token> {
+        self.eat_trivia();
+        if self.cursor == self.tokens.len() {
+            return None; // end already reached
+        }
+
+        self.tokens[self.cursor..]
+            .iter()
+            .filter(|t| !t.kind.is_trivia())
+            .nth(nth)
+    }
+
     pub(super) fn at_following(&mut self, set: &[SyntaxKind]) -> bool {
         self.eat_trivia();
         if self.cursor == self.tokens.len() {
@@ -132,5 +144,34 @@ mod tests {
 
         // nothing more to compare
         assert!(!source.at_following(&[T![word]]));
+    }
+
+    #[test]
+    fn source_peek_nth_token() {
+        let tokens = vec![
+            Token::new_wrong_range(T![ws], "  "),
+            Token::new_wrong_range(T![lb], "\n"),
+            Token::new_wrong_range(T![word], "hello"),
+            Token::new_wrong_range(T![lb], "\n"),
+            Token::new_wrong_range(T![ws], "  "),
+            Token::new_wrong_range(T!["<"], "<"),
+            Token::new_wrong_range(T![lb], "\n"),
+            Token::new_wrong_range(T![">"], ">"),
+            Token::new_wrong_range(T![ws], "  "),
+        ];
+
+        let mut source = Source::new(&tokens);
+        assert_eq!(
+            source.peek_nth_token(2),
+            Some(&Token::new_wrong_range(T![">"], ">"))
+        );
+        assert_eq!(
+            source.peek_nth_token(1),
+            Some(&Token::new_wrong_range(T!["<"], "<"))
+        );
+        assert_eq!(
+            source.peek_nth_token(0),
+            Some(&Token::new_wrong_range(T![word], "hello"))
+        );
     }
 }
