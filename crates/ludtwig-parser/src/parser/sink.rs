@@ -23,7 +23,7 @@ impl<'source> Sink<'source> {
         Self {
             tokens,
             cursor: 0,
-            events: event_collection.to_event_list(),
+            events: event_collection.into_event_list(),
             errors: vec![],
             builder: GreenNodeBuilder::new(),
         }
@@ -148,7 +148,7 @@ mod tests {
         let m = event_collection.start();
         event_collection.add_token();
         event_collection.add_token();
-        m.complete(&mut event_collection, SyntaxKind::ROOT);
+        event_collection.complete(m, SyntaxKind::ROOT);
 
         let sink = Sink::new(&tokens, event_collection);
         let parse = sink.finish();
@@ -187,7 +187,7 @@ mod tests {
         let m = event_collection.start();
         event_collection.add_token();
         // One token missing here
-        m.complete(&mut event_collection, SyntaxKind::ROOT);
+        event_collection.complete(m, SyntaxKind::ROOT);
 
         let sink = Sink::new(&tokens, event_collection);
         let parse = sink.finish();
@@ -225,13 +225,13 @@ mod tests {
 
         let inner_m = event_collection.start();
         event_collection.add_token();
-        let completed_inner = inner_m.complete(&mut event_collection, SyntaxKind::HTML_STRING);
-        let inner_wrapper_m = completed_inner.precede(&mut event_collection);
-        let completed_wrapper = inner_wrapper_m.complete(&mut event_collection, SyntaxKind::BODY);
-        let outer_wrapper_m = completed_wrapper.precede(&mut event_collection);
-        outer_wrapper_m.complete(&mut event_collection, SyntaxKind::ERROR);
+        let inner_completed = event_collection.complete(inner_m, SyntaxKind::HTML_STRING);
+        let inner_wrapper_m = event_collection.precede(inner_completed);
+        let inner_wrapper_completed = event_collection.complete(inner_wrapper_m, SyntaxKind::BODY);
+        let outer_wrapper_m = event_collection.precede(inner_wrapper_completed);
 
-        outer_m.complete(&mut event_collection, SyntaxKind::ROOT);
+        event_collection.complete(outer_wrapper_m, SyntaxKind::ERROR);
+        event_collection.complete(outer_m, SyntaxKind::ROOT);
 
         let sink = Sink::new(&tokens, event_collection);
         let parse = sink.finish();

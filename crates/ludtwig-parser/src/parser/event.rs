@@ -18,6 +18,7 @@ pub(super) enum Event {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct EventCollection {
     events: Vec<Event>,
+    #[cfg(debug_assertions)]
     open_markers: Vec<usize>,
 }
 
@@ -25,6 +26,7 @@ impl EventCollection {
     pub(super) fn new() -> Self {
         Self {
             events: vec![],
+            #[cfg(debug_assertions)]
             open_markers: vec![],
         }
     }
@@ -37,7 +39,7 @@ impl EventCollection {
         self.events.push(Event::Error(error));
     }
 
-    pub(super) fn to_event_list(self) -> Vec<Event> {
+    pub(super) fn into_event_list(self) -> Vec<Event> {
         self.events
     }
 
@@ -45,6 +47,7 @@ impl EventCollection {
         let pos = self.events.len();
         self.events.push(Event::Placeholder);
         // keep track of open markers to enforce closing them in the right order
+        #[cfg(debug_assertions)]
         self.open_markers.push(pos);
         Marker::new(pos)
     }
@@ -53,13 +56,16 @@ impl EventCollection {
     pub(super) fn complete(&mut self, mut marker: Marker, kind: SyntaxKind) -> CompletedMarker {
         marker.completed = true;
 
-        // ensure marker completion order
-        debug_assert_eq!(
-            self.open_markers.last(),
-            Some(&marker.pos),
-            "Inner Markers must be closed before outer Markers!"
-        );
-        self.open_markers.pop();
+        #[cfg(debug_assertions)]
+        {
+            // ensure marker completion order
+            debug_assert_eq!(
+                self.open_markers.last(),
+                Some(&marker.pos),
+                "Inner Markers must be closed before outer Markers!"
+            );
+            self.open_markers.pop();
+        }
 
         // replace placeholder
         let event_at_pos = &mut self.events[marker.pos];
@@ -106,15 +112,6 @@ impl Marker {
             completed: false,
         }
     }
-
-    #[track_caller]
-    pub(crate) fn complete(
-        self,
-        event_collection: &mut EventCollection,
-        kind: SyntaxKind,
-    ) -> CompletedMarker {
-        event_collection.complete(self, kind)
-    }
 }
 
 impl Drop for Marker {
@@ -132,12 +129,6 @@ pub(crate) struct CompletedMarker {
     pos: usize,
 }
 
-impl CompletedMarker {
-    pub(crate) fn precede(self, event_collection: &mut EventCollection) -> Marker {
-        event_collection.precede(self)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -149,12 +140,12 @@ mod tests {
         collection.add_token();
         let m_inner = collection.start();
         collection.add_token();
-        m_inner.complete(&mut collection, SyntaxKind::BODY);
+        collection.complete(m_inner, SyntaxKind::BODY);
         collection.add_token();
-        m_outer.complete(&mut collection, SyntaxKind::ROOT);
+        collection.complete(m_outer, SyntaxKind::ROOT);
 
         assert_eq!(
-            collection.to_event_list(),
+            collection.into_event_list(),
             vec![
                 Event::StartNode {
                     kind: SyntaxKind::ROOT,
@@ -180,19 +171,17 @@ mod tests {
         collection.add_token();
         let m_inner = collection.start();
         collection.add_token();
-        let inner_wrapper_m = m_inner
-            .complete(&mut collection, SyntaxKind::HTML_STRING)
-            .precede(&mut collection);
-        let inner_wrapper_wrapper_m = inner_wrapper_m
-            .complete(&mut collection, SyntaxKind::BODY)
-            .precede(&mut collection);
+        let inner_completed = collection.complete(m_inner, SyntaxKind::HTML_STRING);
+        let inner_wrapper_m = collection.precede(inner_completed);
+        let inner_wrapper_completed = collection.complete(inner_wrapper_m, SyntaxKind::BODY);
+        let inner_wrapper_wrapper_m = collection.precede(inner_wrapper_completed);
         collection.add_token();
-        inner_wrapper_wrapper_m.complete(&mut collection, SyntaxKind::ERROR);
+        collection.complete(inner_wrapper_wrapper_m, SyntaxKind::ERROR);
 
-        m_outer.complete(&mut collection, SyntaxKind::ROOT);
+        collection.complete(m_outer, SyntaxKind::ROOT);
 
         assert_eq!(
-            collection.to_event_list(),
+            collection.into_event_list(),
             vec![
                 Event::StartNode {
                     kind: SyntaxKind::ROOT,
@@ -230,9 +219,8 @@ mod tests {
         let m_inner = collection.start();
         collection.add_token();
         drop(m_outer); // early drop
-        m_inner.complete(&mut collection, SyntaxKind::BODY);
+        collection.complete(m_inner, SyntaxKind::BODY);
         collection.add_token();
-        // m_outer.complete(&mut collection, SyntaxKind::ROOT);
     }
 
     #[test]
@@ -245,11 +233,11 @@ mod tests {
         collection.add_token();
         // this doesn't make sense (why closing root if the inner Body is still open?)
         // and this call should panic!
-        m_outer.complete(&mut collection, SyntaxKind::ROOT);
+        collection.complete(m_outer, SyntaxKind::ROOT);
         collection.add_token();
         collection.add_token();
         // same here
-        m_inner.complete(&mut collection, SyntaxKind::BODY);
+        collection.complete(m_inner, SyntaxKind::BODY);
     }
 
     #[test]
@@ -261,12 +249,11 @@ mod tests {
         let m_inner = collection.start();
         collection.add_token();
         // this opens a new marker
-        let m_inner_wrapper = m_inner
-            .complete(&mut collection, SyntaxKind::ROOT)
-            .precede(&mut collection);
+        let inner_completed = collection.complete(m_inner, SyntaxKind::ROOT);
+        let _m_inner_wrapper = collection.precede(inner_completed);
         collection.add_token();
         collection.add_token();
         // this should trigger a panic, because there are open inner markers
-        m_outer.complete(&mut collection, SyntaxKind::BODY);
+        collection.complete(m_outer, SyntaxKind::BODY);
     }
 }

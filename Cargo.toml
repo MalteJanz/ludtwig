@@ -5,4 +5,5 @@ members = [
 ]
 
 [profile.release]
-lto = true # does increase runtime performance for longer build times
+lto = "thin" # does increase runtime performance for longer build times
+# benchmark between "thin" and "fat"/true and pick better performing one (thin compile faster)

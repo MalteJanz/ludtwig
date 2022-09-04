@@ -149,6 +149,11 @@ mod tests {
     }
 
     #[test]
+    fn test_lex_single_quotes() {
+        check("'", T!["'"]);
+    }
+
+    #[test]
     fn test_lex_curly_percent() {
         check("{%", T!["{%"]);
     }

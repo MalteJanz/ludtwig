@@ -4,6 +4,23 @@ use crate::parser::Parser;
 use crate::syntax::untyped::SyntaxKind;
 use crate::T;
 
+pub(super) fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {
+    debug_assert!(parser.at(T!["{{"]));
+    let m = parser.start();
+    parser.bump();
+
+    loop {
+        if parser.at_end() || parser.at(T!["}}"]) {
+            break;
+        }
+
+        parser.bump();
+    }
+
+    parser.expect(T!["}}"]);
+    parser.complete(m, SyntaxKind::TWIG_VAR)
+}
+
 pub(super) fn parse_twig_block_statement(parser: &mut Parser) -> Option<CompletedMarker> {
     debug_assert!(parser.at(T!["{%"]));
     let m = parser.start();
@@ -179,6 +196,32 @@ mod tests {
                       TK_WORD@3..7 "asdf"
                 parsing consumed all tokens: true
                 error at 3..3: expected block, but found word"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_var() {
+        check_parse(
+            "{{ something }} plain {{ else }}",
+            expect![[r#"
+                ROOT@0..32
+                  TWIG_VAR@0..16
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TK_WHITESPACE@2..3 " "
+                    TK_WORD@3..12 "something"
+                    TK_WHITESPACE@12..13 " "
+                    TK_CLOSE_CURLY_CURLY@13..15 "}}"
+                    TK_WHITESPACE@15..16 " "
+                  HTML_TEXT@16..22
+                    TK_WORD@16..21 "plain"
+                    TK_WHITESPACE@21..22 " "
+                  TWIG_VAR@22..32
+                    TK_OPEN_CURLY_CURLY@22..24 "{{"
+                    TK_WHITESPACE@24..25 " "
+                    TK_WORD@25..29 "else"
+                    TK_WHITESPACE@29..30 " "
+                    TK_CLOSE_CURLY_CURLY@30..32 "}}"
+                parsing consumed all tokens: true"#]],
         )
     }
 }

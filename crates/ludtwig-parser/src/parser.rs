@@ -14,6 +14,7 @@ use crate::parser::sink::Sink;
 use crate::parser::source::Source;
 use crate::syntax::untyped::{debug_tree, SyntaxKind, SyntaxNode};
 use crate::{lex, T};
+use std::fmt::Write;
 
 static RECOVERY_SET: &[SyntaxKind] = &[
     T!["{%"],
@@ -39,7 +40,7 @@ pub fn parse(input_text: &str) -> Parse {
     let parse = sink.finish();
 
     // TODO: remove debug print statements
-    println!("{}", parse.debug_parse());
+    // println!("{}", parse.debug_parse());
 
     parse
 }
@@ -58,13 +59,10 @@ impl Parse {
         let syntax_node = SyntaxNode::new_root(self.green_node.clone());
         let mut s = debug_tree(syntax_node);
 
-        s.push_str(&*format!(
-            "\nparsing consumed all tokens: {}",
-            self.finished
-        ));
+        let _ = write!(s, "\nparsing consumed all tokens: {}", self.finished);
 
         for error in &self.errors {
-            s.push_str(&format!("\n{}", error));
+            let _ = write!(s, "\n{}", error);
         }
 
         s
@@ -183,19 +181,17 @@ impl<'source> Parser<'source> {
 
     #[track_caller]
     pub(crate) fn complete(&mut self, marker: Marker, kind: SyntaxKind) -> CompletedMarker {
-        marker.complete(&mut self.event_collection, kind)
+        self.event_collection.complete(marker, kind)
     }
 
     #[track_caller]
     pub(crate) fn precede(&mut self, completed_marker: CompletedMarker) -> Marker {
-        completed_marker.precede(&mut self.event_collection)
+        self.event_collection.precede(completed_marker)
     }
 }
 
 #[cfg(test)]
 pub(crate) fn check_parse(input: &str, expected_tree: expect_test::Expect) {
-    use crate::syntax::untyped::TextLen;
-
     let parse = parse(input);
     expected_tree.assert_eq(&parse.debug_parse());
     assert!(parse.finished, "unparsed source tokens left");

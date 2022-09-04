@@ -283,7 +283,7 @@ mod tests {
                       TK_WORD@24..27 "div"
                       TK_GREATER_THAN@27..28 ">"
                 parsing consumed all tokens: true
-                error at 22..22: expected word, </, word, {%, < or word, but found </"#]],
+                error at 22..22: expected word, </, word, <, {%, {{ or word, but found </"#]],
         );
     }
 
