@@ -69,7 +69,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lex_simple_output() {
+    fn lex_simple_output() {
         let results = lex("</div>");
 
         assert_eq!(
@@ -91,20 +91,20 @@ mod tests {
     }
 
     #[test]
-    fn test_lex_whitespace() {
+    fn lex_whitespace() {
         check("   ", T![ws]);
         check(" \t  ", T![ws]);
         check("\t", T![ws]);
     }
 
     #[test]
-    fn test_lex_line_break() {
+    fn lex_line_break() {
         check("\n", T![lb]);
         check("\r\n", T![lb]);
     }
 
     #[test]
-    fn test_lex_word() {
+    fn lex_word() {
         check("hello", T![word]);
         check("hello123", T![word]);
         check("camelCase", T![word]);
@@ -119,67 +119,87 @@ mod tests {
     }
 
     #[test]
-    fn test_lex_less_than() {
+    fn lex_less_than() {
         check("<", T!["<"]);
     }
 
     #[test]
-    fn test_lex_less_than_slash() {
+    fn lex_less_than_slash() {
         check("</", T!["</"]);
     }
 
     #[test]
-    fn test_lex_greater_than() {
+    fn lex_greater_than() {
         check(">", T![">"]);
     }
 
     #[test]
-    fn test_lex_slash_greater_than() {
+    fn lex_slash_greater_than() {
         check("/>", T!["/>"]);
     }
 
     #[test]
-    fn test_lex_equal() {
+    fn lex_less_than_exclamation_mark_minus_minus() {
+        check("<!--", T!["<!--"]);
+    }
+
+    #[test]
+    fn lex_minus_minus_greater_than() {
+        check("-->", T!["-->"]);
+    }
+
+    #[test]
+    fn lex_equal() {
         check("=", T!["="]);
     }
 
     #[test]
-    fn test_lex_double_quotes() {
+    fn lex_double_quotes() {
         check("\"", T!["\""]);
     }
 
     #[test]
-    fn test_lex_single_quotes() {
+    fn lex_single_quotes() {
         check("'", T!["'"]);
     }
 
     #[test]
-    fn test_lex_curly_percent() {
+    fn lex_curly_percent() {
         check("{%", T!["{%"]);
     }
 
     #[test]
-    fn test_lex_percent_curly() {
+    fn lex_percent_curly() {
         check("%}", T!["%}"]);
     }
 
     #[test]
-    fn test_lex_open_curly_curly() {
+    fn lex_open_curly_curly() {
         check("{{", T!["{{"]);
     }
 
     #[test]
-    fn test_lex_close_curly_curly() {
+    fn lex_close_curly_curly() {
         check("}}", T!["}}"]);
     }
 
     #[test]
-    fn test_lex_block() {
+    fn lex_open_curly_hashtag() {
+        check("{#", T!["{#"]);
+    }
+
+    #[test]
+    fn lex_hashtag_close_curly() {
+        check("#}", T!["#}"]);
+    }
+
+    #[test]
+    fn lex_block() {
         check("block", T!["block"]);
     }
 
     #[test]
-    fn test_lex_endblock() {
+    fn lex_endblock() {
         check("endblock", T!["endblock"]);
     }
 }

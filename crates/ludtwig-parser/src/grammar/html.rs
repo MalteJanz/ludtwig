@@ -5,7 +5,19 @@ use crate::parser::Parser;
 use crate::syntax::untyped::SyntaxKind;
 use crate::T;
 
-pub(super) fn parse_html_text(parser: &mut Parser) -> CompletedMarker {
+pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
+    if parser.at(T!["<"]) {
+        Some(parse_html_element(parser))
+    } else if parser.at(T![word]) {
+        Some(parse_html_text(parser))
+    } else if parser.at(T!["<!--"]) {
+        Some(parse_html_comment(parser))
+    } else {
+        None
+    }
+}
+
+fn parse_html_text(parser: &mut Parser) -> CompletedMarker {
     debug_assert!(parser.at(T![word]));
     let m = parser.start();
     parser.bump();
@@ -17,7 +29,24 @@ pub(super) fn parse_html_text(parser: &mut Parser) -> CompletedMarker {
     parser.complete(m, SyntaxKind::HTML_TEXT)
 }
 
-pub(super) fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
+fn parse_html_comment(parser: &mut Parser) -> CompletedMarker {
+    debug_assert!(parser.at(T!["<!--"]));
+    let m = parser.start();
+    parser.bump();
+
+    loop {
+        if parser.at_end() || parser.at(T!["-->"]) {
+            break;
+        }
+
+        parser.bump();
+    }
+
+    parser.expect(T!["-->"]);
+    parser.complete(m, SyntaxKind::HTML_COMMENT)
+}
+
+fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
     debug_assert!(parser.at(T!["<"]));
     let m = parser.start();
 
@@ -26,8 +55,19 @@ pub(super) fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
     parser.bump();
     let tag_name = parser.expect(T![word]).map_or("", |t| t.text).to_owned();
     while parse_html_attribute(parser).is_some() {}
-    parser.expect(T![">"]);
+    let is_self_closing = if parser.at(T!["/>"]) {
+        parser.bump();
+        true
+    } else {
+        parser.expect(T![">"]);
+        false
+    };
+
     parser.complete(starting_tag_m, SyntaxKind::HTML_STARTING_TAG);
+
+    if is_self_closing {
+        return parser.complete(m, SyntaxKind::HTML_TAG);
+    }
 
     // parse all the children
     let body_m = parser.start();
@@ -283,7 +323,7 @@ mod tests {
                       TK_WORD@24..27 "div"
                       TK_GREATER_THAN@27..28 ">"
                 parsing consumed all tokens: true
-                error at 22..22: expected word, </, word, <, {%, {{ or word, but found </"#]],
+                error at 22..22: expected word, </, word, {%, {{, {#, <, word or <!--, but found </"#]],
         );
     }
 
@@ -325,6 +365,73 @@ mod tests {
                 parsing consumed all tokens: true
                 error at 11..11: expected ", but found '
                 error at 19..19: expected ", > or ", but found >"#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_comment() {
+        check_parse(
+            "<!-- this is a comment --> this not <!-- but this again -->",
+            expect![[r#"
+                ROOT@0..59
+                  HTML_COMMENT@0..27
+                    TK_LESS_THAN_EXCLAMATION_MARK_MINUS_MINUS@0..4 "<!--"
+                    TK_WHITESPACE@4..5 " "
+                    TK_WORD@5..9 "this"
+                    TK_WHITESPACE@9..10 " "
+                    TK_WORD@10..12 "is"
+                    TK_WHITESPACE@12..13 " "
+                    TK_WORD@13..14 "a"
+                    TK_WHITESPACE@14..15 " "
+                    TK_WORD@15..22 "comment"
+                    TK_WHITESPACE@22..23 " "
+                    TK_MINUS_MINUS_GREATER_THAN@23..26 "-->"
+                    TK_WHITESPACE@26..27 " "
+                  HTML_TEXT@27..36
+                    TK_WORD@27..31 "this"
+                    TK_WHITESPACE@31..32 " "
+                    TK_WORD@32..35 "not"
+                    TK_WHITESPACE@35..36 " "
+                  HTML_COMMENT@36..59
+                    TK_LESS_THAN_EXCLAMATION_MARK_MINUS_MINUS@36..40 "<!--"
+                    TK_WHITESPACE@40..41 " "
+                    TK_WORD@41..44 "but"
+                    TK_WHITESPACE@44..45 " "
+                    TK_WORD@45..49 "this"
+                    TK_WHITESPACE@49..50 " "
+                    TK_WORD@50..55 "again"
+                    TK_WHITESPACE@55..56 " "
+                    TK_MINUS_MINUS_GREATER_THAN@56..59 "-->"
+                parsing consumed all tokens: true"#]],
+        );
+    }
+
+    #[test]
+    fn test_html_self_closing_tag() {
+        check_parse(
+            "<hr/>plain<img/>text<custom/>",
+            expect![[r#"
+            ROOT@0..29
+              HTML_TAG@0..5
+                HTML_STARTING_TAG@0..5
+                  TK_LESS_THAN@0..1 "<"
+                  TK_WORD@1..3 "hr"
+                  TK_SLASH_GREATER_THAN@3..5 "/>"
+              HTML_TEXT@5..10
+                TK_WORD@5..10 "plain"
+              HTML_TAG@10..16
+                HTML_STARTING_TAG@10..16
+                  TK_LESS_THAN@10..11 "<"
+                  TK_WORD@11..14 "img"
+                  TK_SLASH_GREATER_THAN@14..16 "/>"
+              HTML_TEXT@16..20
+                TK_WORD@16..20 "text"
+              HTML_TAG@20..29
+                HTML_STARTING_TAG@20..29
+                  TK_LESS_THAN@20..21 "<"
+                  TK_WORD@21..27 "custom"
+                  TK_SLASH_GREATER_THAN@27..29 "/>"
+            parsing consumed all tokens: true"#]],
         );
     }
 }

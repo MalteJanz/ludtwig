@@ -1,9 +1,8 @@
-use crate::grammar::html::{parse_html_element, parse_html_text};
-use crate::grammar::twig::{parse_twig_block_statement, parse_twig_var_statement};
+use crate::grammar::html::parse_any_html;
+use crate::grammar::twig::parse_any_twig;
 use crate::parser::event::CompletedMarker;
 use crate::parser::Parser;
 use crate::syntax::untyped::SyntaxKind;
-use crate::T;
 
 mod html;
 mod twig;
@@ -29,17 +28,7 @@ pub(super) fn root(parser: &mut Parser) -> CompletedMarker {
 }
 
 fn parse_any_element(parser: &mut Parser) -> Option<CompletedMarker> {
-    if parser.at(T!["<"]) {
-        Some(parse_html_element(parser))
-    } else if parser.at(T!["{%"]) {
-        parse_twig_block_statement(parser)
-    } else if parser.at(T!["{{"]) {
-        Some(parse_twig_var_statement(parser))
-    } else if parser.at(T![word]) {
-        Some(parse_html_text(parser))
-    } else {
-        None
-    }
+    parse_any_twig(parser).or_else(|| parse_any_html(parser))
 }
 
 #[cfg(test)]

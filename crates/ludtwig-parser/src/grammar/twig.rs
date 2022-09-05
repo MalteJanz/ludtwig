@@ -4,7 +4,36 @@ use crate::parser::Parser;
 use crate::syntax::untyped::SyntaxKind;
 use crate::T;
 
-pub(super) fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {
+pub(super) fn parse_any_twig(parser: &mut Parser) -> Option<CompletedMarker> {
+    if parser.at(T!["{%"]) {
+        parse_twig_block_statement(parser)
+    } else if parser.at(T!["{{"]) {
+        Some(parse_twig_var_statement(parser))
+    } else if parser.at(T!["{#"]) {
+        Some(parse_twig_comment_statement(parser))
+    } else {
+        None
+    }
+}
+
+fn parse_twig_comment_statement(parser: &mut Parser) -> CompletedMarker {
+    debug_assert!(parser.at(T!["{#"]));
+    let m = parser.start();
+    parser.bump();
+
+    loop {
+        if parser.at_end() || parser.at(T!["#}"]) {
+            break;
+        }
+
+        parser.bump();
+    }
+
+    parser.expect(T!["#}"]);
+    parser.complete(m, SyntaxKind::TWIG_COMMENT)
+}
+
+fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {
     debug_assert!(parser.at(T!["{{"]));
     let m = parser.start();
     parser.bump();
@@ -21,7 +50,7 @@ pub(super) fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {
     parser.complete(m, SyntaxKind::TWIG_VAR)
 }
 
-pub(super) fn parse_twig_block_statement(parser: &mut Parser) -> Option<CompletedMarker> {
+fn parse_twig_block_statement(parser: &mut Parser) -> Option<CompletedMarker> {
     debug_assert!(parser.at(T!["{%"]));
     let m = parser.start();
     parser.bump();
@@ -222,6 +251,44 @@ mod tests {
                     TK_WHITESPACE@29..30 " "
                     TK_CLOSE_CURLY_CURLY@30..32 "}}"
                 parsing consumed all tokens: true"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_comment() {
+        check_parse(
+            "{# something #} plain {# {{ comment }} {% block asdf %} #}",
+            expect![[r##"
+                ROOT@0..58
+                  TWIG_COMMENT@0..16
+                    TK_OPEN_CURLY_HASHTAG@0..2 "{#"
+                    TK_WHITESPACE@2..3 " "
+                    TK_WORD@3..12 "something"
+                    TK_WHITESPACE@12..13 " "
+                    TK_HASHTAG_CLOSE_CURLY@13..15 "#}"
+                    TK_WHITESPACE@15..16 " "
+                  HTML_TEXT@16..22
+                    TK_WORD@16..21 "plain"
+                    TK_WHITESPACE@21..22 " "
+                  TWIG_COMMENT@22..58
+                    TK_OPEN_CURLY_HASHTAG@22..24 "{#"
+                    TK_WHITESPACE@24..25 " "
+                    TK_OPEN_CURLY_CURLY@25..27 "{{"
+                    TK_WHITESPACE@27..28 " "
+                    TK_WORD@28..35 "comment"
+                    TK_WHITESPACE@35..36 " "
+                    TK_CLOSE_CURLY_CURLY@36..38 "}}"
+                    TK_WHITESPACE@38..39 " "
+                    TK_CURLY_PERCENT@39..41 "{%"
+                    TK_WHITESPACE@41..42 " "
+                    TK_BLOCK@42..47 "block"
+                    TK_WHITESPACE@47..48 " "
+                    TK_WORD@48..52 "asdf"
+                    TK_WHITESPACE@52..53 " "
+                    TK_PERCENT_CURLY@53..55 "%}"
+                    TK_WHITESPACE@55..56 " "
+                    TK_HASHTAG_CLOSE_CURLY@56..58 "#}"
+                parsing consumed all tokens: true"##]],
         )
     }
 }

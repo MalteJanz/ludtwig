@@ -25,6 +25,10 @@ pub enum SyntaxKind {
     TK_GREATER_THAN,
     #[token("/>")]
     TK_SLASH_GREATER_THAN,
+    #[token("<!--")]
+    TK_LESS_THAN_EXCLAMATION_MARK_MINUS_MINUS,
+    #[token("-->")]
+    TK_MINUS_MINUS_GREATER_THAN,
     #[token("=")]
     TK_EQUAL,
     #[token("\"")]
@@ -39,6 +43,10 @@ pub enum SyntaxKind {
     TK_OPEN_CURLY_CURLY,
     #[token("}}")]
     TK_CLOSE_CURLY_CURLY,
+    #[token("{#")]
+    TK_OPEN_CURLY_HASHTAG,
+    #[token("#}")]
+    TK_HASHTAG_CLOSE_CURLY,
     #[token("block")]
     TK_BLOCK,
     #[token("endblock")]
@@ -53,9 +61,11 @@ pub enum SyntaxKind {
     TWIG_STARTING_BLOCK,
     TWIG_ENDING_BLOCK,
     TWIG_VAR,
+    TWIG_COMMENT,
     HTML_ATTRIBUTE,
     HTML_STRING, // used as attribute values
     HTML_TEXT,   // used as plain text between html tags / twig blocks
+    HTML_COMMENT,
     HTML_TAG,
     HTML_STARTING_TAG,
     HTML_ENDING_TAG,
@@ -77,6 +87,8 @@ macro_rules! T {
     ["</"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_SLASH };
     [">"] => { $crate::syntax::untyped::SyntaxKind::TK_GREATER_THAN };
     ["/>"] => { $crate::syntax::untyped::SyntaxKind::TK_SLASH_GREATER_THAN };
+    ["<!--"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_EXCLAMATION_MARK_MINUS_MINUS };
+    ["-->"] => { $crate::syntax::untyped::SyntaxKind::TK_MINUS_MINUS_GREATER_THAN };
     ["="] => { $crate::syntax::untyped::SyntaxKind::TK_EQUAL };
     ["\""] => { $crate::syntax::untyped::SyntaxKind::TK_DOUBLE_QUOTES };
     ["'"] => { $crate::syntax::untyped::SyntaxKind::TK_SINGLE_QUOTES };
@@ -84,6 +96,8 @@ macro_rules! T {
     ["%}"] => { $crate::syntax::untyped::SyntaxKind::TK_PERCENT_CURLY };
     ["{{"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY_CURLY };
     ["}}"] => { $crate::syntax::untyped::SyntaxKind::TK_CLOSE_CURLY_CURLY };
+    ["{#"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY_HASHTAG };
+    ["#}"] => { $crate::syntax::untyped::SyntaxKind::TK_HASHTAG_CLOSE_CURLY };
     ["block"] => { $crate::syntax::untyped::SyntaxKind::TK_BLOCK };
     ["endblock"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDBLOCK };
 }
@@ -105,6 +119,8 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_LESS_THAN_SLASH => "</",
             SyntaxKind::TK_GREATER_THAN => ">",
             SyntaxKind::TK_SLASH_GREATER_THAN => "/>",
+            SyntaxKind::TK_LESS_THAN_EXCLAMATION_MARK_MINUS_MINUS => "<!--",
+            SyntaxKind::TK_MINUS_MINUS_GREATER_THAN => "-->",
             SyntaxKind::TK_EQUAL => "=",
             SyntaxKind::TK_DOUBLE_QUOTES => "\"",
             SyntaxKind::TK_SINGLE_QUOTES => "'",
@@ -112,6 +128,8 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_PERCENT_CURLY => "%}",
             SyntaxKind::TK_OPEN_CURLY_CURLY => "{{",
             SyntaxKind::TK_CLOSE_CURLY_CURLY => "}}",
+            SyntaxKind::TK_OPEN_CURLY_HASHTAG => "{#",
+            SyntaxKind::TK_HASHTAG_CLOSE_CURLY => "#}",
             SyntaxKind::TK_BLOCK => "block",
             SyntaxKind::TK_ENDBLOCK => "endblock",
             SyntaxKind::ERROR => "error", // can also be a unknown token
