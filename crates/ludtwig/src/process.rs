@@ -105,7 +105,7 @@ fn iteratively_apply_suggestions(
         println!("found suggestions: {:#?}", suggestions);
 
         if suggestions.is_empty() {
-            return current_results;
+            break;
         }
 
         // sort by syntax range
@@ -162,6 +162,7 @@ fn iteratively_apply_suggestions(
         // Todo: better error handling -> maybe other files can be written
         fs::write(&current_results.0.file_path, &current_results.0.source_code)
             .expect("Can't write back into file");
+        println!("fixed {:?}", &current_results.0.file_path);
     }
 
     current_results

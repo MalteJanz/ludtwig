@@ -7,6 +7,8 @@ use crate::syntax::untyped::SyntaxKind;
 mod html;
 mod twig;
 
+type ParseFunction = fn(&mut Parser) -> Option<CompletedMarker>;
+
 pub(super) fn root(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
 
@@ -28,7 +30,7 @@ pub(super) fn root(parser: &mut Parser) -> CompletedMarker {
 }
 
 fn parse_any_element(parser: &mut Parser) -> Option<CompletedMarker> {
-    parse_any_twig(parser).or_else(|| parse_any_html(parser))
+    parse_any_twig(parser, parse_any_element).or_else(|| parse_any_html(parser))
 }
 
 #[cfg(test)]

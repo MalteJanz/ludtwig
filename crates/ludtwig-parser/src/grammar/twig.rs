@@ -1,12 +1,15 @@
-use crate::grammar::parse_any_element;
+use crate::grammar::ParseFunction;
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::Parser;
 use crate::syntax::untyped::SyntaxKind;
 use crate::T;
 
-pub(super) fn parse_any_twig(parser: &mut Parser) -> Option<CompletedMarker> {
+pub(super) fn parse_any_twig(
+    parser: &mut Parser,
+    child_parser: ParseFunction,
+) -> Option<CompletedMarker> {
     if parser.at(T!["{%"]) {
-        parse_twig_block_statement(parser)
+        parse_twig_block_statement(parser, child_parser)
     } else if parser.at(T!["{{"]) {
         Some(parse_twig_var_statement(parser))
     } else if parser.at(T!["{#"]) {
@@ -50,13 +53,16 @@ fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {
     parser.complete(m, SyntaxKind::TWIG_VAR)
 }
 
-fn parse_twig_block_statement(parser: &mut Parser) -> Option<CompletedMarker> {
+fn parse_twig_block_statement(
+    parser: &mut Parser,
+    child_parser: ParseFunction,
+) -> Option<CompletedMarker> {
     debug_assert!(parser.at(T!["{%"]));
     let m = parser.start();
     parser.bump();
 
     if parser.at(T!["block"]) {
-        Some(parse_twig_block(parser, m))
+        Some(parse_twig_block(parser, m, child_parser))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
         parser.error();
@@ -65,7 +71,11 @@ fn parse_twig_block_statement(parser: &mut Parser) -> Option<CompletedMarker> {
     }
 }
 
-fn parse_twig_block(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+fn parse_twig_block(
+    parser: &mut Parser,
+    outer: Marker,
+    child_parser: ParseFunction,
+) -> CompletedMarker {
     debug_assert!(parser.at(T!["block"]));
 
     parser.expect(T!["block"]);
@@ -81,7 +91,7 @@ fn parse_twig_block(parser: &mut Parser, outer: Marker) -> CompletedMarker {
         if parser.at_following(&[T!["{%"], T!["endblock"]]) {
             break;
         }
-        if parse_any_element(parser).is_none() {
+        if child_parser(parser).is_none() {
             break;
         };
     }

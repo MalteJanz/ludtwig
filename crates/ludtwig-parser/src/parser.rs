@@ -16,15 +16,17 @@ use crate::syntax::untyped::{debug_tree, SyntaxKind, SyntaxNode};
 use crate::{lex, T};
 use std::fmt::Write;
 
-static RECOVERY_SET: &[SyntaxKind] = &[
+pub(crate) static RECOVERY_SET: &[SyntaxKind] = &[
     T!["{%"],
-    T!["{{"],
     T!["%}"],
-    T!["}}"],
     T!["<"],
     T!["</"],
     T![">"],
     T!["/>"],
+    T!["{{"],
+    T!["}}"],
+    T!["{#"],
+    T!["#}"],
 ];
 
 pub fn parse(input_text: &str) -> Parse {
@@ -94,7 +96,7 @@ impl<'source> Parser<'source> {
         self.source.peek_kind()
     }
 
-    fn at_set(&mut self, set: &[SyntaxKind]) -> bool {
+    pub(crate) fn at_set(&mut self, set: &[SyntaxKind]) -> bool {
         self.peek().map_or(false, |k| set.contains(&k))
     }
 
