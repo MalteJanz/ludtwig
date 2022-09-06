@@ -136,7 +136,11 @@ fn parse_html_string_including_twig(parser: &mut Parser) -> CompletedMarker {
             }
 
             // TODO: needs special care for future endfor, endif, ...
-            if parser.at_following(&[T!["{%"], T!["endblock"]]) {
+            if parser.at_following(&[T!["{%"], T!["endblock"]])
+                || parser.at_following(&[T!["{%"], T!["elseif"]])
+                || parser.at_following(&[T!["{%"], T!["else"]])
+                || parser.at_following(&[T!["{%"], T!["endif"]])
+            {
                 break;
             }
 
@@ -542,6 +546,88 @@ mod tests {
     }
 
     #[test]
+    fn parse_html_string_with_twig_if_elseif_else() {
+        check_parse(
+            "<div class=\"hello {% if A > B %} greater {% elseif A === B %} equal {% else %} less {% endif %}\"></div>",
+            expect![[r#"
+                ROOT@0..103
+                  HTML_TAG@0..103
+                    HTML_STARTING_TAG@0..97
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      TK_WHITESPACE@4..5 " "
+                      HTML_ATTRIBUTE@5..96
+                        TK_WORD@5..10 "class"
+                        TK_EQUAL@10..11 "="
+                        HTML_STRING@11..96
+                          TK_DOUBLE_QUOTES@11..12 "\""
+                          TK_WORD@12..17 "hello"
+                          TK_WHITESPACE@17..18 " "
+                          TWIG_IF@18..95
+                            TWIG_IF_BLOCK@18..33
+                              TK_CURLY_PERCENT@18..20 "{%"
+                              TK_WHITESPACE@20..21 " "
+                              TK_IF@21..23 "if"
+                              TK_WHITESPACE@23..24 " "
+                              TWIG_CONDITION_EXPRESSION@24..30
+                                TK_WORD@24..25 "A"
+                                TK_WHITESPACE@25..26 " "
+                                TK_GREATER_THAN@26..27 ">"
+                                TK_WHITESPACE@27..28 " "
+                                TK_WORD@28..29 "B"
+                                TK_WHITESPACE@29..30 " "
+                              TK_PERCENT_CURLY@30..32 "%}"
+                              TK_WHITESPACE@32..33 " "
+                            BODY@33..41
+                              TK_WORD@33..40 "greater"
+                              TK_WHITESPACE@40..41 " "
+                            TWIG_ELSE_IF_BLOCK@41..62
+                              TK_CURLY_PERCENT@41..43 "{%"
+                              TK_WHITESPACE@43..44 " "
+                              TK_ELSE_IF@44..50 "elseif"
+                              TK_WHITESPACE@50..51 " "
+                              TWIG_CONDITION_EXPRESSION@51..59
+                                TK_WORD@51..52 "A"
+                                TK_WHITESPACE@52..53 " "
+                                TK_EQUAL@53..54 "="
+                                TK_EQUAL@54..55 "="
+                                TK_EQUAL@55..56 "="
+                                TK_WHITESPACE@56..57 " "
+                                TK_WORD@57..58 "B"
+                                TK_WHITESPACE@58..59 " "
+                              TK_PERCENT_CURLY@59..61 "%}"
+                              TK_WHITESPACE@61..62 " "
+                            BODY@62..68
+                              TK_WORD@62..67 "equal"
+                              TK_WHITESPACE@67..68 " "
+                            TWIG_ELSE_BLOCK@68..79
+                              TK_CURLY_PERCENT@68..70 "{%"
+                              TK_WHITESPACE@70..71 " "
+                              TK_ELSE@71..75 "else"
+                              TK_WHITESPACE@75..76 " "
+                              TK_PERCENT_CURLY@76..78 "%}"
+                              TK_WHITESPACE@78..79 " "
+                            BODY@79..84
+                              TK_WORD@79..83 "less"
+                              TK_WHITESPACE@83..84 " "
+                            TWIG_ENDIF_BLOCK@84..95
+                              TK_CURLY_PERCENT@84..86 "{%"
+                              TK_WHITESPACE@86..87 " "
+                              TK_ENDIF@87..92 "endif"
+                              TK_WHITESPACE@92..93 " "
+                              TK_PERCENT_CURLY@93..95 "%}"
+                          TK_DOUBLE_QUOTES@95..96 "\""
+                      TK_GREATER_THAN@96..97 ">"
+                    BODY@97..97
+                    HTML_ENDING_TAG@97..103
+                      TK_LESS_THAN_SLASH@97..99 "</"
+                      TK_WORD@99..102 "div"
+                      TK_GREATER_THAN@102..103 ">"
+                parsing consumed all tokens: true"#]],
+        );
+    }
+
+    #[test]
     fn parse_html_attribute_with_single_quotes() {
         check_parse(
             "<div claSs='my-div'>
@@ -578,7 +664,7 @@ mod tests {
                       TK_GREATER_THAN@50..51 ">"
                 parsing consumed all tokens: true
                 error at 11..11: expected ", but found '
-                error at 19..19: expected ", {%, endblock, {%, {{, {# or ", but found >"#]],
+                error at 19..19: expected ", {%, endblock, {%, elseif, {%, else, {%, endif, {%, {{, {# or ", but found >"#]],
         );
     }
 
@@ -812,7 +898,7 @@ mod tests {
                 error at 29..29: expected endblock, but found <
                 error at 29..29: expected %}, but found <
                 error at 29..29: expected word, {%, {{, {#, /> or >, but found <
-                error at 38..38: expected block, but found endblock
+                error at 38..38: expected block or if, but found endblock
                 error at 47..47: expected <, word or <!--, but found %}"#]],
         );
     }

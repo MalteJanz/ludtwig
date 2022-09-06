@@ -51,17 +51,34 @@ pub enum SyntaxKind {
     TK_BLOCK,
     #[token("endblock")]
     TK_ENDBLOCK,
+    #[token("if")]
+    TK_IF,
+    #[token("elseif")]
+    TK_ELSE_IF,
+    #[token("else")]
+    TK_ELSE,
+    #[token("endif")]
+    TK_ENDIF,
 
     /*
     Composite nodes (which can have children and ast / typed counterparts)
     These do have a meaning and are constructed by the parser
     */
     BODY,
+    TWIG_VAR,
+    TWIG_COMMENT,
+    // twig block
     TWIG_BLOCK,
     TWIG_STARTING_BLOCK,
     TWIG_ENDING_BLOCK,
-    TWIG_VAR,
-    TWIG_COMMENT,
+    // twig if
+    TWIG_IF,
+    TWIG_IF_BLOCK,
+    TWIG_ELSE_IF_BLOCK,
+    TWIG_CONDITION_EXPRESSION,
+    TWIG_ELSE_BLOCK,
+    TWIG_ENDIF_BLOCK,
+    // html
     HTML_ATTRIBUTE,
     HTML_STRING, // used as attribute values
     HTML_TEXT,   // used as plain text between html tags / twig blocks
@@ -100,6 +117,10 @@ macro_rules! T {
     ["#}"] => { $crate::syntax::untyped::SyntaxKind::TK_HASHTAG_CLOSE_CURLY };
     ["block"] => { $crate::syntax::untyped::SyntaxKind::TK_BLOCK };
     ["endblock"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDBLOCK };
+    ["if"] => { $crate::syntax::untyped::SyntaxKind::TK_IF };
+    ["elseif"] => { $crate::syntax::untyped::SyntaxKind::TK_ELSE_IF };
+    ["else"] => { $crate::syntax::untyped::SyntaxKind::TK_ELSE };
+    ["endif"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDIF };
 }
 
 impl SyntaxKind {
@@ -132,6 +153,10 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_HASHTAG_CLOSE_CURLY => "#}",
             SyntaxKind::TK_BLOCK => "block",
             SyntaxKind::TK_ENDBLOCK => "endblock",
+            SyntaxKind::TK_IF => "if",
+            SyntaxKind::TK_ELSE_IF => "elseif",
+            SyntaxKind::TK_ELSE => "else",
+            SyntaxKind::TK_ENDIF => "endif",
             SyntaxKind::ERROR => "error", // can also be a unknown token
             t => unreachable!("Display not implemented for {:?}", t),
         })

@@ -202,4 +202,24 @@ mod tests {
     fn lex_endblock() {
         check("endblock", T!["endblock"]);
     }
+
+    #[test]
+    fn lex_if() {
+        check("if", T!["if"]);
+    }
+
+    #[test]
+    fn lex_else_if() {
+        check("elseif", T!["elseif"]);
+    }
+
+    #[test]
+    fn lex_else() {
+        check("else", T!["else"]);
+    }
+
+    #[test]
+    fn lex_endif() {
+        check("endif", T!["endif"]);
+    }
 }
