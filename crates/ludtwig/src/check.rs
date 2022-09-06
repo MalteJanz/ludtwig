@@ -3,14 +3,16 @@ mod rules;
 
 use crate::check::rule::{CheckSuggestion, RuleContext, Severity};
 use crate::check::rules::RULES;
-use crate::output::CliOutput;
 use crate::process::FileContext;
-use ansi_term::Color;
+use crate::ProcessingEvent;
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan_reporting::files::SimpleFiles;
+use codespan_reporting::term;
+use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
 use ludtwig_parser::syntax::typed;
 use ludtwig_parser::syntax::typed::AstNode;
 use ludtwig_parser::syntax::untyped::{SyntaxElement, WalkEvent};
 use std::borrow::Borrow;
-use std::fmt::Write;
 
 pub fn run_rules(file_context: &FileContext) -> RuleContext {
     let mut ctx = RuleContext {
@@ -65,68 +67,74 @@ pub fn get_rule_context_suggestions(rule_ctx: &RuleContext) -> Vec<(&str, &Check
         .collect()
 }
 
-pub fn get_cli_outputs_from_rule_results(
-    file_context: &FileContext,
-    result_rule_ctx: RuleContext,
-) -> Vec<CliOutput> {
-    let mut outputs = vec![];
+pub fn produce_diagnostics(file_context: &FileContext, result_rule_ctx: RuleContext) {
+    // diagnostic output setup
+    let mut files = SimpleFiles::new();
+    let file_id = files.add(
+        file_context.file_path.to_str().unwrap(),
+        &file_context.source_code,
+    );
+    let writer = BufferWriter::stderr(ColorChoice::Always);
+    let mut buffer = writer.buffer();
+    let config = term::Config {
+        // styles: Styles::with_blue(term::termcolor::Color::Cyan),
+        ..Default::default()
+    };
 
+    // run through the parser errors
+    for result in &file_context.parse_errors {
+        // notify output about this
+        file_context.send_processing_output(ProcessingEvent::Report(Severity::Error));
+        let label =
+            Label::primary(file_id, result.range).with_message(result.expected_message().unwrap());
+        let diagnostic = Diagnostic::error()
+            .with_code("SyntaxError")
+            .with_message("The parser encountered a syntax error")
+            .with_labels(vec![label]);
+
+        term::emit(&mut buffer, &config, &files, &diagnostic).unwrap();
+    }
+
+    // run through the rule check results
     for result in result_rule_ctx.check_results {
-        let mut s = String::new();
-        match result.severity {
-            Severity::Error => {
-                let _ = write!(
-                    s,
-                    "{}",
-                    Color::Red.paint(format!("Error[{}]", result.rule_name))
-                );
-            }
-            Severity::Warning => {
-                let _ = write!(
-                    s,
-                    "{}",
-                    Color::Yellow.paint(format!("Warning[{}]", result.rule_name))
-                );
-            }
-            Severity::Info => {
-                let _ = write!(
-                    s,
-                    "{}",
-                    Color::White.paint(format!("Info[{}]", result.rule_name))
-                );
-            }
+        let diagnostic = match result.severity {
+            Severity::Error => Diagnostic::error(),
+            Severity::Warning => Diagnostic::warning(),
+            Severity::Info => Diagnostic::note(),
+        };
+
+        // notify output about this
+        file_context.send_processing_output(ProcessingEvent::Report(result.severity));
+
+        let mut labels = vec![];
+        if let Some(primary) = result.primary {
+            labels
+                .push(Label::primary(file_id, primary.syntax_range).with_message(primary.message));
         }
 
-        let _ = writeln!(s, ": {}", result.message);
-        let _ = writeln!(s, "    {:?}", file_context.file_path.as_os_str());
-
-        if let Some(note) = result.primary {
-            let _ = writeln!(s, "          {:?}", note.syntax_range);
-            let _ = writeln!(
-                s,
-                "          {} <- {}",
-                &file_context.source_code
-                    [usize::from(note.syntax_range.start())..usize::from(note.syntax_range.end())],
-                note.message
-            );
+        for secondary in result.secondary {
+            labels.push(
+                Label::secondary(file_id, secondary.syntax_range).with_message(secondary.message),
+            )
         }
 
         for suggestion in result.suggestions {
-            let _ = writeln!(
-                s,
-                "          {} <- {}",
-                suggestion.replace_with, suggestion.message
-            );
+            labels.push(
+                Label::secondary(file_id, suggestion.syntax_range).with_message(format!(
+                    "{}: {}",
+                    suggestion.message, suggestion.replace_with
+                )),
+            )
         }
 
-        // TODO: line and column numbers with view into file
-        // TODO: There is a nice crate for all of this called codespan-reporting
+        let diagnostic = diagnostic
+            .with_code(result.rule_name)
+            .with_message(result.message)
+            .with_labels(labels);
 
-        outputs.push(CliOutput {
-            severity: result.severity,
-            message: s,
-        });
+        term::emit(&mut buffer, &config, &files, &diagnostic).unwrap();
     }
 
-    outputs
+    // write the diagnostics to console
+    writer.print(&buffer).unwrap();
 }

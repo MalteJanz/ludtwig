@@ -4,7 +4,7 @@ mod output;
 mod process;
 
 use crate::config::Config;
-use crate::output::CliOutputMessage;
+use crate::output::ProcessingEvent;
 use clap::Parser;
 use std::boxed::Box;
 use std::path::PathBuf;
@@ -48,7 +48,7 @@ pub struct Opts {
 #[derive(Debug)]
 pub struct CliContext {
     /// Channel sender for transmitting messages back to the CLI.
-    pub output_tx: SyncSender<CliOutputMessage>,
+    pub output_tx: SyncSender<ProcessingEvent>,
     /// Apply all code suggestions automatically. This changes the original files!
     pub fix: bool,
     /// Specify a custom output directory instead of modifying the files in place.
@@ -58,9 +58,8 @@ pub struct CliContext {
 }
 
 impl CliContext {
-    /// Helper function to send a [CliOutputMessage] back to the user.
-    pub fn send_output(&self, msg: CliOutputMessage) {
-        self.output_tx.send(msg).unwrap();
+    pub fn send_processing_output(&self, event: ProcessingEvent) {
+        self.output_tx.send(event).unwrap();
     }
 }
 

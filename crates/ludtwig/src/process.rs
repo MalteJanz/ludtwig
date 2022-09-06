@@ -1,10 +1,12 @@
 use crate::check::rule::{CheckSuggestion, RuleContext, Severity};
-use crate::check::{get_cli_outputs_from_rule_results, get_rule_context_suggestions, run_rules};
-use crate::output::{CliOutput, CliOutputMessage};
+use crate::check::{get_rule_context_suggestions, produce_diagnostics, run_rules};
+use crate::output::ProcessingEvent;
 use crate::CliContext;
 use ludtwig_parser::syntax::untyped::SyntaxNode;
+use ludtwig_parser::ParseError;
 use std::collections::HashSet;
 use std::fs;
+use std::io::{self, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -20,39 +22,28 @@ pub struct FileContext {
     pub tree_root: SyntaxNode,
 
     pub source_code: String,
+
+    pub parse_errors: Vec<ParseError>,
 }
 
 impl FileContext {
-    /// Helper function to send some [Output] to the user for this specific file.
-    pub fn send_output(&self, output: CliOutput) {
-        self.cli_context.send_output(CliOutputMessage {
-            file: self.file_path.clone(),
-            output,
-        });
+    pub fn send_processing_output(&self, event: ProcessingEvent) {
+        self.cli_context.send_processing_output(event);
     }
 }
 
 /// Process a single file with it's filepath.
 pub fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
     // notify the output about this file (to increase the processed file counter)
-    cli_context.send_output(CliOutputMessage {
-        file: path.clone(),
-        output: CliOutput {
-            severity: Severity::Info,
-            message: "".to_string(),
-        },
-    });
+    cli_context.send_processing_output(ProcessingEvent::FileProcessed);
 
     let file_content = match fs::read_to_string(&path) {
         Ok(f) => f,
         Err(_) => {
-            cli_context.send_output(CliOutputMessage {
-                file: path,
-                output: CliOutput {
-                    severity: Severity::Error,
-                    message: "Can't read file".to_string(),
-                },
-            });
+            io::stderr()
+                .write_all(format!("Can't read file {:?}", path).as_bytes())
+                .unwrap();
+            cli_context.send_processing_output(ProcessingEvent::Report(Severity::Error));
 
             return;
         }
@@ -72,6 +63,7 @@ fn run_analysis(path: PathBuf, original_file_content: String, cli_context: Arc<C
         file_path: path,
         source_code: root.text().to_string(),
         tree_root: root,
+        parse_errors: parse.errors,
     };
 
     // run all the rules
@@ -84,11 +76,8 @@ fn run_analysis(path: PathBuf, original_file_content: String, cli_context: Arc<C
         (file_context, rule_result_context)
     };
 
-    // send cli outputs over to output thread
-    let cli_outputs = get_cli_outputs_from_rule_results(&file_context, rule_result_context);
-    for out in cli_outputs {
-        file_context.send_output(out);
-    }
+    // send processing events for rule check results + parser errors and output them to the terminal
+    produce_diagnostics(&file_context, rule_result_context);
 }
 
 fn iteratively_apply_suggestions(
@@ -150,6 +139,7 @@ fn iteratively_apply_suggestions(
         let file_context = FileContext {
             source_code,
             tree_root,
+            parse_errors: new_parse.errors,
             ..current_results.0
         };
 

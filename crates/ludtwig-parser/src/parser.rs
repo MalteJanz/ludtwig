@@ -3,7 +3,7 @@ mod parse_error;
 mod sink;
 mod source;
 
-pub(crate) use parse_error::ParseError;
+pub use parse_error::ParseError;
 use rowan::GreenNode;
 use std::mem;
 
