@@ -167,7 +167,7 @@ mod tests {
               TK_WHITESPACE@18..20 "  ""#]];
 
         // check that no lexing input (whitespace) got lost
-        expected.assert_eq(&debug_tree(tree));
+        expected.assert_eq(&debug_tree(&tree));
     }
 
     #[test]
@@ -203,7 +203,7 @@ mod tests {
               TK_WHITESPACE@10..12 "  ""#]];
 
         // check that no lexing input (whitespace) got lost
-        expected.assert_eq(&debug_tree(tree));
+        expected.assert_eq(&debug_tree(&tree));
     }
 
     #[test]
@@ -253,6 +253,6 @@ mod tests {
                     TK_WHITESPACE@18..20 "  ""#]];
 
         // check that no lexing input (whitespace) got lost
-        expected.assert_eq(&debug_tree(tree));
+        expected.assert_eq(&debug_tree(&tree));
     }
 }

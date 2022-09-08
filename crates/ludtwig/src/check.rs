@@ -13,10 +13,12 @@ use ludtwig_parser::syntax::typed;
 use ludtwig_parser::syntax::typed::AstNode;
 use ludtwig_parser::syntax::untyped::{SyntaxElement, WalkEvent};
 use std::borrow::Borrow;
+use std::sync::Arc;
 
 pub fn run_rules(file_context: &FileContext) -> RuleContext {
     let mut ctx = RuleContext {
         check_results: vec![],
+        cli_context: Arc::clone(&file_context.cli_context),
     };
 
     let all_rules = RULES;

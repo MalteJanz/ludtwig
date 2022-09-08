@@ -59,7 +59,7 @@ pub struct Parse {
 impl Parse {
     pub fn debug_parse(&self) -> String {
         let syntax_node = SyntaxNode::new_root(self.green_node.clone());
-        let mut s = debug_tree(syntax_node);
+        let mut s = debug_tree(&syntax_node);
 
         let _ = write!(s, "\nparsing consumed all tokens: {}", self.finished);
 

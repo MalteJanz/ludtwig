@@ -1,4 +1,6 @@
+use crate::{CliContext, Config};
 use ludtwig_parser::syntax::untyped::{SyntaxNode, SyntaxToken, TextRange};
+use std::sync::Arc;
 
 pub trait Rule {
     /// A unique, kebab-case name for the rule.
@@ -43,6 +45,7 @@ pub struct RuleContext {
     // file_id
     // source_text
     pub(super) check_results: Vec<CheckResult>,
+    pub(super) cli_context: Arc<CliContext>,
 }
 
 impl RuleContext {
@@ -64,6 +67,10 @@ impl RuleContext {
 
     pub fn add_result(&mut self, result: CheckResult) {
         self.check_results.push(result);
+    }
+
+    pub fn config(&self) -> &Config {
+        &self.cli_context.config
     }
 }
 

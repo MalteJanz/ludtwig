@@ -2,9 +2,9 @@ use crate::check::rule::{Rule, RuleContext, Severity};
 use ludtwig_parser::syntax::typed::{AstNode, HtmlAttribute};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 
-pub struct HtmlAttributeNameKebabCase;
+pub struct RuleHtmlAttributeNameKebabCase;
 
-impl Rule for HtmlAttributeNameKebabCase {
+impl Rule for RuleHtmlAttributeNameKebabCase {
     fn name(&self) -> &'static str {
         "html-attribute-name-kebab-case"
     }

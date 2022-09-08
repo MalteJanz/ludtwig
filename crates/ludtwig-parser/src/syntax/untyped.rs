@@ -12,7 +12,7 @@ pub enum SyntaxKind {
      */
     #[regex(r"[ \t]+")]
     TK_WHITESPACE = 0,
-    #[regex(r"[\n\r\f]+")]
+    #[regex(r"(\n)|(\r\n)")]
     TK_LINE_BREAK,
     /// a single word containing only characters, numbers or symbols
     #[regex(r"[a-zA-Z0-9_.,@:#!$&-]+")]
@@ -219,7 +219,7 @@ pub use rowan::TextRange;
 pub use rowan::TextSize;
 pub use rowan::WalkEvent;
 
-pub fn debug_tree(syntax_node: SyntaxNode) -> String {
+pub fn debug_tree(syntax_node: &SyntaxNode) -> String {
     let formatted = format!("{:#?}", syntax_node);
     // We cut off the last byte because formatting the SyntaxNode adds on a newline at the end.
     formatted[0..formatted.len() - 1].to_string()
@@ -317,7 +317,7 @@ mod tests {
         println!("syntax tree underlying text:");
         println!("{}", tree.text());
 
-        println!("syntax tree:\n{}", debug_tree(tree));
+        println!("syntax tree:\n{}", debug_tree(&tree));
     }
 
     #[test]
