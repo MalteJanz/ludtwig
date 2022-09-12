@@ -33,6 +33,11 @@ impl<'source> Sink<'source> {
         let mut forward_kinds = Vec::new();
 
         for idx in 0..self.events.len() {
+            if matches!(self.events[idx], Event::AddToken) || idx == self.events.len() - 1 {
+                // consume trivia before any token event or the last event
+                self.consume_trivia();
+            }
+
             match mem::replace(&mut self.events[idx], Event::Placeholder) {
                 Event::StartNode {
                     kind,
@@ -73,8 +78,6 @@ impl<'source> Sink<'source> {
                 Event::Error(error) => self.errors.push(error),
                 Event::Placeholder => {}
             }
-
-            self.consume_trivia();
         }
 
         Parse {
@@ -242,15 +245,15 @@ mod tests {
               TK_WHITESPACE@0..2 "  "
               TK_LINE_BREAK@2..3 "\n"
               TK_WORD@3..8 "hello"
-              TK_LINE_BREAK@8..9 "\n"
-              TK_LINE_BREAK@9..10 "\n"
-              TK_WHITESPACE@10..12 "  "
-              ERROR@12..20
-                BODY@12..20
-                  HTML_STRING@12..20
+              ERROR@8..17
+                BODY@8..17
+                  HTML_STRING@8..17
+                    TK_LINE_BREAK@8..9 "\n"
+                    TK_LINE_BREAK@9..10 "\n"
+                    TK_WHITESPACE@10..12 "  "
                     TK_WORD@12..17 "world"
-                    TK_LINE_BREAK@17..18 "\n"
-                    TK_WHITESPACE@18..20 "  ""#]];
+              TK_LINE_BREAK@17..18 "\n"
+              TK_WHITESPACE@18..20 "  ""#]];
 
         // check that no lexing input (whitespace) got lost
         expected.assert_eq(&debug_tree(&tree));

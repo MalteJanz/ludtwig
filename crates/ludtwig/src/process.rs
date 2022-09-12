@@ -91,8 +91,6 @@ fn iteratively_apply_suggestions(
     for _ in 0..10 {
         // get all the suggestions
         let mut suggestions = get_rule_context_suggestions(&current_results.1);
-        println!("found suggestions: {:#?}", suggestions);
-
         if suggestions.is_empty() {
             break;
         }
@@ -125,7 +123,6 @@ fn iteratively_apply_suggestions(
                 Some(suggestion)
             })
             .collect();
-        println!("apply suggestions: {:#?}", suggestions);
 
         // transform source code according to non overlapping suggestions
         original_source_code_dirty = true;

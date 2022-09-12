@@ -37,7 +37,7 @@ pub fn handle_processing_output(rx: Receiver<ProcessingEvent>) -> i32 {
     }
 
     let conclusion_msg = format!(
-        "\nFiles scanned: {}, Errors: {}, Warnings: {}, Info: {}",
+        "\nFiles scanned: {}, Errors: {}, Warnings: {}, Info: {}\n",
         file_count, error_count, warning_count, info_count
     );
 
@@ -46,7 +46,7 @@ pub fn handle_processing_output(rx: Receiver<ProcessingEvent>) -> i32 {
         println!("Happy bug fixing ;)");
         return 1; // return exit code 1 if there were errors or warnings.
     } else if file_count > 0 {
-        println!("{}", conclusion_msg);
+        print!("{}", conclusion_msg);
         println!("Good job! o.O");
         return 0;
     }

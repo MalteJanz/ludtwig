@@ -199,7 +199,7 @@ mod tests {
             expect![[r#"
                 ROOT@0..49
                   TWIG_BLOCK@0..49
-                    TWIG_STARTING_BLOCK@0..23
+                    TWIG_STARTING_BLOCK@0..22
                       TK_CURLY_PERCENT@0..2 "{%"
                       TK_WHITESPACE@2..3 " "
                       TK_BLOCK@3..8 "block"
@@ -207,14 +207,14 @@ mod tests {
                       TK_WORD@9..19 "block_name"
                       TK_WHITESPACE@19..20 " "
                       TK_PERCENT_CURLY@20..22 "%}"
-                      TK_WHITESPACE@22..23 " "
-                    BODY@23..35
-                      HTML_TEXT@23..35
+                    BODY@22..34
+                      HTML_TEXT@22..34
+                        TK_WHITESPACE@22..23 " "
                         TK_WORD@23..28 "hello"
                         TK_WHITESPACE@28..29 " "
                         TK_WORD@29..34 "world"
-                        TK_WHITESPACE@34..35 " "
-                    TWIG_ENDING_BLOCK@35..49
+                    TWIG_ENDING_BLOCK@34..49
+                      TK_WHITESPACE@34..35 " "
                       TK_CURLY_PERCENT@35..37 "{%"
                       TK_WHITESPACE@37..38 " "
                       TK_ENDBLOCK@38..46 "endblock"
@@ -310,8 +310,8 @@ mod tests {
                 ROOT@0..7
                   ERROR@0..7
                     TK_CURLY_PERCENT@0..2 "{%"
-                    TK_WHITESPACE@2..3 " "
-                    ERROR@3..7
+                    ERROR@2..7
+                      TK_WHITESPACE@2..3 " "
                       TK_WORD@3..7 "asdf"
                 parsing consumed all tokens: true
                 error at 3..3: expected block or if, but found word"#]],
@@ -324,17 +324,17 @@ mod tests {
             "{{ something }} plain {{ else }}",
             expect![[r#"
                 ROOT@0..32
-                  TWIG_VAR@0..16
+                  TWIG_VAR@0..15
                     TK_OPEN_CURLY_CURLY@0..2 "{{"
                     TK_WHITESPACE@2..3 " "
                     TK_WORD@3..12 "something"
                     TK_WHITESPACE@12..13 " "
                     TK_CLOSE_CURLY_CURLY@13..15 "}}"
+                  HTML_TEXT@15..21
                     TK_WHITESPACE@15..16 " "
-                  HTML_TEXT@16..22
                     TK_WORD@16..21 "plain"
+                  TWIG_VAR@21..32
                     TK_WHITESPACE@21..22 " "
-                  TWIG_VAR@22..32
                     TK_OPEN_CURLY_CURLY@22..24 "{{"
                     TK_WHITESPACE@24..25 " "
                     TK_ELSE@25..29 "else"
@@ -350,17 +350,17 @@ mod tests {
             "{# something #} plain {# {{ comment }} {% block asdf %} #}",
             expect![[r##"
                 ROOT@0..58
-                  TWIG_COMMENT@0..16
+                  TWIG_COMMENT@0..15
                     TK_OPEN_CURLY_HASHTAG@0..2 "{#"
                     TK_WHITESPACE@2..3 " "
                     TK_WORD@3..12 "something"
                     TK_WHITESPACE@12..13 " "
                     TK_HASHTAG_CLOSE_CURLY@13..15 "#}"
+                  HTML_TEXT@15..21
                     TK_WHITESPACE@15..16 " "
-                  HTML_TEXT@16..22
                     TK_WORD@16..21 "plain"
+                  TWIG_COMMENT@21..58
                     TK_WHITESPACE@21..22 " "
-                  TWIG_COMMENT@22..58
                     TK_OPEN_CURLY_HASHTAG@22..24 "{#"
                     TK_WHITESPACE@24..25 " "
                     TK_OPEN_CURLY_CURLY@25..27 "{{"
@@ -387,29 +387,29 @@ mod tests {
         check_parse(
             "{% if isTrue %} true {% endif %}",
             expect![[r#"
-            ROOT@0..32
-              TWIG_IF@0..32
-                TWIG_IF_BLOCK@0..16
-                  TK_CURLY_PERCENT@0..2 "{%"
-                  TK_WHITESPACE@2..3 " "
-                  TK_IF@3..5 "if"
-                  TK_WHITESPACE@5..6 " "
-                  TWIG_CONDITION_EXPRESSION@6..13
-                    TK_WORD@6..12 "isTrue"
-                    TK_WHITESPACE@12..13 " "
-                  TK_PERCENT_CURLY@13..15 "%}"
-                  TK_WHITESPACE@15..16 " "
-                BODY@16..21
-                  HTML_TEXT@16..21
-                    TK_WORD@16..20 "true"
-                    TK_WHITESPACE@20..21 " "
-                TWIG_ENDIF_BLOCK@21..32
-                  TK_CURLY_PERCENT@21..23 "{%"
-                  TK_WHITESPACE@23..24 " "
-                  TK_ENDIF@24..29 "endif"
-                  TK_WHITESPACE@29..30 " "
-                  TK_PERCENT_CURLY@30..32 "%}"
-            parsing consumed all tokens: true"#]],
+                ROOT@0..32
+                  TWIG_IF@0..32
+                    TWIG_IF_BLOCK@0..15
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_IF@3..5 "if"
+                      TWIG_CONDITION_EXPRESSION@5..12
+                        TK_WHITESPACE@5..6 " "
+                        TK_WORD@6..12 "isTrue"
+                      TK_WHITESPACE@12..13 " "
+                      TK_PERCENT_CURLY@13..15 "%}"
+                    BODY@15..20
+                      HTML_TEXT@15..20
+                        TK_WHITESPACE@15..16 " "
+                        TK_WORD@16..20 "true"
+                    TWIG_ENDIF_BLOCK@20..32
+                      TK_WHITESPACE@20..21 " "
+                      TK_CURLY_PERCENT@21..23 "{%"
+                      TK_WHITESPACE@23..24 " "
+                      TK_ENDIF@24..29 "endif"
+                      TK_WHITESPACE@29..30 " "
+                      TK_PERCENT_CURLY@30..32 "%}"
+                parsing consumed all tokens: true"#]],
         )
     }
 
@@ -420,12 +420,12 @@ mod tests {
             expect![[r#"
                 ROOT@0..63
                   TWIG_IF@0..63
-                    TWIG_IF_BLOCK@0..47
+                    TWIG_IF_BLOCK@0..46
                       TK_CURLY_PERCENT@0..2 "{%"
                       TK_WHITESPACE@2..3 " "
                       TK_IF@3..5 "if"
-                      TK_WHITESPACE@5..6 " "
-                      TWIG_CONDITION_EXPRESSION@6..44
+                      TWIG_CONDITION_EXPRESSION@5..43
+                        TK_WHITESPACE@5..6 " "
                         TK_WORD@6..17 "temperature"
                         TK_WHITESPACE@17..18 " "
                         TK_GREATER_THAN@18..19 ">"
@@ -439,14 +439,14 @@ mod tests {
                         TK_LESS_THAN@39..40 "<"
                         TK_WHITESPACE@40..41 " "
                         TK_WORD@41..43 "27"
-                        TK_WHITESPACE@43..44 " "
+                      TK_WHITESPACE@43..44 " "
                       TK_PERCENT_CURLY@44..46 "%}"
-                      TK_WHITESPACE@46..47 " "
-                    BODY@47..52
-                      HTML_TEXT@47..52
+                    BODY@46..51
+                      HTML_TEXT@46..51
+                        TK_WHITESPACE@46..47 " "
                         TK_WORD@47..51 "true"
-                        TK_WHITESPACE@51..52 " "
-                    TWIG_ENDIF_BLOCK@52..63
+                    TWIG_ENDIF_BLOCK@51..63
+                      TK_WHITESPACE@51..52 " "
                       TK_CURLY_PERCENT@52..54 "{%"
                       TK_WHITESPACE@54..55 " "
                       TK_ENDIF@55..60 "endif"
@@ -463,32 +463,32 @@ mod tests {
             expect![[r#"
                 ROOT@0..49
                   TWIG_IF@0..49
-                    TWIG_IF_BLOCK@0..16
+                    TWIG_IF_BLOCK@0..15
                       TK_CURLY_PERCENT@0..2 "{%"
                       TK_WHITESPACE@2..3 " "
                       TK_IF@3..5 "if"
-                      TK_WHITESPACE@5..6 " "
-                      TWIG_CONDITION_EXPRESSION@6..13
+                      TWIG_CONDITION_EXPRESSION@5..12
+                        TK_WHITESPACE@5..6 " "
                         TK_WORD@6..12 "isTrue"
-                        TK_WHITESPACE@12..13 " "
+                      TK_WHITESPACE@12..13 " "
                       TK_PERCENT_CURLY@13..15 "%}"
-                      TK_WHITESPACE@15..16 " "
-                    BODY@16..21
-                      HTML_TEXT@16..21
+                    BODY@15..20
+                      HTML_TEXT@15..20
+                        TK_WHITESPACE@15..16 " "
                         TK_WORD@16..20 "true"
-                        TK_WHITESPACE@20..21 " "
-                    TWIG_ELSE_BLOCK@21..32
+                    TWIG_ELSE_BLOCK@20..31
+                      TK_WHITESPACE@20..21 " "
                       TK_CURLY_PERCENT@21..23 "{%"
                       TK_WHITESPACE@23..24 " "
                       TK_ELSE@24..28 "else"
                       TK_WHITESPACE@28..29 " "
                       TK_PERCENT_CURLY@29..31 "%}"
-                      TK_WHITESPACE@31..32 " "
-                    BODY@32..38
-                      HTML_TEXT@32..38
+                    BODY@31..37
+                      HTML_TEXT@31..37
+                        TK_WHITESPACE@31..32 " "
                         TK_WORD@32..37 "false"
-                        TK_WHITESPACE@37..38 " "
-                    TWIG_ENDIF_BLOCK@38..49
+                    TWIG_ENDIF_BLOCK@37..49
+                      TK_WHITESPACE@37..38 " "
                       TK_CURLY_PERCENT@38..40 "{%"
                       TK_WHITESPACE@40..41 " "
                       TK_ENDIF@41..46 "endif"
@@ -505,35 +505,35 @@ mod tests {
             expect![[r#"
                 ROOT@0..45
                   TWIG_IF@0..45
-                    TWIG_IF_BLOCK@0..13
+                    TWIG_IF_BLOCK@0..12
                       TK_CURLY_PERCENT@0..2 "{%"
                       TK_WHITESPACE@2..3 " "
                       TK_IF@3..5 "if"
-                      TK_WHITESPACE@5..6 " "
-                      TWIG_CONDITION_EXPRESSION@6..10
+                      TWIG_CONDITION_EXPRESSION@5..9
+                        TK_WHITESPACE@5..6 " "
                         TK_WORD@6..9 "isA"
-                        TK_WHITESPACE@9..10 " "
+                      TK_WHITESPACE@9..10 " "
                       TK_PERCENT_CURLY@10..12 "%}"
-                      TK_WHITESPACE@12..13 " "
-                    BODY@13..15
-                      HTML_TEXT@13..15
+                    BODY@12..14
+                      HTML_TEXT@12..14
+                        TK_WHITESPACE@12..13 " "
                         TK_WORD@13..14 "A"
-                        TK_WHITESPACE@14..15 " "
-                    TWIG_ELSE_IF_BLOCK@15..32
+                    TWIG_ELSE_IF_BLOCK@14..31
+                      TK_WHITESPACE@14..15 " "
                       TK_CURLY_PERCENT@15..17 "{%"
                       TK_WHITESPACE@17..18 " "
                       TK_ELSE_IF@18..24 "elseif"
-                      TK_WHITESPACE@24..25 " "
-                      TWIG_CONDITION_EXPRESSION@25..29
+                      TWIG_CONDITION_EXPRESSION@24..28
+                        TK_WHITESPACE@24..25 " "
                         TK_WORD@25..28 "isB"
-                        TK_WHITESPACE@28..29 " "
+                      TK_WHITESPACE@28..29 " "
                       TK_PERCENT_CURLY@29..31 "%}"
-                      TK_WHITESPACE@31..32 " "
-                    BODY@32..34
-                      HTML_TEXT@32..34
+                    BODY@31..33
+                      HTML_TEXT@31..33
+                        TK_WHITESPACE@31..32 " "
                         TK_WORD@32..33 "B"
-                        TK_WHITESPACE@33..34 " "
-                    TWIG_ENDIF_BLOCK@34..45
+                    TWIG_ENDIF_BLOCK@33..45
+                      TK_WHITESPACE@33..34 " "
                       TK_CURLY_PERCENT@34..36 "{%"
                       TK_WHITESPACE@36..37 " "
                       TK_ENDIF@37..42 "endif"
@@ -550,46 +550,46 @@ mod tests {
             expect![[r#"
                 ROOT@0..62
                   TWIG_IF@0..62
-                    TWIG_IF_BLOCK@0..13
+                    TWIG_IF_BLOCK@0..12
                       TK_CURLY_PERCENT@0..2 "{%"
                       TK_WHITESPACE@2..3 " "
                       TK_IF@3..5 "if"
-                      TK_WHITESPACE@5..6 " "
-                      TWIG_CONDITION_EXPRESSION@6..10
+                      TWIG_CONDITION_EXPRESSION@5..9
+                        TK_WHITESPACE@5..6 " "
                         TK_WORD@6..9 "isA"
-                        TK_WHITESPACE@9..10 " "
+                      TK_WHITESPACE@9..10 " "
                       TK_PERCENT_CURLY@10..12 "%}"
-                      TK_WHITESPACE@12..13 " "
-                    BODY@13..15
-                      HTML_TEXT@13..15
+                    BODY@12..14
+                      HTML_TEXT@12..14
+                        TK_WHITESPACE@12..13 " "
                         TK_WORD@13..14 "A"
-                        TK_WHITESPACE@14..15 " "
-                    TWIG_ELSE_IF_BLOCK@15..32
+                    TWIG_ELSE_IF_BLOCK@14..31
+                      TK_WHITESPACE@14..15 " "
                       TK_CURLY_PERCENT@15..17 "{%"
                       TK_WHITESPACE@17..18 " "
                       TK_ELSE_IF@18..24 "elseif"
-                      TK_WHITESPACE@24..25 " "
-                      TWIG_CONDITION_EXPRESSION@25..29
+                      TWIG_CONDITION_EXPRESSION@24..28
+                        TK_WHITESPACE@24..25 " "
                         TK_WORD@25..28 "isB"
-                        TK_WHITESPACE@28..29 " "
+                      TK_WHITESPACE@28..29 " "
                       TK_PERCENT_CURLY@29..31 "%}"
-                      TK_WHITESPACE@31..32 " "
-                    BODY@32..34
-                      HTML_TEXT@32..34
+                    BODY@31..33
+                      HTML_TEXT@31..33
+                        TK_WHITESPACE@31..32 " "
                         TK_WORD@32..33 "B"
-                        TK_WHITESPACE@33..34 " "
-                    TWIG_ELSE_BLOCK@34..45
+                    TWIG_ELSE_BLOCK@33..44
+                      TK_WHITESPACE@33..34 " "
                       TK_CURLY_PERCENT@34..36 "{%"
                       TK_WHITESPACE@36..37 " "
                       TK_ELSE@37..41 "else"
                       TK_WHITESPACE@41..42 " "
                       TK_PERCENT_CURLY@42..44 "%}"
-                      TK_WHITESPACE@44..45 " "
-                    BODY@45..51
-                      HTML_TEXT@45..51
+                    BODY@44..50
+                      HTML_TEXT@44..50
+                        TK_WHITESPACE@44..45 " "
                         TK_WORD@45..50 "other"
-                        TK_WHITESPACE@50..51 " "
-                    TWIG_ENDIF_BLOCK@51..62
+                    TWIG_ENDIF_BLOCK@50..62
+                      TK_WHITESPACE@50..51 " "
                       TK_CURLY_PERCENT@51..53 "{%"
                       TK_WHITESPACE@53..54 " "
                       TK_ENDIF@54..59 "endif"
@@ -606,60 +606,60 @@ mod tests {
             expect![[r#"
                 ROOT@0..81
                   TWIG_IF@0..81
-                    TWIG_IF_BLOCK@0..13
+                    TWIG_IF_BLOCK@0..12
                       TK_CURLY_PERCENT@0..2 "{%"
                       TK_WHITESPACE@2..3 " "
                       TK_IF@3..5 "if"
-                      TK_WHITESPACE@5..6 " "
-                      TWIG_CONDITION_EXPRESSION@6..10
+                      TWIG_CONDITION_EXPRESSION@5..9
+                        TK_WHITESPACE@5..6 " "
                         TK_WORD@6..9 "isA"
-                        TK_WHITESPACE@9..10 " "
+                      TK_WHITESPACE@9..10 " "
                       TK_PERCENT_CURLY@10..12 "%}"
-                      TK_WHITESPACE@12..13 " "
-                    BODY@13..15
-                      HTML_TEXT@13..15
+                    BODY@12..14
+                      HTML_TEXT@12..14
+                        TK_WHITESPACE@12..13 " "
                         TK_WORD@13..14 "A"
-                        TK_WHITESPACE@14..15 " "
-                    TWIG_ELSE_IF_BLOCK@15..32
+                    TWIG_ELSE_IF_BLOCK@14..31
+                      TK_WHITESPACE@14..15 " "
                       TK_CURLY_PERCENT@15..17 "{%"
                       TK_WHITESPACE@17..18 " "
                       TK_ELSE_IF@18..24 "elseif"
-                      TK_WHITESPACE@24..25 " "
-                      TWIG_CONDITION_EXPRESSION@25..29
+                      TWIG_CONDITION_EXPRESSION@24..28
+                        TK_WHITESPACE@24..25 " "
                         TK_WORD@25..28 "isB"
-                        TK_WHITESPACE@28..29 " "
+                      TK_WHITESPACE@28..29 " "
                       TK_PERCENT_CURLY@29..31 "%}"
-                      TK_WHITESPACE@31..32 " "
-                    BODY@32..34
-                      HTML_TEXT@32..34
+                    BODY@31..33
+                      HTML_TEXT@31..33
+                        TK_WHITESPACE@31..32 " "
                         TK_WORD@32..33 "B"
-                        TK_WHITESPACE@33..34 " "
-                    TWIG_ELSE_IF_BLOCK@34..51
+                    TWIG_ELSE_IF_BLOCK@33..50
+                      TK_WHITESPACE@33..34 " "
                       TK_CURLY_PERCENT@34..36 "{%"
                       TK_WHITESPACE@36..37 " "
                       TK_ELSE_IF@37..43 "elseif"
-                      TK_WHITESPACE@43..44 " "
-                      TWIG_CONDITION_EXPRESSION@44..48
+                      TWIG_CONDITION_EXPRESSION@43..47
+                        TK_WHITESPACE@43..44 " "
                         TK_WORD@44..47 "isC"
-                        TK_WHITESPACE@47..48 " "
+                      TK_WHITESPACE@47..48 " "
                       TK_PERCENT_CURLY@48..50 "%}"
-                      TK_WHITESPACE@50..51 " "
-                    BODY@51..53
-                      HTML_TEXT@51..53
+                    BODY@50..52
+                      HTML_TEXT@50..52
+                        TK_WHITESPACE@50..51 " "
                         TK_WORD@51..52 "C"
-                        TK_WHITESPACE@52..53 " "
-                    TWIG_ELSE_BLOCK@53..64
+                    TWIG_ELSE_BLOCK@52..63
+                      TK_WHITESPACE@52..53 " "
                       TK_CURLY_PERCENT@53..55 "{%"
                       TK_WHITESPACE@55..56 " "
                       TK_ELSE@56..60 "else"
                       TK_WHITESPACE@60..61 " "
                       TK_PERCENT_CURLY@61..63 "%}"
-                      TK_WHITESPACE@63..64 " "
-                    BODY@64..70
-                      HTML_TEXT@64..70
+                    BODY@63..69
+                      HTML_TEXT@63..69
+                        TK_WHITESPACE@63..64 " "
                         TK_WORD@64..69 "other"
-                        TK_WHITESPACE@69..70 " "
-                    TWIG_ENDIF_BLOCK@70..81
+                    TWIG_ENDIF_BLOCK@69..81
+                      TK_WHITESPACE@69..70 " "
                       TK_CURLY_PERCENT@70..72 "{%"
                       TK_WHITESPACE@72..73 " "
                       TK_ENDIF@73..78 "endif"

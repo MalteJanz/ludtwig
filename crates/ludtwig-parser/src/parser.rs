@@ -31,20 +31,10 @@ pub(crate) static RECOVERY_SET: &[SyntaxKind] = &[
 
 pub fn parse(input_text: &str) -> Parse {
     let lex_result = lex(input_text);
-    // println!("lexer result:\n{:#?}", lex_result);
-    // println!("lexer result length: {}", lex_result.len());
-
     let parser = Parser::new(&lex_result);
     let parse_events = parser.parse();
-    // println!("parse events:\n{:#?}", parse_events);
-
     let sink = Sink::new(&lex_result, parse_events);
-    let parse = sink.finish();
-
-    // TODO: remove debug print statements
-    // println!("{}", parse.debug_parse());
-
-    parse
+    sink.finish()
 }
 
 /// Result of the parser
