@@ -100,7 +100,10 @@ mod tests {
     #[test]
     fn lex_line_break() {
         check("\n", T![lb]);
+        check("\n\n", T![lb]);
         check("\r\n", T![lb]);
+        check("\r\n\r\n", T![lb]);
+        check("\r\n\n\r\n", T![lb]);
     }
 
     #[test]

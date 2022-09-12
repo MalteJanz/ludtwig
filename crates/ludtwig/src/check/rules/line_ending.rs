@@ -1,6 +1,7 @@
 use crate::check::rule::{Rule, RuleContext, Severity};
 use crate::config::LineEnding;
 use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxToken};
+use regex::Regex;
 
 pub struct RuleLineEnding;
 
@@ -18,8 +19,11 @@ impl Rule for RuleLineEnding {
             LineEnding::UnixLF => "\n",
             LineEnding::WindowsCRLF => "\r\n",
         };
+        let check_regex = Regex::new(&format!(r#"^({})+$"#, correct_line_ending)).unwrap();
 
-        if token.text() != correct_line_ending {
+        // TODO: fix this for multiple line ending in single token
+
+        if !check_regex.is_match(token.text()) {
             let message = match ctx.config().format.line_ending {
                 LineEnding::UnixLF => "use UnixLF (\\n) instead",
                 LineEnding::WindowsCRLF => "use WindowsCRLF (\\r\\n) instead",

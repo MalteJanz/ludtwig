@@ -12,7 +12,7 @@ pub enum SyntaxKind {
      */
     #[regex(r"[ \t]+")]
     TK_WHITESPACE = 0,
-    #[regex(r"(\n)|(\r\n)")]
+    #[regex(r"((\n)|(\r\n))+")]
     TK_LINE_BREAK,
     /// a single word containing only characters, numbers or symbols
     #[regex(r"[a-zA-Z0-9_.,@:#!$&-]+")]

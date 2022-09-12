@@ -1,12 +1,14 @@
 mod html_attribute_name_kebab_case;
 mod indentation;
 mod line_ending;
+mod twig_block_line_breaks;
 mod twig_block_name_snake_case;
 
 use crate::check::rule::{Rule, Severity};
 use crate::check::rules::html_attribute_name_kebab_case::RuleHtmlAttributeNameKebabCase;
 use crate::check::rules::indentation::RuleIndentation;
 use crate::check::rules::line_ending::RuleLineEnding;
+use crate::check::rules::twig_block_line_breaks::RuleTwigBlockLineBreaks;
 use crate::check::rules::twig_block_name_snake_case::RuleTwigBlockNameSnakeCase;
 use crate::{CliContext, ProcessingEvent};
 use std::io;
@@ -18,6 +20,7 @@ pub static RULES: &[&(dyn Rule + Sync)] = &[
     &RuleHtmlAttributeNameKebabCase,
     &RuleLineEnding,
     &RuleIndentation,
+    &RuleTwigBlockLineBreaks,
 ];
 
 pub fn get_active_rules(
