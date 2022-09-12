@@ -3,6 +3,15 @@
 # To override any of these values with environment variables use the following format:
 # LUDTWIG_FORMAT__INDENTATION_COUNT=1
 
+[general]
+active-rules = [
+    "twig-block-name-snake-case",
+    "html-attribute-name-kebab-case",
+    "line-ending",
+    "indentation",
+]
+
+
 [format]
 # How should the line endings look like? ["unix_LF", "windows_CRLF"]
 # unix_LF is a single '\n' character

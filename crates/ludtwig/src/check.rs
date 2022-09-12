@@ -2,7 +2,7 @@ pub mod rule;
 mod rules;
 
 use crate::check::rule::{CheckSuggestion, RuleContext, Severity};
-use crate::check::rules::RULES;
+use crate::check::rules::get_active_rules;
 use crate::process::FileContext;
 use crate::ProcessingEvent;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
@@ -21,10 +21,10 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
         cli_context: Arc::clone(&file_context.cli_context),
     };
 
-    let all_rules = RULES;
+    let active_rules = get_active_rules(&ctx.config().general.active_rules, &ctx.cli_context);
 
     // run root node checks once for each rule
-    for rule in all_rules {
+    for rule in &active_rules {
         rule.check_root(file_context.tree_root.clone(), &mut ctx);
     }
 
@@ -41,13 +41,13 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
                     }
 
                     // run node checks for every rule
-                    for rule in all_rules {
+                    for rule in &active_rules {
                         rule.check_node(n.clone(), &mut ctx);
                     }
                 }
                 SyntaxElement::Token(t) => {
                     // run token checks for every rule
-                    for rule in all_rules {
+                    for rule in &active_rules {
                         rule.check_token(t.clone(), &mut ctx);
                     }
                 }

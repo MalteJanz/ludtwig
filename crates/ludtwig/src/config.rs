@@ -9,7 +9,14 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
+    pub general: General,
     pub format: Format,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub struct General {
+    pub active_rules: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
