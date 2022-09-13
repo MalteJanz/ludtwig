@@ -121,10 +121,11 @@ fn try_make_kebab_case(original: &str) -> Option<String> {
     None
 }
 
-// TODO: write a test (after parsing / generating syntax trees is possible)
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::check::rules::test::{test_rule, test_rule_fix};
+    use expect_test::expect;
 
     #[test]
     fn test_is_valid_alphanumeric_kebab_case() {
@@ -174,5 +175,33 @@ mod tests {
             Some("my-strange-block".to_string())
         );
         assert_eq!(try_make_kebab_case("_My-Broken_-Block_"), None);
+    }
+
+    #[test]
+    fn rule_reports() {
+        test_rule(
+            "html-attribute-name-kebab-case",
+            "<custom aBc/>",
+            expect![[r#"
+                warning[html-attribute-name-kebab-case]: Attribute name is not written in kebab-case
+                  ┌─ ./debug-rule.html.twig:1:9
+                  │
+                1 │ <custom aBc/>
+                  │         ^^^
+                  │         │
+                  │         help: rename this attribute in kebab-case
+                  │         Try this name instead: a-bc
+
+            "#]],
+        );
+    }
+
+    #[test]
+    fn rule_fixes() {
+        test_rule_fix(
+            "html-attribute-name-kebab-case",
+            "<custom aBc/>",
+            expect!["<custom a-bc/>"],
+        );
     }
 }

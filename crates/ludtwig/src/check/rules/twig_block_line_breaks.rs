@@ -102,3 +102,77 @@ impl Rule for RuleTwigBlockLineBreaks {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::check::rules::test::{test_rule, test_rule_fix};
+    use expect_test::expect;
+
+    #[test]
+    fn rule_reports() {
+        test_rule(
+            "twig-block-line-breaks",
+            "{% block outer %}
+                      {% block inner_a %}
+                        A
+                      {% endblock %}
+                      {% block inner_b %}
+                          B
+                      {% endblock %}
+                  {% endblock %}",
+            expect![[r#"
+                warning[twig-block-line-breaks]: Wrong line break around block
+                  ┌─ ./debug-rule.html.twig:1:18
+                  │    
+                1 │     {% block outer %}
+                  │ ╭───────────────────^
+                  │ │ ╭─────────────────'
+                2 │ │ │                       {% block inner_a %}
+                  │ ╰─│^ Expected 2 line breaks here
+                  │   ╰' Change to 2 line breaks: 
+
+
+
+                warning[twig-block-line-breaks]: Wrong line break around block
+                  ┌─ ./debug-rule.html.twig:4:37
+                  │    
+                4 │                           {% endblock %}
+                  │ ╭──────────────────────────────────────^
+                  │ │ ╭────────────────────────────────────'
+                5 │ │ │                       {% block inner_b %}
+                  │ ╰─│^ Expected 2 line breaks here
+                  │   ╰' Change to 2 line breaks: 
+
+
+
+            "#]],
+        );
+    }
+
+    #[test]
+    fn rule_fixes() {
+        test_rule_fix(
+            "twig-block-line-breaks",
+            "{% block outer %}
+                      {% block inner_a %}
+                        A
+                      {% endblock %}
+                      {% block inner_b %}
+                          B
+                      {% endblock %}
+                  {% endblock %}",
+            expect![[r#"
+                {% block outer %}
+
+                                      {% block inner_a %}
+                                        A
+                                      {% endblock %}
+
+                                      {% block inner_b %}
+                                          B
+                                      {% endblock %}
+
+                                  {% endblock %}"#]],
+        );
+    }
+}

@@ -1,30 +1,30 @@
 pub mod rule;
-mod rules;
+pub mod rules;
 
-use crate::check::rule::{CheckSuggestion, RuleContext, Severity};
-use crate::check::rules::get_active_rules;
+use crate::check::rule::{CheckSuggestion, Rule, RuleContext, Severity};
 use crate::process::FileContext;
 use crate::ProcessingEvent;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term;
-use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
+use codespan_reporting::term::termcolor::Buffer;
 use ludtwig_parser::syntax::typed;
 use ludtwig_parser::syntax::typed::AstNode;
 use ludtwig_parser::syntax::untyped::{SyntaxElement, WalkEvent};
 use std::borrow::Borrow;
 use std::sync::Arc;
 
-pub fn run_rules(file_context: &FileContext) -> RuleContext {
+pub fn run_rules(
+    active_rules: &Vec<&(dyn Rule + Sync)>,
+    file_context: &FileContext,
+) -> RuleContext {
     let mut ctx = RuleContext {
         check_results: vec![],
         cli_context: Arc::clone(&file_context.cli_context),
     };
 
-    let active_rules = get_active_rules(&ctx.config().general.active_rules, &ctx.cli_context);
-
     // run root node checks once for each rule
-    for rule in &active_rules {
+    for rule in active_rules {
         rule.check_root(file_context.tree_root.clone(), &mut ctx);
     }
 
@@ -41,13 +41,13 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
                     }
 
                     // run node checks for every rule
-                    for rule in &active_rules {
+                    for rule in active_rules {
                         rule.check_node(n.clone(), &mut ctx);
                     }
                 }
                 SyntaxElement::Token(t) => {
                     // run token checks for every rule
-                    for rule in &active_rules {
+                    for rule in active_rules {
                         rule.check_token(t.clone(), &mut ctx);
                     }
                 }
@@ -69,15 +69,17 @@ pub fn get_rule_context_suggestions(rule_ctx: &RuleContext) -> Vec<(&str, &Check
         .collect()
 }
 
-pub fn produce_diagnostics(file_context: &FileContext, result_rule_ctx: RuleContext) {
+pub fn produce_diagnostics(
+    file_context: &FileContext,
+    result_rule_ctx: RuleContext,
+    buffer: &mut Buffer,
+) {
     // diagnostic output setup
     let mut files = SimpleFiles::new();
     let file_id = files.add(
         file_context.file_path.to_str().unwrap(),
         &file_context.source_code,
     );
-    let writer = BufferWriter::stderr(ColorChoice::Always);
-    let mut buffer = writer.buffer();
     let config = term::Config {
         // styles: Styles::with_blue(term::termcolor::Color::Cyan),
         ..Default::default()
@@ -94,7 +96,7 @@ pub fn produce_diagnostics(file_context: &FileContext, result_rule_ctx: RuleCont
             .with_message("The parser encountered a syntax error")
             .with_labels(vec![label]);
 
-        term::emit(&mut buffer, &config, &files, &diagnostic).unwrap();
+        term::emit(buffer, &config, &files, &diagnostic).unwrap();
     }
 
     // run through the rule check results
@@ -134,9 +136,6 @@ pub fn produce_diagnostics(file_context: &FileContext, result_rule_ctx: RuleCont
             .with_message(result.message)
             .with_labels(labels);
 
-        term::emit(&mut buffer, &config, &files, &diagnostic).unwrap();
+        term::emit(buffer, &config, &files, &diagnostic).unwrap();
     }
-
-    // write the diagnostics to console
-    writer.print(&buffer).unwrap();
 }

@@ -114,10 +114,11 @@ fn try_make_snake_case(original: &str) -> Option<String> {
     None
 }
 
-// TODO: write a test (after parsing / generating syntax trees is possible)
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::check::rules::test::{test_rule, test_rule_fix};
+    use expect_test::expect;
 
     #[test]
     fn test_is_ascii_alpha_snake_case() {
@@ -154,5 +155,33 @@ mod tests {
             Some("my_strange_block".to_string())
         );
         assert_eq!(try_make_snake_case("_My-Broken_-Block_"), None);
+    }
+
+    #[test]
+    fn rule_reports() {
+        test_rule(
+            "twig-block-name-snake-case",
+            "{% block a-b %}hello{% endblock %}",
+            expect![[r#"
+                warning[twig-block-name-snake-case]: Block name is not written in snake_case
+                  ┌─ ./debug-rule.html.twig:1:10
+                  │
+                1 │ {% block a-b %}hello{% endblock %}
+                  │          ^^^
+                  │          │
+                  │          help: rename this block in snake_case
+                  │          Try this name instead: a_b
+
+            "#]],
+        );
+    }
+
+    #[test]
+    fn rule_fixes() {
+        test_rule_fix(
+            "twig-block-name-snake-case",
+            "{% block a-b %}hello{% endblock %}",
+            expect!["{% block a_b %}hello{% endblock %}"],
+        );
     }
 }

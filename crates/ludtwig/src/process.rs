@@ -1,7 +1,9 @@
-use crate::check::rule::{CheckSuggestion, RuleContext, Severity};
+use crate::check::rule::{CheckSuggestion, Rule, RuleContext, Severity};
+use crate::check::rules::get_active_rules;
 use crate::check::{get_rule_context_suggestions, produce_diagnostics, run_rules};
 use crate::output::ProcessingEvent;
 use crate::CliContext;
+use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 use ludtwig_parser::ParseError;
 use std::collections::HashSet;
@@ -66,26 +68,44 @@ fn run_analysis(path: PathBuf, original_file_content: String, cli_context: Arc<C
         parse_errors: parse.errors,
     };
 
+    // get active rules
+    let active_rules = get_active_rules(
+        &file_context.cli_context.config.general.active_rules,
+        &file_context.cli_context,
+    );
+
     // run all the rules
-    let rule_result_context = run_rules(&file_context);
+    let rule_result_context = run_rules(&active_rules, &file_context);
 
     // apply suggestions if needed
     let (file_context, rule_result_context) = if apply_suggestions {
-        iteratively_apply_suggestions(file_context, rule_result_context)
+        let (file_context, rule_result_context, dirty) =
+            iteratively_apply_suggestions(&active_rules, file_context, rule_result_context);
+        if dirty {
+            // Todo: better error handling -> maybe other files can be written
+            fs::write(&file_context.file_path, &file_context.source_code)
+                .expect("Can't write back into file");
+            println!("fixed {:?}", &file_context.file_path);
+        }
+
+        (file_context, rule_result_context)
     } else {
         (file_context, rule_result_context)
     };
 
     // send processing events for rule check results + parser errors and output them to the terminal
-    produce_diagnostics(&file_context, rule_result_context);
+    let writer = BufferWriter::stderr(ColorChoice::Always);
+    let mut buffer = writer.buffer();
+    produce_diagnostics(&file_context, rule_result_context, &mut buffer);
+    writer.print(&buffer).unwrap();
 }
 
-fn iteratively_apply_suggestions(
+pub fn iteratively_apply_suggestions(
+    active_rules: &Vec<&(dyn Rule + Sync)>,
     file_context: FileContext,
     rule_result_context: RuleContext,
-) -> (FileContext, RuleContext) {
-    let mut current_results = (file_context, rule_result_context);
-    let mut original_source_code_dirty = false;
+) -> (FileContext, RuleContext, bool) {
+    let mut current_results = (file_context, rule_result_context, false);
 
     // try at maximum 10 parsing iterations
     for _ in 0..10 {
@@ -125,7 +145,7 @@ fn iteratively_apply_suggestions(
             .collect();
 
         // transform source code according to non overlapping suggestions
-        original_source_code_dirty = true;
+        current_results.2 = true; // set dirty flag
         let source_code = apply_suggestions_to_text(suggestions, current_results.0.source_code);
 
         // Parse the new source code again
@@ -141,15 +161,8 @@ fn iteratively_apply_suggestions(
         };
 
         // Run all rules again
-        let rule_result_context = run_rules(&file_context);
-        current_results = (file_context, rule_result_context);
-    }
-
-    if original_source_code_dirty {
-        // Todo: better error handling -> maybe other files can be written
-        fs::write(&current_results.0.file_path, &current_results.0.source_code)
-            .expect("Can't write back into file");
-        println!("fixed {:?}", &current_results.0.file_path);
+        let rule_result_context = run_rules(active_rules, &file_context);
+        current_results = (file_context, rule_result_context, current_results.2);
     }
 
     current_results

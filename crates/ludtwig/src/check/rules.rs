@@ -58,3 +58,75 @@ pub fn get_active_rules(
     }
     active_rules
 }
+
+#[cfg(test)]
+pub mod test {
+    use crate::check::produce_diagnostics;
+    use crate::check::rule::{Rule, RuleContext};
+    use crate::check::rules::RULES;
+    use crate::check::run_rules;
+    use crate::process::{iteratively_apply_suggestions, FileContext};
+    use crate::{CliContext, Config, ProcessingEvent};
+    use codespan_reporting::term::termcolor::Buffer;
+    use ludtwig_parser::parse;
+    use ludtwig_parser::syntax::untyped::SyntaxNode;
+    use std::path::PathBuf;
+    use std::sync::mpsc::Receiver;
+    use std::sync::{mpsc, Arc};
+
+    fn debug_rule(
+        rule_name: &str,
+        source_code: &str,
+    ) -> (
+        FileContext,
+        RuleContext,
+        Vec<&'static (dyn Rule + Sync)>,
+        Receiver<ProcessingEvent>,
+    ) {
+        let rule = *RULES.iter().find(|r| r.name() == rule_name).unwrap();
+        let (tx, rx) = mpsc::sync_channel(256);
+        let parse = parse(source_code);
+
+        let file_context = FileContext {
+            cli_context: Arc::new(CliContext {
+                output_tx: tx,
+                fix: false,
+                output_path: None,
+                config: Config::new(crate::config::DEFAULT_CONFIG_PATH).unwrap(),
+            }),
+            file_path: PathBuf::from("./debug-rule.html.twig"),
+            tree_root: SyntaxNode::new_root(parse.green_node),
+            source_code: source_code.to_owned(),
+            parse_errors: parse.errors,
+        };
+
+        let active_rules = vec![rule];
+
+        let rule_result_context = run_rules(&active_rules, &file_context);
+
+        (file_context, rule_result_context, active_rules, rx)
+    }
+
+    pub fn test_rule(rule_name: &str, source_code: &str, expected_report: expect_test::Expect) {
+        let (file_context, rule_result_context, _, rx) = debug_rule(rule_name, source_code);
+        let mut buffer = Buffer::no_color();
+        produce_diagnostics(&file_context, rule_result_context, &mut buffer);
+        expected_report.assert_eq(&String::from_utf8_lossy(buffer.as_slice()));
+        drop(rx);
+    }
+
+    pub fn test_rule_fix(
+        rule_name: &str,
+        source_code: &str,
+        expected_source_code: expect_test::Expect,
+    ) {
+        let (file_context, rule_result_context, active_rules, rx) =
+            debug_rule(rule_name, source_code);
+        let (file_context, _, dirty) =
+            iteratively_apply_suggestions(&active_rules, file_context, rule_result_context);
+
+        expected_source_code.assert_eq(&file_context.source_code);
+        assert!(dirty);
+        drop(rx);
+    }
+}

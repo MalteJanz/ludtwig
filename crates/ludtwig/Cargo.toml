@@ -20,3 +20,6 @@ figment = { version = "0.10", features = ["toml", "env"] }
 serde = { version = "1.0", features = ["derive"] }
 regex = "1.6"
 codespan-reporting = "0.11.1"
+
+[dev-dependencies]
+expect-test = "1.4.0"

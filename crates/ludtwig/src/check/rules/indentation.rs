@@ -137,3 +137,68 @@ impl RuleIndentation {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::check::rules::test::{test_rule, test_rule_fix};
+    use expect_test::expect;
+
+    #[test]
+    fn rule_reports() {
+        test_rule(
+            "indentation",
+            r#"{% block outer %}
+                <div>
+        inner
+                      </div>
+                  {% endblock %}"#,
+            expect![[r#"
+                warning[indentation]: Wrong indentation
+                  ┌─ ./debug-rule.html.twig:2:1
+                  │
+                2 │                 <div>
+                  │ ^^^^^^^^^^^^^^^^
+                  │ │
+                  │ Expected indentation of 4 spaces here
+                  │ Change indentation to 4 spaces:     
+
+                warning[indentation]: Wrong indentation
+                  ┌─ ./debug-rule.html.twig:4:1
+                  │
+                4 │                       </div>
+                  │ ^^^^^^^^^^^^^^^^^^^^^^
+                  │ │
+                  │ Expected indentation of 4 spaces here
+                  │ Change indentation to 4 spaces:     
+
+                warning[indentation]: Wrong indentation
+                  ┌─ ./debug-rule.html.twig:5:1
+                  │
+                5 │                   {% endblock %}
+                  │ ^^^^^^^^^^^^^^^^^^
+                  │ │
+                  │ Expected indentation of 0 spaces here
+                  │ Change indentation to 0 spaces: 
+
+            "#]],
+        );
+    }
+
+    #[test]
+    fn rule_fixes() {
+        test_rule_fix(
+            "indentation",
+            r#"{% block outer %}
+                <div>
+        inner
+                      </div>
+                  {% endblock %}"#,
+            expect![[r#"
+                {% block outer %}
+                    <div>
+                        inner
+                    </div>
+                {% endblock %}"#]],
+        );
+    }
+}

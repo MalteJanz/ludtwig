@@ -413,6 +413,7 @@ version = "0.6.1"
 dependencies = [
  "clap 3.2.17",
  "codespan-reporting",
+ "expect-test",
  "figment",
  "ludtwig-parser",
  "rayon",
