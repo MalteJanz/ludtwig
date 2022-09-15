@@ -5,13 +5,13 @@
 
 [general]
 active-rules = [
-    "twig-block-name-snake-case",
-    "html-attribute-name-kebab-case",
+    "whitespace-between-line-breaks",
     "line-ending",
     "indentation",
     "twig-block-line-breaks",
+    "twig-block-name-snake-case",
+    "html-attribute-name-kebab-case",
 ]
-
 
 [format]
 # How should the line endings look like? ["unix_LF", "windows_CRLF"]

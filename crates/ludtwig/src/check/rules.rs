@@ -3,6 +3,7 @@ mod indentation;
 mod line_ending;
 mod twig_block_line_breaks;
 mod twig_block_name_snake_case;
+mod whitespace_between_line_breaks;
 
 use crate::check::rule::{Rule, Severity};
 use crate::check::rules::html_attribute_name_kebab_case::RuleHtmlAttributeNameKebabCase;
@@ -10,17 +11,19 @@ use crate::check::rules::indentation::RuleIndentation;
 use crate::check::rules::line_ending::RuleLineEnding;
 use crate::check::rules::twig_block_line_breaks::RuleTwigBlockLineBreaks;
 use crate::check::rules::twig_block_name_snake_case::RuleTwigBlockNameSnakeCase;
+use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
 use crate::{CliContext, ProcessingEvent};
 use std::io;
 use std::io::Write;
 
 /// List of all rule trait objects, also add them to the `active-rules` in `ludtwig-config.toml`!
 pub static RULES: &[&(dyn Rule + Sync)] = &[
-    &RuleTwigBlockNameSnakeCase,
-    &RuleHtmlAttributeNameKebabCase,
+    &RuleWhitespaceBetweenLineBreaks,
     &RuleLineEnding,
     &RuleIndentation,
     &RuleTwigBlockLineBreaks,
+    &RuleTwigBlockNameSnakeCase,
+    &RuleHtmlAttributeNameKebabCase,
 ];
 
 pub fn get_active_rules(

@@ -214,6 +214,7 @@ pub type SyntaxNodeChildren = rowan::SyntaxNodeChildren<TemplateLanguage>;
 pub type SyntaxElementChildren = rowan::SyntaxElementChildren<TemplateLanguage>;
 pub type PreorderWithTokens = rowan::api::PreorderWithTokens<TemplateLanguage>;
 
+pub use rowan::Direction;
 pub use rowan::TextLen;
 pub use rowan::TextRange;
 pub use rowan::TextSize;
