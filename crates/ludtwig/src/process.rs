@@ -1,16 +1,19 @@
-use crate::check::rule::{CheckSuggestion, Rule, RuleContext, Severity};
-use crate::check::rules::get_active_rules;
-use crate::check::{get_rule_context_suggestions, produce_diagnostics, run_rules};
-use crate::output::ProcessingEvent;
-use crate::CliContext;
-use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
-use ludtwig_parser::syntax::untyped::SyntaxNode;
-use ludtwig_parser::ParseError;
 use std::collections::HashSet;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
+
+use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
+
+use ludtwig_parser::syntax::untyped::SyntaxNode;
+use ludtwig_parser::ParseError;
+
+use crate::check::rule::{CheckSuggestion, Rule, RuleContext, Severity};
+use crate::check::rules::get_active_rules;
+use crate::check::{get_rule_context_suggestions, produce_diagnostics, run_rules};
+use crate::output::ProcessingEvent;
+use crate::CliContext;
 
 /// The context for a single file.
 #[derive(Debug)]

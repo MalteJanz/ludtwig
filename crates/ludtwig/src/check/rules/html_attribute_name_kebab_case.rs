@@ -1,6 +1,7 @@
-use crate::check::rule::{Rule, RuleContext, Severity};
 use ludtwig_parser::syntax::typed::{AstNode, HtmlAttribute};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
+
+use crate::check::rule::{Rule, RuleContext, Severity};
 
 pub struct RuleHtmlAttributeNameKebabCase;
 
@@ -123,9 +124,11 @@ fn try_make_kebab_case(original: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::check::rules::test::{test_rule, test_rule_fix};
     use expect_test::expect;
+
+    use crate::check::rules::test::{test_rule, test_rule_fix};
+
+    use super::*;
 
     #[test]
     fn test_is_valid_alphanumeric_kebab_case() {

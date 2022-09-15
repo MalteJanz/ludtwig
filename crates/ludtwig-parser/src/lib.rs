@@ -1,15 +1,15 @@
 extern crate core;
 
+pub use parser::parse;
+pub use parser::Parse;
+pub use parser::ParseError;
+
 use crate::lexer::lex;
 
 mod grammar;
 mod lexer;
 mod parser;
 pub mod syntax;
-
-pub use parser::parse;
-pub use parser::Parse;
-pub use parser::ParseError;
 
 #[cfg(test)]
 mod tests {

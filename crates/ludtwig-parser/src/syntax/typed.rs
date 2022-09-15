@@ -1,9 +1,10 @@
-use super::untyped::{SyntaxKind, SyntaxNode, SyntaxToken, TemplateLanguage};
-
-use crate::T;
 pub use rowan::ast::support;
 pub use rowan::ast::AstChildren;
 pub use rowan::ast::AstNode;
+
+use crate::T;
+
+use super::untyped::{SyntaxKind, SyntaxNode, SyntaxToken, TemplateLanguage};
 
 /// So far, we've been working with a homogeneous untyped tree.
 /// It's nice to provide generic tree operations, like traversals,

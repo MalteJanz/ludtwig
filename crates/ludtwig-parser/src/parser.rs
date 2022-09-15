@@ -1,11 +1,9 @@
-pub(crate) mod event;
-mod parse_error;
-mod sink;
-mod source;
+use std::fmt::Write;
+use std::mem;
+
+use rowan::GreenNode;
 
 pub use parse_error::ParseError;
-use rowan::GreenNode;
-use std::mem;
 
 use crate::grammar::root;
 use crate::lexer::Token;
@@ -14,7 +12,11 @@ use crate::parser::sink::Sink;
 use crate::parser::source::Source;
 use crate::syntax::untyped::{debug_tree, SyntaxKind, SyntaxNode};
 use crate::{lex, T};
-use std::fmt::Write;
+
+pub(crate) mod event;
+mod parse_error;
+mod sink;
+mod source;
 
 pub(crate) static RECOVERY_SET: &[SyntaxKind] = &[
     T!["{%"],
@@ -191,8 +193,9 @@ pub(crate) fn check_parse(input: &str, expected_tree: expect_test::Expect) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use expect_test::expect;
+
+    use super::*;
 
     #[test]
     fn parse_nothing() {

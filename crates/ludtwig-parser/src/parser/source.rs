@@ -1,6 +1,7 @@
+use rowan::TextRange;
+
 use crate::lexer::Token;
 use crate::syntax::untyped::SyntaxKind;
-use rowan::TextRange;
 
 /// Wrapper around lexing tokens to only get the non-whitespace tokens back
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -92,8 +93,9 @@ impl<'source> Source<'source> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::T;
+
+    use super::*;
 
     #[test]
     fn source_skip_whitespace() {

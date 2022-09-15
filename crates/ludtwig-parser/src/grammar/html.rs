@@ -163,8 +163,9 @@ fn parse_html_string_including_twig(parser: &mut Parser) -> CompletedMarker {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::check_parse;
     use expect_test::expect;
+
+    use crate::parser::check_parse;
 
     #[test]
     fn parse_simple_html_element() {

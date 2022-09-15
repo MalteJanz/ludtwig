@@ -1,6 +1,20 @@
-use logos::Logos;
 use std::fmt;
 use std::fmt::Formatter;
+
+use logos::Logos;
+pub use rowan::Direction;
+/// GreenNode is an immutable tree, which is cheap to change,
+/// but doesn't contain offsets and parent pointers.
+pub use rowan::GreenNode;
+/// You can construct GreenNodes by hand, but a builder
+/// is helpful for top-down parsers: it maintains a stack
+/// of currently in-progress nodes
+pub use rowan::GreenNodeBuilder;
+pub use rowan::Language;
+pub use rowan::TextLen;
+pub use rowan::TextRange;
+pub use rowan::TextSize;
+pub use rowan::WalkEvent;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Logos)]
 #[allow(non_camel_case_types)]
@@ -174,8 +188,6 @@ impl From<SyntaxKind> for rowan::SyntaxKind {
     }
 }
 
-pub use rowan::Language;
-
 /// Second, implementing the `Language` trait teaches rowan to convert between
 /// these two SyntaxKind types, allowing for a nicer SyntaxNode API where
 /// "kinds" are values from our `enum SyntaxKind`, instead of plain u16 values.
@@ -192,15 +204,6 @@ impl Language for TemplateLanguage {
     }
 }
 
-/// GreenNode is an immutable tree, which is cheap to change,
-/// but doesn't contain offsets and parent pointers.
-pub use rowan::GreenNode;
-
-/// You can construct GreenNodes by hand, but a builder
-/// is helpful for top-down parsers: it maintains a stack
-/// of currently in-progress nodes
-pub use rowan::GreenNodeBuilder;
-
 /// To work with the parse results we need a view into the
 /// green tree - the Syntax tree.
 /// It is also immutable, like a GreenNode,
@@ -213,12 +216,6 @@ pub type SyntaxElement = rowan::NodeOrToken<SyntaxNode, SyntaxToken>;
 pub type SyntaxNodeChildren = rowan::SyntaxNodeChildren<TemplateLanguage>;
 pub type SyntaxElementChildren = rowan::SyntaxElementChildren<TemplateLanguage>;
 pub type PreorderWithTokens = rowan::api::PreorderWithTokens<TemplateLanguage>;
-
-pub use rowan::Direction;
-pub use rowan::TextLen;
-pub use rowan::TextRange;
-pub use rowan::TextSize;
-pub use rowan::WalkEvent;
 
 pub fn debug_tree(syntax_node: &SyntaxNode) -> String {
     let formatted = format!("{:#?}", syntax_node);

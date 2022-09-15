@@ -1,6 +1,8 @@
-use crate::{CliContext, Config};
-use ludtwig_parser::syntax::untyped::{SyntaxNode, SyntaxToken, TextRange};
 use std::sync::Arc;
+
+use ludtwig_parser::syntax::untyped::{SyntaxNode, SyntaxToken, TextRange};
+
+use crate::{CliContext, Config};
 
 pub trait Rule {
     /// A unique, kebab-case name for the rule.

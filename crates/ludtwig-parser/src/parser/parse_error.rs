@@ -1,7 +1,8 @@
-use crate::syntax::untyped::{SyntaxKind, TextRange};
 use std::fmt;
 use std::fmt::Formatter;
 use std::fmt::Write;
+
+use crate::syntax::untyped::{SyntaxKind, TextRange};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ParseError {

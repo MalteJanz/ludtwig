@@ -1,18 +1,21 @@
-pub mod rule;
-pub mod rules;
+use std::borrow::Borrow;
+use std::sync::Arc;
 
-use crate::check::rule::{CheckSuggestion, Rule, RuleContext, Severity};
-use crate::process::FileContext;
-use crate::ProcessingEvent;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::Buffer;
+
 use ludtwig_parser::syntax::typed;
 use ludtwig_parser::syntax::typed::AstNode;
 use ludtwig_parser::syntax::untyped::{SyntaxElement, WalkEvent};
-use std::borrow::Borrow;
-use std::sync::Arc;
+
+use crate::check::rule::{CheckSuggestion, Rule, RuleContext, Severity};
+use crate::process::FileContext;
+use crate::ProcessingEvent;
+
+pub mod rule;
+pub mod rules;
 
 pub fn run_rules(
     active_rules: &Vec<&(dyn Rule + Sync)>,

@@ -1,5 +1,6 @@
-use crate::syntax::untyped::{SyntaxKind, TextRange, TextSize};
 use logos::Logos;
+
+use crate::syntax::untyped::{SyntaxKind, TextRange, TextSize};
 
 /// Lex the source code into a Vec of tokens with their corresponding span (position in source code).
 /// These tokens are produced by a dumb lexer and don't have any meaning / semantic attached to them.
@@ -49,9 +50,10 @@ impl<'source> Token<'source> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::syntax::untyped::TextLen;
     use crate::T;
+
+    use super::*;
 
     fn check(input: &str, kind: SyntaxKind) {
         let range = TextRange::up_to(input.text_len());

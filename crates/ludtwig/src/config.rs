@@ -1,8 +1,10 @@
-use crate::Opts;
+use std::path::{Path, PathBuf};
+
 use figment::providers::{Env, Format as FigFormat, Toml};
 use figment::Figment;
 use serde::Deserialize;
-use std::path::{Path, PathBuf};
+
+use crate::Opts;
 
 // TODO: refactor config to fit the needs of the new rules
 

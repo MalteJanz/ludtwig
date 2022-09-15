@@ -189,8 +189,9 @@ fn parse_twig_condition_expression(parser: &mut Parser) -> CompletedMarker {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::check_parse;
     use expect_test::expect;
+
+    use crate::parser::check_parse;
 
     #[test]
     fn parse_twig_block() {

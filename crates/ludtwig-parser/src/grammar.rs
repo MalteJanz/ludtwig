@@ -35,8 +35,9 @@ fn parse_any_element(parser: &mut Parser) -> Option<CompletedMarker> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::check_parse;
     use expect_test::expect;
+
+    use crate::parser::check_parse;
 
     #[test]
     fn parse_synthetic_minimal() {

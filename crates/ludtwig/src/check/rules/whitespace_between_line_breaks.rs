@@ -1,5 +1,6 @@
-use crate::check::rule::{Rule, RuleContext, Severity};
 use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxToken};
+
+use crate::check::rule::{Rule, RuleContext, Severity};
 
 pub struct RuleWhitespaceBetweenLineBreaks;
 
@@ -43,8 +44,9 @@ impl Rule for RuleWhitespaceBetweenLineBreaks {
 
 #[cfg(test)]
 mod tests {
-    use crate::check::rules::test::{test_rule, test_rule_fix};
     use expect_test::expect;
+
+    use crate::check::rules::test::{test_rule, test_rule_fix};
 
     #[test]
     fn rule_reports() {

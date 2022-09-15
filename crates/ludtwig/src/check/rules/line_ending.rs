@@ -1,7 +1,9 @@
+use regex::Regex;
+
+use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxToken, TextRange, TextSize};
+
 use crate::check::rule::{Rule, RuleContext, Severity};
 use crate::config::LineEnding;
-use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxToken, TextRange, TextSize};
-use regex::Regex;
 
 pub struct RuleLineEnding;
 
@@ -54,8 +56,9 @@ impl Rule for RuleLineEnding {
 
 #[cfg(test)]
 mod tests {
-    use crate::check::rules::test::{test_rule, test_rule_fix};
     use expect_test::expect;
+
+    use crate::check::rules::test::{test_rule, test_rule_fix};
 
     #[test]
     fn rule_line_ending_trivial() {

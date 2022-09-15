@@ -1,8 +1,9 @@
-use crate::check::rule::{Rule, RuleContext, Severity};
-use crate::config::IndentationMode;
 use ludtwig_parser::syntax::untyped::{
     SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken, TextRange, TextSize, WalkEvent,
 };
+
+use crate::check::rule::{Rule, RuleContext, Severity};
+use crate::config::IndentationMode;
 
 pub struct RuleIndentation;
 
@@ -140,8 +141,9 @@ impl RuleIndentation {
 
 #[cfg(test)]
 mod tests {
-    use crate::check::rules::test::{test_rule, test_rule_fix};
     use expect_test::expect;
+
+    use crate::check::rules::test::{test_rule, test_rule_fix};
 
     #[test]
     fn rule_reports() {

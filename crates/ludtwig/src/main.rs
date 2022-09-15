@@ -1,17 +1,19 @@
-mod check;
-mod config;
-mod output;
-mod process;
-
-use crate::config::Config;
-use crate::output::ProcessingEvent;
-use clap::Parser;
 use std::boxed::Box;
 use std::path::PathBuf;
 use std::sync::mpsc::SyncSender;
 use std::sync::{mpsc, Arc};
 use std::thread;
+
+use clap::Parser;
 use walkdir::{DirEntry, WalkDir};
+
+use crate::config::Config;
+use crate::output::ProcessingEvent;
+
+mod check;
+mod config;
+mod output;
+mod process;
 
 /// A CLI tool for template files (Twig + HTML) with focus on formatting and detecting mistakes.
 #[derive(Parser, Debug, Clone)]

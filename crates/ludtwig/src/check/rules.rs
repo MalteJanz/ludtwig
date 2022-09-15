@@ -1,9 +1,5 @@
-mod html_attribute_name_kebab_case;
-mod indentation;
-mod line_ending;
-mod twig_block_line_breaks;
-mod twig_block_name_snake_case;
-mod whitespace_between_line_breaks;
+use std::io;
+use std::io::Write;
 
 use crate::check::rule::{Rule, Severity};
 use crate::check::rules::html_attribute_name_kebab_case::RuleHtmlAttributeNameKebabCase;
@@ -13,8 +9,13 @@ use crate::check::rules::twig_block_line_breaks::RuleTwigBlockLineBreaks;
 use crate::check::rules::twig_block_name_snake_case::RuleTwigBlockNameSnakeCase;
 use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
 use crate::{CliContext, ProcessingEvent};
-use std::io;
-use std::io::Write;
+
+mod html_attribute_name_kebab_case;
+mod indentation;
+mod line_ending;
+mod twig_block_line_breaks;
+mod twig_block_name_snake_case;
+mod whitespace_between_line_breaks;
 
 /// List of all rule trait objects, also add them to the `active-rules` in `ludtwig-config.toml`!
 pub static RULES: &[&(dyn Rule + Sync)] = &[
@@ -64,18 +65,21 @@ pub fn get_active_rules(
 
 #[cfg(test)]
 pub mod test {
+    use std::path::PathBuf;
+    use std::sync::mpsc::Receiver;
+    use std::sync::{mpsc, Arc};
+
+    use codespan_reporting::term::termcolor::Buffer;
+
+    use ludtwig_parser::parse;
+    use ludtwig_parser::syntax::untyped::SyntaxNode;
+
     use crate::check::produce_diagnostics;
     use crate::check::rule::{Rule, RuleContext};
     use crate::check::rules::RULES;
     use crate::check::run_rules;
     use crate::process::{iteratively_apply_suggestions, FileContext};
     use crate::{CliContext, Config, ProcessingEvent};
-    use codespan_reporting::term::termcolor::Buffer;
-    use ludtwig_parser::parse;
-    use ludtwig_parser::syntax::untyped::SyntaxNode;
-    use std::path::PathBuf;
-    use std::sync::mpsc::Receiver;
-    use std::sync::{mpsc, Arc};
 
     fn debug_rule(
         rule_name: &str,

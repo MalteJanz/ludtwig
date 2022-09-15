@@ -1,8 +1,9 @@
+use std::mem;
+
 use crate::lexer::Token;
 use crate::parser::event::{Event, EventCollection};
 use crate::parser::{Parse, ParseError};
 use crate::syntax::untyped::{GreenNodeBuilder, Language, TemplateLanguage};
-use std::mem;
 
 /// Sink for all the generated Events by the parser which
 /// the sink can transform into the syntax tree.
@@ -110,10 +111,12 @@ impl<'source> Sink<'source> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use expect_test::expect;
+
     use crate::syntax::untyped::{debug_tree, SyntaxKind, SyntaxNode};
     use crate::T;
-    use expect_test::expect;
+
+    use super::*;
 
     #[test]
     fn green_node_builder_lifetime() {

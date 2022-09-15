@@ -1,7 +1,8 @@
-use crate::check::rule::Severity;
 use std::io;
 use std::io::Write;
 use std::sync::mpsc::Receiver;
+
+use crate::check::rule::Severity;
 
 pub enum ProcessingEvent {
     FileProcessed,
