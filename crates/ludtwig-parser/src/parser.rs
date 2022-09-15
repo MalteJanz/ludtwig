@@ -125,6 +125,7 @@ impl<'source> Parser<'source> {
         self.peek().is_none()
     }
 
+    #[track_caller]
     pub(crate) fn bump(&mut self) -> &Token {
         self.expected_kinds.clear();
         let consumed = self

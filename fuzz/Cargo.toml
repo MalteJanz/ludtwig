@@ -1,0 +1,19 @@
+[package]
+name = "fuzz"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[workspace]
+
+
+[dependencies]
+libfuzzer-sys = "0.3"
+ludtwig-parser = { path = "../crates/ludtwig-parser" }
+
+[[bin]]
+name = "main"
+path = "fuzz_targets/main.rs"
+
+[package.metadata]
+cargo-fuzz = true

@@ -145,7 +145,7 @@ fn parse_html_string_including_twig(parser: &mut Parser) -> CompletedMarker {
             }
 
             if parse_any_twig(parser, inner_str_parser).is_none() {
-                if parser.at_set(RECOVERY_SET) {
+                if parser.at_set(RECOVERY_SET) || parser.at_end() {
                     break;
                 }
 
@@ -974,6 +974,35 @@ mod tests {
                       TK_WORD@107..110 "div"
                       TK_GREATER_THAN@110..111 ">"
                 parsing consumed all tokens: true"#]],
+        );
+    }
+
+    #[test]
+    fn parse_fuzzing_bump_error() {
+        check_parse(
+            "<d a={%%",
+            expect![[r#"
+                ROOT@0..8
+                  HTML_TAG@0..8
+                    HTML_STARTING_TAG@0..8
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..2 "d"
+                      HTML_ATTRIBUTE@2..8
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..4 "a"
+                        TK_EQUAL@4..5 "="
+                        HTML_STRING@5..8
+                          ERROR@5..8
+                            TK_CURLY_PERCENT@5..7 "{%"
+                            ERROR@7..8
+                              ERROR@7..8 "%"
+                    BODY@8..8
+                parsing consumed all tokens: true
+                error at 5..5: expected ", but found {%
+                error at 7..7: expected block or if, but found error
+                error at 7..7: expected "
+                error at 7..7: expected word, {%, {{, {#, /> or >
+                error at 7..7: expected </, {%, {{, {#, <, word or <!--"#]],
         );
     }
 }
