@@ -1,8 +1,7 @@
 use ludtwig_parser::syntax::typed::{AstNode, TwigBlock};
-use ludtwig_parser::syntax::untyped::{SyntaxElement, SyntaxKind, SyntaxNode, TextRange, TextSize};
+use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxNode, TextRange, TextSize};
 
 use crate::check::rule::{Rule, RuleContext, Severity};
-use crate::config::LineEnding;
 
 pub struct RuleTwigBlockLineBreaks;
 
@@ -23,38 +22,23 @@ impl Rule for RuleTwigBlockLineBreaks {
 
         // find first token of twig block (ideally a line break)
         let starting_block = block.starting_block()?;
-        // TODO: maybe replace all this by first_token()
-        let first_child_token = starting_block
-            .syntax()
-            .children_with_tokens()
-            .filter_map(|element| match element {
-                SyntaxElement::Node(_) => None,
-                SyntaxElement::Token(t) => Some(t),
-            })
-            .next();
+        let first_child_token = starting_block.syntax().first_token();
 
         // find first token after the twig block (ideally a line break)
         // set to None if next sibling is also a block (which also places linebreaks before)
-        // TODO: maybe replace all this by next_token()
-        let after_block_token = match block.syntax().next_sibling_or_token().or_else(|| {
-            block
-                .syntax()
-                .parent()
-                .and_then(|p| p.next_sibling_or_token())
-        }) {
-            Some(element) => match element {
-                // skip if next is also an TWIG_BLOCK
-                SyntaxElement::Node(n) if n.kind() != SyntaxKind::TWIG_BLOCK => n.first_token(),
-                SyntaxElement::Token(t) => Some(t),
-                _ => None,
-            },
-            None => None,
-        };
+        let ending_block = block.ending_block()?;
+        let after_block_token = ending_block
+            .syntax()
+            .last_token()
+            .and_then(|t| t.next_token())
+            .filter(|t| match t.parent() {
+                None => true,
+                // return no token if the parent is also another twig block
+                Some(p) if p.kind() == SyntaxKind::TWIG_STARTING_BLOCK => false,
+                _ => true,
+            });
 
-        let expected_line_break = match ctx.config().format.line_ending {
-            LineEnding::UnixLF => "\n",
-            LineEnding::WindowsCRLF => "\r\n",
-        };
+        let expected_line_break = ctx.config().format.line_ending.corresponding_string();
         let config_line_break_amount = match ctx.config().format.linebreaks_around_blocks {
             true => 2,
             false => 1,
@@ -70,7 +54,7 @@ impl Rule for RuleTwigBlockLineBreaks {
         let before_expected_str = expected_line_break.repeat(before_line_break_amount);
         let after_expected_str = expected_line_break.repeat(after_line_break_amount);
 
-        for (token, expected_str, line_break_amount) in [
+        let validate_iter = [
             (
                 first_child_token,
                 before_expected_str,
@@ -82,52 +66,54 @@ impl Rule for RuleTwigBlockLineBreaks {
                 after_line_break_amount,
             ),
         ]
-        .iter()
-        {
-            if let Some(token) = token {
-                match token.kind() {
-                    SyntaxKind::TK_LINE_BREAK => {
-                        // validate existing line break
-                        if token.text() != expected_str {
-                            let result = ctx
-                                .create_result(
-                                    self.name(),
-                                    Severity::Warning,
-                                    "Wrong line break around block",
-                                )
-                                .primary_note(
-                                    token.text_range(),
-                                    format!("Expected {} line breaks here", line_break_amount),
-                                )
-                                .suggestion(
-                                    token.text_range(),
-                                    expected_str.clone(),
-                                    format!("Change to {} line breaks", line_break_amount),
-                                );
-                            ctx.add_result(result);
-                        }
-                    }
-                    _ => {
-                        let range = TextRange::at(token.text_range().start(), TextSize::from(0));
+        .into_iter()
+        .filter_map(|(may_be_token, expected_str, line_break_amount)| {
+            may_be_token.map(|token| (token, expected_str, line_break_amount))
+        });
 
-                        // missing line break
+        for (token, expected_str, line_break_amount) in validate_iter {
+            match token.kind() {
+                SyntaxKind::TK_LINE_BREAK => {
+                    // validate existing line break
+                    if token.text() != expected_str {
                         let result = ctx
                             .create_result(
                                 self.name(),
                                 Severity::Warning,
-                                "Missing line break around block",
+                                "Wrong line break around block",
                             )
                             .primary_note(
-                                range,
-                                format!("Expected {} line breaks before this", line_break_amount),
+                                token.text_range(),
+                                format!("Expected {} line breaks here", line_break_amount),
                             )
                             .suggestion(
-                                range,
+                                token.text_range(),
                                 expected_str.clone(),
-                                format!("Add {} line breaks before this", line_break_amount),
+                                format!("Change to {} line breaks", line_break_amount),
                             );
                         ctx.add_result(result);
                     }
+                }
+                _ => {
+                    let range = TextRange::at(token.text_range().start(), TextSize::from(0));
+
+                    // missing line break
+                    let result = ctx
+                        .create_result(
+                            self.name(),
+                            Severity::Warning,
+                            "Missing line break around block",
+                        )
+                        .primary_note(
+                            range,
+                            format!("Expected {} line breaks before this", line_break_amount),
+                        )
+                        .suggestion(
+                            range,
+                            expected_str.clone(),
+                            format!("Add {} line breaks before this", line_break_amount),
+                        );
+                    ctx.add_result(result);
                 }
             }
         }

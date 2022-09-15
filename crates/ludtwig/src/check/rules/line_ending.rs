@@ -17,14 +17,8 @@ impl Rule for RuleLineEnding {
             return None;
         }
 
-        let correct_line_ending = match ctx.config().format.line_ending {
-            LineEnding::UnixLF => "\n",
-            LineEnding::WindowsCRLF => "\r\n",
-        };
-        let message = match ctx.config().format.line_ending {
-            LineEnding::UnixLF => "use UnixLF (\\n) instead",
-            LineEnding::WindowsCRLF => "use WindowsCRLF (\\r\\n) instead",
-        };
+        let correct_line_ending = ctx.config().format.line_ending.corresponding_string();
+        let message = format!("use {} instead", ctx.config().format.line_ending);
         let invalid_regex = Regex::new(&format!(
             r#"({})"#,
             match ctx.config().format.line_ending {
@@ -45,7 +39,7 @@ impl Rule for RuleLineEnding {
                     range,
                     "this line ending does not conform to the configured style",
                 )
-                .suggestion(range, correct_line_ending, message);
+                .suggestion(range, correct_line_ending, message.clone());
 
             ctx.add_result(result);
         }

@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::path::{Path, PathBuf};
 
 use figment::providers::{Env, Format as FigFormat, Toml};
@@ -5,8 +6,6 @@ use figment::Figment;
 use serde::Deserialize;
 
 use crate::Opts;
-
-// TODO: refactor config to fit the needs of the new rules
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "kebab-case")]
@@ -27,8 +26,6 @@ pub struct Format {
     pub line_ending: LineEnding,
     pub indentation_mode: IndentationMode,
     pub indentation_count: u8,
-    pub preferred_max_line_length: u16,
-    pub attribute_inline_max_count: u8,
     pub indent_children_of_blocks: bool,
     pub linebreaks_around_blocks: bool,
 }
@@ -40,12 +37,56 @@ pub enum IndentationMode {
     Tab,
 }
 
+impl Display for IndentationMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IndentationMode::Space => {
+                write!(f, "spaces")
+            }
+            IndentationMode::Tab => {
+                write!(f, "tabs")
+            }
+        }
+    }
+}
+
+impl IndentationMode {
+    pub fn corresponding_char(&self) -> char {
+        match self {
+            IndentationMode::Space => ' ',
+            IndentationMode::Tab => '\t',
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 pub enum LineEnding {
     #[serde(rename = "unix_LF")]
     UnixLF,
     #[serde(rename = "windows_CRLF")]
     WindowsCRLF,
+}
+
+impl Display for LineEnding {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LineEnding::UnixLF => {
+                write!(f, "UnixLF (\\n)")
+            }
+            LineEnding::WindowsCRLF => {
+                write!(f, "WindowsCRLF (\\r\\n)")
+            }
+        }
+    }
+}
+
+impl LineEnding {
+    pub fn corresponding_string(&self) -> &'static str {
+        match self {
+            LineEnding::UnixLF => "\n",
+            LineEnding::WindowsCRLF => "\r\n",
+        }
+    }
 }
 
 pub const DEFAULT_CONFIG_PATH: &str = "./ludtwig-config.toml";

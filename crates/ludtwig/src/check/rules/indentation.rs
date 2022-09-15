@@ -3,7 +3,6 @@ use ludtwig_parser::syntax::untyped::{
 };
 
 use crate::check::rule::{Rule, RuleContext, Severity};
-use crate::config::IndentationMode;
 
 pub struct RuleIndentation;
 
@@ -70,18 +69,11 @@ impl RuleIndentation {
         indentation: usize,
         ctx: &mut RuleContext,
     ) {
-        let indent_char = match ctx.config().format.indentation_mode {
-            IndentationMode::Space => ' ',
-            IndentationMode::Tab => '\t',
-        };
+        let indent_char = ctx.config().format.indentation_mode.corresponding_char();
         let indent_char_count = ctx.config().format.indentation_count;
         let expected_str = std::iter::repeat(indent_char)
             .take(indentation * indent_char_count as usize)
             .collect::<String>();
-        let expected_mode = match ctx.config().format.indentation_mode {
-            IndentationMode::Space => "spaces",
-            IndentationMode::Tab => "tabs",
-        };
 
         match token.kind() {
             SyntaxKind::TK_WHITESPACE => {
@@ -94,7 +86,7 @@ impl RuleIndentation {
                             format!(
                                 "Expected indentation of {} {} here",
                                 indentation * indent_char_count as usize,
-                                expected_mode
+                                ctx.config().format.indentation_mode
                             ),
                         )
                         .suggestion(
@@ -103,7 +95,7 @@ impl RuleIndentation {
                             format!(
                                 "Change indentation to {} {}",
                                 indentation * indent_char_count as usize,
-                                expected_mode
+                                ctx.config().format.indentation_mode
                             ),
                         );
                     ctx.add_result(result);
@@ -120,7 +112,7 @@ impl RuleIndentation {
                             format!(
                                 "Expected indentation of {} {} before this",
                                 indentation * indent_char_count as usize,
-                                expected_mode
+                                ctx.config().format.indentation_mode
                             ),
                         )
                         .suggestion(
@@ -129,7 +121,7 @@ impl RuleIndentation {
                             format!(
                                 "Add {} {} indentation",
                                 indentation * indent_char_count as usize,
-                                expected_mode
+                                ctx.config().format.indentation_mode
                             ),
                         );
                     ctx.add_result(result);
