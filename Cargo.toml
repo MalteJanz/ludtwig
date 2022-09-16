@@ -9,5 +9,5 @@ lto = "thin" # does increase runtime performance for longer build times
 # benchmark between "thin" and "fat"/true and pick better performing one (thin compile faster)
 
 # temporary fix of rowan prev_sibling function with modified repo ( https://github.com/rust-analyzer/rowan/issues/139 )
-[patch.'crates-io']
-rowan = { path = "../rowan" }
+# [patch.'crates-io']
+# rowan = { path = "../rowan" }
