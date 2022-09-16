@@ -62,7 +62,6 @@ impl RuleContext {
             severity,
             message: message.into(),
             primary: None,
-            secondary: vec![],
             suggestions: vec![],
         }
     }
@@ -83,7 +82,6 @@ pub struct CheckResult {
     pub(super) severity: Severity,
     pub(super) message: String,
     pub(super) primary: Option<CheckNote>,
-    pub(super) secondary: Vec<CheckNote>,
     pub(super) suggestions: Vec<CheckSuggestion>,
 }
 
@@ -99,14 +97,14 @@ impl CheckResult {
         self
     }
 
-    /// The secondary (blue) label which can provide more context and explain the error to a user.
-    pub fn secondary_note<S: Into<String>>(mut self, syntax_range: TextRange, message: S) -> Self {
-        self.secondary.push(CheckNote {
-            syntax_range,
-            message: message.into(),
-        });
-        self
-    }
+    // The secondary (blue) label which can provide more context and explain the error to a user.
+    // pub fn secondary_note<S: Into<String>>(mut self, syntax_range: TextRange, message: S) -> Self {
+    //     self.secondary.push(CheckNote {
+    //         syntax_range,
+    //         message: message.into(),
+    //     });
+    //     self
+    // }
 
     /// Add a code suggestion which the user can follow or is replaced automatically
     pub fn suggestion<R: Into<String>, S: Into<String>>(

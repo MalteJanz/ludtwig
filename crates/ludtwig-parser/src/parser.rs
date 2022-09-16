@@ -153,7 +153,12 @@ impl<'source> Parser<'source> {
         } else {
             // If we're at the end of the input we use the range of the very last token
             // unwrap is fine, because error should not be called on empty file
-            (None, self.source.last_token_range().unwrap())
+            (
+                None,
+                self.source
+                    .last_token_range()
+                    .expect("parser error called on empty file which has no last token"),
+            )
         };
 
         self.event_collection.add_error(ParseError {

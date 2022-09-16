@@ -11,8 +11,10 @@ pub(crate) fn lex(source: &str) -> Vec<Token> {
     while let Some(kind) = lexer.next() {
         let range = {
             let span = lexer.span();
-            let start = TextSize::try_from(span.start).unwrap();
-            let end = TextSize::try_from(span.end).unwrap();
+            let start = TextSize::try_from(span.start)
+                .expect("lexer span range should fit into a u32 (file should be smaller than 4GB)");
+            let end = TextSize::try_from(span.end)
+                .expect("lexer span range should fit into a u32 (file should be smaller than 4GB)");
             TextRange::new(start, end)
         };
 

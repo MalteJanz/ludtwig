@@ -46,7 +46,7 @@ pub fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
         Ok(f) => f,
         Err(_) => {
             io::stderr()
-                .write_all(format!("Can't read file {:?}", path).as_bytes())
+                .write_all(format!("Can't read file {}", path.to_string_lossy()).as_bytes())
                 .unwrap();
             cli_context.send_processing_output(ProcessingEvent::Report(Severity::Error));
 

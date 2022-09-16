@@ -127,7 +127,7 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
         std::fs::write(&config_path, DEFAULT_RAW_CONFIG).expect("can't write default config");
         println!(
             "Default config was written to {}",
-            config_path.to_str().unwrap_or("'non utf8 file path'")
+            config_path.to_string_lossy()
         );
 
         std::process::exit(0);

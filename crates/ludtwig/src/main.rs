@@ -1,4 +1,5 @@
-use std::boxed::Box;
+extern crate core;
+
 use std::path::PathBuf;
 use std::sync::mpsc::SyncSender;
 use std::sync::{mpsc, Arc};
@@ -67,7 +68,9 @@ pub struct CliContext {
 
 impl CliContext {
     pub fn send_processing_output(&self, event: ProcessingEvent) {
-        self.output_tx.send(event).unwrap();
+        self.output_tx
+            .send(event)
+            .expect("output should still receive ProcessingEvents");
     }
 }
 
@@ -76,12 +79,12 @@ fn main() {
     let opts: Opts = Opts::from_args();
     let config = config::handle_config_or_exit(&opts);
 
-    let process_code = app(opts, config).unwrap();
+    let process_code = app(opts, config);
     std::process::exit(process_code);
 }
 
 /// The entry point of the async application.
-fn app(opts: Opts, config: Config) -> Result<i32, Box<dyn std::error::Error>> {
+fn app(opts: Opts, config: Config) -> i32 {
     println!("Scanning files...");
 
     // sender and receiver channels for the communication between tasks and the user.
@@ -107,21 +110,19 @@ fn app(opts: Opts, config: Config) -> Result<i32, Box<dyn std::error::Error>> {
     drop(cli_context); // drop this tx channel
 
     // the output_handler will finish execution if all the tx (sending channel) ends are closed.
-    let process_code = output_handler.join().unwrap();
-
-    Ok(process_code)
+    output_handler
+        .join()
+        .expect("can't join output_handler thread")
 }
 
 /// filters out hidden directories or files
 /// (that start with '.').
-fn is_hidden(entry: &DirEntry) -> bool {
-    !entry
-        .file_name()
-        .to_str()
-        // '.' and './' is a valid path for the current working directory and not an hidden file / dir
-        // otherwise anything that starts with a '.' is considered hidden for ludtwig
-        .map(|s| s.starts_with('.') && s != "." && s != "./")
-        .unwrap_or(false)
+fn is_not_hidden(entry: &DirEntry) -> bool {
+    let name = entry.file_name().to_string_lossy();
+
+    // '.' and './' is a valid path for the current working directory and not an hidden file / dir
+    // otherwise anything that starts with a '.' is considered hidden for ludtwig
+    !name.starts_with('.') || name == "." || name == "./"
 }
 
 /// Process a directory path.
@@ -130,19 +131,16 @@ fn handle_input_path(path: PathBuf, cli_context: Arc<CliContext>) {
 
     // synchronous directory traversal but move the work for each file to a different thread in the thread pool.
     rayon::scope(move |s| {
-        for entry in walker.filter_entry(is_hidden) {
-            let entry = entry.unwrap();
+        for entry in walker.filter_entry(is_not_hidden) {
+            let entry = entry.expect("error walking over the specified file path");
 
             if !entry.file_type().is_file() {
                 continue;
             }
 
-            if !entry
-                .file_name()
-                .to_str() // also skips non utf-8 file names!
-                .map(|s| s.ends_with(".twig") || s.ends_with(".html"))
-                .unwrap_or(false)
-            {
+            let name = entry.file_name().to_string_lossy();
+
+            if !name.ends_with(".twig") && !name.ends_with(".html") {
                 continue;
             }
 

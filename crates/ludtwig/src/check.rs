@@ -80,7 +80,7 @@ pub fn produce_diagnostics(
     // diagnostic output setup
     let mut files = SimpleFiles::new();
     let file_id = files.add(
-        file_context.file_path.to_str().unwrap(),
+        file_context.file_path.to_string_lossy(),
         &file_context.source_code,
     );
     let config = term::Config {
@@ -129,12 +129,6 @@ pub fn produce_diagnostics(
         if let Some(primary) = result.primary {
             labels
                 .push(Label::primary(file_id, primary.syntax_range).with_message(primary.message));
-        }
-
-        for secondary in result.secondary {
-            labels.push(
-                Label::secondary(file_id, secondary.syntax_range).with_message(secondary.message),
-            )
         }
 
         for suggestion in result.suggestions {

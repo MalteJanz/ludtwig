@@ -56,13 +56,9 @@ pub fn handle_processing_output(rx: Receiver<ProcessingEvent>) -> i32 {
 
     if file_count > 0 && (error_count > 0 || warning_count > 0) {
         io::stderr().write_all(conclusion_msg.as_bytes()).unwrap();
-        println!("Happy bug fixing ;)");
-        return 1; // return exit code 1 if there were errors or warnings.
-    } else if file_count > 0 {
+        1 // return exit code 1 if there were errors or warnings.
+    } else {
         print!("{}", conclusion_msg);
-        println!("Good job! o.O");
-        return 0;
+        0
     }
-
-    0
 }
