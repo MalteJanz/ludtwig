@@ -7,26 +7,52 @@ use crate::syntax::untyped::SyntaxKind;
 mod html;
 mod twig;
 
+/// Type used to pass concrete fn (function pointers) around that are parsing functions
 type ParseFunction = fn(&mut Parser) -> Option<CompletedMarker>;
 
 pub(super) fn root(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
 
-    loop {
-        if parse_any_element(parser).is_none() {
-            if !parser.at_end() {
+    parse_many(
+        parser,
+        |_| false,
+        |p| {
+            if parse_any_element(p).is_none() && !p.at_end() {
+                // not parsable element encountered
+
                 // at least consume unparseable input TODO: maybe throw parser error?!
                 // call to parser.error() could result in infinite loop here!
-                let error_m = parser.start();
-                parser.bump();
-                parser.complete(error_m, SyntaxKind::ERROR);
-            } else {
-                break;
+                let error_m = p.start();
+                p.bump();
+                p.complete(error_m, SyntaxKind::ERROR);
             }
-        }
-    }
+        },
+    );
 
     parser.complete(m, SyntaxKind::ROOT)
+}
+
+fn parse_many<E, P>(parser: &mut Parser, mut early_exit_closure: E, mut child_parser: P)
+where
+    E: FnMut(&mut Parser) -> bool,
+    P: FnMut(&mut Parser),
+{
+    loop {
+        // capture parser token position to prevent infinite loops!
+        let parser_pos = parser.get_pos();
+
+        if parser.at(SyntaxKind::ERROR) {
+            // TODO: is this really the right way to handle invalid lexing tokens?
+            // at least consume unparseable input TODO: maybe throw parser error?!
+            // call to parser.error() could result in infinite loop here!
+            parser.bump(); // allow / ignore errors tokens
+        } else if parser.at_end() || early_exit_closure(parser) || {
+            child_parser(parser);
+            parser.get_pos() == parser_pos
+        } {
+            break;
+        }
+    }
 }
 
 fn parse_any_element(parser: &mut Parser) -> Option<CompletedMarker> {
@@ -35,9 +61,12 @@ fn parse_any_element(parser: &mut Parser) -> Option<CompletedMarker> {
 
 #[cfg(test)]
 mod tests {
+    use crate::grammar::parse_many;
+    use crate::lex;
     use expect_test::expect;
 
-    use crate::parser::check_parse;
+    use crate::parser::{check_parse, Parser};
+    use crate::syntax::untyped::SyntaxKind;
 
     #[test]
     fn parse_synthetic_minimal() {
@@ -93,5 +122,23 @@ mod tests {
                       TK_WHITESPACE@82..83 " "
                       TK_PERCENT_CURLY@83..85 "%}""#]],
         );
+    }
+
+    #[test]
+    fn parse_many_should_have_no_infinite_loop() {
+        let lex_result = lex("a b c");
+        let mut parser = Parser::new(&lex_result);
+
+        let before_pos = parser.get_pos();
+        parse_many(
+            &mut parser,
+            |_| false,
+            |p| {
+                let m = p.start();
+                // don't consume / call parser bump
+                p.complete(m, SyntaxKind::ERROR);
+            },
+        );
+        assert_eq!(before_pos, parser.get_pos());
     }
 }

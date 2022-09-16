@@ -72,6 +72,10 @@ impl<'source> Source<'source> {
         self.tokens.last().map(|Token { range, .. }| *range)
     }
 
+    pub(super) fn get_pos(&self) -> usize {
+        self.cursor
+    }
+
     fn eat_trivia(&mut self) {
         while self.at_trivia() {
             self.cursor += 1;

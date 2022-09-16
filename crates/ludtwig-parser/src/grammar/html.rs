@@ -1,5 +1,5 @@
-use crate::grammar::parse_any_element;
 use crate::grammar::twig::parse_any_twig;
+use crate::grammar::{parse_any_element, parse_many};
 use crate::lexer::Token;
 use crate::parser::event::CompletedMarker;
 use crate::parser::{Parser, RECOVERY_SET};
@@ -23,9 +23,13 @@ fn parse_html_text(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
     parser.bump();
 
-    while parser.at(T![word]) {
-        parser.bump();
-    }
+    parse_many(
+        parser,
+        |p| !p.at(T![word]),
+        |p| {
+            p.bump();
+        },
+    );
 
     parser.complete(m, SyntaxKind::HTML_TEXT)
 }
@@ -35,13 +39,13 @@ fn parse_html_comment(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
     parser.bump();
 
-    loop {
-        if parser.at_end() || parser.at(T!["-->"]) {
-            break;
-        }
-
-        parser.bump();
-    }
+    parse_many(
+        parser,
+        |p| p.at(T!["-->"]),
+        |p| {
+            p.bump();
+        },
+    );
 
     parser.expect(T!["-->"]);
     parser.complete(m, SyntaxKind::HTML_COMMENT)
@@ -56,7 +60,13 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
     parser.bump();
     let tag_name = parser.expect(T![word]).map_or("", |t| t.text).to_owned();
     // parse attributes (can include twig)
-    while parse_html_attribute_or_twig(parser).is_some() {}
+    parse_many(
+        parser,
+        |p| p.at(T![">"]) || p.at(T!["/>"]),
+        |p| {
+            parse_html_attribute_or_twig(p);
+        },
+    );
     // parse end of starting tag
     let is_self_closing = if parser.at(T!["/>"]) {
         parser.bump();
@@ -76,22 +86,25 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
     // parse all the children
     let body_m = parser.start();
     let mut matching_end_tag_encountered = false;
-    loop {
-        if parser.at(T!["</"]) {
-            if let Some(Token { kind, text, .. }) = parser.at_nth_token(T![word], 1) {
-                if *kind == T![word] && *text == tag_name {
-                    matching_end_tag_encountered = true;
-                    break; // found matching closing tag
+
+    parse_many(
+        parser,
+        |p| {
+            if p.at(T!["</"]) {
+                if let Some(Token { kind, text, .. }) = p.at_nth_token(T![word], 1) {
+                    if *kind == T![word] && *text == tag_name {
+                        matching_end_tag_encountered = true;
+                        return true; // found matching closing tag
+                    }
                 }
             }
-        }
 
-        if parser.at(SyntaxKind::ERROR) {
-            parser.bump(); // allow errors in body
-        } else if parser.at_end() || parse_any_element(parser).is_none() {
-            break;
-        }
-    }
+            false
+        },
+        |p| {
+            parse_any_element(p);
+        },
+    );
     parser.complete(body_m, SyntaxKind::BODY);
 
     // parse matching end tag if exists
@@ -133,28 +146,26 @@ fn parse_html_string_including_twig(parser: &mut Parser) -> CompletedMarker {
     parser.expect(T!["\""]);
 
     fn inner_str_parser(parser: &mut Parser) -> Option<CompletedMarker> {
-        loop {
-            if parser.at_end() || parser.at(T!("\"")) {
-                break;
-            }
+        parse_many(
+            parser,
+            |p| {
+                // TODO: needs special care for future endfor, endif, ...
+                p.at(T!("\""))
+                    || p.at_following(&[T!["{%"], T!["endblock"]])
+                    || p.at_following(&[T!["{%"], T!["elseif"]])
+                    || p.at_following(&[T!["{%"], T!["else"]])
+                    || p.at_following(&[T!["{%"], T!["endif"]])
+            },
+            |p| {
+                if parse_any_twig(p, inner_str_parser).is_none() {
+                    if p.at_set(RECOVERY_SET) || p.at_end() {
+                        return;
+                    }
 
-            // TODO: needs special care for future endfor, endif, ...
-            if parser.at_following(&[T!["{%"], T!["endblock"]])
-                || parser.at_following(&[T!["{%"], T!["elseif"]])
-                || parser.at_following(&[T!["{%"], T!["else"]])
-                || parser.at_following(&[T!["{%"], T!["endif"]])
-            {
-                break;
-            }
-
-            if parse_any_twig(parser, inner_str_parser).is_none() {
-                if parser.at_set(RECOVERY_SET) || parser.at_end() {
-                    break;
+                    p.bump();
                 }
-
-                parser.bump();
-            }
-        }
+            },
+        );
         None
     }
 
@@ -355,7 +366,7 @@ mod tests {
                       TK_LESS_THAN_SLASH@22..24 "</"
                       TK_WORD@24..27 "div"
                       TK_GREATER_THAN@27..28 ">"
-                error at 22..22: expected word, </, word, error, {%, {{, {#, <, word or <!--, but found </"#]],
+                error at 22..22: expected error, word, error, </, word, {%, {{, {#, <, word or <!--, but found </"#]],
         );
     }
 
@@ -657,7 +668,7 @@ mod tests {
                       TK_WORD@47..50 "div"
                       TK_GREATER_THAN@50..51 ">"
                 error at 11..11: expected ", but found '
-                error at 19..19: expected ", {%, endblock, {%, elseif, {%, else, {%, endif, {%, {{, {# or ", but found >"#]],
+                error at 19..19: expected error, ", {%, endblock, {%, elseif, {%, else, {%, endif, {%, {{, {# or ", but found >"#]],
         );
     }
 
@@ -881,12 +892,12 @@ mod tests {
                     TK_WORD@52..55 "div"
                   ERROR@55..56
                     TK_GREATER_THAN@55..56 ">"
-                error at 29..29: expected error, {%, endblock, word, {%, {{, {# or {%, but found <
+                error at 29..29: expected error, {%, endblock, word, {%, {{, {#, error, {%, endblock, word, {%, {{, {# or {%, but found <
                 error at 29..29: expected endblock, but found <
                 error at 29..29: expected %}, but found <
-                error at 29..29: expected word, {%, {{, {#, /> or >, but found <
+                error at 29..29: expected error, >, />, word, {%, {{, {#, /> or >, but found <
                 error at 38..38: expected block or if, but found endblock
-                error at 47..47: expected <, word or <!--, but found %}"#]],
+                error at 47..47: expected <, word, <!--, error, </, {%, {{, {#, <, word or <!--, but found %}"#]],
         );
     }
 
@@ -984,9 +995,9 @@ mod tests {
                     BODY@8..8
                 error at 5..5: expected ", but found {%
                 error at 7..7: expected block or if, but found error
-                error at 7..7: expected "
-                error at 7..7: expected word, {%, {{, {#, /> or >
-                error at 7..7: expected </ or error"#]],
+                error at 7..7: expected error or "
+                error at 7..7: expected error, /> or >
+                error at 7..7: expected error"#]],
         );
     }
 

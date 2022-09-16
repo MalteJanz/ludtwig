@@ -66,7 +66,7 @@ pub(crate) struct Parser<'source> {
 }
 
 impl<'source> Parser<'source> {
-    fn new(tokens: &'source [Token<'source>]) -> Self {
+    pub(crate) fn new(tokens: &'source [Token<'source>]) -> Self {
         Self {
             source: Source::new(tokens),
             event_collection: EventCollection::new(),
@@ -81,6 +81,10 @@ impl<'source> Parser<'source> {
 
     fn peek(&mut self) -> Option<SyntaxKind> {
         self.source.peek_kind()
+    }
+
+    pub(crate) fn get_pos(&self) -> usize {
+        self.source.get_pos()
     }
 
     pub(crate) fn at_set(&mut self, set: &[SyntaxKind]) -> bool {

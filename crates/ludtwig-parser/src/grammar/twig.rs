@@ -1,4 +1,4 @@
-use crate::grammar::ParseFunction;
+use crate::grammar::{parse_many, ParseFunction};
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::Parser;
 use crate::syntax::untyped::SyntaxKind;
@@ -24,13 +24,13 @@ fn parse_twig_comment_statement(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
     parser.bump();
 
-    loop {
-        if parser.at_end() || parser.at(T!["#}"]) {
-            break;
-        }
-
-        parser.bump();
-    }
+    parse_many(
+        parser,
+        |p| p.at(T!["#}"]),
+        |p| {
+            p.bump();
+        },
+    );
 
     parser.expect(T!["#}"]);
     parser.complete(m, SyntaxKind::TWIG_COMMENT)
@@ -41,13 +41,13 @@ fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
     parser.bump();
 
-    loop {
-        if parser.at_end() || parser.at(T!["}}"]) {
-            break;
-        }
-
-        parser.bump();
-    }
+    parse_many(
+        parser,
+        |p| p.at(T!["}}"]),
+        |p| {
+            p.bump();
+        },
+    );
 
     parser.expect(T!["}}"]);
     parser.complete(m, SyntaxKind::TWIG_VAR)
@@ -89,16 +89,13 @@ fn parse_twig_block(
 
     // parse all the children except endblock
     let body_m = parser.start();
-    loop {
-        if parser.at(SyntaxKind::ERROR) {
-            parser.bump(); // allow errors in body
-        } else if parser.at_end()
-            || parser.at_following(&[T!["{%"], T!["endblock"]])
-            || child_parser(parser).is_none()
-        {
-            break;
-        }
-    }
+    parse_many(
+        parser,
+        |p| p.at_following(&[T!["{%"], T!["endblock"]]),
+        |p| {
+            child_parser(p);
+        },
+    );
     parser.complete(body_m, SyntaxKind::BODY);
 
     let end_block_m = parser.start();
@@ -129,17 +126,17 @@ fn parse_twig_if(
     loop {
         // parse body (all the children)
         let body_m = parser.start();
-        loop {
-            if parser.at_following(&[T!["{%"], T!["endif"]])
-                || parser.at_following(&[T!["{%"], T!["elseif"]])
-                || parser.at_following(&[T!["{%"], T!["else"]])
-            {
-                break;
-            }
-            if child_parser(parser).is_none() {
-                break;
-            };
-        }
+        parse_many(
+            parser,
+            |p| {
+                p.at_following(&[T!["{%"], T!["endif"]])
+                    || p.at_following(&[T!["{%"], T!["elseif"]])
+                    || p.at_following(&[T!["{%"], T!["else"]])
+            },
+            |p| {
+                child_parser(p);
+            },
+        );
         parser.complete(body_m, SyntaxKind::BODY);
 
         if parser.at_following(&[T!["{%"], T!["endif"]]) {
@@ -178,13 +175,13 @@ fn parse_twig_if(
 fn parse_twig_condition_expression(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
 
-    loop {
-        if parser.at_end() || parser.at(T!["%}"]) {
-            break;
-        }
-
-        parser.bump();
-    }
+    parse_many(
+        parser,
+        |p| p.at(T!["%}"]),
+        |p| {
+            p.bump();
+        },
+    );
 
     parser.complete(m, SyntaxKind::TWIG_CONDITION_EXPRESSION)
 }
