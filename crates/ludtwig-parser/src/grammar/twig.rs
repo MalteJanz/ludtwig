@@ -90,12 +90,14 @@ fn parse_twig_block(
     // parse all the children except endblock
     let body_m = parser.start();
     loop {
-        if parser.at_following(&[T!["{%"], T!["endblock"]]) {
+        if parser.at(SyntaxKind::ERROR) {
+            parser.bump(); // allow errors in body
+        } else if parser.at_end()
+            || parser.at_following(&[T!["{%"], T!["endblock"]])
+            || child_parser(parser).is_none()
+        {
             break;
         }
-        if child_parser(parser).is_none() {
-            break;
-        };
     }
     parser.complete(body_m, SyntaxKind::BODY);
 
@@ -220,8 +222,7 @@ mod tests {
                       TK_WHITESPACE@37..38 " "
                       TK_ENDBLOCK@38..46 "endblock"
                       TK_WHITESPACE@46..47 " "
-                      TK_PERCENT_CURLY@47..49 "%}"
-                parsing consumed all tokens: true"#]],
+                      TK_PERCENT_CURLY@47..49 "%}""#]],
         );
     }
 
@@ -298,8 +299,7 @@ mod tests {
                       TK_WHITESPACE@96..97 " "
                       TK_ENDBLOCK@97..105 "endblock"
                       TK_WHITESPACE@105..106 " "
-                      TK_PERCENT_CURLY@106..108 "%}"
-                parsing consumed all tokens: true"#]],
+                      TK_PERCENT_CURLY@106..108 "%}""#]],
         );
     }
 
@@ -314,7 +314,6 @@ mod tests {
                     ERROR@2..7
                       TK_WHITESPACE@2..3 " "
                       TK_WORD@3..7 "asdf"
-                parsing consumed all tokens: true
                 error at 3..3: expected block or if, but found word"#]],
         )
     }
@@ -340,8 +339,7 @@ mod tests {
                     TK_WHITESPACE@24..25 " "
                     TK_ELSE@25..29 "else"
                     TK_WHITESPACE@29..30 " "
-                    TK_CLOSE_CURLY_CURLY@30..32 "}}"
-                parsing consumed all tokens: true"#]],
+                    TK_CLOSE_CURLY_CURLY@30..32 "}}""#]],
         )
     }
 
@@ -378,8 +376,7 @@ mod tests {
                     TK_WHITESPACE@52..53 " "
                     TK_PERCENT_CURLY@53..55 "%}"
                     TK_WHITESPACE@55..56 " "
-                    TK_HASHTAG_CLOSE_CURLY@56..58 "#}"
-                parsing consumed all tokens: true"##]],
+                    TK_HASHTAG_CLOSE_CURLY@56..58 "#}""##]],
         )
     }
 
@@ -409,8 +406,7 @@ mod tests {
                       TK_WHITESPACE@23..24 " "
                       TK_ENDIF@24..29 "endif"
                       TK_WHITESPACE@29..30 " "
-                      TK_PERCENT_CURLY@30..32 "%}"
-                parsing consumed all tokens: true"#]],
+                      TK_PERCENT_CURLY@30..32 "%}""#]],
         )
     }
 
@@ -452,8 +448,7 @@ mod tests {
                       TK_WHITESPACE@54..55 " "
                       TK_ENDIF@55..60 "endif"
                       TK_WHITESPACE@60..61 " "
-                      TK_PERCENT_CURLY@61..63 "%}"
-                parsing consumed all tokens: true"#]],
+                      TK_PERCENT_CURLY@61..63 "%}""#]],
         )
     }
 
@@ -494,8 +489,7 @@ mod tests {
                       TK_WHITESPACE@40..41 " "
                       TK_ENDIF@41..46 "endif"
                       TK_WHITESPACE@46..47 " "
-                      TK_PERCENT_CURLY@47..49 "%}"
-                parsing consumed all tokens: true"#]],
+                      TK_PERCENT_CURLY@47..49 "%}""#]],
         )
     }
 
@@ -539,8 +533,7 @@ mod tests {
                       TK_WHITESPACE@36..37 " "
                       TK_ENDIF@37..42 "endif"
                       TK_WHITESPACE@42..43 " "
-                      TK_PERCENT_CURLY@43..45 "%}"
-                parsing consumed all tokens: true"#]],
+                      TK_PERCENT_CURLY@43..45 "%}""#]],
         )
     }
 
@@ -595,8 +588,7 @@ mod tests {
                       TK_WHITESPACE@53..54 " "
                       TK_ENDIF@54..59 "endif"
                       TK_WHITESPACE@59..60 " "
-                      TK_PERCENT_CURLY@60..62 "%}"
-                parsing consumed all tokens: true"#]],
+                      TK_PERCENT_CURLY@60..62 "%}""#]],
         )
     }
 
@@ -665,8 +657,43 @@ mod tests {
                       TK_WHITESPACE@72..73 " "
                       TK_ENDIF@73..78 "endif"
                       TK_WHITESPACE@78..79 " "
-                      TK_PERCENT_CURLY@79..81 "%}"
-                parsing consumed all tokens: true"#]],
+                      TK_PERCENT_CURLY@79..81 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_block_with_invalid_body() {
+        check_parse(
+            "{% block my_block %} \\t invalid error token {% endblock %}",
+            expect![[r#"
+                ROOT@0..58
+                  TWIG_BLOCK@0..58
+                    TWIG_STARTING_BLOCK@0..20
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_BLOCK@3..8 "block"
+                      TK_WHITESPACE@8..9 " "
+                      TK_WORD@9..17 "my_block"
+                      TK_WHITESPACE@17..18 " "
+                      TK_PERCENT_CURLY@18..20 "%}"
+                    BODY@20..43
+                      TK_WHITESPACE@20..21 " "
+                      ERROR@21..22 "\\"
+                      HTML_TEXT@22..43
+                        TK_WORD@22..23 "t"
+                        TK_WHITESPACE@23..24 " "
+                        TK_WORD@24..31 "invalid"
+                        TK_WHITESPACE@31..32 " "
+                        TK_WORD@32..37 "error"
+                        TK_WHITESPACE@37..38 " "
+                        TK_WORD@38..43 "token"
+                    TWIG_ENDING_BLOCK@43..58
+                      TK_WHITESPACE@43..44 " "
+                      TK_CURLY_PERCENT@44..46 "{%"
+                      TK_WHITESPACE@46..47 " "
+                      TK_ENDBLOCK@47..55 "endblock"
+                      TK_WHITESPACE@55..56 " "
+                      TK_PERCENT_CURLY@56..58 "%}""#]],
         )
     }
 }

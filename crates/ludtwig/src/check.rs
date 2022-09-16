@@ -8,7 +8,7 @@ use codespan_reporting::term::termcolor::Buffer;
 
 use ludtwig_parser::syntax::typed;
 use ludtwig_parser::syntax::typed::AstNode;
-use ludtwig_parser::syntax::untyped::{SyntaxElement, WalkEvent};
+use ludtwig_parser::syntax::untyped::{debug_tree, SyntaxElement, WalkEvent};
 
 use crate::check::rule::{CheckSuggestion, Rule, RuleContext, Severity};
 use crate::process::FileContext;
@@ -87,6 +87,18 @@ pub fn produce_diagnostics(
         // styles: Styles::with_blue(term::termcolor::Color::Cyan),
         ..Default::default()
     };
+
+    if file_context.cli_context.inspect {
+        // notify output about this
+        file_context.send_processing_output(ProcessingEvent::Report(Severity::Info));
+
+        let diagnostic = Diagnostic::note()
+            .with_code("SyntaxTree")
+            .with_message("visualization of the syntax tree (inspect cli option is active)")
+            .with_notes(vec![debug_tree(&file_context.tree_root)]);
+
+        term::emit(buffer, &config, &files, &diagnostic).unwrap();
+    }
 
     // run through the parser errors
     for result in &file_context.parse_errors {

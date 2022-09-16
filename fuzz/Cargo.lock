@@ -128,9 +128,9 @@ checksum = "a3f87b73ce11b1619a3c6332f45341e0047173771e8b8b73f87bfeefb7b56244"
 
 [[package]]
 name = "rowan"
-version = "0.15.8"
+version = "0.15.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e88acf7b001007e9e8c989fe7449f6601d909e5dd2c56399fc158977ad6c56e8"
+checksum = "7aeb3c95eac7794161baf500b5d4647217ffb32b6660c04d3bb087c834cb58f4"
 dependencies = [
  "countme",
  "hashbrown",

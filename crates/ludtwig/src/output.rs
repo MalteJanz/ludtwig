@@ -1,3 +1,4 @@
+use codespan_reporting::term::termcolor::{Buffer, BufferWriter, ColorChoice};
 use std::io;
 use std::io::Write;
 use std::sync::mpsc::Receiver;
@@ -7,6 +8,7 @@ use crate::check::rule::Severity;
 pub enum ProcessingEvent {
     FileProcessed,
     Report(Severity),
+    OutputStderrMessage(Buffer),
 }
 
 /// This function receives all the [CliOutputMessage] instances from the receiver channel and
@@ -16,6 +18,8 @@ pub fn handle_processing_output(rx: Receiver<ProcessingEvent>) -> i32 {
     let mut error_count = 0;
     let mut warning_count = 0;
     let mut info_count = 0;
+
+    let stderr_writer = BufferWriter::stderr(ColorChoice::Always);
 
     // receive all incoming messages until all sending ends are closed.
     while let Ok(msg) = rx.recv() {
@@ -34,12 +38,20 @@ pub fn handle_processing_output(rx: Receiver<ProcessingEvent>) -> i32 {
                     info_count += 1;
                 }
             },
+            ProcessingEvent::OutputStderrMessage(buffer) => {
+                stderr_writer.print(&buffer).unwrap();
+            }
         }
     }
+    drop(stderr_writer); // finish writing to stderr
 
     let conclusion_msg = format!(
-        "\nFiles scanned: {}, Errors: {}, Warnings: {}, Info: {}\n",
-        file_count, error_count, warning_count, info_count
+        "\nFiles scanned: {}, Errors: {}, Warnings: {}, Info: {}, Total: {}\n",
+        file_count,
+        error_count,
+        warning_count,
+        info_count,
+        (error_count + warning_count + info_count)
     );
 
     if file_count > 0 && (error_count > 0 || warning_count > 0) {

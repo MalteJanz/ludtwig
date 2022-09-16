@@ -98,6 +98,7 @@ pub mod test {
             cli_context: Arc::new(CliContext {
                 output_tx: tx,
                 fix: false,
+                inspect: false,
                 output_path: None,
                 config: Config::new(crate::config::DEFAULT_CONFIG_PATH).unwrap(),
             }),
@@ -129,11 +130,15 @@ pub mod test {
     ) {
         let (file_context, rule_result_context, active_rules, rx) =
             debug_rule(rule_name, source_code);
-        let (file_context, _, dirty) =
+        let (file_context, _, dirty, iteration) =
             iteratively_apply_suggestions(&active_rules, file_context, rule_result_context);
 
         expected_source_code.assert_eq(&file_context.source_code);
         assert!(dirty);
+        assert_eq!(
+            iteration, 1,
+            "fixing a single rule should happen in one iteration!"
+        );
         drop(rx);
     }
 }

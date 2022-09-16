@@ -34,6 +34,10 @@ pub struct Opts {
     #[clap(short = 'f', long)]
     fix: bool,
 
+    /// Print out the parsed syntax tree for each file
+    #[clap(short = 'i', long)]
+    inspect: bool,
+
     /// Specify a custom output directory instead of fixing the files in place.
     #[clap(short, long, parse(from_os_str))]
     output_path: Option<PathBuf>,
@@ -53,6 +57,8 @@ pub struct CliContext {
     pub output_tx: SyncSender<ProcessingEvent>,
     /// Apply all code suggestions automatically. This changes the original files!
     pub fix: bool,
+    /// Print out the parsed syntax tree for each file
+    pub inspect: bool,
     /// Specify a custom output directory instead of modifying the files in place.
     pub output_path: Option<PathBuf>,
     /// The config values to use.
@@ -86,6 +92,7 @@ fn app(opts: Opts, config: Config) -> Result<i32, Box<dyn std::error::Error>> {
     let cli_context = Arc::new(CliContext {
         output_tx: tx,
         fix: opts.fix,
+        inspect: opts.inspect,
         output_path: opts.output_path,
         config,
     });

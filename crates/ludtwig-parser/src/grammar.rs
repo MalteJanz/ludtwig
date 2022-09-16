@@ -91,8 +91,7 @@ mod tests {
                       TK_WHITESPACE@73..74 " "
                       TK_ENDBLOCK@74..82 "endblock"
                       TK_WHITESPACE@82..83 " "
-                      TK_PERCENT_CURLY@83..85 "%}"
-                parsing consumed all tokens: true"#]],
+                      TK_PERCENT_CURLY@83..85 "%}""#]],
         );
     }
 }

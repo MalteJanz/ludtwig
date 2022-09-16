@@ -43,17 +43,12 @@ pub fn parse(input_text: &str) -> Parse {
 pub struct Parse {
     pub green_node: GreenNode,
     pub errors: Vec<ParseError>,
-    /// returns false if the parse has not consumed all the tokens!
-    /// That means the syntax tree doesn't represent the complete original file!
-    pub finished: bool,
 }
 
 impl Parse {
     pub fn debug_parse(&self) -> String {
         let syntax_node = SyntaxNode::new_root(self.green_node.clone());
         let mut s = debug_tree(&syntax_node);
-
-        let _ = write!(s, "\nparsing consumed all tokens: {}", self.finished);
 
         for error in &self.errors {
             let _ = write!(s, "\n{}", error);
@@ -189,7 +184,6 @@ impl<'source> Parser<'source> {
 pub(crate) fn check_parse(input: &str, expected_tree: expect_test::Expect) {
     let parse = parse(input);
     expected_tree.assert_eq(&parse.debug_parse());
-    assert!(parse.finished, "unparsed source tokens left");
 }
 
 #[cfg(test)]
@@ -200,6 +194,6 @@ mod tests {
 
     #[test]
     fn parse_nothing() {
-        check_parse("", expect!["ROOT@0..0\nparsing consumed all tokens: true"]);
+        check_parse("", expect!["ROOT@0..0"]);
     }
 }

@@ -85,7 +85,10 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
                 }
             }
         }
-        if parse_any_element(parser).is_none() {
+
+        if parser.at(SyntaxKind::ERROR) {
+            parser.bump(); // allow errors in body
+        } else if parser.at_end() || parse_any_element(parser).is_none() {
             break;
         }
     }
@@ -182,8 +185,7 @@ mod tests {
                     HTML_ENDING_TAG@5..11
                       TK_LESS_THAN_SLASH@5..7 "</"
                       TK_WORD@7..10 "div"
-                      TK_GREATER_THAN@10..11 ">"
-                parsing consumed all tokens: true"#]],
+                      TK_GREATER_THAN@10..11 ">""#]],
         );
     }
 
@@ -223,8 +225,7 @@ mod tests {
                     HTML_ENDING_TAG@54..60
                       TK_LESS_THAN_SLASH@54..56 "</"
                       TK_WORD@56..59 "div"
-                      TK_GREATER_THAN@59..60 ">"
-                parsing consumed all tokens: true"#]],
+                      TK_GREATER_THAN@59..60 ">""#]],
         );
     }
 
@@ -259,8 +260,7 @@ mod tests {
                     HTML_ENDING_TAG@29..35
                       TK_LESS_THAN_SLASH@29..31 "</"
                       TK_WORD@31..34 "div"
-                      TK_GREATER_THAN@34..35 ">"
-                parsing consumed all tokens: true"#]],
+                      TK_GREATER_THAN@34..35 ">""#]],
         );
     }
 
@@ -325,8 +325,7 @@ mod tests {
                       TK_WHITESPACE@86..106 "                    "
                       TK_LESS_THAN_SLASH@106..108 "</"
                       TK_WORD@108..111 "div"
-                      TK_GREATER_THAN@111..112 ">"
-                parsing consumed all tokens: true"#]],
+                      TK_GREATER_THAN@111..112 ">""#]],
         );
     }
 
@@ -356,8 +355,7 @@ mod tests {
                       TK_LESS_THAN_SLASH@22..24 "</"
                       TK_WORD@24..27 "div"
                       TK_GREATER_THAN@27..28 ">"
-                parsing consumed all tokens: true
-                error at 22..22: expected word, </, word, {%, {{, {#, <, word or <!--, but found </"#]],
+                error at 22..22: expected word, </, word, error, {%, {{, {#, <, word or <!--, but found </"#]],
         );
     }
 
@@ -391,8 +389,7 @@ mod tests {
                     HTML_ENDING_TAG@30..36
                       TK_LESS_THAN_SLASH@30..32 "</"
                       TK_WORD@32..35 "div"
-                      TK_GREATER_THAN@35..36 ">"
-                parsing consumed all tokens: true"#]],
+                      TK_GREATER_THAN@35..36 ">""#]],
         );
     }
 
@@ -426,8 +423,7 @@ mod tests {
                     HTML_ENDING_TAG@30..36
                       TK_LESS_THAN_SLASH@30..32 "</"
                       TK_WORD@32..35 "div"
-                      TK_GREATER_THAN@35..36 ">"
-                parsing consumed all tokens: true"##]],
+                      TK_GREATER_THAN@35..36 ">""##]],
         );
     }
 
@@ -474,8 +470,7 @@ mod tests {
                     HTML_ENDING_TAG@63..69
                       TK_LESS_THAN_SLASH@63..65 "</"
                       TK_WORD@65..68 "div"
-                      TK_GREATER_THAN@68..69 ">"
-                parsing consumed all tokens: true"#]],
+                      TK_GREATER_THAN@68..69 ">""#]],
         );
     }
 
@@ -541,8 +536,7 @@ mod tests {
                     HTML_ENDING_TAG@96..102
                       TK_LESS_THAN_SLASH@96..98 "</"
                       TK_WORD@98..101 "div"
-                      TK_GREATER_THAN@101..102 ">"
-                parsing consumed all tokens: true"#]],
+                      TK_GREATER_THAN@101..102 ">""#]],
         );
     }
 
@@ -623,8 +617,7 @@ mod tests {
                     HTML_ENDING_TAG@97..103
                       TK_LESS_THAN_SLASH@97..99 "</"
                       TK_WORD@99..102 "div"
-                      TK_GREATER_THAN@102..103 ">"
-                parsing consumed all tokens: true"#]],
+                      TK_GREATER_THAN@102..103 ">""#]],
         );
     }
 
@@ -663,7 +656,6 @@ mod tests {
                       TK_LESS_THAN_SLASH@45..47 "</"
                       TK_WORD@47..50 "div"
                       TK_GREATER_THAN@50..51 ">"
-                parsing consumed all tokens: true
                 error at 11..11: expected ", but found '
                 error at 19..19: expected ", {%, endblock, {%, elseif, {%, else, {%, endif, {%, {{, {# or ", but found >"#]],
         );
@@ -702,8 +694,7 @@ mod tests {
                     TK_WHITESPACE@49..50 " "
                     TK_WORD@50..55 "again"
                     TK_WHITESPACE@55..56 " "
-                    TK_MINUS_MINUS_GREATER_THAN@56..59 "-->"
-                parsing consumed all tokens: true"#]],
+                    TK_MINUS_MINUS_GREATER_THAN@56..59 "-->""#]],
         );
     }
 
@@ -712,27 +703,26 @@ mod tests {
         check_parse(
             "<hr/>plain<img/>text<custom/>",
             expect![[r#"
-            ROOT@0..29
-              HTML_TAG@0..5
-                HTML_STARTING_TAG@0..5
-                  TK_LESS_THAN@0..1 "<"
-                  TK_WORD@1..3 "hr"
-                  TK_SLASH_GREATER_THAN@3..5 "/>"
-              HTML_TEXT@5..10
-                TK_WORD@5..10 "plain"
-              HTML_TAG@10..16
-                HTML_STARTING_TAG@10..16
-                  TK_LESS_THAN@10..11 "<"
-                  TK_WORD@11..14 "img"
-                  TK_SLASH_GREATER_THAN@14..16 "/>"
-              HTML_TEXT@16..20
-                TK_WORD@16..20 "text"
-              HTML_TAG@20..29
-                HTML_STARTING_TAG@20..29
-                  TK_LESS_THAN@20..21 "<"
-                  TK_WORD@21..27 "custom"
-                  TK_SLASH_GREATER_THAN@27..29 "/>"
-            parsing consumed all tokens: true"#]],
+                ROOT@0..29
+                  HTML_TAG@0..5
+                    HTML_STARTING_TAG@0..5
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..3 "hr"
+                      TK_SLASH_GREATER_THAN@3..5 "/>"
+                  HTML_TEXT@5..10
+                    TK_WORD@5..10 "plain"
+                  HTML_TAG@10..16
+                    HTML_STARTING_TAG@10..16
+                      TK_LESS_THAN@10..11 "<"
+                      TK_WORD@11..14 "img"
+                      TK_SLASH_GREATER_THAN@14..16 "/>"
+                  HTML_TEXT@16..20
+                    TK_WORD@16..20 "text"
+                  HTML_TAG@20..29
+                    HTML_STARTING_TAG@20..29
+                      TK_LESS_THAN@20..21 "<"
+                      TK_WORD@21..27 "custom"
+                      TK_SLASH_GREATER_THAN@27..29 "/>""#]],
         );
     }
 
@@ -766,8 +756,7 @@ mod tests {
                     HTML_ENDING_TAG@30..36
                       TK_LESS_THAN_SLASH@30..32 "</"
                       TK_WORD@32..35 "div"
-                      TK_GREATER_THAN@35..36 ">"
-                parsing consumed all tokens: true"#]],
+                      TK_GREATER_THAN@35..36 ">""#]],
         );
     }
 
@@ -797,8 +786,7 @@ mod tests {
                     HTML_ENDING_TAG@25..31
                       TK_LESS_THAN_SLASH@25..27 "</"
                       TK_WORD@27..30 "div"
-                      TK_GREATER_THAN@30..31 ">"
-                parsing consumed all tokens: true"##]],
+                      TK_GREATER_THAN@30..31 ">""##]],
         );
     }
 
@@ -843,8 +831,7 @@ mod tests {
                     HTML_ENDING_TAG@58..64
                       TK_LESS_THAN_SLASH@58..60 "</"
                       TK_WORD@60..63 "div"
-                      TK_GREATER_THAN@63..64 ">"
-                parsing consumed all tokens: true"#]],
+                      TK_GREATER_THAN@63..64 ">""#]],
         );
     }
 
@@ -894,8 +881,7 @@ mod tests {
                     TK_WORD@52..55 "div"
                   ERROR@55..56
                     TK_GREATER_THAN@55..56 ">"
-                parsing consumed all tokens: true
-                error at 29..29: expected {%, endblock, word, {%, {{, {# or {%, but found <
+                error at 29..29: expected error, {%, endblock, word, {%, {{, {# or {%, but found <
                 error at 29..29: expected endblock, but found <
                 error at 29..29: expected %}, but found <
                 error at 29..29: expected word, {%, {{, {#, /> or >, but found <
@@ -972,8 +958,7 @@ mod tests {
                     HTML_ENDING_TAG@105..111
                       TK_LESS_THAN_SLASH@105..107 "</"
                       TK_WORD@107..110 "div"
-                      TK_GREATER_THAN@110..111 ">"
-                parsing consumed all tokens: true"#]],
+                      TK_GREATER_THAN@110..111 ">""#]],
         );
     }
 
@@ -997,12 +982,41 @@ mod tests {
                             ERROR@7..8
                               ERROR@7..8 "%"
                     BODY@8..8
-                parsing consumed all tokens: true
                 error at 5..5: expected ", but found {%
                 error at 7..7: expected block or if, but found error
                 error at 7..7: expected "
                 error at 7..7: expected word, {%, {{, {#, /> or >
-                error at 7..7: expected </, {%, {{, {#, <, word or <!--"#]],
+                error at 7..7: expected </ or error"#]],
         );
+    }
+
+    #[test]
+    fn parse_html_tag_with_invalid_body() {
+        check_parse(
+            "<div> \\t invalid error token </div>",
+            expect![[r#"
+                ROOT@0..35
+                  HTML_TAG@0..35
+                    HTML_STARTING_TAG@0..5
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      TK_GREATER_THAN@4..5 ">"
+                    BODY@5..28
+                      TK_WHITESPACE@5..6 " "
+                      ERROR@6..7 "\\"
+                      HTML_TEXT@7..28
+                        TK_WORD@7..8 "t"
+                        TK_WHITESPACE@8..9 " "
+                        TK_WORD@9..16 "invalid"
+                        TK_WHITESPACE@16..17 " "
+                        TK_WORD@17..22 "error"
+                        TK_WHITESPACE@22..23 " "
+                        TK_WORD@23..28 "token"
+                    HTML_ENDING_TAG@28..35
+                      TK_WHITESPACE@28..29 " "
+                      TK_LESS_THAN_SLASH@29..31 "</"
+                      TK_WORD@31..34 "div"
+                      TK_GREATER_THAN@34..35 ">""#]],
+        )
     }
 }

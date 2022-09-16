@@ -59,14 +59,13 @@ pub fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
 
 fn run_analysis(path: PathBuf, original_file_content: String, cli_context: Arc<CliContext>) {
     let parse = ludtwig_parser::parse(&original_file_content);
-    // TODO: also use the parse errors!
     let root = SyntaxNode::new_root(parse.green_node);
 
     let apply_suggestions = cli_context.fix;
     let file_context = FileContext {
         cli_context,
         file_path: path,
-        source_code: root.text().to_string(),
+        source_code: original_file_content,
         tree_root: root,
         parse_errors: parse.errors,
     };
@@ -82,13 +81,16 @@ fn run_analysis(path: PathBuf, original_file_content: String, cli_context: Arc<C
 
     // apply suggestions if needed
     let (file_context, rule_result_context) = if apply_suggestions {
-        let (file_context, rule_result_context, dirty) =
+        let (file_context, rule_result_context, dirty, iterations) =
             iteratively_apply_suggestions(&active_rules, file_context, rule_result_context);
         if dirty {
             // Todo: better error handling -> maybe other files can be written
             fs::write(&file_context.file_path, &file_context.source_code)
                 .expect("Can't write back into file");
-            println!("fixed {:?}", &file_context.file_path);
+            println!(
+                "fixed {:?} in {} iterations",
+                &file_context.file_path, iterations
+            );
         }
 
         (file_context, rule_result_context)
@@ -100,15 +102,15 @@ fn run_analysis(path: PathBuf, original_file_content: String, cli_context: Arc<C
     let writer = BufferWriter::stderr(ColorChoice::Always);
     let mut buffer = writer.buffer();
     produce_diagnostics(&file_context, rule_result_context, &mut buffer);
-    writer.print(&buffer).unwrap();
+    file_context.send_processing_output(ProcessingEvent::OutputStderrMessage(buffer));
 }
 
 pub fn iteratively_apply_suggestions(
     active_rules: &Vec<&(dyn Rule + Sync)>,
     file_context: FileContext,
     rule_result_context: RuleContext,
-) -> (FileContext, RuleContext, bool) {
-    let mut current_results = (file_context, rule_result_context, false);
+) -> (FileContext, RuleContext, bool, usize) {
+    let mut current_results = (file_context, rule_result_context, false, 0);
 
     // try at maximum 10 parsing iterations
     for _ in 0..10 {
@@ -154,7 +156,6 @@ pub fn iteratively_apply_suggestions(
         // Parse the new source code again
         let new_parse = ludtwig_parser::parse(&source_code);
         let tree_root = SyntaxNode::new_root(new_parse.green_node);
-        let source_code = tree_root.text().to_string();
 
         let file_context = FileContext {
             source_code,
@@ -165,7 +166,12 @@ pub fn iteratively_apply_suggestions(
 
         // Run all rules again
         let rule_result_context = run_rules(active_rules, &file_context);
-        current_results = (file_context, rule_result_context, current_results.2);
+        current_results = (
+            file_context,
+            rule_result_context,
+            current_results.2,
+            current_results.3 + 1,
+        );
     }
 
     current_results

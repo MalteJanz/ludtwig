@@ -81,10 +81,15 @@ impl<'source> Sink<'source> {
             }
         }
 
+        assert_eq!(
+            self.cursor,
+            self.tokens.len(),
+            "Parser did not consume all tokens! This is a error in the parsing logic!"
+        );
+
         Parse {
             green_node: self.builder.finish(),
             errors: self.errors,
-            finished: self.cursor == self.tokens.len(),
         }
     }
 
@@ -177,6 +182,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Parser did not consume all tokens!")]
     fn sink_non_reported_token_by_parser() {
         let tokens = vec![
             Token::new_wrong_range(T![ws], "  "),
