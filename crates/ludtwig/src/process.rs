@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::fs;
-use std::io::{self, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -9,9 +8,10 @@ use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 use ludtwig_parser::ParseError;
 
-use crate::check::rule::{CheckSuggestion, Rule, RuleContext, Severity};
+use crate::check::rule::{CheckSuggestion, Rule, RuleContext};
 use crate::check::rules::get_active_rules;
 use crate::check::{get_rule_context_suggestions, produce_diagnostics, run_rules};
+use crate::error::FileProcessingError;
 use crate::output::ProcessingEvent;
 use crate::CliContext;
 
@@ -38,26 +38,28 @@ impl FileContext {
 }
 
 /// Process a single file with it's filepath.
-pub fn process_file(path: PathBuf, cli_context: Arc<CliContext>) {
+pub fn process_file(
+    path: PathBuf,
+    cli_context: Arc<CliContext>,
+) -> Result<(), FileProcessingError> {
     // notify the output about this file (to increase the processed file counter)
     cli_context.send_processing_output(ProcessingEvent::FileProcessed);
 
     let file_content = match fs::read_to_string(&path) {
-        Ok(f) => f,
-        Err(_) => {
-            io::stderr()
-                .write_all(format!("Can't read file {}", path.to_string_lossy()).as_bytes())
-                .unwrap();
-            cli_context.send_processing_output(ProcessingEvent::Report(Severity::Error));
-
-            return;
+        Ok(content) => content,
+        Err(e) => {
+            return Err(FileProcessingError::FileRead { path, io_error: e });
         }
     };
 
-    run_analysis(path, file_content, cli_context);
+    run_analysis(path, file_content, cli_context)
 }
 
-fn run_analysis(path: PathBuf, original_file_content: String, cli_context: Arc<CliContext>) {
+fn run_analysis(
+    path: PathBuf,
+    original_file_content: String,
+    cli_context: Arc<CliContext>,
+) -> Result<(), FileProcessingError> {
     let parse = ludtwig_parser::parse(&original_file_content);
     let root = SyntaxNode::new_root(parse.green_node);
 
@@ -82,11 +84,20 @@ fn run_analysis(path: PathBuf, original_file_content: String, cli_context: Arc<C
     // apply suggestions if needed
     let (file_context, rule_result_context) = if apply_suggestions {
         let (file_context, rule_result_context, dirty, iterations) =
-            iteratively_apply_suggestions(&active_rules, file_context, rule_result_context);
+            match iteratively_apply_suggestions(&active_rules, file_context, rule_result_context) {
+                Ok(val) => val,
+                Err(e) => return Err(e),
+            };
         if dirty {
-            // Todo: better error handling -> maybe other files can be written
-            fs::write(&file_context.file_path, &file_context.source_code)
-                .expect("Can't write back into file");
+            match fs::write(&file_context.file_path, &file_context.source_code) {
+                Ok(_) => {}
+                Err(e) => {
+                    return Err(FileProcessingError::FileWrite {
+                        path: file_context.file_path,
+                        io_error: e,
+                    })
+                }
+            };
             println!(
                 "fixed {:?} in {} iterations",
                 &file_context.file_path, iterations
@@ -103,18 +114,23 @@ fn run_analysis(path: PathBuf, original_file_content: String, cli_context: Arc<C
     let mut buffer = writer.buffer();
     produce_diagnostics(&file_context, rule_result_context, &mut buffer);
     file_context.send_processing_output(ProcessingEvent::OutputStderrMessage(buffer));
+
+    Ok(())
 }
 
 pub fn iteratively_apply_suggestions(
     active_rules: &Vec<&(dyn Rule + Sync)>,
     file_context: FileContext,
     rule_result_context: RuleContext,
-) -> (FileContext, RuleContext, bool, usize) {
+) -> Result<(FileContext, RuleContext, bool, usize), FileProcessingError> {
     let mut current_results = (file_context, rule_result_context, false, 0);
 
     // try at maximum 10 parsing iterations
-    for _ in 0..10 {
-        // get all the suggestions
+    for i in 0..10 {
+        if i >= 9 {
+            return Err(FileProcessingError::MaxApplyIteration);
+        }
+
         let mut suggestions = get_rule_context_suggestions(&current_results.1);
         if suggestions.is_empty() {
             break;
@@ -126,18 +142,18 @@ pub fn iteratively_apply_suggestions(
 
         // filter out overlapping suggestions
         let mut overlapping_rules = HashSet::new();
-        suggestions.iter().zip(suggestions.iter().skip(1)).for_each(
-            |((rule_a, sug_a), (rule_b, sug_b))| {
-                if sug_a.syntax_range.ordering(sug_b.syntax_range).is_eq() {
-                    if rule_a == rule_b {
-                        // TODO: better error handling -> all other file threads can continue?
-                        panic!("Suggestion collision inside the same rule, check rule {} or write bug report", rule_a);
-                    }
-
-                    overlapping_rules.insert(*rule_b);
+        for ((rule_a, sug_a), (rule_b, sug_b)) in suggestions.iter().zip(suggestions.iter().skip(1))
+        {
+            if sug_a.syntax_range.ordering(sug_b.syntax_range).is_eq() {
+                if rule_a == rule_b {
+                    return Err(FileProcessingError::OverlappingSuggestionInSingleRule {
+                        rule_name: rule_a.to_string(),
+                    });
                 }
-            },
-        );
+
+                overlapping_rules.insert(*rule_b);
+            }
+        }
         let suggestions = suggestions
             .into_iter()
             .filter_map(|(rule, suggestion)| {
@@ -174,7 +190,7 @@ pub fn iteratively_apply_suggestions(
         );
     }
 
-    current_results
+    Ok(current_results)
 }
 
 fn apply_suggestions_to_text(

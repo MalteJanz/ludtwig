@@ -131,7 +131,8 @@ pub mod test {
         let (file_context, rule_result_context, active_rules, rx) =
             debug_rule(rule_name, source_code);
         let (file_context, _, dirty, iteration) =
-            iteratively_apply_suggestions(&active_rules, file_context, rule_result_context);
+            iteratively_apply_suggestions(&active_rules, file_context, rule_result_context)
+                .unwrap();
 
         expected_source_code.assert_eq(&file_context.source_code);
         assert!(dirty);

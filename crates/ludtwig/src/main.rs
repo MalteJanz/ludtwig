@@ -5,6 +5,7 @@ use std::sync::mpsc::SyncSender;
 use std::sync::{mpsc, Arc};
 use std::thread;
 
+use crate::check::rule::Severity;
 use clap::Parser;
 use walkdir::{DirEntry, WalkDir};
 
@@ -13,6 +14,7 @@ use crate::output::ProcessingEvent;
 
 mod check;
 mod config;
+mod error;
 mod output;
 mod process;
 
@@ -132,7 +134,14 @@ fn handle_input_path(path: PathBuf, cli_context: Arc<CliContext>) {
     // synchronous directory traversal but move the work for each file to a different thread in the thread pool.
     rayon::scope(move |s| {
         for entry in walker.filter_entry(is_not_hidden) {
-            let entry = entry.expect("error walking over the specified file path");
+            let entry = match entry {
+                Ok(e) => e,
+                Err(e) => {
+                    println!("Error: walking over the file path: {}", e);
+                    cli_context.send_processing_output(ProcessingEvent::Report(Severity::Error));
+                    continue;
+                }
+            };
 
             if !entry.file_type().is_file() {
                 continue;
@@ -145,7 +154,17 @@ fn handle_input_path(path: PathBuf, cli_context: Arc<CliContext>) {
             }
 
             let clone = Arc::clone(&cli_context);
-            s.spawn(move |_s1| process::process_file(entry.path().into(), clone));
+            let error_clone = Arc::clone(&cli_context);
+            s.spawn(
+                move |_s1| match process::process_file(entry.path().into(), clone) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        error_clone
+                            .send_processing_output(ProcessingEvent::Report(Severity::Error));
+                        println!("Error: {}", e)
+                    }
+                },
+            );
         }
     });
 }
