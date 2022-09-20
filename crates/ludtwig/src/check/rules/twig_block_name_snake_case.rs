@@ -2,10 +2,15 @@ use ludtwig_parser::syntax::typed::{AstNode, TwigStartingBlock};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 
 use crate::check::rule::{Rule, RuleContext, Severity};
+use crate::Config;
 
 pub struct RuleTwigBlockNameSnakeCase;
 
 impl Rule for RuleTwigBlockNameSnakeCase {
+    fn new(_config: &Config) -> Self {
+        Self
+    }
+
     fn name(&self) -> &'static str {
         "twig-block-name-snake-case"
     }

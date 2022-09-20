@@ -1,14 +1,29 @@
-use once_cell::sync::OnceCell;
 use regex::Regex;
 
 use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxToken, TextRange, TextSize};
 
 use crate::check::rule::{Rule, RuleContext, Severity};
 use crate::config::LineEnding;
+use crate::Config;
 
-pub struct RuleLineEnding;
+pub struct RuleLineEnding {
+    invalid_regex: Regex,
+}
 
 impl Rule for RuleLineEnding {
+    fn new(config: &Config) -> Self {
+        let invalid_regex = Regex::new(&format!(
+            r#"({})"#,
+            match config.format.line_ending {
+                LineEnding::UnixLF => "\r\n", // inverse: look for windows line endings
+                LineEnding::WindowsCRLF => "[^\r]?\n", // inverse: look for unix line endings
+            }
+        ))
+        .unwrap();
+
+        Self { invalid_regex }
+    }
+
     fn name(&self) -> &'static str {
         "line-ending"
     }
@@ -21,20 +36,7 @@ impl Rule for RuleLineEnding {
         let correct_line_ending = ctx.config().format.line_ending.corresponding_string();
         let message = format!("use {} instead", ctx.config().format.line_ending);
 
-        // TODO: maybe consider a setup function for rules to initialize data based on context before iterating
-        static REGEX: OnceCell<Regex> = OnceCell::new();
-        let invalid_regex = REGEX.get_or_init(|| {
-            Regex::new(&format!(
-                r#"({})"#,
-                match ctx.config().format.line_ending {
-                    LineEnding::UnixLF => "\r\n", // inverse: look for windows line endings
-                    LineEnding::WindowsCRLF => "[^\r]?\n", // inverse: look for unix line endings
-                }
-            ))
-            .unwrap()
-        });
-
-        for invalid in invalid_regex.find_iter(token.text()) {
+        for invalid in self.invalid_regex.find_iter(token.text()) {
             let range = TextRange::new(
                 token.text_range().start() + TextSize::from(invalid.start() as u32),
                 token.text_range().start() + TextSize::from(invalid.end() as u32),

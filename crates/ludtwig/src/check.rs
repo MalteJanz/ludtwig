@@ -10,24 +10,21 @@ use ludtwig_parser::syntax::typed;
 use ludtwig_parser::syntax::typed::AstNode;
 use ludtwig_parser::syntax::untyped::{debug_tree, SyntaxElement, WalkEvent};
 
-use crate::check::rule::{CheckSuggestion, Rule, RuleContext, Severity};
+use crate::check::rule::{CheckSuggestion, RuleContext, Severity};
 use crate::process::FileContext;
 use crate::ProcessingEvent;
 
 pub mod rule;
 pub mod rules;
 
-pub fn run_rules(
-    active_rules: &Vec<&(dyn Rule + Sync)>,
-    file_context: &FileContext,
-) -> RuleContext {
+pub fn run_rules(file_context: &FileContext) -> RuleContext {
     let mut ctx = RuleContext {
         check_results: vec![],
         cli_context: Arc::clone(&file_context.cli_context),
     };
 
     // run root node checks once for each rule
-    for rule in active_rules {
+    for rule in &file_context.cli_context.rule_definitions {
         rule.check_root(file_context.tree_root.clone(), &mut ctx);
     }
 
@@ -44,13 +41,13 @@ pub fn run_rules(
                     }
 
                     // run node checks for every rule
-                    for rule in active_rules {
+                    for rule in &file_context.cli_context.rule_definitions {
                         rule.check_node(n.clone(), &mut ctx);
                     }
                 }
                 SyntaxElement::Token(t) => {
                     // run token checks for every rule
-                    for rule in active_rules {
+                    for rule in &file_context.cli_context.rule_definitions {
                         rule.check_token(t.clone(), &mut ctx);
                     }
                 }

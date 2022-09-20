@@ -1,10 +1,25 @@
+use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
 use ludtwig_parser::syntax::untyped::{SyntaxNode, SyntaxToken, TextRange};
 
 use crate::{CliContext, Config};
 
+pub type RuleDefinition = dyn Rule + Send + Sync + 'static;
+
+impl Debug for RuleDefinition {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RuleDefinition: {}", self.name())
+    }
+}
+
 pub trait Rule {
+    /// Constructor of the rule, which may initialize Data based on the config.
+    /// This is advisable instead of doing it every time in a hot loop (init a Regex for example)
+    fn new(config: &Config) -> Self
+    where
+        Self: Sized + Send + Sync + 'static;
+
     /// A unique, kebab-case name for the rule.
     fn name(&self) -> &'static str;
 
@@ -31,6 +46,8 @@ pub trait Rule {
     }
 
     /// Called once with the root untyped node in the syntax tree.
+    /// Be Careful: when iterating you should most likely skip SyntaxKind::Error Nodes!
+    ///
     /// The conversion to a typed AST node can be made at any time with a simple call to cast.
     /// Defaults to doing nothing.
     ///

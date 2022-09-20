@@ -47,3 +47,21 @@ impl Error for FileProcessingError {
         }
     }
 }
+
+/// Error related to configuration
+#[derive(Debug)]
+pub enum ConfigurationError {
+    RuleNotFound { name: String },
+}
+
+impl Display for ConfigurationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConfigurationError::RuleNotFound { name } => {
+                write!(f, "Can't find active rule {}", name)
+            }
+        }
+    }
+}
+
+impl Error for ConfigurationError {}

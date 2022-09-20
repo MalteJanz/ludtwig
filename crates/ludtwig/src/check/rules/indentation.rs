@@ -3,10 +3,15 @@ use ludtwig_parser::syntax::untyped::{
 };
 
 use crate::check::rule::{Rule, RuleContext, Severity};
+use crate::Config;
 
 pub struct RuleIndentation;
 
 impl Rule for RuleIndentation {
+    fn new(_config: &Config) -> Self {
+        Self
+    }
+
     fn name(&self) -> &'static str {
         "indentation"
     }
@@ -16,10 +21,14 @@ impl Rule for RuleIndentation {
         let mut indentation = 0;
         let indent_block_children = ctx.config().format.indent_children_of_blocks;
 
-        for walk in node.preorder_with_tokens() {
+        let mut tree_iter = node.preorder_with_tokens();
+        while let Some(walk) = tree_iter.next() {
             match walk {
                 WalkEvent::Enter(element) => {
                     match element {
+                        SyntaxElement::Node(n) if n.kind() == SyntaxKind::ERROR => {
+                            tree_iter.skip_subtree(); // Skip everything under error nodes!
+                        }
                         SyntaxElement::Token(t) if t.kind() == SyntaxKind::TK_LINE_BREAK => {
                             line_break_encountered = true;
                         }

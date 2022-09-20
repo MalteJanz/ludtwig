@@ -1,14 +1,12 @@
-use std::io;
-use std::io::Write;
-
-use crate::check::rule::{Rule, Severity};
+use crate::check::rule::Rule;
 use crate::check::rules::html_attribute_name_kebab_case::RuleHtmlAttributeNameKebabCase;
 use crate::check::rules::indentation::RuleIndentation;
 use crate::check::rules::line_ending::RuleLineEnding;
 use crate::check::rules::twig_block_line_breaks::RuleTwigBlockLineBreaks;
 use crate::check::rules::twig_block_name_snake_case::RuleTwigBlockNameSnakeCase;
 use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
-use crate::{CliContext, ProcessingEvent};
+use crate::error::ConfigurationError;
+use crate::{Config, RuleDefinition};
 
 mod html_attribute_name_kebab_case;
 mod indentation;
@@ -18,26 +16,32 @@ mod twig_block_name_snake_case;
 mod whitespace_between_line_breaks;
 
 /// List of all rule trait objects, also add them to the `active-rules` in `ludtwig-config.toml`!
-pub static RULES: &[&(dyn Rule + Sync)] = &[
-    &RuleWhitespaceBetweenLineBreaks,
-    &RuleLineEnding,
-    &RuleIndentation,
-    &RuleTwigBlockLineBreaks,
-    &RuleTwigBlockNameSnakeCase,
-    &RuleHtmlAttributeNameKebabCase,
-];
+fn get_all_rule_definitions(config: &Config) -> Vec<Box<RuleDefinition>> {
+    vec![
+        Box::new(RuleWhitespaceBetweenLineBreaks::new(config)),
+        Box::new(RuleLineEnding::new(config)),
+        Box::new(RuleIndentation::new(config)),
+        Box::new(RuleTwigBlockLineBreaks::new(config)),
+        Box::new(RuleTwigBlockNameSnakeCase::new(config)),
+        Box::new(RuleHtmlAttributeNameKebabCase::new(config)),
+    ]
+}
 
-pub fn get_active_rules(
-    config_active_rules: &[String],
-    cli_context: &CliContext,
-) -> Vec<&'static (dyn Rule + Sync)> {
+pub fn get_active_rule_definitions(
+    config: &Config,
+) -> Result<Vec<Box<RuleDefinition>>, ConfigurationError> {
     // gather active rules
-    let config_active_rules: Vec<&str> = config_active_rules.iter().map(String::as_ref).collect();
-    let active_rules: Vec<&(dyn Rule + Sync)> = RULES
+    let config_active_rules: Vec<&str> = config
+        .general
+        .active_rules
         .iter()
+        .map(String::as_ref)
+        .collect();
+    let active_rules: Vec<Box<RuleDefinition>> = get_all_rule_definitions(config)
+        .into_iter()
         .filter_map(|r| {
             if config_active_rules.contains(&r.name()) {
-                Some(*r)
+                Some(r)
             } else {
                 None
             }
@@ -54,13 +58,13 @@ pub fn get_active_rules(
         }
 
         if !found {
-            io::stderr()
-                .write_all(format!("Can't find active rule {}\n", config_rule).as_bytes())
-                .unwrap();
-            cli_context.send_processing_output(ProcessingEvent::Report(Severity::Error));
+            return Err(ConfigurationError::RuleNotFound {
+                name: config_rule.to_string(),
+            });
         }
     }
-    active_rules
+
+    Ok(active_rules)
 }
 
 #[cfg(test)]
@@ -75,8 +79,8 @@ pub mod test {
     use ludtwig_parser::syntax::untyped::SyntaxNode;
 
     use crate::check::produce_diagnostics;
-    use crate::check::rule::{Rule, RuleContext};
-    use crate::check::rules::RULES;
+    use crate::check::rule::RuleContext;
+    use crate::check::rules::get_all_rule_definitions;
     use crate::check::run_rules;
     use crate::process::{iteratively_apply_suggestions, FileContext};
     use crate::{CliContext, Config, ProcessingEvent};
@@ -84,13 +88,13 @@ pub mod test {
     fn debug_rule(
         rule_name: &str,
         source_code: &str,
-    ) -> (
-        FileContext,
-        RuleContext,
-        Vec<&'static (dyn Rule + Sync)>,
-        Receiver<ProcessingEvent>,
-    ) {
-        let rule = *RULES.iter().find(|r| r.name() == rule_name).unwrap();
+    ) -> (FileContext, RuleContext, Receiver<ProcessingEvent>) {
+        let config = Config::new(crate::config::DEFAULT_CONFIG_PATH).unwrap();
+
+        let rule = get_all_rule_definitions(&config)
+            .into_iter()
+            .find(|r| r.name() == rule_name)
+            .unwrap();
         let (tx, rx) = mpsc::sync_channel(256);
         let parse = parse(source_code);
 
@@ -100,7 +104,8 @@ pub mod test {
                 fix: false,
                 inspect: false,
                 output_path: None,
-                config: Config::new(crate::config::DEFAULT_CONFIG_PATH).unwrap(),
+                config,
+                rule_definitions: vec![rule],
             }),
             file_path: PathBuf::from("./debug-rule.html.twig"),
             tree_root: SyntaxNode::new_root(parse.green_node),
@@ -108,15 +113,13 @@ pub mod test {
             parse_errors: parse.errors,
         };
 
-        let active_rules = vec![rule];
+        let rule_result_context = run_rules(&file_context);
 
-        let rule_result_context = run_rules(&active_rules, &file_context);
-
-        (file_context, rule_result_context, active_rules, rx)
+        (file_context, rule_result_context, rx)
     }
 
     pub fn test_rule(rule_name: &str, source_code: &str, expected_report: expect_test::Expect) {
-        let (file_context, rule_result_context, _, rx) = debug_rule(rule_name, source_code);
+        let (file_context, rule_result_context, rx) = debug_rule(rule_name, source_code);
         let mut buffer = Buffer::no_color();
         produce_diagnostics(&file_context, rule_result_context, &mut buffer);
         expected_report.assert_eq(&String::from_utf8_lossy(buffer.as_slice()));
@@ -128,11 +131,9 @@ pub mod test {
         source_code: &str,
         expected_source_code: expect_test::Expect,
     ) {
-        let (file_context, rule_result_context, active_rules, rx) =
-            debug_rule(rule_name, source_code);
+        let (file_context, rule_result_context, rx) = debug_rule(rule_name, source_code);
         let (file_context, _, dirty, iteration) =
-            iteratively_apply_suggestions(&active_rules, file_context, rule_result_context)
-                .unwrap();
+            iteratively_apply_suggestions(file_context, rule_result_context).unwrap();
 
         expected_source_code.assert_eq(&file_context.source_code);
         assert!(dirty);

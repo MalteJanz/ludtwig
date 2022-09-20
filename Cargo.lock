@@ -416,7 +416,6 @@ dependencies = [
  "expect-test",
  "figment",
  "ludtwig-parser",
- "once_cell",
  "rayon",
  "regex",
  "serde",

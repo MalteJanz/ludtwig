@@ -5,7 +5,8 @@ use std::sync::mpsc::SyncSender;
 use std::sync::{mpsc, Arc};
 use std::thread;
 
-use crate::check::rule::Severity;
+use crate::check::rule::{RuleDefinition, Severity};
+use crate::check::rules::get_active_rule_definitions;
 use clap::Parser;
 use walkdir::{DirEntry, WalkDir};
 
@@ -66,6 +67,8 @@ pub struct CliContext {
     pub output_path: Option<PathBuf>,
     /// The config values to use.
     pub config: Config,
+    /// Active rule definitions
+    pub rule_definitions: Vec<Box<RuleDefinition>>,
 }
 
 impl CliContext {
@@ -94,12 +97,22 @@ fn app(opts: Opts, config: Config) -> i32 {
     // this limit should be fine for one thread continuously processing the incoming messages from the channel.
     let (tx, rx) = mpsc::sync_channel(32);
 
+    // construct active rules
+    let active_rules = match get_active_rule_definitions(&config) {
+        Ok(rules) => rules,
+        Err(e) => {
+            println!("Error: {}", e);
+            return 1;
+        }
+    };
+
     let cli_context = Arc::new(CliContext {
         output_tx: tx,
         fix: opts.fix,
         inspect: opts.inspect,
         output_path: opts.output_path,
         config,
+        rule_definitions: active_rules,
     });
 
     let output_handler = thread::spawn(|| output::handle_processing_output(rx));
@@ -114,7 +127,7 @@ fn app(opts: Opts, config: Config) -> i32 {
     // the output_handler will finish execution if all the tx (sending channel) ends are closed.
     output_handler
         .join()
-        .expect("can't join output_handler thread")
+        .expect("Error: can't join output_handler thread")
 }
 
 /// filters out hidden directories or files

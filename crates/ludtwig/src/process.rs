@@ -8,8 +8,7 @@ use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 use ludtwig_parser::ParseError;
 
-use crate::check::rule::{CheckSuggestion, Rule, RuleContext};
-use crate::check::rules::get_active_rules;
+use crate::check::rule::{CheckSuggestion, RuleContext};
 use crate::check::{get_rule_context_suggestions, produce_diagnostics, run_rules};
 use crate::error::FileProcessingError;
 use crate::output::ProcessingEvent;
@@ -72,19 +71,13 @@ fn run_analysis(
         parse_errors: parse.errors,
     };
 
-    // get active rules
-    let active_rules = get_active_rules(
-        &file_context.cli_context.config.general.active_rules,
-        &file_context.cli_context,
-    );
-
     // run all the rules
-    let rule_result_context = run_rules(&active_rules, &file_context);
+    let rule_result_context = run_rules(&file_context);
 
     // apply suggestions if needed
     let (file_context, rule_result_context) = if apply_suggestions {
         let (file_context, rule_result_context, dirty, iterations) =
-            match iteratively_apply_suggestions(&active_rules, file_context, rule_result_context) {
+            match iteratively_apply_suggestions(file_context, rule_result_context) {
                 Ok(val) => val,
                 Err(e) => return Err(e),
             };
@@ -119,7 +112,6 @@ fn run_analysis(
 }
 
 pub fn iteratively_apply_suggestions(
-    active_rules: &Vec<&(dyn Rule + Sync)>,
     file_context: FileContext,
     rule_result_context: RuleContext,
 ) -> Result<(FileContext, RuleContext, bool, usize), FileProcessingError> {
@@ -181,7 +173,7 @@ pub fn iteratively_apply_suggestions(
         };
 
         // Run all rules again
-        let rule_result_context = run_rules(active_rules, &file_context);
+        let rule_result_context = run_rules(&file_context);
         current_results = (
             file_context,
             rule_result_context,
