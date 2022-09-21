@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
 
@@ -17,7 +16,7 @@ use crate::CliContext;
 /// The context for a single file.
 #[derive(Debug)]
 pub struct FileContext {
-    pub cli_context: Arc<CliContext>,
+    pub cli_context: CliContext,
 
     /// The file path that is associated with this context
     pub file_path: PathBuf,
@@ -37,10 +36,7 @@ impl FileContext {
 }
 
 /// Process a single file with it's filepath.
-pub fn process_file(
-    path: PathBuf,
-    cli_context: Arc<CliContext>,
-) -> Result<(), FileProcessingError> {
+pub fn process_file(path: PathBuf, cli_context: CliContext) -> Result<(), FileProcessingError> {
     // notify the output about this file (to increase the processed file counter)
     cli_context.send_processing_output(ProcessingEvent::FileProcessed);
 
@@ -57,12 +53,12 @@ pub fn process_file(
 fn run_analysis(
     path: PathBuf,
     original_file_content: String,
-    cli_context: Arc<CliContext>,
+    cli_context: CliContext,
 ) -> Result<(), FileProcessingError> {
     let parse = ludtwig_parser::parse(&original_file_content);
     let root = SyntaxNode::new_root(parse.green_node);
 
-    let apply_suggestions = cli_context.fix;
+    let apply_suggestions = cli_context.data.fix;
     let file_context = FileContext {
         cli_context,
         file_path: path,

@@ -1,5 +1,4 @@
 use std::borrow::Borrow;
-use std::sync::Arc;
 
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::SimpleFiles;
@@ -20,11 +19,11 @@ pub mod rules;
 pub fn run_rules(file_context: &FileContext) -> RuleContext {
     let mut ctx = RuleContext {
         check_results: vec![],
-        cli_context: Arc::clone(&file_context.cli_context),
+        cli_context: file_context.cli_context.clone(),
     };
 
     // run root node checks once for each rule
-    for rule in &file_context.cli_context.rule_definitions {
+    for rule in &file_context.cli_context.data.rule_definitions {
         rule.check_root(file_context.tree_root.clone(), &mut ctx);
     }
 
@@ -41,13 +40,13 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
                     }
 
                     // run node checks for every rule
-                    for rule in &file_context.cli_context.rule_definitions {
+                    for rule in &file_context.cli_context.data.rule_definitions {
                         rule.check_node(n.clone(), &mut ctx);
                     }
                 }
                 SyntaxElement::Token(t) => {
                     // run token checks for every rule
-                    for rule in &file_context.cli_context.rule_definitions {
+                    for rule in &file_context.cli_context.data.rule_definitions {
                         rule.check_token(t.clone(), &mut ctx);
                     }
                 }
@@ -85,7 +84,7 @@ pub fn produce_diagnostics(
         ..Default::default()
     };
 
-    if file_context.cli_context.inspect {
+    if file_context.cli_context.data.inspect {
         // notify output about this
         file_context.send_processing_output(ProcessingEvent::Report(Severity::Info));
 

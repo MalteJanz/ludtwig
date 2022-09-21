@@ -7,6 +7,7 @@ members = [
 [profile.release]
 lto = "thin" # does increase runtime performance for longer build times
 # benchmark between "thin" and "fat"/true and pick better performing one (thin compile faster)
+# debug = true # for profiling
 
 # temporary fix of rowan prev_sibling function with modified repo ( https://github.com/rust-analyzer/rowan/issues/139 )
 # [patch.'crates-io']

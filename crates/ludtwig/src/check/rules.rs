@@ -83,7 +83,7 @@ pub mod test {
     use crate::check::rules::get_all_rule_definitions;
     use crate::check::run_rules;
     use crate::process::{iteratively_apply_suggestions, FileContext};
-    use crate::{CliContext, Config, ProcessingEvent};
+    use crate::{CliContext, CliSharedData, Config, ProcessingEvent};
 
     fn debug_rule(
         rule_name: &str,
@@ -95,18 +95,20 @@ pub mod test {
             .into_iter()
             .find(|r| r.name() == rule_name)
             .unwrap();
-        let (tx, rx) = mpsc::sync_channel(256);
+        let (tx, rx) = mpsc::channel();
         let parse = parse(source_code);
 
         let file_context = FileContext {
-            cli_context: Arc::new(CliContext {
+            cli_context: CliContext {
                 output_tx: tx,
-                fix: false,
-                inspect: false,
-                output_path: None,
-                config,
-                rule_definitions: vec![rule],
-            }),
+                data: Arc::new(CliSharedData {
+                    fix: false,
+                    inspect: false,
+                    output_path: None,
+                    config,
+                    rule_definitions: vec![rule],
+                }),
+            },
             file_path: PathBuf::from("./debug-rule.html.twig"),
             tree_root: SyntaxNode::new_root(parse.green_node),
             source_code: source_code.to_owned(),

@@ -1,5 +1,4 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
 
 use ludtwig_parser::syntax::untyped::{SyntaxNode, SyntaxToken, TextRange};
 
@@ -64,7 +63,7 @@ pub struct RuleContext {
     // file_id
     // source_text
     pub(super) check_results: Vec<CheckResult>,
-    pub(super) cli_context: Arc<CliContext>,
+    pub(super) cli_context: CliContext,
 }
 
 impl RuleContext {
@@ -88,7 +87,7 @@ impl RuleContext {
     }
 
     pub fn config(&self) -> &Config {
-        &self.cli_context.config
+        &self.cli_context.data.config
     }
 }
 

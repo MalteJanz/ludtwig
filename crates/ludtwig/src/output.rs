@@ -43,6 +43,7 @@ pub fn handle_processing_output(rx: Receiver<ProcessingEvent>) -> i32 {
             }
         }
     }
+
     drop(stderr_writer); // finish writing to stderr
 
     let conclusion_msg = format!(

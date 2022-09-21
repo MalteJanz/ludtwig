@@ -1,7 +1,7 @@
 extern crate core;
 
 use std::path::PathBuf;
-use std::sync::mpsc::SyncSender;
+use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc};
 use std::thread;
 
@@ -55,10 +55,17 @@ pub struct Opts {
     create_config: bool,
 }
 
+/// Context to pass to every processing thead (can be cloned)
 #[derive(Debug)]
 pub struct CliContext {
     /// Channel sender for transmitting messages back to the CLI.
-    pub output_tx: SyncSender<ProcessingEvent>,
+    pub output_tx: Sender<ProcessingEvent>,
+    /// Shared Data
+    pub data: Arc<CliSharedData>,
+}
+
+#[derive(Debug)]
+pub struct CliSharedData {
     /// Apply all code suggestions automatically. This changes the original files!
     pub fix: bool,
     /// Print out the parsed syntax tree for each file
@@ -69,6 +76,15 @@ pub struct CliContext {
     pub config: Config,
     /// Active rule definitions
     pub rule_definitions: Vec<Box<RuleDefinition>>,
+}
+
+impl Clone for CliContext {
+    fn clone(&self) -> Self {
+        Self {
+            output_tx: self.output_tx.clone(),
+            data: Arc::clone(&self.data),
+        }
+    }
 }
 
 impl CliContext {
@@ -93,9 +109,7 @@ fn app(opts: Opts, config: Config) -> i32 {
     println!("Scanning files...");
 
     // sender and receiver channels for the communication between tasks and the user.
-    // the channel is bounded to buffer 32 messages before sending will block.
-    // this limit should be fine for one thread continuously processing the incoming messages from the channel.
-    let (tx, rx) = mpsc::sync_channel(32);
+    let (tx, rx) = mpsc::channel();
 
     // construct active rules
     let active_rules = match get_active_rule_definitions(&config) {
@@ -106,20 +120,22 @@ fn app(opts: Opts, config: Config) -> i32 {
         }
     };
 
-    let cli_context = Arc::new(CliContext {
+    let cli_context = CliContext {
         output_tx: tx,
-        fix: opts.fix,
-        inspect: opts.inspect,
-        output_path: opts.output_path,
-        config,
-        rule_definitions: active_rules,
-    });
+        data: Arc::new(CliSharedData {
+            fix: opts.fix,
+            inspect: opts.inspect,
+            output_path: opts.output_path,
+            config,
+            rule_definitions: active_rules,
+        }),
+    };
 
     let output_handler = thread::spawn(|| output::handle_processing_output(rx));
 
     // work on each user specified file / directory path concurrently
     opts.files.into_iter().for_each(|path| {
-        handle_input_path(path, Arc::clone(&cli_context));
+        handle_input_path(path, cli_context.clone());
     });
 
     drop(cli_context); // drop this tx channel
@@ -141,7 +157,7 @@ fn is_not_hidden(entry: &DirEntry) -> bool {
 }
 
 /// Process a directory path.
-fn handle_input_path(path: PathBuf, cli_context: Arc<CliContext>) {
+fn handle_input_path(path: PathBuf, cli_context: CliContext) {
     let walker = WalkDir::new(path).into_iter();
 
     // synchronous directory traversal but move the work for each file to a different thread in the thread pool.
@@ -166,14 +182,15 @@ fn handle_input_path(path: PathBuf, cli_context: Arc<CliContext>) {
                 continue;
             }
 
-            let clone = Arc::clone(&cli_context);
-            let error_clone = Arc::clone(&cli_context);
+            let clone = cli_context.clone();
+            let tx_clone = cli_context.output_tx.clone();
             s.spawn(
                 move |_s1| match process::process_file(entry.path().into(), clone) {
                     Ok(_) => {}
                     Err(e) => {
-                        error_clone
-                            .send_processing_output(ProcessingEvent::Report(Severity::Error));
+                        tx_clone
+                            .send(ProcessingEvent::Report(Severity::Error))
+                            .expect("output should still receive ProcessingEvents");
                         println!("Error: {}", e)
                     }
                 },
