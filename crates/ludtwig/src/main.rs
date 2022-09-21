@@ -42,10 +42,6 @@ pub struct Opts {
     #[clap(short = 'i', long)]
     inspect: bool,
 
-    /// Specify a custom output directory instead of fixing the files in place.
-    #[clap(short, long, parse(from_os_str))]
-    output_path: Option<PathBuf>,
-
     /// Specify where the ludtwig configuration file is. Ludtwig looks in the current directory for a 'ludtwig-config.toml' by default.
     #[clap(short = 'c', long, parse(from_os_str))]
     config_path: Option<PathBuf>,
@@ -70,8 +66,6 @@ pub struct CliSharedData {
     pub fix: bool,
     /// Print out the parsed syntax tree for each file
     pub inspect: bool,
-    /// Specify a custom output directory instead of modifying the files in place.
-    pub output_path: Option<PathBuf>,
     /// The config values to use.
     pub config: Config,
     /// Active rule definitions
@@ -125,7 +119,6 @@ fn app(opts: Opts, config: Config) -> i32 {
         data: Arc::new(CliSharedData {
             fix: opts.fix,
             inspect: opts.inspect,
-            output_path: opts.output_path,
             config,
             rule_definitions: active_rules,
         }),

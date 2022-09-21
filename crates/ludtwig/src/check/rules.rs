@@ -104,7 +104,6 @@ pub mod test {
                 data: Arc::new(CliSharedData {
                     fix: false,
                     inspect: false,
-                    output_path: None,
                     config,
                     rule_definitions: vec![rule],
                 }),

@@ -84,8 +84,8 @@ fn try_make_snake_case(original: &str) -> Option<String> {
                 continue;
             }
 
-            // first or last uppercase should not be pretended with underline
-            if c.is_ascii_uppercase() {
+            // first uppercase should not be pretended with underline
+            if idx == 0 && c.is_ascii_uppercase() {
                 attempt.push(c.to_ascii_lowercase());
                 continue;
             }
@@ -142,6 +142,7 @@ mod tests {
         assert!(!is_valid_ascii_alpha_snake_case("my_block_"));
         assert!(!is_valid_ascii_alpha_snake_case("my_block__"));
         assert!(!is_valid_ascii_alpha_snake_case("__my_block__"));
+        assert!(!is_valid_ascii_alpha_snake_case("innerA"));
     }
 
     #[test]
@@ -162,6 +163,11 @@ mod tests {
             try_make_snake_case("myStrange-Block"),
             Some("my_strange_block".to_string())
         );
+        assert_eq!(try_make_snake_case("innerA"), Some("inner_a".to_string()));
+        assert_eq!(try_make_snake_case("inner-"), Some("inner".to_string()));
+        assert_eq!(try_make_snake_case("inner_"), Some("inner".to_string()));
+        assert_eq!(try_make_snake_case("-inner"), Some("inner".to_string()));
+        assert_eq!(try_make_snake_case("_inner"), Some("inner".to_string()));
         assert_eq!(try_make_snake_case("_My-Broken_-Block_"), None);
     }
 

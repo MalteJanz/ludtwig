@@ -91,8 +91,8 @@ fn try_make_kebab_case(original: &str) -> Option<String> {
                 continue;
             }
 
-            // first or last uppercase should not be pretended with minus
-            if c.is_ascii_uppercase() {
+            // first uppercase should not be pretended with minus
+            if idx == 0 && c.is_ascii_uppercase() {
                 attempt.push(c.to_ascii_lowercase());
                 continue;
             }
@@ -150,6 +150,7 @@ mod tests {
         assert!(!is_valid_alphanumeric_kebab_case("--my-attribute"));
         assert!(!is_valid_alphanumeric_kebab_case("myAttribute"));
         assert!(!is_valid_alphanumeric_kebab_case("my_attribute"));
+        assert!(!is_valid_alphanumeric_kebab_case("myA"));
     }
 
     #[test]
@@ -182,6 +183,11 @@ mod tests {
             try_make_kebab_case("myStrange-Block"),
             Some("my-strange-block".to_string())
         );
+        assert_eq!(try_make_kebab_case("myA"), Some("my-a".to_string()));
+        assert_eq!(try_make_kebab_case("my-"), Some("my".to_string()));
+        assert_eq!(try_make_kebab_case("my_"), Some("my".to_string()));
+        assert_eq!(try_make_kebab_case("-my"), Some("my".to_string()));
+        assert_eq!(try_make_kebab_case("_my"), Some("my".to_string()));
         assert_eq!(try_make_kebab_case("_My-Broken_-Block_"), None);
     }
 
