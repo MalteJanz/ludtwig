@@ -311,7 +311,11 @@ mod tests {
                     ERROR@2..7
                       TK_WHITESPACE@2..3 " "
                       TK_WORD@3..7 "asdf"
-                error at 3..3: expected block or if, but found word"#]],
+                error at 3..3: expected
+                block
+                or
+                if
+                but found word"#]],
         )
     }
 
@@ -675,7 +679,7 @@ mod tests {
                       TK_PERCENT_CURLY@18..20 "%}"
                     BODY@20..43
                       TK_WHITESPACE@20..21 " "
-                      ERROR@21..22 "\\"
+                      TK_UNKNOWN@21..22 "\\"
                       HTML_TEXT@22..43
                         TK_WORD@22..23 "t"
                         TK_WHITESPACE@23..24 " "

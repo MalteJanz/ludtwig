@@ -34,18 +34,6 @@ impl<'source> Source<'source> {
         self.peek_token_raw()
     }
 
-    pub(super) fn peek_nth_token(&mut self, nth: usize) -> Option<&Token> {
-        self.eat_trivia();
-        if self.cursor == self.tokens.len() {
-            return None; // end already reached
-        }
-
-        self.tokens[self.cursor..]
-            .iter()
-            .filter(|t| !t.kind.is_trivia())
-            .nth(nth)
-    }
-
     pub(super) fn at_following(&mut self, set: &[SyntaxKind]) -> bool {
         self.eat_trivia();
         if self.cursor == self.tokens.len() {
@@ -61,6 +49,32 @@ impl<'source> Source<'source> {
         loop {
             match (tokens_iter.next(), set_iter.next()) {
                 (Some(token), Some(set)) if token == *set => continue,
+                (None, None) => return true,
+                (Some(_), None) => return true,
+                _ => return false,
+            }
+        }
+    }
+
+    pub(super) fn at_following_content(&mut self, set: &[(SyntaxKind, Option<&str>)]) -> bool {
+        self.eat_trivia();
+        if self.cursor == self.tokens.len() {
+            return false; // end already reached
+        }
+
+        let mut tokens_iter = self.tokens[self.cursor..]
+            .iter()
+            .filter(|t| !t.kind.is_trivia());
+        let mut set_iter = set.iter();
+
+        loop {
+            match (tokens_iter.next(), set_iter.next()) {
+                (Some(token), Some((set_kind, set_content)))
+                    if token.kind == *set_kind
+                        && set_content.map_or(true, |content| content == token.text) =>
+                {
+                    continue
+                }
                 (None, None) => return true,
                 (Some(_), None) => return true,
                 _ => return false,
@@ -153,7 +167,7 @@ mod tests {
     }
 
     #[test]
-    fn source_peek_nth_token() {
+    fn source_at_following_content() {
         let tokens = vec![
             Token::new_wrong_range(T![ws], "  "),
             Token::new_wrong_range(T![lb], "\n"),
@@ -167,17 +181,32 @@ mod tests {
         ];
 
         let mut source = Source::new(&tokens);
-        assert_eq!(
-            source.peek_nth_token(2),
-            Some(&Token::new_wrong_range(T![">"], ">"))
-        );
-        assert_eq!(
-            source.peek_nth_token(1),
-            Some(&Token::new_wrong_range(T!["<"], "<"))
-        );
-        assert_eq!(
-            source.peek_nth_token(0),
-            Some(&Token::new_wrong_range(T![word], "hello"))
-        );
+        assert!(source.at_following_content(&[
+            (T![word], Some("hello")),
+            (T!["<"], None),
+            (T![">"], None)
+        ]));
+        assert!(source.at_following_content(&[(T![word], None), (T!["<"], None), (T![">"], None)]));
+        assert!(source.at_following_content(&[(T![word], Some("hello")), (T!["<"], None)]));
+        assert!(source.at_following_content(&[(T![word], Some("hello"))]));
+        assert!(source.at_following_content(&[
+            (T![word], None),
+            (T!["<"], None),
+            (T![">"], Some(">"))
+        ]));
+
+        assert!(!source.at_following_content(&[(T![word], Some("nonExistent"))]));
+        assert!(!source.at_following_content(&[
+            (T![word], Some("nonExistent")),
+            (T!["<"], None),
+            (T![">"], None)
+        ]));
+
+        source.next_token();
+        source.next_token();
+        source.next_token();
+
+        // nothing more to compare
+        assert!(!source.at_following_content(&[(T![word], None)]));
     }
 }

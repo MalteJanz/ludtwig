@@ -73,6 +73,8 @@ pub enum SyntaxKind {
     TK_ELSE,
     #[token("endif")]
     TK_ENDIF,
+    #[error]
+    TK_UNKNOWN, // contains invalid / unrecognized syntax (used for error recovery).
 
     /*
     Composite nodes (which can have children and ast / typed counterparts)
@@ -103,8 +105,7 @@ pub enum SyntaxKind {
     /*
     Special Nodes
      */
-    #[error]
-    ERROR, // contains invalid syntax (used for error recovery). Can be a node or token
+    ERROR, // syntax node which wraps invalid syntax
     /// SAFETY: this must be the last enum element for u16 conversion!
     ROOT, // top-level node: list of elements inside the template (must be last item of enum for safety check!)
 }
@@ -114,6 +115,7 @@ macro_rules! T {
     [ws] => { $crate::syntax::untyped::SyntaxKind::TK_WHITESPACE };
     [lb] => { $crate::syntax::untyped::SyntaxKind::TK_LINE_BREAK };
     [word] => { $crate::syntax::untyped::SyntaxKind::TK_WORD };
+    [unknown] => { $crate::syntax::untyped::SyntaxKind::TK_UNKNOWN };
     ["<"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN };
     ["</"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_SLASH };
     [">"] => { $crate::syntax::untyped::SyntaxKind::TK_GREATER_THAN };
@@ -171,7 +173,8 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_ELSE_IF => "elseif",
             SyntaxKind::TK_ELSE => "else",
             SyntaxKind::TK_ENDIF => "endif",
-            SyntaxKind::ERROR => "error", // can also be a unknown token
+            SyntaxKind::TK_UNKNOWN => "unknown",
+            SyntaxKind::ERROR => "error",
             t => unreachable!("Display not implemented for {:?}", t),
         })
     }

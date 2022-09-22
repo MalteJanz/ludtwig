@@ -41,7 +41,7 @@ where
         // capture parser token position to prevent infinite loops!
         let parser_pos = parser.get_pos();
 
-        if parser.at(SyntaxKind::ERROR) {
+        if parser.at(SyntaxKind::TK_UNKNOWN) {
             // TODO: is this really the right way to handle invalid lexing tokens?
             // at least consume unparseable input TODO: maybe throw parser error?!
             // call to parser.error() could result in infinite loop here!

@@ -8,6 +8,7 @@ pub use parse_error::ParseError;
 use crate::grammar::root;
 use crate::lexer::Token;
 use crate::parser::event::{CompletedMarker, EventCollection, Marker};
+use crate::parser::parse_error::{Expectation, ExpectationChain};
 use crate::parser::sink::Sink;
 use crate::parser::source::Source;
 use crate::syntax::untyped::{debug_tree, SyntaxKind, SyntaxNode};
@@ -62,7 +63,8 @@ impl Parse {
 pub(crate) struct Parser<'source> {
     source: Source<'source>,
     event_collection: EventCollection,
-    expected_kinds: Vec<SyntaxKind>,
+    expectation_chains: Vec<ExpectationChain>,
+    pub(crate) capture_expectations: bool,
 }
 
 impl<'source> Parser<'source> {
@@ -70,7 +72,8 @@ impl<'source> Parser<'source> {
         Self {
             source: Source::new(tokens),
             event_collection: EventCollection::new(),
-            expected_kinds: vec![],
+            expectation_chains: vec![],
+            capture_expectations: true,
         }
     }
 
@@ -92,32 +95,46 @@ impl<'source> Parser<'source> {
     }
 
     pub(crate) fn at(&mut self, kind: SyntaxKind) -> bool {
-        self.expected_kinds.push(kind);
-        self.peek() == Some(kind)
-    }
-
-    /// Look at the nth (zero indexed, zero means next, one is the one after that, ...) [SyntaxToken]
-    /// but only if it matches the correct [SyntaxKind].
-    /// Only use this if absolutely necessary, because it is expensive to lookahead!
-    pub(crate) fn at_nth_token(&mut self, kind: SyntaxKind, nth: usize) -> Option<&Token> {
-        self.expected_kinds.push(kind);
-        let peek = self.source.peek_nth_token(nth);
-        if let Some(Token { kind: found, .. }) = peek {
-            if *found == kind {
-                return peek;
-            }
+        if self.capture_expectations && kind != SyntaxKind::TK_UNKNOWN {
+            // unknown tokens should not be expected user input (not visible in the error message)
+            self.expectation_chains
+                .push(ExpectationChain::from(Expectation::from(kind)));
         }
-
-        None
+        self.peek() == Some(kind)
     }
 
     /// Only use this if absolutely necessary, because it is expensive to lookahead!
     pub(crate) fn at_following(&mut self, set: &[SyntaxKind]) -> bool {
-        for kind in set {
-            self.expected_kinds.push(*kind);
+        if self.capture_expectations {
+            let mut expectation_chain = ExpectationChain::new(vec![]);
+            for kind in set {
+                if *kind != SyntaxKind::TK_UNKNOWN {
+                    // unknown tokens should not be expected user input (not visible in the error message)
+                    expectation_chain.chain.push(Expectation::from(*kind));
+                }
+            }
+            self.expectation_chains.push(expectation_chain);
         }
 
         self.source.at_following(set)
+    }
+
+    /// Only use this if absolutely necessary, because it is expensive to lookahead!
+    pub(crate) fn at_following_content(&mut self, set: &[(SyntaxKind, Option<&str>)]) -> bool {
+        if self.capture_expectations {
+            let mut expectation_chain = ExpectationChain::new(vec![]);
+            for (kind, content) in set {
+                if *kind != SyntaxKind::TK_UNKNOWN {
+                    // unknown tokens should not be expected user input (not visible in the error message)
+                    expectation_chain
+                        .chain
+                        .push(Expectation::new(*kind, content.map(|s| s.to_owned())));
+                }
+            }
+            self.expectation_chains.push(expectation_chain);
+        }
+
+        self.source.at_following_content(set)
     }
 
     pub(crate) fn at_end(&mut self) -> bool {
@@ -126,7 +143,7 @@ impl<'source> Parser<'source> {
 
     #[track_caller]
     pub(crate) fn bump(&mut self) -> &Token {
-        self.expected_kinds.clear();
+        self.expectation_chains.clear();
         let consumed = self
             .source
             .next_token()
@@ -162,7 +179,7 @@ impl<'source> Parser<'source> {
         };
 
         self.event_collection.add_error(ParseError {
-            expected: mem::take(&mut self.expected_kinds),
+            expected: mem::take(&mut self.expectation_chains),
             found,
             range,
         });

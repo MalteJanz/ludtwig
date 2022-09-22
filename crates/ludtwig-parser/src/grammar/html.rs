@@ -1,6 +1,5 @@
 use crate::grammar::twig::parse_any_twig;
 use crate::grammar::{parse_any_element, parse_many};
-use crate::lexer::Token;
 use crate::parser::event::CompletedMarker;
 use crate::parser::{Parser, RECOVERY_SET};
 use crate::syntax::untyped::SyntaxKind;
@@ -90,14 +89,22 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
     parse_many(
         parser,
         |p| {
-            if p.at(T!["</"]) {
-                if let Some(Token { kind, text, .. }) = p.at_nth_token(T![word], 1) {
-                    if *kind == T![word] && *text == tag_name {
-                        matching_end_tag_encountered = true;
-                        return true; // found matching closing tag
-                    }
-                }
+            if p.at_following_content(&[(T!["</"], None), (T![word], Some(&tag_name))]) {
+                matching_end_tag_encountered = true;
+                return true; // found matching closing tag
             }
+
+            p.capture_expectations = false;
+            // TODO: needs special care for future endfor, endif, ...
+            if p.at_following(&[T!["{%"], T!["endblock"]])
+                || p.at_following(&[T!["{%"], T!["endif"]])
+                || p.at_following(&[T!["{%"], T!["elseif"]])
+                || p.at_following(&[T!["{%"], T!["else"]])
+            {
+                p.capture_expectations = true;
+                return true; // endblock in the wild may mean this tag has a missing closing tag
+            }
+            p.capture_expectations = true;
 
             false
         },
@@ -107,18 +114,18 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
     );
     parser.complete(body_m, SyntaxKind::BODY);
 
-    // parse matching end tag if exists
+    // parse matching end tag or report missing (the tag itself is not self closing!)
+    let end_tag_m = parser.start();
     if matching_end_tag_encountered {
         // found matching closing tag
-        let end_tag_m = parser.start();
         parser.expect(T!["</"]);
         parser.expect(T![word]);
         parser.expect(T![">"]);
-        parser.complete(end_tag_m, SyntaxKind::HTML_ENDING_TAG);
     } else {
         // no matching end tag found!
         parser.error();
     }
+    parser.complete(end_tag_m, SyntaxKind::HTML_ENDING_TAG);
 
     parser.complete(m, SyntaxKind::HTML_TAG)
 }
@@ -150,11 +157,22 @@ fn parse_html_string_including_twig(parser: &mut Parser) -> CompletedMarker {
             parser,
             |p| {
                 // TODO: needs special care for future endfor, endif, ...
-                p.at(T!("\""))
-                    || p.at_following(&[T!["{%"], T!["endblock"]])
+                if p.at(T!("\"")) {
+                    return true;
+                }
+
+                p.capture_expectations = false;
+                if p.at_following(&[T!["{%"], T!["endblock"]])
                     || p.at_following(&[T!["{%"], T!["elseif"]])
                     || p.at_following(&[T!["{%"], T!["else"]])
                     || p.at_following(&[T!["{%"], T!["endif"]])
+                {
+                    p.capture_expectations = true;
+                    return true;
+                }
+                p.capture_expectations = true;
+
+                false
             },
             |p| {
                 if parse_any_twig(p, inner_str_parser).is_none() {
@@ -229,7 +247,7 @@ mod tests {
                           TK_WORD@40..46 "color:"
                           TK_WHITESPACE@46..47 " "
                           TK_WORD@47..51 "blue"
-                          ERROR@51..52 ";"
+                          TK_UNKNOWN@51..52 ";"
                           TK_DOUBLE_QUOTES@52..53 "\""
                       TK_GREATER_THAN@53..54 ">"
                     BODY@54..54
@@ -362,11 +380,48 @@ mod tests {
                         BODY@16..22
                           HTML_TEXT@16..22
                             TK_WORD@16..22 "world!"
+                        HTML_ENDING_TAG@22..22
                     HTML_ENDING_TAG@22..28
                       TK_LESS_THAN_SLASH@22..24 "</"
                       TK_WORD@24..27 "div"
                       TK_GREATER_THAN@27..28 ">"
-                error at 22..22: expected error, word, error, </, word, {%, {{, {#, <, word or <!--, but found </"#]],
+                error at 22..22: expected
+                word
+                </ 'span'
+                {%
+                {{
+                {#
+                <
+                word
+                or
+                <!--
+                but found </"#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_element_with_children_self_closing() {
+        check_parse(
+            "<div>hello<hr/></div>",
+            expect![[r#"
+            ROOT@0..21
+              HTML_TAG@0..21
+                HTML_STARTING_TAG@0..5
+                  TK_LESS_THAN@0..1 "<"
+                  TK_WORD@1..4 "div"
+                  TK_GREATER_THAN@4..5 ">"
+                BODY@5..15
+                  HTML_TEXT@5..10
+                    TK_WORD@5..10 "hello"
+                  HTML_TAG@10..15
+                    HTML_STARTING_TAG@10..15
+                      TK_LESS_THAN@10..11 "<"
+                      TK_WORD@11..13 "hr"
+                      TK_SLASH_GREATER_THAN@13..15 "/>"
+                HTML_ENDING_TAG@15..21
+                  TK_LESS_THAN_SLASH@15..17 "</"
+                  TK_WORD@17..20 "div"
+                  TK_GREATER_THAN@20..21 ">""#]],
         );
     }
 
@@ -667,8 +722,17 @@ mod tests {
                       TK_LESS_THAN_SLASH@45..47 "</"
                       TK_WORD@47..50 "div"
                       TK_GREATER_THAN@50..51 ">"
-                error at 11..11: expected ", but found '
-                error at 19..19: expected error, ", {%, endblock, {%, elseif, {%, else, {%, endif, {%, {{, {# or ", but found >"#]],
+                error at 11..11: expected
+                "
+                but found '
+                error at 19..19: expected
+                "
+                {%
+                {{
+                {#
+                or
+                "
+                but found >"#]],
         );
     }
 
@@ -852,7 +916,7 @@ mod tests {
             "<div {% block conditional %} <hr/> {% endblock %}></div>",
             expect![[r#"
                 ROOT@0..56
-                  HTML_TAG@0..46
+                  HTML_TAG@0..34
                     HTML_STARTING_TAG@0..28
                       TK_LESS_THAN@0..1 "<"
                       TK_WORD@1..4 "div"
@@ -868,19 +932,20 @@ mod tests {
                           TK_PERCENT_CURLY@26..28 "%}"
                         BODY@28..28
                         TWIG_ENDING_BLOCK@28..28
-                    BODY@28..46
+                    BODY@28..34
                       HTML_TAG@28..34
                         HTML_STARTING_TAG@28..34
                           TK_WHITESPACE@28..29 " "
                           TK_LESS_THAN@29..30 "<"
                           TK_WORD@30..32 "hr"
                           TK_SLASH_GREATER_THAN@32..34 "/>"
-                      ERROR@34..46
-                        TK_WHITESPACE@34..35 " "
-                        TK_CURLY_PERCENT@35..37 "{%"
-                        ERROR@37..46
-                          TK_WHITESPACE@37..38 " "
-                          TK_ENDBLOCK@38..46 "endblock"
+                    HTML_ENDING_TAG@34..34
+                  ERROR@34..46
+                    TK_WHITESPACE@34..35 " "
+                    TK_CURLY_PERCENT@35..37 "{%"
+                    ERROR@37..46
+                      TK_WHITESPACE@37..38 " "
+                      TK_ENDBLOCK@38..46 "endblock"
                   ERROR@46..49
                     TK_WHITESPACE@46..47 " "
                     TK_PERCENT_CURLY@47..49 "%}"
@@ -892,12 +957,45 @@ mod tests {
                     TK_WORD@52..55 "div"
                   ERROR@55..56
                     TK_GREATER_THAN@55..56 ">"
-                error at 29..29: expected error, {%, endblock, word, {%, {{, {#, error, {%, endblock, word, {%, {{, {# or {%, but found <
-                error at 29..29: expected endblock, but found <
-                error at 29..29: expected %}, but found <
-                error at 29..29: expected error, >, />, word, {%, {{, {#, /> or >, but found <
-                error at 38..38: expected block or if, but found endblock
-                error at 47..47: expected <, word, <!--, error, </, {%, {{, {#, <, word or <!--, but found %}"#]],
+                error at 29..29: expected
+                {% endblock
+                word
+                {%
+                {{
+                {#
+                {% endblock
+                word
+                {%
+                {{
+                {#
+                or
+                {%
+                but found <
+                error at 29..29: expected
+                endblock
+                but found <
+                error at 29..29: expected
+                %}
+                but found <
+                error at 29..29: expected
+                >
+                />
+                word
+                {%
+                {{
+                {#
+                />
+                or
+                >
+                but found <
+                error at 35..35: expected
+                </ 'div'
+                but found {%
+                error at 38..38: expected
+                block
+                or
+                if
+                but found endblock"#]],
         );
     }
 
@@ -991,13 +1089,25 @@ mod tests {
                           ERROR@5..8
                             TK_CURLY_PERCENT@5..7 "{%"
                             ERROR@7..8
-                              ERROR@7..8 "%"
+                              TK_UNKNOWN@7..8 "%"
                     BODY@8..8
-                error at 5..5: expected ", but found {%
-                error at 7..7: expected block or if, but found error
-                error at 7..7: expected error or "
-                error at 7..7: expected error, /> or >
-                error at 7..7: expected error"#]],
+                    HTML_ENDING_TAG@8..8
+                error at 5..5: expected
+                "
+                but found {%
+                error at 7..7: expected
+                block
+                or
+                if
+                but found unknown
+                error at 7..7: expected
+                "
+                error at 7..7: expected
+                />
+                or
+                >
+                error at 7..7: expected
+            "#]],
         );
     }
 
@@ -1014,7 +1124,7 @@ mod tests {
                       TK_GREATER_THAN@4..5 ">"
                     BODY@5..28
                       TK_WHITESPACE@5..6 " "
-                      ERROR@6..7 "\\"
+                      TK_UNKNOWN@6..7 "\\"
                       HTML_TEXT@7..28
                         TK_WORD@7..8 "t"
                         TK_WHITESPACE@8..9 " "
