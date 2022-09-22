@@ -80,6 +80,8 @@ pub struct ParseError {
 
 impl ParseError {
     pub fn expected_message(&self) -> Result<String, fmt::Error> {
+        // TODO: idea: merge overlapping expectations into one chain (caused by multiple parser.expect(...) calls)
+
         let mut s = String::from("expected\n");
         let num_expected = self.expected.len();
         for (idx, chain) in self.expected.iter().enumerate() {
@@ -94,6 +96,8 @@ impl ParseError {
 
         if let Some(found) = self.found {
             write!(s, "\nbut found {}", found)?;
+        } else {
+            write!(s, "\nbut reached end of file")?;
         }
 
         Ok(s)

@@ -663,12 +663,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_twig_block_with_invalid_body() {
+    fn parse_twig_block_with_unknown_body() {
         check_parse(
-            "{% block my_block %} \\t invalid error token {% endblock %}",
+            "{% block my_block %} \\t unknown token {% endblock %}",
             expect![[r#"
-                ROOT@0..58
-                  TWIG_BLOCK@0..58
+                ROOT@0..52
+                  TWIG_BLOCK@0..52
                     TWIG_STARTING_BLOCK@0..20
                       TK_CURLY_PERCENT@0..2 "{%"
                       TK_WHITESPACE@2..3 " "
@@ -677,24 +677,45 @@ mod tests {
                       TK_WORD@9..17 "my_block"
                       TK_WHITESPACE@17..18 " "
                       TK_PERCENT_CURLY@18..20 "%}"
-                    BODY@20..43
+                    BODY@20..37
                       TK_WHITESPACE@20..21 " "
                       TK_UNKNOWN@21..22 "\\"
-                      HTML_TEXT@22..43
+                      HTML_TEXT@22..37
                         TK_WORD@22..23 "t"
                         TK_WHITESPACE@23..24 " "
-                        TK_WORD@24..31 "invalid"
+                        TK_WORD@24..31 "unknown"
                         TK_WHITESPACE@31..32 " "
-                        TK_WORD@32..37 "error"
-                        TK_WHITESPACE@37..38 " "
-                        TK_WORD@38..43 "token"
-                    TWIG_ENDING_BLOCK@43..58
-                      TK_WHITESPACE@43..44 " "
-                      TK_CURLY_PERCENT@44..46 "{%"
-                      TK_WHITESPACE@46..47 " "
-                      TK_ENDBLOCK@47..55 "endblock"
-                      TK_WHITESPACE@55..56 " "
-                      TK_PERCENT_CURLY@56..58 "%}""#]],
+                        TK_WORD@32..37 "token"
+                    TWIG_ENDING_BLOCK@37..52
+                      TK_WHITESPACE@37..38 " "
+                      TK_CURLY_PERCENT@38..40 "{%"
+                      TK_WHITESPACE@40..41 " "
+                      TK_ENDBLOCK@41..49 "endblock"
+                      TK_WHITESPACE@49..50 " "
+                      TK_PERCENT_CURLY@50..52 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_block_without_endblock() {
+        check_parse(
+            "{% block my_block %}",
+            expect![[r#"
+            ROOT@0..20
+              TWIG_BLOCK@0..20
+                TWIG_STARTING_BLOCK@0..20
+                  TK_CURLY_PERCENT@0..2 "{%"
+                  TK_WHITESPACE@2..3 " "
+                  TK_BLOCK@3..8 "block"
+                  TK_WHITESPACE@8..9 " "
+                  TK_WORD@9..17 "my_block"
+                  TK_WHITESPACE@17..18 " "
+                  TK_PERCENT_CURLY@18..20 "%}"
+                BODY@20..20
+                TWIG_ENDING_BLOCK@20..20
+            error at 18..18: expected
+            {% endblock
+            but reached end of file"#]],
         )
     }
 }

@@ -359,6 +359,32 @@ mod tests {
     }
 
     #[test]
+    fn parse_html_element_with_children_self_closing() {
+        check_parse(
+            "<div>hello<hr/></div>",
+            expect![[r#"
+            ROOT@0..21
+              HTML_TAG@0..21
+                HTML_STARTING_TAG@0..5
+                  TK_LESS_THAN@0..1 "<"
+                  TK_WORD@1..4 "div"
+                  TK_GREATER_THAN@4..5 ">"
+                BODY@5..15
+                  HTML_TEXT@5..10
+                    TK_WORD@5..10 "hello"
+                  HTML_TAG@10..15
+                    HTML_STARTING_TAG@10..15
+                      TK_LESS_THAN@10..11 "<"
+                      TK_WORD@11..13 "hr"
+                      TK_SLASH_GREATER_THAN@13..15 "/>"
+                HTML_ENDING_TAG@15..21
+                  TK_LESS_THAN_SLASH@15..17 "</"
+                  TK_WORD@17..20 "div"
+                  TK_GREATER_THAN@20..21 ">""#]],
+        );
+    }
+
+    #[test]
     fn parse_html_element_with_children_missing_closing_tag() {
         check_parse(
             "<div>hello<span>world!</div>",
@@ -400,29 +426,110 @@ mod tests {
     }
 
     #[test]
-    fn parse_html_element_with_children_self_closing() {
+    fn parse_html_tag_missing_twig_endblock_in_children() {
         check_parse(
-            "<div>hello<hr/></div>",
+            "<div>{% block inner %} hello </div>",
             expect![[r#"
-            ROOT@0..21
-              HTML_TAG@0..21
+            ROOT@0..35
+              HTML_TAG@0..35
                 HTML_STARTING_TAG@0..5
                   TK_LESS_THAN@0..1 "<"
                   TK_WORD@1..4 "div"
                   TK_GREATER_THAN@4..5 ">"
-                BODY@5..15
-                  HTML_TEXT@5..10
-                    TK_WORD@5..10 "hello"
-                  HTML_TAG@10..15
-                    HTML_STARTING_TAG@10..15
-                      TK_LESS_THAN@10..11 "<"
-                      TK_WORD@11..13 "hr"
-                      TK_SLASH_GREATER_THAN@13..15 "/>"
-                HTML_ENDING_TAG@15..21
-                  TK_LESS_THAN_SLASH@15..17 "</"
-                  TK_WORD@17..20 "div"
-                  TK_GREATER_THAN@20..21 ">""#]],
-        );
+                BODY@5..28
+                  TWIG_BLOCK@5..28
+                    TWIG_STARTING_BLOCK@5..22
+                      TK_CURLY_PERCENT@5..7 "{%"
+                      TK_WHITESPACE@7..8 " "
+                      TK_BLOCK@8..13 "block"
+                      TK_WHITESPACE@13..14 " "
+                      TK_WORD@14..19 "inner"
+                      TK_WHITESPACE@19..20 " "
+                      TK_PERCENT_CURLY@20..22 "%}"
+                    BODY@22..28
+                      HTML_TEXT@22..28
+                        TK_WHITESPACE@22..23 " "
+                        TK_WORD@23..28 "hello"
+                    TWIG_ENDING_BLOCK@28..28
+                HTML_ENDING_TAG@28..35
+                  TK_WHITESPACE@28..29 " "
+                  TK_LESS_THAN_SLASH@29..31 "</"
+                  TK_WORD@31..34 "div"
+                  TK_GREATER_THAN@34..35 ">"
+            error at 29..29: expected
+            word
+            {% endblock
+            {%
+            {{
+            {#
+            <
+            word
+            <!--
+            or
+            {%
+            but found </"#]],
+        )
+    }
+
+    #[test]
+    fn parse_html_tag_missing_twig_endblock_and_closing_tag_in_children() {
+        check_parse(
+            "<div>{% block inner %}<span>hello</div>",
+            expect![[r#"
+            ROOT@0..39
+              HTML_TAG@0..39
+                HTML_STARTING_TAG@0..5
+                  TK_LESS_THAN@0..1 "<"
+                  TK_WORD@1..4 "div"
+                  TK_GREATER_THAN@4..5 ">"
+                BODY@5..33
+                  TWIG_BLOCK@5..33
+                    TWIG_STARTING_BLOCK@5..22
+                      TK_CURLY_PERCENT@5..7 "{%"
+                      TK_WHITESPACE@7..8 " "
+                      TK_BLOCK@8..13 "block"
+                      TK_WHITESPACE@13..14 " "
+                      TK_WORD@14..19 "inner"
+                      TK_WHITESPACE@19..20 " "
+                      TK_PERCENT_CURLY@20..22 "%}"
+                    BODY@22..33
+                      HTML_TAG@22..33
+                        HTML_STARTING_TAG@22..28
+                          TK_LESS_THAN@22..23 "<"
+                          TK_WORD@23..27 "span"
+                          TK_GREATER_THAN@27..28 ">"
+                        BODY@28..33
+                          HTML_TEXT@28..33
+                            TK_WORD@28..33 "hello"
+                        HTML_ENDING_TAG@33..33
+                    TWIG_ENDING_BLOCK@33..33
+                HTML_ENDING_TAG@33..39
+                  TK_LESS_THAN_SLASH@33..35 "</"
+                  TK_WORD@35..38 "div"
+                  TK_GREATER_THAN@38..39 ">"
+            error at 33..33: expected
+            word
+            </ 'span'
+            {%
+            {{
+            {#
+            <
+            word
+            or
+            <!--
+            but found </
+            error at 33..33: expected
+            {% endblock
+            {%
+            {{
+            {#
+            <
+            word
+            <!--
+            or
+            {%
+            but found </"#]],
+        )
     }
 
     #[test]
@@ -1102,42 +1209,43 @@ mod tests {
                 but found unknown
                 error at 7..7: expected
                 "
+                but reached end of file
                 error at 7..7: expected
                 />
                 or
                 >
+                but reached end of file
                 error at 7..7: expected
-            "#]],
+
+                but reached end of file"#]],
         );
     }
 
     #[test]
-    fn parse_html_tag_with_invalid_body() {
+    fn parse_html_tag_with_unknown_token_in_body() {
         check_parse(
-            "<div> \\t invalid error token </div>",
+            "<div> \\t unknown token </div>",
             expect![[r#"
-                ROOT@0..35
-                  HTML_TAG@0..35
+                ROOT@0..29
+                  HTML_TAG@0..29
                     HTML_STARTING_TAG@0..5
                       TK_LESS_THAN@0..1 "<"
                       TK_WORD@1..4 "div"
                       TK_GREATER_THAN@4..5 ">"
-                    BODY@5..28
+                    BODY@5..22
                       TK_WHITESPACE@5..6 " "
                       TK_UNKNOWN@6..7 "\\"
-                      HTML_TEXT@7..28
+                      HTML_TEXT@7..22
                         TK_WORD@7..8 "t"
                         TK_WHITESPACE@8..9 " "
-                        TK_WORD@9..16 "invalid"
+                        TK_WORD@9..16 "unknown"
                         TK_WHITESPACE@16..17 " "
-                        TK_WORD@17..22 "error"
-                        TK_WHITESPACE@22..23 " "
-                        TK_WORD@23..28 "token"
-                    HTML_ENDING_TAG@28..35
-                      TK_WHITESPACE@28..29 " "
-                      TK_LESS_THAN_SLASH@29..31 "</"
-                      TK_WORD@31..34 "div"
-                      TK_GREATER_THAN@34..35 ">""#]],
+                        TK_WORD@17..22 "token"
+                    HTML_ENDING_TAG@22..29
+                      TK_WHITESPACE@22..23 " "
+                      TK_LESS_THAN_SLASH@23..25 "</"
+                      TK_WORD@25..28 "div"
+                      TK_GREATER_THAN@28..29 ">""#]],
         )
     }
 }
