@@ -1,7 +1,7 @@
 use crate::grammar::twig::parse_any_twig;
 use crate::grammar::{parse_any_element, parse_many};
 use crate::parser::event::CompletedMarker;
-use crate::parser::{Parser, RECOVERY_SET};
+use crate::parser::{ParseErrorBuilder, Parser, RECOVERY_SET};
 use crate::syntax::untyped::SyntaxKind;
 use crate::T;
 
@@ -94,17 +94,14 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
                 return true; // found matching closing tag
             }
 
-            p.capture_expectations = false;
             // TODO: needs special care for future endfor, endif, ...
             if p.at_following(&[T!["{%"], T!["endblock"]])
                 || p.at_following(&[T!["{%"], T!["endif"]])
                 || p.at_following(&[T!["{%"], T!["elseif"]])
                 || p.at_following(&[T!["{%"], T!["else"]])
             {
-                p.capture_expectations = true;
                 return true; // endblock in the wild may mean this tag has a missing closing tag
             }
-            p.capture_expectations = true;
 
             false
         },
@@ -123,7 +120,10 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
         parser.expect(T![">"]);
     } else {
         // no matching end tag found!
-        parser.error();
+        parser.add_error(ParseErrorBuilder::new(format!(
+            "</{}> ending tag",
+            tag_name
+        )));
     }
     parser.complete(end_tag_m, SyntaxKind::HTML_ENDING_TAG);
 
@@ -161,16 +161,13 @@ fn parse_html_string_including_twig(parser: &mut Parser) -> CompletedMarker {
                     return true;
                 }
 
-                p.capture_expectations = false;
                 if p.at_following(&[T!["{%"], T!["endblock"]])
                     || p.at_following(&[T!["{%"], T!["elseif"]])
                     || p.at_following(&[T!["{%"], T!["else"]])
                     || p.at_following(&[T!["{%"], T!["endif"]])
                 {
-                    p.capture_expectations = true;
                     return true;
                 }
-                p.capture_expectations = true;
 
                 false
             },
@@ -411,17 +408,7 @@ mod tests {
                       TK_LESS_THAN_SLASH@22..24 "</"
                       TK_WORD@24..27 "div"
                       TK_GREATER_THAN@27..28 ">"
-                error at 22..22: expected
-                word
-                </ 'span'
-                {%
-                {{
-                {#
-                <
-                word
-                or
-                <!--
-                but found </"#]],
+                error at 22..22: expected </span> ending tag but found </"#]],
         );
     }
 
@@ -430,44 +417,35 @@ mod tests {
         check_parse(
             "<div>{% block inner %} hello </div>",
             expect![[r#"
-            ROOT@0..35
-              HTML_TAG@0..35
-                HTML_STARTING_TAG@0..5
-                  TK_LESS_THAN@0..1 "<"
-                  TK_WORD@1..4 "div"
-                  TK_GREATER_THAN@4..5 ">"
-                BODY@5..28
-                  TWIG_BLOCK@5..28
-                    TWIG_STARTING_BLOCK@5..22
-                      TK_CURLY_PERCENT@5..7 "{%"
-                      TK_WHITESPACE@7..8 " "
-                      TK_BLOCK@8..13 "block"
-                      TK_WHITESPACE@13..14 " "
-                      TK_WORD@14..19 "inner"
-                      TK_WHITESPACE@19..20 " "
-                      TK_PERCENT_CURLY@20..22 "%}"
-                    BODY@22..28
-                      HTML_TEXT@22..28
-                        TK_WHITESPACE@22..23 " "
-                        TK_WORD@23..28 "hello"
-                    TWIG_ENDING_BLOCK@28..28
-                HTML_ENDING_TAG@28..35
-                  TK_WHITESPACE@28..29 " "
-                  TK_LESS_THAN_SLASH@29..31 "</"
-                  TK_WORD@31..34 "div"
-                  TK_GREATER_THAN@34..35 ">"
-            error at 29..29: expected
-            word
-            {% endblock
-            {%
-            {{
-            {#
-            <
-            word
-            <!--
-            or
-            {%
-            but found </"#]],
+                ROOT@0..35
+                  HTML_TAG@0..35
+                    HTML_STARTING_TAG@0..5
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      TK_GREATER_THAN@4..5 ">"
+                    BODY@5..28
+                      TWIG_BLOCK@5..28
+                        TWIG_STARTING_BLOCK@5..22
+                          TK_CURLY_PERCENT@5..7 "{%"
+                          TK_WHITESPACE@7..8 " "
+                          TK_BLOCK@8..13 "block"
+                          TK_WHITESPACE@13..14 " "
+                          TK_WORD@14..19 "inner"
+                          TK_WHITESPACE@19..20 " "
+                          TK_PERCENT_CURLY@20..22 "%}"
+                        BODY@22..28
+                          HTML_TEXT@22..28
+                            TK_WHITESPACE@22..23 " "
+                            TK_WORD@23..28 "hello"
+                        TWIG_ENDING_BLOCK@28..28
+                    HTML_ENDING_TAG@28..35
+                      TK_WHITESPACE@28..29 " "
+                      TK_LESS_THAN_SLASH@29..31 "</"
+                      TK_WORD@31..34 "div"
+                      TK_GREATER_THAN@34..35 ">"
+                error at 29..29: expected {% but found </
+                error at 29..29: expected endblock but found </
+                error at 29..29: expected %} but found </"#]],
         )
     }
 
@@ -476,59 +454,41 @@ mod tests {
         check_parse(
             "<div>{% block inner %}<span>hello</div>",
             expect![[r#"
-            ROOT@0..39
-              HTML_TAG@0..39
-                HTML_STARTING_TAG@0..5
-                  TK_LESS_THAN@0..1 "<"
-                  TK_WORD@1..4 "div"
-                  TK_GREATER_THAN@4..5 ">"
-                BODY@5..33
-                  TWIG_BLOCK@5..33
-                    TWIG_STARTING_BLOCK@5..22
-                      TK_CURLY_PERCENT@5..7 "{%"
-                      TK_WHITESPACE@7..8 " "
-                      TK_BLOCK@8..13 "block"
-                      TK_WHITESPACE@13..14 " "
-                      TK_WORD@14..19 "inner"
-                      TK_WHITESPACE@19..20 " "
-                      TK_PERCENT_CURLY@20..22 "%}"
-                    BODY@22..33
-                      HTML_TAG@22..33
-                        HTML_STARTING_TAG@22..28
-                          TK_LESS_THAN@22..23 "<"
-                          TK_WORD@23..27 "span"
-                          TK_GREATER_THAN@27..28 ">"
-                        BODY@28..33
-                          HTML_TEXT@28..33
-                            TK_WORD@28..33 "hello"
-                        HTML_ENDING_TAG@33..33
-                    TWIG_ENDING_BLOCK@33..33
-                HTML_ENDING_TAG@33..39
-                  TK_LESS_THAN_SLASH@33..35 "</"
-                  TK_WORD@35..38 "div"
-                  TK_GREATER_THAN@38..39 ">"
-            error at 33..33: expected
-            word
-            </ 'span'
-            {%
-            {{
-            {#
-            <
-            word
-            or
-            <!--
-            but found </
-            error at 33..33: expected
-            {% endblock
-            {%
-            {{
-            {#
-            <
-            word
-            <!--
-            or
-            {%
-            but found </"#]],
+                ROOT@0..39
+                  HTML_TAG@0..39
+                    HTML_STARTING_TAG@0..5
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      TK_GREATER_THAN@4..5 ">"
+                    BODY@5..33
+                      TWIG_BLOCK@5..33
+                        TWIG_STARTING_BLOCK@5..22
+                          TK_CURLY_PERCENT@5..7 "{%"
+                          TK_WHITESPACE@7..8 " "
+                          TK_BLOCK@8..13 "block"
+                          TK_WHITESPACE@13..14 " "
+                          TK_WORD@14..19 "inner"
+                          TK_WHITESPACE@19..20 " "
+                          TK_PERCENT_CURLY@20..22 "%}"
+                        BODY@22..33
+                          HTML_TAG@22..33
+                            HTML_STARTING_TAG@22..28
+                              TK_LESS_THAN@22..23 "<"
+                              TK_WORD@23..27 "span"
+                              TK_GREATER_THAN@27..28 ">"
+                            BODY@28..33
+                              HTML_TEXT@28..33
+                                TK_WORD@28..33 "hello"
+                            HTML_ENDING_TAG@33..33
+                        TWIG_ENDING_BLOCK@33..33
+                    HTML_ENDING_TAG@33..39
+                      TK_LESS_THAN_SLASH@33..35 "</"
+                      TK_WORD@35..38 "div"
+                      TK_GREATER_THAN@38..39 ">"
+                error at 33..33: expected </span> ending tag but found </
+                error at 33..33: expected {% but found </
+                error at 33..33: expected endblock but found </
+                error at 33..33: expected %} but found </"#]],
         )
     }
 
@@ -829,17 +789,8 @@ mod tests {
                       TK_LESS_THAN_SLASH@45..47 "</"
                       TK_WORD@47..50 "div"
                       TK_GREATER_THAN@50..51 ">"
-                error at 11..11: expected
-                "
-                but found '
-                error at 19..19: expected
-                "
-                {%
-                {{
-                {#
-                or
-                "
-                but found >"#]],
+                error at 11..11: expected " but found '
+                error at 19..19: expected " but found >"#]],
         );
     }
 
@@ -1047,12 +998,12 @@ mod tests {
                           TK_WORD@30..32 "hr"
                           TK_SLASH_GREATER_THAN@32..34 "/>"
                     HTML_ENDING_TAG@34..34
-                  ERROR@34..46
+                  ERROR@34..37
                     TK_WHITESPACE@34..35 " "
                     TK_CURLY_PERCENT@35..37 "{%"
-                    ERROR@37..46
-                      TK_WHITESPACE@37..38 " "
-                      TK_ENDBLOCK@38..46 "endblock"
+                  ERROR@37..46
+                    TK_WHITESPACE@37..38 " "
+                    TK_ENDBLOCK@38..46 "endblock"
                   ERROR@46..49
                     TK_WHITESPACE@46..47 " "
                     TK_PERCENT_CURLY@47..49 "%}"
@@ -1064,45 +1015,12 @@ mod tests {
                     TK_WORD@52..55 "div"
                   ERROR@55..56
                     TK_GREATER_THAN@55..56 ">"
-                error at 29..29: expected
-                {% endblock
-                word
-                {%
-                {{
-                {#
-                {% endblock
-                word
-                {%
-                {{
-                {#
-                or
-                {%
-                but found <
-                error at 29..29: expected
-                endblock
-                but found <
-                error at 29..29: expected
-                %}
-                but found <
-                error at 29..29: expected
-                >
-                />
-                word
-                {%
-                {{
-                {#
-                />
-                or
-                >
-                but found <
-                error at 35..35: expected
-                </ 'div'
-                but found {%
-                error at 38..38: expected
-                block
-                or
-                if
-                but found endblock"#]],
+                error at 29..29: expected {% but found <
+                error at 29..29: expected endblock but found <
+                error at 29..29: expected %} but found <
+                error at 29..29: expected > but found <
+                error at 35..35: expected </div> ending tag but found {%
+                error at 38..38: expected 'block' or 'if' (nothing else supported yet) but found endblock"#]],
         );
     }
 
@@ -1193,31 +1111,16 @@ mod tests {
                         TK_WORD@3..4 "a"
                         TK_EQUAL@4..5 "="
                         HTML_STRING@5..8
-                          ERROR@5..8
+                          ERROR@5..7
                             TK_CURLY_PERCENT@5..7 "{%"
-                            ERROR@7..8
-                              TK_UNKNOWN@7..8 "%"
+                          TK_UNKNOWN@7..8 "%"
                     BODY@8..8
                     HTML_ENDING_TAG@8..8
-                error at 5..5: expected
-                "
-                but found {%
-                error at 7..7: expected
-                block
-                or
-                if
-                but found unknown
-                error at 7..7: expected
-                "
-                but reached end of file
-                error at 7..7: expected
-                />
-                or
-                >
-                but reached end of file
-                error at 7..7: expected
-
-                but reached end of file"#]],
+                error at 5..5: expected " but found {%
+                error at 7..7: expected 'block' or 'if' (nothing else supported yet) but found unknown
+                error at 7..7: expected " but reached end of file
+                error at 7..7: expected > but reached end of file
+                error at 7..7: expected </d> ending tag but reached end of file"#]],
         );
     }
 

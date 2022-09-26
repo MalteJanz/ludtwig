@@ -1,6 +1,6 @@
 use crate::grammar::{parse_many, ParseFunction};
 use crate::parser::event::{CompletedMarker, Marker};
-use crate::parser::Parser;
+use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
 use crate::T;
 
@@ -67,7 +67,10 @@ fn parse_twig_block_statement(
         Some(parse_twig_if(parser, m, child_parser))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
-        parser.error();
+        parser.add_error(ParseErrorBuilder::new(
+            "'block' or 'if' (nothing else supported yet)".to_string(),
+        ));
+
         parser.complete(m, SyntaxKind::ERROR);
         None
     }
@@ -306,16 +309,12 @@ mod tests {
             "{% asdf",
             expect![[r#"
                 ROOT@0..7
-                  ERROR@0..7
+                  ERROR@0..2
                     TK_CURLY_PERCENT@0..2 "{%"
-                    ERROR@2..7
-                      TK_WHITESPACE@2..3 " "
-                      TK_WORD@3..7 "asdf"
-                error at 3..3: expected
-                block
-                or
-                if
-                but found word"#]],
+                  HTML_TEXT@2..7
+                    TK_WHITESPACE@2..3 " "
+                    TK_WORD@3..7 "asdf"
+                error at 3..3: expected 'block' or 'if' (nothing else supported yet) but found word"#]],
         )
     }
 
@@ -701,21 +700,21 @@ mod tests {
         check_parse(
             "{% block my_block %}",
             expect![[r#"
-            ROOT@0..20
-              TWIG_BLOCK@0..20
-                TWIG_STARTING_BLOCK@0..20
-                  TK_CURLY_PERCENT@0..2 "{%"
-                  TK_WHITESPACE@2..3 " "
-                  TK_BLOCK@3..8 "block"
-                  TK_WHITESPACE@8..9 " "
-                  TK_WORD@9..17 "my_block"
-                  TK_WHITESPACE@17..18 " "
-                  TK_PERCENT_CURLY@18..20 "%}"
-                BODY@20..20
-                TWIG_ENDING_BLOCK@20..20
-            error at 18..18: expected
-            {% endblock
-            but reached end of file"#]],
+                ROOT@0..20
+                  TWIG_BLOCK@0..20
+                    TWIG_STARTING_BLOCK@0..20
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_BLOCK@3..8 "block"
+                      TK_WHITESPACE@8..9 " "
+                      TK_WORD@9..17 "my_block"
+                      TK_WHITESPACE@17..18 " "
+                      TK_PERCENT_CURLY@18..20 "%}"
+                    BODY@20..20
+                    TWIG_ENDING_BLOCK@20..20
+                error at 18..18: expected {% but reached end of file
+                error at 18..18: expected endblock but reached end of file
+                error at 18..18: expected %} but reached end of file"#]],
         )
     }
 }

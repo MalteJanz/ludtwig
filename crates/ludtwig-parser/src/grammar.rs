@@ -20,8 +20,8 @@ pub(super) fn root(parser: &mut Parser) -> CompletedMarker {
             if parse_any_element(p).is_none() && !p.at_end() {
                 // not parsable element encountered
 
-                // at least consume unparseable input TODO: maybe throw parser error?!
-                // call to parser.error() could result in infinite loop here!
+                // at least consume unparseable input TODO: maybe handle this in a better way?
+                // p.add_error(ParseErrorBuilder::new("a parseable token"));
                 let error_m = p.start();
                 p.bump();
                 p.complete(error_m, SyntaxKind::ERROR);
@@ -42,10 +42,11 @@ where
         let parser_pos = parser.get_pos();
 
         if parser.at(SyntaxKind::TK_UNKNOWN) {
-            // TODO: is this really the right way to handle invalid lexing tokens?
-            // at least consume unparseable input TODO: maybe throw parser error?!
-            // call to parser.error() could result in infinite loop here!
-            parser.bump(); // allow / ignore errors tokens
+            // TODO: what to do with unkown token between elements?
+            // parser.add_error(ParseErrorBuilder::new("not this unknown token"));
+            // let error_m = parser.start();
+            parser.bump(); // skip / ignore unknown tokens
+                           // parser.complete(error_m, SyntaxKind::ERROR);
         } else if parser.at_end() || early_exit_closure(parser) || {
             child_parser(parser);
             parser.get_pos() == parser_pos

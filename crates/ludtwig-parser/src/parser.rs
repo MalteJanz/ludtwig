@@ -1,14 +1,13 @@
 use std::fmt::Write;
-use std::mem;
 
 use rowan::GreenNode;
 
 pub use parse_error::ParseError;
+pub use parse_error::ParseErrorBuilder;
 
 use crate::grammar::root;
 use crate::lexer::Token;
 use crate::parser::event::{CompletedMarker, EventCollection, Marker};
-use crate::parser::parse_error::{Expectation, ExpectationChain};
 use crate::parser::sink::Sink;
 use crate::parser::source::Source;
 use crate::syntax::untyped::{debug_tree, SyntaxKind, SyntaxNode};
@@ -63,8 +62,6 @@ impl Parse {
 pub(crate) struct Parser<'source> {
     source: Source<'source>,
     event_collection: EventCollection,
-    expectation_chains: Vec<ExpectationChain>,
-    pub(crate) capture_expectations: bool,
 }
 
 impl<'source> Parser<'source> {
@@ -72,8 +69,6 @@ impl<'source> Parser<'source> {
         Self {
             source: Source::new(tokens),
             event_collection: EventCollection::new(),
-            expectation_chains: vec![],
-            capture_expectations: true,
         }
     }
 
@@ -95,45 +90,16 @@ impl<'source> Parser<'source> {
     }
 
     pub(crate) fn at(&mut self, kind: SyntaxKind) -> bool {
-        if self.capture_expectations && kind != SyntaxKind::TK_UNKNOWN {
-            // unknown tokens should not be expected user input (not visible in the error message)
-            self.expectation_chains
-                .push(ExpectationChain::from(Expectation::from(kind)));
-        }
         self.peek() == Some(kind)
     }
 
     /// Only use this if absolutely necessary, because it is expensive to lookahead!
     pub(crate) fn at_following(&mut self, set: &[SyntaxKind]) -> bool {
-        if self.capture_expectations {
-            let mut expectation_chain = ExpectationChain::new(vec![]);
-            for kind in set {
-                if *kind != SyntaxKind::TK_UNKNOWN {
-                    // unknown tokens should not be expected user input (not visible in the error message)
-                    expectation_chain.chain.push(Expectation::from(*kind));
-                }
-            }
-            self.expectation_chains.push(expectation_chain);
-        }
-
         self.source.at_following(set)
     }
 
     /// Only use this if absolutely necessary, because it is expensive to lookahead!
     pub(crate) fn at_following_content(&mut self, set: &[(SyntaxKind, Option<&str>)]) -> bool {
-        if self.capture_expectations {
-            let mut expectation_chain = ExpectationChain::new(vec![]);
-            for (kind, content) in set {
-                if *kind != SyntaxKind::TK_UNKNOWN {
-                    // unknown tokens should not be expected user input (not visible in the error message)
-                    expectation_chain
-                        .chain
-                        .push(Expectation::new(*kind, content.map(|s| s.to_owned())));
-                }
-            }
-            self.expectation_chains.push(expectation_chain);
-        }
-
         self.source.at_following_content(set)
     }
 
@@ -143,7 +109,6 @@ impl<'source> Parser<'source> {
 
     #[track_caller]
     pub(crate) fn bump(&mut self) -> &Token {
-        self.expectation_chains.clear();
         let consumed = self
             .source
             .next_token()
@@ -158,37 +123,45 @@ impl<'source> Parser<'source> {
         if self.at(kind) {
             Some(self.bump())
         } else {
-            self.error();
+            self.add_error(ParseErrorBuilder::new(format!("{}", kind)));
+
+            if !self.at_set(RECOVERY_SET) && !self.at_end() {
+                let m = self.start();
+                self.bump();
+                self.complete(m, SyntaxKind::ERROR);
+            }
+
             None
         }
     }
 
-    pub(crate) fn error(&mut self) {
-        let current_token = self.source.peek_token();
-        let (found, range) = if let Some(Token { kind, range, .. }) = current_token {
-            (Some(*kind), *range)
-        } else {
-            // If we're at the end of the input we use the range of the very last token
-            // unwrap is fine, because error should not be called on empty file
-            (
-                None,
-                self.source
-                    .last_token_range()
-                    .expect("parser error called on empty file which has no last token"),
-            )
-        };
+    pub(crate) fn add_error(&mut self, mut error_builder: ParseErrorBuilder) {
+        // add missing information to builder
+        if error_builder.range.is_none() || error_builder.found.is_none() {
+            let current_token = self.source.peek_token();
+            let (found, range) = if let Some(Token { kind, range, .. }) = current_token {
+                (Some(*kind), *range)
+            } else {
+                // If we're at the end of the input we use the range of the very last token
+                // unwrap is fine, because error should not be called on empty file
+                (
+                    None,
+                    self.source
+                        .last_token_range()
+                        .expect("parser error called on empty file which has no last token"),
+                )
+            };
 
-        self.event_collection.add_error(ParseError {
-            expected: mem::take(&mut self.expectation_chains),
-            found,
-            range,
-        });
+            if error_builder.range.is_none() {
+                error_builder.range = Some(range);
+            }
 
-        if !self.at_set(RECOVERY_SET) && !self.at_end() {
-            let m = self.start();
-            self.bump();
-            self.complete(m, SyntaxKind::ERROR);
+            if error_builder.found.is_none() {
+                error_builder.found = found;
+            }
         }
+
+        self.event_collection.add_error(error_builder.build());
     }
 
     pub(crate) fn start(&mut self) -> Marker {

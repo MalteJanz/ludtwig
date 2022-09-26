@@ -100,8 +100,7 @@ pub fn produce_diagnostics(
     for result in &file_context.parse_errors {
         // notify output about this
         file_context.send_processing_output(ProcessingEvent::Report(Severity::Error));
-        let label =
-            Label::primary(file_id, result.range).with_message(result.expected_message().unwrap());
+        let label = Label::primary(file_id, result.range).with_message(result.expected_message());
         let diagnostic = Diagnostic::error()
             .with_code("SyntaxError")
             .with_message("The parser encountered a syntax error")
