@@ -1,4 +1,3 @@
-use crate::parser::ParseError;
 use crate::syntax::untyped::SyntaxKind;
 
 /// Parsing event which describes an action for creating the syntax tree.
@@ -10,7 +9,6 @@ pub(super) enum Event {
     },
     AddToken,
     FinishNode,
-    Error(ParseError),
     Placeholder,
 }
 
@@ -33,10 +31,6 @@ impl EventCollection {
 
     pub(super) fn add_token(&mut self) {
         self.events.push(Event::AddToken);
-    }
-
-    pub(super) fn add_error(&mut self, error: ParseError) {
-        self.events.push(Event::Error(error));
     }
 
     pub(super) fn into_event_list(self) -> Vec<Event> {
@@ -132,6 +126,18 @@ pub(crate) struct CompletedMarker {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /*
+    #[test]
+    fn event_size() {
+        // should be small for performance reasons
+        println!("event size {}", std::mem::size_of::<Event>());
+        println!(
+            "syntaxkind + usize size {}",
+            std::mem::size_of::<(SyntaxKind, Option<usize>)>()
+        );
+    }
+    */
 
     #[test]
     fn event_collection_markers() {

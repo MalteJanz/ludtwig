@@ -12,7 +12,7 @@ pub(super) struct Sink<'source> {
     tokens: &'source [Token<'source>],
     cursor: usize,
     events: Vec<Event>,
-    errors: Vec<ParseError>,
+    parser_errors: Vec<ParseError>,
     builder: GreenNodeBuilder<'source>,
 }
 
@@ -20,12 +20,13 @@ impl<'source> Sink<'source> {
     pub(super) fn new(
         tokens: &'source [Token<'source>],
         event_collection: EventCollection,
+        parser_errors: Vec<ParseError>,
     ) -> Self {
         Self {
             tokens,
             cursor: 0,
             events: event_collection.into_event_list(),
-            errors: vec![],
+            parser_errors,
             builder: GreenNodeBuilder::new(),
         }
     }
@@ -76,7 +77,6 @@ impl<'source> Sink<'source> {
                 }
                 Event::AddToken => self.token(),
                 Event::FinishNode => self.builder.finish_node(),
-                Event::Error(error) => self.errors.push(error),
                 Event::Placeholder => {}
             }
         }
@@ -89,7 +89,7 @@ impl<'source> Sink<'source> {
 
         Parse {
             green_node: self.builder.finish(),
-            errors: self.errors,
+            errors: self.parser_errors,
         }
     }
 
@@ -161,7 +161,7 @@ mod tests {
         event_collection.add_token();
         event_collection.complete(m, SyntaxKind::ROOT);
 
-        let sink = Sink::new(&tokens, event_collection);
+        let sink = Sink::new(&tokens, event_collection, vec![]);
         let parse = sink.finish();
         let tree = SyntaxNode::new_root(parse.green_node);
 
@@ -201,7 +201,7 @@ mod tests {
         // One token missing here
         event_collection.complete(m, SyntaxKind::ROOT);
 
-        let sink = Sink::new(&tokens, event_collection);
+        let sink = Sink::new(&tokens, event_collection, vec![]);
         let parse = sink.finish();
         let tree = SyntaxNode::new_root(parse.green_node);
 
@@ -245,7 +245,7 @@ mod tests {
         event_collection.complete(outer_wrapper_m, SyntaxKind::ERROR);
         event_collection.complete(outer_m, SyntaxKind::ROOT);
 
-        let sink = Sink::new(&tokens, event_collection);
+        let sink = Sink::new(&tokens, event_collection, vec![]);
         let parse = sink.finish();
         let tree = SyntaxNode::new_root(parse.green_node);
 

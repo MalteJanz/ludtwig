@@ -34,8 +34,8 @@ pub(crate) static RECOVERY_SET: &[SyntaxKind] = &[
 pub fn parse(input_text: &str) -> Parse {
     let lex_result = lex(input_text);
     let parser = Parser::new(&lex_result);
-    let parse_events = parser.parse();
-    let sink = Sink::new(&lex_result, parse_events);
+    let (parse_events, parse_errors) = parser.parse();
+    let sink = Sink::new(&lex_result, parse_events, parse_errors);
     sink.finish()
 }
 
@@ -62,6 +62,7 @@ impl Parse {
 pub(crate) struct Parser<'source> {
     source: Source<'source>,
     event_collection: EventCollection,
+    parse_errors: Vec<ParseError>,
 }
 
 impl<'source> Parser<'source> {
@@ -69,12 +70,13 @@ impl<'source> Parser<'source> {
         Self {
             source: Source::new(tokens),
             event_collection: EventCollection::new(),
+            parse_errors: vec![],
         }
     }
 
-    fn parse(mut self) -> EventCollection {
+    fn parse(mut self) -> (EventCollection, Vec<ParseError>) {
         root(&mut self);
-        self.event_collection
+        (self.event_collection, self.parse_errors)
     }
 
     fn peek(&mut self) -> Option<SyntaxKind> {
@@ -161,7 +163,7 @@ impl<'source> Parser<'source> {
             }
         }
 
-        self.event_collection.add_error(error_builder.build());
+        self.parse_errors.push(error_builder.build());
     }
 
     pub(crate) fn start(&mut self) -> Marker {
