@@ -6,7 +6,7 @@ use std::sync::{mpsc, Arc};
 use std::thread;
 
 use crate::check::rule::{RuleDefinition, Severity};
-use crate::check::rules::get_active_rule_definitions;
+use crate::check::rules::get_config_active_rule_definitions;
 use clap::Parser;
 use walkdir::{DirEntry, WalkDir};
 
@@ -68,8 +68,8 @@ pub struct CliSharedData {
     pub inspect: bool,
     /// The config values to use.
     pub config: Config,
-    /// Active rule definitions
-    pub rule_definitions: Vec<Box<RuleDefinition>>,
+    /// Config active rule definitions
+    pub rule_definitions: Vec<Arc<RuleDefinition>>,
 }
 
 impl Clone for CliContext {
@@ -106,7 +106,7 @@ fn app(opts: Opts, config: Config) -> i32 {
     let (tx, rx) = mpsc::channel();
 
     // construct active rules
-    let active_rules = match get_active_rule_definitions(&config) {
+    let active_rules = match get_config_active_rule_definitions(&config) {
         Ok(rules) => rules,
         Err(e) => {
             println!("Error: {}", e);

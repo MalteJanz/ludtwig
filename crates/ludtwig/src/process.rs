@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
 
@@ -8,10 +9,11 @@ use ludtwig_parser::syntax::untyped::SyntaxNode;
 use ludtwig_parser::ParseError;
 
 use crate::check::rule::{CheckSuggestion, RuleContext};
+use crate::check::rules::get_file_active_rule_definitions;
 use crate::check::{get_rule_context_suggestions, produce_diagnostics, run_rules};
 use crate::error::FileProcessingError;
 use crate::output::ProcessingEvent;
-use crate::CliContext;
+use crate::{CliContext, RuleDefinition};
 
 /// The context for a single file.
 #[derive(Debug)]
@@ -27,6 +29,10 @@ pub struct FileContext {
     pub source_code: String,
 
     pub parse_errors: Vec<ParseError>,
+
+    /// active rules for this specific file (may be less than global config definitions).
+    /// these are defined after processing ludtwig-ignore-file directives
+    pub file_rule_definitions: Vec<Arc<RuleDefinition>>,
 }
 
 impl FileContext {
@@ -58,6 +64,9 @@ fn run_analysis(
     let parse = ludtwig_parser::parse(&original_file_content);
     let root = SyntaxNode::new_root(parse.green_node);
 
+    let file_rule_definitions =
+        get_file_active_rule_definitions(&root, &cli_context.data.rule_definitions);
+
     let apply_suggestions = cli_context.data.fix;
     let file_context = FileContext {
         cli_context,
@@ -65,6 +74,7 @@ fn run_analysis(
         source_code: original_file_content,
         tree_root: root,
         parse_errors: parse.errors,
+        file_rule_definitions,
     };
 
     // run all the rules

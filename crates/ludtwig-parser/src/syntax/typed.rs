@@ -1,6 +1,7 @@
 pub use rowan::ast::support;
 pub use rowan::ast::AstChildren;
 pub use rowan::ast::AstNode;
+use rowan::NodeOrToken;
 
 use crate::T;
 
@@ -62,6 +63,15 @@ ast_node!(HtmlString, SyntaxKind::HTML_STRING);
 ast_node!(HtmlTag, SyntaxKind::HTML_TAG);
 ast_node!(HtmlStartingTag, SyntaxKind::HTML_STARTING_TAG);
 ast_node!(HtmlEndingTag, SyntaxKind::HTML_ENDING_TAG);
+ast_node!(
+    LudtwigDirectiveFileIgnore,
+    SyntaxKind::LUDTWIG_DIRECTIVE_FILE_IGNORE
+);
+ast_node!(LudtwigDirectiveIgnore, SyntaxKind::LUDTWIG_DIRECTIVE_IGNORE);
+ast_node!(
+    LudtwigDirectiveRuleList,
+    SyntaxKind::LUDTWIG_DIRECTIVE_RULE_LIST
+);
 ast_node!(Error, SyntaxKind::ERROR);
 ast_node!(Root, SyntaxKind::ROOT);
 
@@ -189,6 +199,38 @@ impl HtmlEndingTag {
         match self.syntax.parent() {
             Some(p) => HtmlTag::cast(p),
             None => None,
+        }
+    }
+}
+
+impl LudtwigDirectiveRuleList {
+    pub fn get_rule_names(&self) -> Vec<String> {
+        self.syntax
+            .children_with_tokens()
+            .filter_map(|element| match element {
+                NodeOrToken::Token(t) if t.kind() == SyntaxKind::TK_WORD => {
+                    Some(t.text().to_string())
+                }
+                _ => None,
+            })
+            .collect()
+    }
+}
+
+impl LudtwigDirectiveFileIgnore {
+    pub fn get_rules(&self) -> Vec<String> {
+        match support::child::<LudtwigDirectiveRuleList>(&self.syntax) {
+            Some(rule_list) => rule_list.get_rule_names(),
+            None => vec![],
+        }
+    }
+}
+
+impl LudtwigDirectiveIgnore {
+    pub fn get_rules(&self) -> Vec<String> {
+        match support::child::<LudtwigDirectiveRuleList>(&self.syntax) {
+            Some(rule_list) => rule_list.get_rule_names(),
+            None => vec![],
         }
     }
 }

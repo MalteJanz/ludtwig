@@ -229,4 +229,19 @@ mod tests {
     fn lex_endif() {
         check("endif", T!["endif"]);
     }
+
+    #[test]
+    fn lex_comma() {
+        check(",", T![","]);
+    }
+
+    #[test]
+    fn lex_ludtwig_ignore_file() {
+        check("ludtwig-ignore-file", T!["ludtwig-ignore-file"]);
+    }
+
+    #[test]
+    fn lex_ludtwig_ignore() {
+        check("ludtwig-ignore", T!["ludtwig-ignore"]);
+    }
 }

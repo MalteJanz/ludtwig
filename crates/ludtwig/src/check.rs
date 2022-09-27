@@ -22,8 +22,15 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
         cli_context: file_context.cli_context.clone(),
     };
 
+    if file_context.file_rule_definitions.is_empty() {
+        // no rules to run for this file
+        return ctx;
+    }
+
+    // TODO: handle ludtwig-ignore directive for each node!
+
     // run root node checks once for each rule
-    for rule in &file_context.cli_context.data.rule_definitions {
+    for rule in &file_context.file_rule_definitions {
         rule.check_root(file_context.tree_root.clone(), &mut ctx);
     }
 
@@ -40,13 +47,13 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
                     }
 
                     // run node checks for every rule
-                    for rule in &file_context.cli_context.data.rule_definitions {
+                    for rule in &file_context.file_rule_definitions {
                         rule.check_node(n.clone(), &mut ctx);
                     }
                 }
                 SyntaxElement::Token(t) => {
                     // run token checks for every rule
-                    for rule in &file_context.cli_context.data.rule_definitions {
+                    for rule in &file_context.file_rule_definitions {
                         rule.check_token(t.clone(), &mut ctx);
                     }
                 }

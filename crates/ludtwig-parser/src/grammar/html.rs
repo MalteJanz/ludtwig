@@ -1,6 +1,6 @@
 use crate::grammar::twig::parse_any_twig;
-use crate::grammar::{parse_any_element, parse_many};
-use crate::parser::event::CompletedMarker;
+use crate::grammar::{parse_any_element, parse_ludtwig_directive, parse_many};
+use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser, RECOVERY_SET};
 use crate::syntax::untyped::SyntaxKind;
 use crate::T;
@@ -38,6 +38,14 @@ fn parse_html_comment(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
     parser.bump();
 
+    if parser.at_set(&[T!["ludtwig-ignore-file"], T!["ludtwig-ignore"]]) {
+        parse_ludtwig_directive(parser, m, T!["-->"])
+    } else {
+        parse_plain_html_comment(parser, m)
+    }
+}
+
+fn parse_plain_html_comment(parser: &mut Parser, outer: Marker) -> CompletedMarker {
     parse_many(
         parser,
         |p| p.at(T!["-->"]),
@@ -47,7 +55,7 @@ fn parse_html_comment(parser: &mut Parser) -> CompletedMarker {
     );
 
     parser.expect(T!["-->"]);
-    parser.complete(m, SyntaxKind::HTML_COMMENT)
+    parser.complete(outer, SyntaxKind::HTML_COMMENT)
 }
 
 fn parse_html_element(parser: &mut Parser) -> CompletedMarker {

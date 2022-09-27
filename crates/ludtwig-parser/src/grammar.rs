@@ -1,8 +1,9 @@
 use crate::grammar::html::parse_any_html;
 use crate::grammar::twig::parse_any_twig;
-use crate::parser::event::CompletedMarker;
+use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::Parser;
 use crate::syntax::untyped::SyntaxKind;
+use crate::T;
 
 mod html;
 mod twig;
@@ -58,6 +59,36 @@ where
 
 fn parse_any_element(parser: &mut Parser) -> Option<CompletedMarker> {
     parse_any_twig(parser, parse_any_element).or_else(|| parse_any_html(parser))
+}
+
+fn parse_ludtwig_directive(
+    parser: &mut Parser,
+    outer: Marker,
+    closing_kind: SyntaxKind,
+) -> CompletedMarker {
+    debug_assert!(parser.at_set(&[T!["ludtwig-ignore-file"], T!["ludtwig-ignore"]]));
+    let ignore_kind = if parser.at(T!["ludtwig-ignore-file"]) {
+        SyntaxKind::LUDTWIG_DIRECTIVE_FILE_IGNORE
+    } else {
+        SyntaxKind::LUDTWIG_DIRECTIVE_IGNORE
+    };
+    parser.bump();
+
+    let rule_list_m = parser.start();
+    parse_many(
+        parser,
+        |p| p.at(closing_kind),
+        |p| {
+            p.expect(T![word]);
+            if p.at(T![","]) {
+                p.bump();
+            }
+        },
+    );
+    parser.complete(rule_list_m, SyntaxKind::LUDTWIG_DIRECTIVE_RULE_LIST);
+
+    parser.expect(closing_kind);
+    parser.complete(outer, ignore_kind)
 }
 
 #[cfg(test)]
@@ -141,5 +172,89 @@ mod tests {
             },
         );
         assert_eq!(before_pos, parser.get_pos());
+    }
+
+    #[test]
+    fn parse_twig_comment_ludtwig_directive_ignore_file() {
+        check_parse(
+            "{# ludtwig-ignore-file twig-block-line-breaks, twig-block-name-snake-case #}",
+            expect![[r##"
+                ROOT@0..76
+                  LUDTWIG_DIRECTIVE_FILE_IGNORE@0..76
+                    TK_OPEN_CURLY_HASHTAG@0..2 "{#"
+                    TK_WHITESPACE@2..3 " "
+                    TK_LUDTWIG_IGNORE_FILE@3..22 "ludtwig-ignore-file"
+                    LUDTWIG_DIRECTIVE_RULE_LIST@22..73
+                      TK_WHITESPACE@22..23 " "
+                      TK_WORD@23..45 "twig-block-line-breaks"
+                      TK_COMMA@45..46 ","
+                      TK_WHITESPACE@46..47 " "
+                      TK_WORD@47..73 "twig-block-name-snake ..."
+                    TK_WHITESPACE@73..74 " "
+                    TK_HASHTAG_CLOSE_CURLY@74..76 "#}""##]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_comment_ludtwig_directive_ignore() {
+        check_parse(
+            "{# ludtwig-ignore twig-block-line-breaks, twig-block-name-snake-case #}",
+            expect![[r##"
+                ROOT@0..71
+                  LUDTWIG_DIRECTIVE_IGNORE@0..71
+                    TK_OPEN_CURLY_HASHTAG@0..2 "{#"
+                    TK_WHITESPACE@2..3 " "
+                    TK_LUDTWIG_IGNORE@3..17 "ludtwig-ignore"
+                    LUDTWIG_DIRECTIVE_RULE_LIST@17..68
+                      TK_WHITESPACE@17..18 " "
+                      TK_WORD@18..40 "twig-block-line-breaks"
+                      TK_COMMA@40..41 ","
+                      TK_WHITESPACE@41..42 " "
+                      TK_WORD@42..68 "twig-block-name-snake ..."
+                    TK_WHITESPACE@68..69 " "
+                    TK_HASHTAG_CLOSE_CURLY@69..71 "#}""##]],
+        )
+    }
+
+    #[test]
+    fn parse_html_comment_ludtwig_directive_ignore_file() {
+        check_parse(
+            "<!-- ludtwig-ignore-file twig-block-line-breaks, twig-block-name-snake-case -->",
+            expect![[r#"
+                ROOT@0..79
+                  LUDTWIG_DIRECTIVE_FILE_IGNORE@0..79
+                    TK_LESS_THAN_EXCLAMATION_MARK_MINUS_MINUS@0..4 "<!--"
+                    TK_WHITESPACE@4..5 " "
+                    TK_LUDTWIG_IGNORE_FILE@5..24 "ludtwig-ignore-file"
+                    LUDTWIG_DIRECTIVE_RULE_LIST@24..75
+                      TK_WHITESPACE@24..25 " "
+                      TK_WORD@25..47 "twig-block-line-breaks"
+                      TK_COMMA@47..48 ","
+                      TK_WHITESPACE@48..49 " "
+                      TK_WORD@49..75 "twig-block-name-snake ..."
+                    TK_WHITESPACE@75..76 " "
+                    TK_MINUS_MINUS_GREATER_THAN@76..79 "-->""#]],
+        )
+    }
+
+    #[test]
+    fn parse_html_comment_ludtwig_directive_ignore() {
+        check_parse(
+            "<!-- ludtwig-ignore twig-block-line-breaks, twig-block-name-snake-case -->",
+            expect![[r#"
+                ROOT@0..74
+                  LUDTWIG_DIRECTIVE_IGNORE@0..74
+                    TK_LESS_THAN_EXCLAMATION_MARK_MINUS_MINUS@0..4 "<!--"
+                    TK_WHITESPACE@4..5 " "
+                    TK_LUDTWIG_IGNORE@5..19 "ludtwig-ignore"
+                    LUDTWIG_DIRECTIVE_RULE_LIST@19..70
+                      TK_WHITESPACE@19..20 " "
+                      TK_WORD@20..42 "twig-block-line-breaks"
+                      TK_COMMA@42..43 ","
+                      TK_WHITESPACE@43..44 " "
+                      TK_WORD@44..70 "twig-block-name-snake ..."
+                    TK_WHITESPACE@70..71 " "
+                    TK_MINUS_MINUS_GREATER_THAN@71..74 "-->""#]],
+        )
     }
 }

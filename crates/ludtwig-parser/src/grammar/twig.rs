@@ -1,4 +1,4 @@
-use crate::grammar::{parse_many, ParseFunction};
+use crate::grammar::{parse_ludtwig_directive, parse_many, ParseFunction};
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
@@ -24,6 +24,14 @@ fn parse_twig_comment_statement(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
     parser.bump();
 
+    if parser.at_set(&[T!["ludtwig-ignore-file"], T!["ludtwig-ignore"]]) {
+        parse_ludtwig_directive(parser, m, T!["#}"])
+    } else {
+        parse_twig_plain_comment(parser, m)
+    }
+}
+
+fn parse_twig_plain_comment(parser: &mut Parser, outer: Marker) -> CompletedMarker {
     parse_many(
         parser,
         |p| p.at(T!["#}"]),
@@ -33,7 +41,7 @@ fn parse_twig_comment_statement(parser: &mut Parser) -> CompletedMarker {
     );
 
     parser.expect(T!["#}"]);
-    parser.complete(m, SyntaxKind::TWIG_COMMENT)
+    parser.complete(outer, SyntaxKind::TWIG_COMMENT)
 }
 
 fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {

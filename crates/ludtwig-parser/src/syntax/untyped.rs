@@ -11,6 +11,7 @@ pub use rowan::GreenNode;
 /// of currently in-progress nodes
 pub use rowan::GreenNodeBuilder;
 pub use rowan::Language;
+pub use rowan::SyntaxText;
 pub use rowan::TextLen;
 pub use rowan::TextRange;
 pub use rowan::TextSize;
@@ -29,7 +30,7 @@ pub enum SyntaxKind {
     #[regex(r"((\n)|(\r\n))+")]
     TK_LINE_BREAK,
     /// a single word containing only characters, numbers or symbols
-    #[regex(r"[a-zA-Z0-9_.,@:#!$&-]+")]
+    #[regex(r"[a-zA-Z0-9_.@:#!$&-]+")]
     TK_WORD,
     #[token("<")]
     TK_LESS_THAN,
@@ -73,6 +74,12 @@ pub enum SyntaxKind {
     TK_ELSE,
     #[token("endif")]
     TK_ENDIF,
+    #[token(",")]
+    TK_COMMA,
+    #[token("ludtwig-ignore-file")]
+    TK_LUDTWIG_IGNORE_FILE,
+    #[token("ludtwig-ignore")]
+    TK_LUDTWIG_IGNORE,
     #[error]
     TK_UNKNOWN, // contains invalid / unrecognized syntax (used for error recovery).
 
@@ -102,6 +109,11 @@ pub enum SyntaxKind {
     HTML_TAG,
     HTML_STARTING_TAG,
     HTML_ENDING_TAG,
+
+    // special ludtwig directive
+    LUDTWIG_DIRECTIVE_FILE_IGNORE,
+    LUDTWIG_DIRECTIVE_IGNORE,
+    LUDTWIG_DIRECTIVE_RULE_LIST,
     /*
     Special Nodes
      */
@@ -137,6 +149,9 @@ macro_rules! T {
     ["elseif"] => { $crate::syntax::untyped::SyntaxKind::TK_ELSE_IF };
     ["else"] => { $crate::syntax::untyped::SyntaxKind::TK_ELSE };
     ["endif"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDIF };
+    [","] => { $crate::syntax::untyped::SyntaxKind::TK_COMMA };
+    ["ludtwig-ignore-file"] => { $crate::syntax::untyped::SyntaxKind::TK_LUDTWIG_IGNORE_FILE };
+    ["ludtwig-ignore"] => { $crate::syntax::untyped::SyntaxKind::TK_LUDTWIG_IGNORE };
 }
 
 impl SyntaxKind {
@@ -173,6 +188,9 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_ELSE_IF => "elseif",
             SyntaxKind::TK_ELSE => "else",
             SyntaxKind::TK_ENDIF => "endif",
+            SyntaxKind::TK_COMMA => ",",
+            SyntaxKind::TK_LUDTWIG_IGNORE_FILE => "ludtwig-ignore-file",
+            SyntaxKind::TK_LUDTWIG_IGNORE => "ludtwig-ignore",
             SyntaxKind::TK_UNKNOWN => "unknown",
             SyntaxKind::ERROR => "error",
             t => unreachable!("Display not implemented for {:?}", t),
