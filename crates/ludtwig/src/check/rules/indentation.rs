@@ -1,3 +1,4 @@
+use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveIgnore};
 use ludtwig_parser::syntax::untyped::{
     SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken, TextRange, TextSize, WalkEvent,
 };
@@ -21,6 +22,7 @@ impl Rule for RuleIndentation {
         let mut indentation = 0;
         let indent_block_children = ctx.config().format.indent_children_of_blocks;
 
+        let mut is_ignored = false;
         let mut tree_iter = node.preorder_with_tokens();
         while let Some(walk) = tree_iter.next() {
             match walk {
@@ -32,7 +34,7 @@ impl Rule for RuleIndentation {
                         SyntaxElement::Token(t) if t.kind() == SyntaxKind::TK_LINE_BREAK => {
                             line_break_encountered = true;
                         }
-                        SyntaxElement::Token(t) if line_break_encountered => {
+                        SyntaxElement::Token(t) if !is_ignored && line_break_encountered => {
                             self.handle_first_token_in_line(t, indentation, ctx);
                             line_break_encountered = false;
                         }
@@ -40,30 +42,59 @@ impl Rule for RuleIndentation {
                             // any other token encountered
                             line_break_encountered = false;
                         }
-                        SyntaxElement::Node(n) if n.kind() == SyntaxKind::BODY => {
-                            if indent_block_children
-                                || !n
-                                    .parent()
-                                    .map_or(false, |p| p.kind() == SyntaxKind::TWIG_BLOCK)
+                        SyntaxElement::Node(n) => {
+                            // rule ignore check
+                            if let Some(node) = n.prev_sibling() {
+                                if let Some(directive) = LudtwigDirectiveIgnore::cast(node) {
+                                    let ignored_rules = directive.get_rules();
+                                    if ignored_rules.is_empty() {
+                                        // all rules are disabled
+                                        tree_iter.skip_subtree();
+                                        continue;
+                                    }
+
+                                    if ignored_rules.iter().any(|r| r == self.name()) {
+                                        // this rule is now ignored
+                                        is_ignored = true;
+                                    }
+                                }
+                            }
+
+                            if n.kind() == SyntaxKind::BODY
+                                && (indent_block_children
+                                    || !n
+                                        .parent()
+                                        .map_or(false, |p| p.kind() == SyntaxKind::TWIG_BLOCK))
                             {
                                 indentation += 1;
                             }
                         }
-                        _ => {}
                     }
                 }
-                WalkEvent::Leave(element) => match element {
-                    SyntaxElement::Node(n) if n.kind() == SyntaxKind::BODY => {
-                        if indent_block_children
-                            || !n
-                                .parent()
-                                .map_or(false, |p| p.kind() == SyntaxKind::TWIG_BLOCK)
+                WalkEvent::Leave(element) => {
+                    if let SyntaxElement::Node(n) = element {
+                        // rule ignore check
+                        if let Some(node) = n.prev_sibling() {
+                            if let Some(directive) = LudtwigDirectiveIgnore::cast(node) {
+                                let ignored_rules = directive.get_rules();
+
+                                if ignored_rules.iter().any(|r| r == self.name()) {
+                                    // this rule is no longer ignored
+                                    is_ignored = false;
+                                }
+                            }
+                        }
+
+                        if n.kind() == SyntaxKind::BODY
+                            && (indent_block_children
+                                || !n
+                                    .parent()
+                                    .map_or(false, |p| p.kind() == SyntaxKind::TWIG_BLOCK))
                         {
                             indentation -= 1;
                         }
                     }
-                    _ => {}
-                },
+                }
             }
         }
 
@@ -202,6 +233,20 @@ mod tests {
                         inner
                     </div>
                 {% endblock %}"#]],
+        );
+    }
+
+    #[test]
+    fn rule_ignores() {
+        test_rule(
+            "indentation",
+            r#"{% block outer %}
+    {# ludtwig-ignore indentation #}
+    <div>
+    inner
+    </div>
+{% endblock %}"#,
+            expect![[r#""#]],
         );
     }
 }

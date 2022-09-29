@@ -45,7 +45,9 @@ pub trait Rule {
     }
 
     /// Called once with the root untyped node in the syntax tree.
-    /// Be Careful: when iterating you should most likely skip SyntaxKind::Error Nodes!
+    /// Be Careful, rules that use this must follow this by themselves:
+    /// - when iterating you should most likely skip SyntaxKind::Error Nodes!
+    /// - you need to check for prev_siblings of LudtwigDirectiveIgnore and respect the ignored rules!
     ///
     /// The conversion to a typed AST node can be made at any time with a simple call to cast.
     /// Defaults to doing nothing.

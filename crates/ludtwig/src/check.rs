@@ -6,7 +6,7 @@ use codespan_reporting::term;
 use codespan_reporting::term::termcolor::Buffer;
 
 use ludtwig_parser::syntax::typed;
-use ludtwig_parser::syntax::typed::AstNode;
+use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveIgnore};
 use ludtwig_parser::syntax::untyped::{debug_tree, SyntaxElement, WalkEvent};
 
 use crate::check::rule::{CheckSuggestion, RuleContext, Severity};
@@ -27,35 +27,75 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
         return ctx;
     }
 
-    // TODO: handle ludtwig-ignore directive for each node!
-
     // run root node checks once for each rule
     for rule in &file_context.file_rule_definitions {
         rule.check_root(file_context.tree_root.clone(), &mut ctx);
     }
 
     // iterate through syntax tree
+    let mut ignored_rules: Vec<String> = vec![];
     let mut preorder = file_context.tree_root.preorder_with_tokens();
     while let Some(walk_event) = preorder.next() {
-        if let WalkEvent::Enter(element) = walk_event {
-            match element {
-                SyntaxElement::Node(n) => {
-                    if typed::Error::can_cast(n.kind()) {
-                        preorder.skip_subtree();
-                        continue; // Skip error nodes in rules for now
-                                  // TODO: maybe also pass errors to specific rules to generate CLI output?
-                    }
+        match walk_event {
+            WalkEvent::Enter(element) => {
+                // add ignored rules when entering the sibling after the ignore directive / comment
+                // also skip the whole subtree if there is a ignore directive without specific rules
+                let mut found_ignored_rules: Vec<String> = match element.prev_sibling_or_token() {
+                    Some(SyntaxElement::Node(node)) => match LudtwigDirectiveIgnore::cast(node) {
+                        Some(directive) => {
+                            let ignored_rules = directive.get_rules();
+                            if ignored_rules.is_empty() {
+                                // all rules are disabled
+                                preorder.skip_subtree();
+                                continue;
+                            }
 
-                    // run node checks for every rule
-                    for rule in &file_context.file_rule_definitions {
-                        rule.check_node(n.clone(), &mut ctx);
+                            ignored_rules
+                        }
+                        None => vec![],
+                    },
+                    _ => vec![],
+                };
+                ignored_rules.append(&mut found_ignored_rules);
+
+                // actually run the rules
+                match element {
+                    SyntaxElement::Node(n) => {
+                        if typed::Error::can_cast(n.kind()) {
+                            preorder.skip_subtree();
+                            continue; // Skip error nodes in rules for now
+                                      // TODO: maybe also pass errors to specific rules to generate CLI output?
+                        }
+
+                        // run node checks for every rule
+                        for rule in &file_context.file_rule_definitions {
+                            if !ignored_rules.iter().any(|ignored| ignored == rule.name()) {
+                                rule.check_node(n.clone(), &mut ctx);
+                            }
+                        }
+                    }
+                    SyntaxElement::Token(t) => {
+                        // run token checks for every rule
+                        for rule in &file_context.file_rule_definitions {
+                            if !ignored_rules.iter().any(|ignored| ignored == rule.name()) {
+                                rule.check_token(t.clone(), &mut ctx);
+                            }
+                        }
                     }
                 }
-                SyntaxElement::Token(t) => {
-                    // run token checks for every rule
-                    for rule in &file_context.file_rule_definitions {
-                        rule.check_token(t.clone(), &mut ctx);
-                    }
+            }
+            WalkEvent::Leave(element) => {
+                // remove ignored rules when leaving the sibling after the ignore directive / comment
+                let found_ignored_rules: Vec<String> = match element.prev_sibling_or_token() {
+                    Some(SyntaxElement::Node(node)) => match LudtwigDirectiveIgnore::cast(node) {
+                        Some(directive) => directive.get_rules(),
+                        None => vec![],
+                    },
+                    _ => vec![],
+                };
+
+                for rule in found_ignored_rules {
+                    ignored_rules.remove(ignored_rules.iter().position(|r| r == &rule).unwrap());
                 }
             }
         }

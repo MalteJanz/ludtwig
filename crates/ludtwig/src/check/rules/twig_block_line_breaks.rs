@@ -27,7 +27,23 @@ impl Rule for RuleTwigBlockLineBreaks {
 
         // find first token of twig block (ideally a line break)
         let starting_block = block.starting_block()?;
-        let first_child_token = starting_block.syntax().first_token();
+        let prev_sibling = block.syntax().prev_sibling();
+        let starting_syntax = match prev_sibling {
+            Some(ref n)
+                if matches!(
+                    n.kind(),
+                    SyntaxKind::TWIG_COMMENT
+                        | SyntaxKind::HTML_COMMENT
+                        | SyntaxKind::LUDTWIG_DIRECTIVE_FILE_IGNORE
+                        | SyntaxKind::LUDTWIG_DIRECTIVE_IGNORE
+                ) =>
+            {
+                // use comment before the twig block as starting point if it exists
+                n
+            }
+            _ => starting_block.syntax(),
+        };
+        let first_child_token = starting_syntax.first_token();
 
         // find first token after the twig block (ideally a line break)
         // set to None if next sibling is also a block (which also places linebreaks before)
@@ -48,7 +64,7 @@ impl Rule for RuleTwigBlockLineBreaks {
             true => 2,
             false => 1,
         };
-        let before_line_break_amount = match block.syntax().prev_sibling() {
+        let before_line_break_amount = match prev_sibling {
             Some(_) => config_line_break_amount,
             None => 1,
         };
