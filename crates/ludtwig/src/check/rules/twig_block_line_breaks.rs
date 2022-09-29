@@ -2,15 +2,11 @@ use ludtwig_parser::syntax::typed::{AstNode, TwigBlock};
 use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxNode, TextRange, TextSize};
 
 use crate::check::rule::{Rule, RuleContext, Severity};
-use crate::Config;
 
+#[derive(Debug, Clone)]
 pub struct RuleTwigBlockLineBreaks;
 
 impl Rule for RuleTwigBlockLineBreaks {
-    fn new(_config: &Config) -> Self {
-        Self
-    }
-
     fn name(&self) -> &'static str {
         "twig-block-line-breaks"
     }

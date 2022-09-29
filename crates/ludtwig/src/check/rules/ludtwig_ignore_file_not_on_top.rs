@@ -1,18 +1,12 @@
 use crate::check::rule::{Rule, RuleContext};
-use crate::{Config, Severity};
+use crate::Severity;
 use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveFileIgnore};
 use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxNode};
 
+#[derive(Debug, Clone)]
 pub struct RuleLudtwigIgnoreFileNotOnTop;
 
 impl Rule for RuleLudtwigIgnoreFileNotOnTop {
-    fn new(_config: &Config) -> Self
-    where
-        Self: Sized + Send + Sync + 'static,
-    {
-        Self
-    }
-
     fn name(&self) -> &'static str {
         "ludtwig-ignore-file-not-on-top"
     }

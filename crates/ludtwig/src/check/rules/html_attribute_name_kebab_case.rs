@@ -2,15 +2,11 @@ use ludtwig_parser::syntax::typed::{AstNode, HtmlAttribute};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 
 use crate::check::rule::{Rule, RuleContext, Severity};
-use crate::Config;
 
+#[derive(Debug, Clone)]
 pub struct RuleHtmlAttributeNameKebabCase;
 
 impl Rule for RuleHtmlAttributeNameKebabCase {
-    fn new(_config: &Config) -> Self {
-        Self
-    }
-
     fn name(&self) -> &'static str {
         "html-attribute-name-kebab-case"
     }

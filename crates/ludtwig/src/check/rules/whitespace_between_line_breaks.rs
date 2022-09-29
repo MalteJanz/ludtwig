@@ -1,15 +1,11 @@
 use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxToken};
 
 use crate::check::rule::{Rule, RuleContext, Severity};
-use crate::Config;
 
+#[derive(Debug, Clone)]
 pub struct RuleWhitespaceBetweenLineBreaks;
 
 impl Rule for RuleWhitespaceBetweenLineBreaks {
-    fn new(_config: &Config) -> Self {
-        Self
-    }
-
     fn name(&self) -> &'static str {
         "whitespace-between-line-breaks"
     }

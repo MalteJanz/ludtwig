@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
 
@@ -13,7 +12,7 @@ use crate::check::rules::get_file_active_rule_definitions;
 use crate::check::{get_rule_context_suggestions, produce_diagnostics, run_rules};
 use crate::error::FileProcessingError;
 use crate::output::ProcessingEvent;
-use crate::{CliContext, RuleDefinition};
+use crate::{CliContext, RuleImplementation};
 
 /// The context for a single file.
 #[derive(Debug)]
@@ -32,7 +31,7 @@ pub struct FileContext {
 
     /// active rules for this specific file (may be less than global config definitions).
     /// these are defined after processing ludtwig-ignore-file directives
-    pub file_rule_definitions: Vec<Arc<RuleDefinition>>,
+    pub file_rule_definitions: Vec<RuleImplementation>,
 }
 
 impl FileContext {

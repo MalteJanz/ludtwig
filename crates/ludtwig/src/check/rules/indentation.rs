@@ -4,15 +4,11 @@ use ludtwig_parser::syntax::untyped::{
 };
 
 use crate::check::rule::{Rule, RuleContext, Severity};
-use crate::Config;
 
+#[derive(Debug, Clone)]
 pub struct RuleIndentation;
 
 impl Rule for RuleIndentation {
-    fn new(_config: &Config) -> Self {
-        Self
-    }
-
     fn name(&self) -> &'static str {
         "indentation"
     }

@@ -9,6 +9,7 @@ use ludtwig_parser::syntax::typed;
 use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveIgnore};
 use ludtwig_parser::syntax::untyped::{debug_tree, SyntaxElement, WalkEvent};
 
+use crate::check::rule::Rule;
 use crate::check::rule::{CheckSuggestion, RuleContext, Severity};
 use crate::process::FileContext;
 use crate::ProcessingEvent;

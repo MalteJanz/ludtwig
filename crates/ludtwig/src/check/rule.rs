@@ -13,11 +13,14 @@ impl Debug for RuleDefinition {
 }
 
 pub trait Rule {
+    /*
     /// Constructor of the rule, which may initialize Data based on the config.
     /// This is advisable instead of doing it every time in a hot loop (init a Regex for example)
     fn new(config: &Config) -> Self
     where
         Self: Sized + Send + Sync + 'static;
+
+     */
 
     /// A unique, kebab-case name for the rule.
     fn name(&self) -> &'static str;

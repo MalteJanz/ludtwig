@@ -5,8 +5,8 @@ use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc};
 use std::thread;
 
-use crate::check::rule::{RuleDefinition, Severity};
-use crate::check::rules::get_config_active_rule_definitions;
+use crate::check::rule::Severity;
+use crate::check::rules::{get_config_active_rule_definitions, RuleImplementation};
 use clap::Parser;
 use walkdir::{DirEntry, WalkDir};
 
@@ -69,7 +69,7 @@ pub struct CliSharedData {
     /// The config values to use.
     pub config: Config,
     /// Config active rule definitions
-    pub rule_definitions: Vec<Arc<RuleDefinition>>,
+    pub rule_definitions: Vec<RuleImplementation>,
 }
 
 impl Clone for CliContext {
