@@ -8,7 +8,7 @@ edition = "2021"
 
 
 [dependencies]
-libfuzzer-sys = "0.3"
+libfuzzer-sys = "0.4.4"
 ludtwig-parser = { path = "../crates/ludtwig-parser" }
 
 [[bin]]
