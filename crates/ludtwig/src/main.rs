@@ -1,17 +1,15 @@
 extern crate core;
 
+use crate::check::rule::{Rule, Severity};
+use crate::check::rules::get_config_active_rule_definitions;
+use crate::config::Config;
+use crate::output::ProcessingEvent;
+use clap::Parser;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc};
 use std::thread;
-
-use crate::check::rule::{Rule, Severity};
-use crate::check::rules::get_config_active_rule_definitions;
-use clap::Parser;
 use walkdir::{DirEntry, WalkDir};
-
-use crate::config::Config;
-use crate::output::ProcessingEvent;
 
 mod check;
 mod config;
@@ -19,35 +17,34 @@ mod error;
 mod output;
 mod process;
 
-/// A CLI tool for template files (Twig + HTML) with focus on formatting and detecting mistakes.
+// uses author, version and description from Cargo.toml
 #[derive(Parser, Debug, Clone)]
-#[clap(author = env!("CARGO_PKG_AUTHORS"))]
+#[command(author, version, about, long_about = None)]
 pub struct Opts {
     /// Files or directories to scan
-    #[clap(
+    #[arg(
         value_name = "FILE",
-        min_values = 1,
+        num_args = 1..,
         required = true,
         conflicts_with = "create_config",
-        parse(from_os_str),
         name = "files"
     )]
     files: Vec<PathBuf>,
 
     /// Apply all code suggestions automatically. This changes the original files!
-    #[clap(short = 'f', long)]
+    #[arg(short = 'f', long)]
     fix: bool,
 
     /// Print out the parsed syntax tree for each file
-    #[clap(short = 'i', long)]
+    #[arg(short = 'i', long)]
     inspect: bool,
 
     /// Specify where the ludtwig configuration file is. Ludtwig looks in the current directory for a 'ludtwig-config.toml' by default.
-    #[clap(short = 'c', long, parse(from_os_str))]
+    #[arg(short = 'c', long)]
     config_path: Option<PathBuf>,
 
     /// Create the default configuration file in the config path. Defaults to the current directory.
-    #[clap(short = 'C', long, name = "create_config")]
+    #[arg(short = 'C', long, name = "create_config")]
     create_config: bool,
 }
 
@@ -91,7 +88,7 @@ impl CliContext {
 
 /// Parse the CLI arguments and bootstrap the application.
 fn main() {
-    let opts: Opts = Opts::from_args();
+    let opts: Opts = Opts::parse();
     let config = config::handle_config_or_exit(&opts);
 
     let process_code = app(opts, config);

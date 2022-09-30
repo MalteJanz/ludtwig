@@ -1,6 +1,6 @@
 [package]
 name = "ludtwig-parser"
-description = "Parser for twig / html / vue templating syntax."
+description = "Parser for html / twig / vue templating syntax."
 keywords = ["parser", "twig", "html", "vue", "template"]
 categories = ["parser-implementations"]
 repository = "https://github.com/MalteJanz/ludtwig-parser"
@@ -20,7 +20,7 @@ name = "parsing_benchmark"
 harness = false
 
 [dev-dependencies]
-criterion = "^0.3.3"
+criterion = "0.4.0"
 expect-test = "1.4.0"
 
 [dependencies]
