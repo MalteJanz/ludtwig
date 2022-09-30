@@ -3,7 +3,7 @@ use crate::Severity;
 use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveFileIgnore};
 use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxNode};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct RuleLudtwigIgnoreFileNotOnTop;
 
 impl Rule for RuleLudtwigIgnoreFileNotOnTop {

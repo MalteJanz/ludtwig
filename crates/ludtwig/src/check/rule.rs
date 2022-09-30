@@ -1,27 +1,11 @@
+use dyn_clone::DynClone;
 use std::fmt::{Debug, Formatter};
 
 use ludtwig_parser::syntax::untyped::{SyntaxNode, SyntaxToken, TextRange};
 
 use crate::{CliContext, Config};
 
-pub type RuleDefinition = dyn Rule + Send + Sync + 'static;
-
-impl Debug for RuleDefinition {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "RuleDefinition: {}", self.name())
-    }
-}
-
-pub trait Rule {
-    /*
-    /// Constructor of the rule, which may initialize Data based on the config.
-    /// This is advisable instead of doing it every time in a hot loop (init a Regex for example)
-    fn new(config: &Config) -> Self
-    where
-        Self: Sized + Send + Sync + 'static;
-
-     */
-
+pub trait Rule: DynClone + Send + Sync {
     /// A unique, kebab-case name for the rule.
     fn name(&self) -> &'static str;
 
@@ -60,6 +44,14 @@ pub trait Rule {
     #[allow(unused_variables)]
     fn check_root(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
         None
+    }
+}
+
+dyn_clone::clone_trait_object!(Rule);
+
+impl Debug for dyn Rule {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Rule<{}>", self.name())
     }
 }
 

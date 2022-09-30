@@ -7,12 +7,12 @@ use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 use ludtwig_parser::ParseError;
 
-use crate::check::rule::{CheckSuggestion, RuleContext};
+use crate::check::rule::{CheckSuggestion, Rule, RuleContext};
 use crate::check::rules::get_file_active_rule_definitions;
 use crate::check::{get_rule_context_suggestions, produce_diagnostics, run_rules};
 use crate::error::FileProcessingError;
 use crate::output::ProcessingEvent;
-use crate::{CliContext, RuleImplementation};
+use crate::CliContext;
 
 /// The context for a single file.
 #[derive(Debug)]
@@ -31,7 +31,7 @@ pub struct FileContext {
 
     /// active rules for this specific file (may be less than global config definitions).
     /// these are defined after processing ludtwig-ignore-file directives
-    pub file_rule_definitions: Vec<RuleImplementation>,
+    pub file_rule_definitions: Vec<&'static dyn Rule>,
 }
 
 impl FileContext {

@@ -19,64 +19,21 @@ mod twig_block_line_breaks;
 mod twig_block_name_snake_case;
 mod whitespace_between_line_breaks;
 
-// List of all rule trait objects, also add them to the `active-rules` in `ludtwig-config.toml`!
-
-macro_rules! rule_list {
-    [$($name:ident),+ $(,)?] => {
-
-        #[allow(clippy::enum_variant_names)]
-        #[derive(Debug, Clone)]
-        pub enum RuleImplementation {
-            $($name($name)),+
-        }
-
-        impl Rule for RuleImplementation {
-            fn name(&self) -> &'static str {
-                match self {
-                    $(RuleImplementation::$name(r) => r.name()),+,
-                }
-            }
-
-            fn check_node(&self, node: ludtwig_parser::syntax::untyped::SyntaxNode, ctx: &mut crate::check::rule::RuleContext) -> Option<()> {
-                match self {
-                    $(RuleImplementation::$name(r) => r.check_node(node, ctx)),+,
-                }
-            }
-
-            fn check_token(&self, token: ludtwig_parser::syntax::untyped::SyntaxToken, ctx: &mut crate::check::rule::RuleContext) -> Option<()> {
-                match self {
-                    $(RuleImplementation::$name(r) => r.check_token(token, ctx)),+,
-                }
-            }
-
-            fn check_root(&self, node: ludtwig_parser::syntax::untyped::SyntaxNode, ctx: &mut crate::check::rule::RuleContext) -> Option<()> {
-                match self {
-                    $(RuleImplementation::$name(r) => r.check_root(node, ctx)),+,
-                }
-            }
-        }
-
-        fn get_all_rule_definitions() -> Vec<RuleImplementation> {
-            vec![
-                $(RuleImplementation::$name($name)),+,
-            ]
-        }
-    };
-}
-
-rule_list![
-    RuleWhitespaceBetweenLineBreaks,
-    RuleLudtwigIgnoreFileNotOnTop,
-    RuleLineEnding,
-    RuleIndentation,
-    RuleTwigBlockLineBreaks,
-    RuleTwigBlockNameSnakeCase,
-    RuleHtmlAttributeNameKebabCase,
+/// List of all rule trait objects, also add them to the `active-rules` in `ludtwig-config.toml`!
+pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
+    &RuleWhitespaceBetweenLineBreaks,
+    &RuleLudtwigIgnoreFileNotOnTop,
+    &RuleLineEnding,
+    &RuleIndentation,
+    &RuleTwigBlockLineBreaks,
+    &RuleTwigBlockNameSnakeCase,
+    &RuleHtmlAttributeNameKebabCase,
 ];
 
+/// Get active rule definitions based on config
 pub fn get_config_active_rule_definitions(
     config: &Config,
-) -> Result<Vec<RuleImplementation>, ConfigurationError> {
+) -> Result<Vec<&'static dyn Rule>, ConfigurationError> {
     // gather active rules
     let config_active_rules: Vec<&str> = config
         .general
@@ -84,11 +41,11 @@ pub fn get_config_active_rule_definitions(
         .iter()
         .map(String::as_ref)
         .collect();
-    let active_rules: Vec<RuleImplementation> = get_all_rule_definitions()
-        .into_iter()
+    let active_rules: Vec<&'static dyn Rule> = RULE_DEFINITIONS
+        .iter()
         .filter_map(|r| {
             if config_active_rules.contains(&r.name()) {
-                Some(r)
+                Some(*r)
             } else {
                 None
             }
@@ -118,8 +75,8 @@ pub fn get_config_active_rule_definitions(
 /// after looking inside it for ludtwig-ignore-file directives
 pub fn get_file_active_rule_definitions(
     root: &SyntaxNode,
-    definitions: &[RuleImplementation],
-) -> Vec<RuleImplementation> {
+    definitions: &[&'static dyn Rule],
+) -> Vec<&'static dyn Rule> {
     let mut disabled_rules: Vec<String> = vec![];
 
     for directive in root
@@ -142,94 +99,9 @@ pub fn get_file_active_rule_definitions(
         .cloned()
         .collect()
 }
-
-/*
-fn get_all_rule_definitions(config: &Config) -> Vec<Arc<RuleDefinition>> {
-    vec![
-        Arc::new(RuleWhitespaceBetweenLineBreaks::new(config)),
-        Arc::new(RuleLudtwigIgnoreFileNotOnTop::new(config)),
-        Arc::new(RuleLineEnding::new(config)),
-        Arc::new(RuleIndentation::new(config)),
-        Arc::new(RuleTwigBlockLineBreaks::new(config)),
-        Arc::new(RuleTwigBlockNameSnakeCase::new(config)),
-        Arc::new(RuleHtmlAttributeNameKebabCase::new(config)),
-    ]
-}
-
-
-pub fn get_config_active_rule_definitions(
-    config: &Config,
-) -> Result<Vec<Arc<RuleDefinition>>, ConfigurationError> {
-    // gather active rules
-    let config_active_rules: Vec<&str> = config
-        .general
-        .active_rules
-        .iter()
-        .map(String::as_ref)
-        .collect();
-    let active_rules: Vec<Arc<RuleDefinition>> = get_all_rule_definitions(config)
-        .into_iter()
-        .filter_map(|r| {
-            if config_active_rules.contains(&r.name()) {
-                Some(r)
-            } else {
-                None
-            }
-        })
-        .collect();
-    // validate that every rule in the config is there
-    for config_rule in &config_active_rules {
-        let mut found = false;
-        for rule in &active_rules {
-            if &rule.name() == config_rule {
-                found = true;
-                break;
-            }
-        }
-
-        if !found {
-            return Err(ConfigurationError::RuleNotFound {
-                name: config_rule.to_string(),
-            });
-        }
-    }
-
-    Ok(active_rules)
-}
-
-/// filter down config active rule definitions for a specific file
-/// after looking inside it for ludtwig-ignore-file directives
-pub fn get_file_active_rule_definitions(
-    root: &SyntaxNode,
-    definitions: &[Arc<RuleDefinition>],
-) -> Vec<Arc<RuleDefinition>> {
-    let mut disabled_rules: Vec<String> = vec![];
-
-    for directive in root
-        .children()
-        // .take(3) // Todo: maybe only look at x first children of root?
-        .filter_map(LudtwigDirectiveFileIgnore::cast)
-    {
-        let mut rules = directive.get_rules();
-        if rules.is_empty() {
-            // no rule to disable specified, so ignore all rules on this file (run nothing)
-            return vec![];
-        } else {
-            disabled_rules.append(&mut rules);
-        }
-    }
-
-    definitions
-        .iter()
-        .filter(|d| !disabled_rules.iter().any(|rule_name| rule_name == d.name()))
-        .cloned()
-        .collect()
-}
- */
 
 #[cfg(test)]
 pub mod test {
-    use crate::check::rule::Rule;
     use std::path::PathBuf;
     use std::sync::mpsc::Receiver;
     use std::sync::{mpsc, Arc};
@@ -241,7 +113,7 @@ pub mod test {
 
     use crate::check::produce_diagnostics;
     use crate::check::rule::RuleContext;
-    use crate::check::rules::get_all_rule_definitions;
+    use crate::check::rules::RULE_DEFINITIONS;
     use crate::check::run_rules;
     use crate::process::{iteratively_apply_suggestions, FileContext};
     use crate::{CliContext, CliSharedData, Config, ProcessingEvent};
@@ -252,8 +124,8 @@ pub mod test {
     ) -> (FileContext, RuleContext, Receiver<ProcessingEvent>) {
         let config = Config::new(crate::config::DEFAULT_CONFIG_PATH).unwrap();
 
-        let rule = get_all_rule_definitions()
-            .into_iter()
+        let rule = RULE_DEFINITIONS
+            .iter()
             .find(|r| r.name() == rule_name)
             .unwrap();
         let (tx, rx) = mpsc::channel();
@@ -266,14 +138,14 @@ pub mod test {
                     fix: false,
                     inspect: false,
                     config,
-                    rule_definitions: vec![rule.clone()],
+                    rule_definitions: vec![*rule],
                 }),
             },
             file_path: PathBuf::from("./debug-rule.html.twig"),
             tree_root: SyntaxNode::new_root(parse.green_node),
             source_code: source_code.to_owned(),
             parse_errors: parse.errors,
-            file_rule_definitions: vec![rule],
+            file_rule_definitions: vec![*rule],
         };
 
         let rule_result_context = run_rules(&file_context);

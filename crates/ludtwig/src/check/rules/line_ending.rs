@@ -6,7 +6,7 @@ use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxToken, TextRange, TextSi
 use crate::check::rule::{Rule, RuleContext, Severity};
 use crate::config::LineEnding;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct RuleLineEnding;
 
 impl Rule for RuleLineEnding {

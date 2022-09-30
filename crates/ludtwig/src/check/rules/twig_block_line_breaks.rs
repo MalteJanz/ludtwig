@@ -3,7 +3,7 @@ use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxNode, TextRange, TextSiz
 
 use crate::check::rule::{Rule, RuleContext, Severity};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct RuleTwigBlockLineBreaks;
 
 impl Rule for RuleTwigBlockLineBreaks {

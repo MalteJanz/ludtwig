@@ -5,7 +5,7 @@ use ludtwig_parser::syntax::untyped::{
 
 use crate::check::rule::{Rule, RuleContext, Severity};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct RuleIndentation;
 
 impl Rule for RuleIndentation {
