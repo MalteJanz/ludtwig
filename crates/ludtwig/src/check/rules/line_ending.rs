@@ -6,7 +6,6 @@ use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxToken, TextRange, TextSi
 use crate::check::rule::{Rule, RuleContext, Severity};
 use crate::config::LineEnding;
 
-#[derive(Clone)]
 pub struct RuleLineEnding;
 
 impl Rule for RuleLineEnding {
@@ -22,6 +21,8 @@ impl Rule for RuleLineEnding {
         let correct_line_ending = ctx.config().format.line_ending.corresponding_string();
         let message = format!("use {} instead", ctx.config().format.line_ending);
 
+        // compile regex only once and store it in a static
+        // because this function is called in a hot loop this does improve it's performance significantly
         static INVALID_REGEX: OnceCell<Regex> = OnceCell::new();
         let invalid_regex = INVALID_REGEX.get_or_init(|| {
             Regex::new(&format!(

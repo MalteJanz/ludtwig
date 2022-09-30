@@ -3,7 +3,6 @@ use ludtwig_parser::syntax::untyped::SyntaxNode;
 
 use crate::check::rule::{Rule, RuleContext, Severity};
 
-#[derive(Clone)]
 pub struct RuleTwigBlockNameSnakeCase;
 
 impl Rule for RuleTwigBlockNameSnakeCase {

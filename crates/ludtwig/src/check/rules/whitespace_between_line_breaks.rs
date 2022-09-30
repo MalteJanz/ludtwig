@@ -2,7 +2,6 @@ use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxToken};
 
 use crate::check::rule::{Rule, RuleContext, Severity};
 
-#[derive(Clone)]
 pub struct RuleWhitespaceBetweenLineBreaks;
 
 impl Rule for RuleWhitespaceBetweenLineBreaks {

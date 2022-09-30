@@ -1,11 +1,8 @@
-use dyn_clone::DynClone;
+use crate::{CliContext, Config};
+use ludtwig_parser::syntax::untyped::{SyntaxNode, SyntaxToken, TextRange};
 use std::fmt::{Debug, Formatter};
 
-use ludtwig_parser::syntax::untyped::{SyntaxNode, SyntaxToken, TextRange};
-
-use crate::{CliContext, Config};
-
-pub trait Rule: DynClone + Send + Sync {
+pub trait Rule: Sync {
     /// A unique, kebab-case name for the rule.
     fn name(&self) -> &'static str;
 
@@ -16,6 +13,7 @@ pub trait Rule: DynClone + Send + Sync {
     /// The return type is `Option<()>` to allow usage of the `?` (early return if not found) on the properties of the AST nodes
     /// which are all optional.
     #[allow(unused_variables)]
+    #[inline]
     fn check_node(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
         None
     }
@@ -27,6 +25,7 @@ pub trait Rule: DynClone + Send + Sync {
     /// The return type is `Option<()>` to allow usage of the `?` (early return if not found) on the properties of the AST nodes
     /// which are all optional.
     #[allow(unused_variables)]
+    #[inline]
     fn check_token(&self, token: SyntaxToken, ctx: &mut RuleContext) -> Option<()> {
         None
     }
@@ -42,12 +41,11 @@ pub trait Rule: DynClone + Send + Sync {
     /// The return type is `Option<()>` to allow usage of the `?` (early return if not found) on the properties of the AST nodes
     /// which are all optional.
     #[allow(unused_variables)]
+    #[inline]
     fn check_root(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
         None
     }
 }
-
-dyn_clone::clone_trait_object!(Rule);
 
 impl Debug for dyn Rule {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
