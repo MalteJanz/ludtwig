@@ -6,6 +6,11 @@
 ![GitHub all releases](https://img.shields.io/github/downloads/MalteJanz/ludtwig/total?logo=GitHub&style=flat-square)
 ![Crates.io](https://img.shields.io/crates/d/ludtwig?label=downloads%20crates.io&style=flat-square)
 
+## Rework in progress!
+> Everything below might be outdated by the next release, and it will contain breaking changes.  
+> A big rework is currently ongoing on the `bachelor-thesis` branch which should improve this
+> tool by a lot (and fix some of it's major flaws / issues).
+
 A CLI tool for developers that tries to speedup the development workflow while working with templating (`.twig`) files.
 It focuses mainly on formatting the files with a uniform code style and detecting mistakes.
 It is only a "formatter" that can be run locally or in the pipeline, it will not report anything to your IDE.
