@@ -440,6 +440,161 @@ mod tests {
     }
 
     #[test]
+    fn lex_not() {
+        check("not", T!["not"]);
+    }
+
+    #[test]
+    fn lex_or() {
+        check("or", T!["or"]);
+    }
+
+    #[test]
+    fn lex_and() {
+        check("and", T!["and"]);
+    }
+
+    #[test]
+    fn lex_binary_or() {
+        check("b-or", T!["b-or"]);
+    }
+
+    #[test]
+    fn lex_binary_xor() {
+        check("b-xor", T!["b-xor"]);
+    }
+
+    #[test]
+    fn lex_binary_and() {
+        check("b-and", T!["b-and"]);
+    }
+
+    #[test]
+    fn lex_not_in() {
+        check("not in", T!["not in"]);
+    }
+
+    #[test]
+    fn lex_in() {
+        check("in", T!["in"]);
+    }
+
+    #[test]
+    fn lex_matches() {
+        check("matches", T!["matches"]);
+    }
+
+    #[test]
+    fn lex_starts_with() {
+        check("starts with", T!["starts with"]);
+    }
+
+    #[test]
+    fn lex_ends_with() {
+        check("ends with", T!["ends with"]);
+    }
+
+    #[test]
+    fn lex_is() {
+        check("is", T!["is"]);
+    }
+
+    #[test]
+    fn lex_is_not() {
+        check("is not", T!["is not"]);
+    }
+
+    #[test]
+    fn lex_even() {
+        check("even", T!["even"]);
+    }
+
+    #[test]
+    fn lex_odd() {
+        check("odd", T!["odd"]);
+    }
+
+    #[test]
+    fn lex_defined() {
+        check("defined", T!["defined"]);
+    }
+
+    #[test]
+    fn lex_same_as() {
+        check("same as", T!["same as"]);
+    }
+
+    #[test]
+    fn lex_none() {
+        check("none", T!["none"]);
+    }
+
+    #[test]
+    fn lex_null() {
+        check("null", T!["null"]);
+    }
+
+    #[test]
+    fn lex_divisible_by() {
+        check("divisible by", T!["divisible by"]);
+    }
+
+    #[test]
+    fn lex_constant() {
+        check("constant", T!["constant"]);
+    }
+
+    #[test]
+    fn lex_empty() {
+        check("empty", T!["empty"]);
+    }
+
+    #[test]
+    fn lex_iterable() {
+        check("iterable", T!["iterable"]);
+    }
+
+    #[test]
+    fn lex_max() {
+        check("max", T!["max"]);
+    }
+
+    #[test]
+    fn lex_min() {
+        check("min", T!["min"]);
+    }
+
+    #[test]
+    fn lex_range() {
+        check("range", T!["range"]);
+    }
+
+    #[test]
+    fn lex_cycle() {
+        check("cycle", T!["cycle"]);
+    }
+
+    #[test]
+    fn lex_random() {
+        check("random", T!["random"]);
+    }
+
+    #[test]
+    fn lex_date() {
+        check("date", T!["date"]);
+    }
+
+    #[test]
+    fn lex_include() {
+        check("include", T!["include"]);
+    }
+
+    #[test]
+    fn lex_source() {
+        check("source", T!["source"]);
+    }
+
+    #[test]
     fn lex_ludtwig_ignore_file() {
         check("ludtwig-ignore-file", T!["ludtwig-ignore-file"]);
     }

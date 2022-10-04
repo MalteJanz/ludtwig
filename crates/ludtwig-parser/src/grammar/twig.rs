@@ -285,7 +285,7 @@ mod tests {
                               TK_PERCENT_CURLY@56..58 "%}"
                             BODY@58..60
                               HTML_TEXT@58..60
-                                TK_WORD@58..60 "in"
+                                TK_IN@58..60 "in"
                             TWIG_ENDING_BLOCK@60..74
                               TK_CURLY_PERCENT@60..62 "{%"
                               TK_WHITESPACE@62..63 " "
@@ -437,7 +437,7 @@ mod tests {
                         TK_WHITESPACE@19..20 " "
                         TK_NUMBER@20..22 "18"
                         TK_WHITESPACE@22..23 " "
-                        TK_WORD@23..26 "and"
+                        TK_AND@23..26 "and"
                         TK_WHITESPACE@26..27 " "
                         TK_WORD@27..38 "temperature"
                         TK_WHITESPACE@38..39 " "

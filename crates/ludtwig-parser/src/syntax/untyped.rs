@@ -143,6 +143,8 @@ pub enum SyntaxKind {
     TK_OPEN_CURLY_HASHTAG,
     #[token("#}")]
     TK_HASHTAG_CLOSE_CURLY,
+
+    /* twig tag tokens */
     #[token("block")]
     TK_BLOCK,
     #[token("endblock")]
@@ -155,6 +157,73 @@ pub enum SyntaxKind {
     TK_ELSE,
     #[token("endif")]
     TK_ENDIF,
+    /* twig operators */
+    #[token("not")]
+    TK_NOT,
+    #[token("or")]
+    TK_OR,
+    #[token("and")]
+    TK_AND,
+    #[token("b-or")]
+    TK_BINARY_OR,
+    #[token("b-xor")]
+    TK_BINARY_XOR,
+    #[token("b-and")]
+    TK_BINARY_AND,
+    #[token("not in")]
+    TK_NOT_IN,
+    #[token("in")]
+    TK_IN,
+    #[token("matches")]
+    TK_MATCHES,
+    #[token("starts with")]
+    TK_STARTS_WITH,
+    #[token("ends with")]
+    TK_ENDS_WITH,
+    #[token("is")]
+    TK_IS,
+    #[token("is not")]
+    TK_IS_NOT,
+    /* twig tests */
+    #[token("even")]
+    TK_EVEN,
+    #[token("odd")]
+    TK_ODD,
+    #[token("defined")]
+    TK_DEFINED,
+    #[token("same as")]
+    TK_SAME_AS,
+    #[token("none")]
+    TK_NONE,
+    #[token("null")]
+    TK_NULL,
+    #[token("divisible by")]
+    TK_DIVISIBLE_BY,
+    #[token("constant")]
+    TK_CONSTANT,
+    #[token("empty")]
+    TK_EMPTY,
+    #[token("iterable")]
+    TK_ITERABLE,
+    /* twig functions */
+    #[token("max")]
+    TK_MAX,
+    #[token("min")]
+    TK_MIN,
+    #[token("range")]
+    TK_RANGE,
+    #[token("cycle")]
+    TK_CYCLE,
+    #[token("random")]
+    TK_RANDOM,
+    #[token("date")]
+    TK_DATE,
+    #[token("include")]
+    TK_INCLUDE,
+    #[token("source")]
+    TK_SOURCE,
+
+    /* special tokens */
     #[token("ludtwig-ignore-file")]
     TK_LUDTWIG_IGNORE_FILE,
     #[token("ludtwig-ignore")]
@@ -267,6 +336,37 @@ macro_rules! T {
     ["elseif"] => { $crate::syntax::untyped::SyntaxKind::TK_ELSE_IF };
     ["else"] => { $crate::syntax::untyped::SyntaxKind::TK_ELSE };
     ["endif"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDIF };
+    ["not"] => { $crate::syntax::untyped::SyntaxKind::TK_NOT };
+    ["or"] => { $crate::syntax::untyped::SyntaxKind::TK_OR };
+    ["and"] => { $crate::syntax::untyped::SyntaxKind::TK_AND };
+    ["b-or"] => { $crate::syntax::untyped::SyntaxKind::TK_BINARY_OR };
+    ["b-xor"] => { $crate::syntax::untyped::SyntaxKind::TK_BINARY_XOR };
+    ["b-and"] => { $crate::syntax::untyped::SyntaxKind::TK_BINARY_AND };
+    ["not in"] => { $crate::syntax::untyped::SyntaxKind::TK_NOT_IN };
+    ["in"] => { $crate::syntax::untyped::SyntaxKind::TK_IN };
+    ["matches"] => { $crate::syntax::untyped::SyntaxKind::TK_MATCHES };
+    ["starts with"] => { $crate::syntax::untyped::SyntaxKind::TK_STARTS_WITH };
+    ["ends with"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDS_WITH };
+    ["is"] => { $crate::syntax::untyped::SyntaxKind::TK_IS };
+    ["is not"] => { $crate::syntax::untyped::SyntaxKind::TK_IS_NOT };
+    ["even"] => { $crate::syntax::untyped::SyntaxKind::TK_EVEN };
+    ["odd"] => { $crate::syntax::untyped::SyntaxKind::TK_ODD };
+    ["defined"] => { $crate::syntax::untyped::SyntaxKind::TK_DEFINED };
+    ["same as"] => { $crate::syntax::untyped::SyntaxKind::TK_SAME_AS };
+    ["none"] => { $crate::syntax::untyped::SyntaxKind::TK_NONE };
+    ["null"] => { $crate::syntax::untyped::SyntaxKind::TK_NULL };
+    ["divisible by"] => { $crate::syntax::untyped::SyntaxKind::TK_DIVISIBLE_BY };
+    ["constant"] => { $crate::syntax::untyped::SyntaxKind::TK_CONSTANT };
+    ["empty"] => { $crate::syntax::untyped::SyntaxKind::TK_EMPTY };
+    ["iterable"] => { $crate::syntax::untyped::SyntaxKind::TK_ITERABLE };
+    ["max"] => { $crate::syntax::untyped::SyntaxKind::TK_MAX };
+    ["min"] => { $crate::syntax::untyped::SyntaxKind::TK_MIN };
+    ["range"] => { $crate::syntax::untyped::SyntaxKind::TK_RANGE };
+    ["cycle"] => { $crate::syntax::untyped::SyntaxKind::TK_CYCLE };
+    ["random"] => { $crate::syntax::untyped::SyntaxKind::TK_RANDOM };
+    ["date"] => { $crate::syntax::untyped::SyntaxKind::TK_DATE };
+    ["include"] => { $crate::syntax::untyped::SyntaxKind::TK_INCLUDE };
+    ["source"] => { $crate::syntax::untyped::SyntaxKind::TK_SOURCE };
     ["ludtwig-ignore-file"] => { $crate::syntax::untyped::SyntaxKind::TK_LUDTWIG_IGNORE_FILE };
     ["ludtwig-ignore"] => { $crate::syntax::untyped::SyntaxKind::TK_LUDTWIG_IGNORE };
 }
@@ -344,6 +444,37 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_ELSE_IF => "elseif",
             SyntaxKind::TK_ELSE => "else",
             SyntaxKind::TK_ENDIF => "endif",
+            SyntaxKind::TK_NOT => "not",
+            SyntaxKind::TK_OR => "or",
+            SyntaxKind::TK_AND => "and",
+            SyntaxKind::TK_BINARY_OR => "b-or",
+            SyntaxKind::TK_BINARY_XOR => "b-xor",
+            SyntaxKind::TK_BINARY_AND => "b-and",
+            SyntaxKind::TK_NOT_IN => "not in",
+            SyntaxKind::TK_IN => "in",
+            SyntaxKind::TK_MATCHES => "matches",
+            SyntaxKind::TK_STARTS_WITH => "starts with",
+            SyntaxKind::TK_ENDS_WITH => "ends with",
+            SyntaxKind::TK_IS => "is",
+            SyntaxKind::TK_IS_NOT => "is not",
+            SyntaxKind::TK_EVEN => "even",
+            SyntaxKind::TK_ODD => "odd",
+            SyntaxKind::TK_DEFINED => "defined",
+            SyntaxKind::TK_SAME_AS => "same as",
+            SyntaxKind::TK_NONE => "none",
+            SyntaxKind::TK_NULL => "null",
+            SyntaxKind::TK_DIVISIBLE_BY => "divisible by",
+            SyntaxKind::TK_CONSTANT => "constant",
+            SyntaxKind::TK_EMPTY => "empty",
+            SyntaxKind::TK_ITERABLE => "iterable",
+            SyntaxKind::TK_MAX => "max",
+            SyntaxKind::TK_MIN => "min",
+            SyntaxKind::TK_RANGE => "range",
+            SyntaxKind::TK_CYCLE => "cycle",
+            SyntaxKind::TK_RANDOM => "random",
+            SyntaxKind::TK_DATE => "date",
+            SyntaxKind::TK_INCLUDE => "include",
+            SyntaxKind::TK_SOURCE => "source",
             SyntaxKind::TK_LUDTWIG_IGNORE_FILE => "ludtwig-ignore-file",
             SyntaxKind::TK_LUDTWIG_IGNORE => "ludtwig-ignore",
             SyntaxKind::TK_UNKNOWN => "unknown",
