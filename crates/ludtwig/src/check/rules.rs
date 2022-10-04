@@ -5,6 +5,7 @@ use crate::check::rules::line_ending::RuleLineEnding;
 use crate::check::rules::ludtwig_ignore_file_not_on_top::RuleLudtwigIgnoreFileNotOnTop;
 use crate::check::rules::twig_block_line_breaks::RuleTwigBlockLineBreaks;
 use crate::check::rules::twig_block_name_snake_case::RuleTwigBlockNameSnakeCase;
+use crate::check::rules::unknown_token::RuleUnknownToken;
 use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
 use crate::error::ConfigurationError;
 use crate::Config;
@@ -17,12 +18,14 @@ mod line_ending;
 mod ludtwig_ignore_file_not_on_top;
 mod twig_block_line_breaks;
 mod twig_block_name_snake_case;
+mod unknown_token;
 mod whitespace_between_line_breaks;
 
 /// List of all rule trait objects, also add them to the `active-rules` in `ludtwig-config.toml`!
 pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
-    &RuleWhitespaceBetweenLineBreaks,
     &RuleLudtwigIgnoreFileNotOnTop,
+    &RuleUnknownToken,
+    &RuleWhitespaceBetweenLineBreaks,
     &RuleLineEnding,
     &RuleIndentation,
     &RuleTwigBlockLineBreaks,

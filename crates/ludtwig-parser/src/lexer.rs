@@ -123,6 +123,155 @@ mod tests {
         check("block1", T![word]);
         check("block_", T![word]);
         check("blocks", T![word]);
+        check("_blank", T![word]);
+        check("$special", T![word]);
+    }
+
+    #[test]
+    fn lex_number() {
+        check("123", T![number]);
+        check("0.0", T![number]);
+        check("3.123456789", T![number]);
+        check("3e+2", T![number]);
+        check("3e-2", T![number]);
+        check("10E-7", T![number]);
+        check("10E+6", T![number]);
+        check("1.23E+10", T![number]);
+    }
+
+    #[test]
+    fn lex_html_escape_character() {
+        check("&NewLine;", T![html escape character]);
+        check("&nbsp;", T![html escape character]);
+        check("&#39;", T![html escape character]);
+        check("&#8721;", T![html escape character]);
+        check("&sup3;", T![html escape character]);
+        check("&#x00B3;", T![html escape character]);
+    }
+
+    #[test]
+    fn lex_dot() {
+        check(".", T!["."]);
+    }
+
+    #[test]
+    fn lex_double_dot() {
+        check("..", T![".."]);
+    }
+
+    #[test]
+    fn lex_comma() {
+        check(",", T![","]);
+    }
+
+    #[test]
+    fn lex_colon() {
+        check(":", T![":"]);
+    }
+
+    #[test]
+    fn lex_semicolon() {
+        check(";", T![";"]);
+    }
+
+    #[test]
+    fn lex_exclamation_mark() {
+        check("!", T!["!"]);
+    }
+
+    #[test]
+    fn lex_exclamation_mark_equals() {
+        check("!=", T!["!="]);
+    }
+
+    #[test]
+    fn lex_exclamation_mark_double_equals() {
+        check("!==", T!["!=="]);
+    }
+
+    #[test]
+    fn lex_question_mark() {
+        check("?", T!["?"]);
+    }
+
+    #[test]
+    fn lex_double_question_mark() {
+        check("??", T!["??"]);
+    }
+
+    #[test]
+    fn lex_percent() {
+        check("%", T!["%"]);
+    }
+
+    #[test]
+    fn lex_tilde() {
+        check("~", T!["~"]);
+    }
+
+    #[test]
+    fn lex_single_pipe() {
+        check("|", T!["|"]);
+    }
+
+    #[test]
+    fn lex_double_pipe() {
+        check("||", T!["||"]);
+    }
+
+    #[test]
+    fn lex_ampersand() {
+        check("&", T!["&"]);
+    }
+
+    #[test]
+    fn lex_double_ampersand() {
+        check("&&", T!["&&"]);
+    }
+
+    #[test]
+    fn lex_forward_slash() {
+        check("/", T!["/"]);
+    }
+
+    #[test]
+    fn lex_double_forward_slash() {
+        check("//", T!["//"]);
+    }
+
+    #[test]
+    fn lex_backward_slash() {
+        check("\\", T!["\\"]);
+    }
+
+    #[test]
+    fn lex_open_parenthesis() {
+        check("(", T!["("]);
+    }
+
+    #[test]
+    fn lex_close_parenthesis() {
+        check(")", T![")"]);
+    }
+
+    #[test]
+    fn lex_open_curly() {
+        check("{", T!["{"]);
+    }
+
+    #[test]
+    fn lex_close_curly() {
+        check("}", T!["}"]);
+    }
+
+    #[test]
+    fn lex_open_square() {
+        check("[", T!["["]);
+    }
+
+    #[test]
+    fn lex_close_square() {
+        check("]", T!["]"]);
     }
 
     #[test]
@@ -131,13 +280,38 @@ mod tests {
     }
 
     #[test]
+    fn lex_less_than_equal() {
+        check("<=", T!["<="]);
+    }
+
+    #[test]
+    fn lex_less_than_equal_greater_than() {
+        check("<=>", T!["<=>"]);
+    }
+
+    #[test]
     fn lex_less_than_slash() {
         check("</", T!["</"]);
     }
 
     #[test]
+    fn lex_less_than_exclamation_mark() {
+        check("<!", T!["<!"]);
+    }
+
+    #[test]
+    fn lex_doctype() {
+        check("DOCTYPE", T!["DOCTYPE"]);
+    }
+
+    #[test]
     fn lex_greater_than() {
         check(">", T![">"]);
+    }
+
+    #[test]
+    fn lex_greater_than_equal() {
+        check(">=", T![">="]);
     }
 
     #[test]
@@ -161,6 +335,36 @@ mod tests {
     }
 
     #[test]
+    fn lex_double_equal() {
+        check("==", T!["=="]);
+    }
+
+    #[test]
+    fn lex_triple_equal() {
+        check("===", T!["==="]);
+    }
+
+    #[test]
+    fn lex_plus() {
+        check("+", T!["+"]);
+    }
+
+    #[test]
+    fn lex_minus() {
+        check("-", T!["-"]);
+    }
+
+    #[test]
+    fn lex_star() {
+        check("*", T!["*"]);
+    }
+
+    #[test]
+    fn lex_double_star() {
+        check("**", T!["**"]);
+    }
+
+    #[test]
     fn lex_double_quotes() {
         check("\"", T!["\""]);
     }
@@ -168,6 +372,11 @@ mod tests {
     #[test]
     fn lex_single_quotes() {
         check("'", T!["'"]);
+    }
+
+    #[test]
+    fn lex_grave_accent_quotes() {
+        check("`", T!["`"]);
     }
 
     #[test]
@@ -228,11 +437,6 @@ mod tests {
     #[test]
     fn lex_endif() {
         check("endif", T!["endif"]);
-    }
-
-    #[test]
-    fn lex_comma() {
-        check(",", T![","]);
     }
 
     #[test]

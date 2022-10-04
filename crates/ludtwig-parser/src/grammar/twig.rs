@@ -435,7 +435,7 @@ mod tests {
                         TK_WHITESPACE@17..18 " "
                         TK_GREATER_THAN@18..19 ">"
                         TK_WHITESPACE@19..20 " "
-                        TK_WORD@20..22 "18"
+                        TK_NUMBER@20..22 "18"
                         TK_WHITESPACE@22..23 " "
                         TK_WORD@23..26 "and"
                         TK_WHITESPACE@26..27 " "
@@ -443,7 +443,7 @@ mod tests {
                         TK_WHITESPACE@38..39 " "
                         TK_LESS_THAN@39..40 "<"
                         TK_WHITESPACE@40..41 " "
-                        TK_WORD@41..43 "27"
+                        TK_NUMBER@41..43 "27"
                       TK_WHITESPACE@43..44 " "
                       TK_PERCENT_CURLY@44..46 "%}"
                     BODY@46..51
@@ -685,9 +685,9 @@ mod tests {
                       TK_WHITESPACE@17..18 " "
                       TK_PERCENT_CURLY@18..20 "%}"
                     BODY@20..37
-                      TK_WHITESPACE@20..21 " "
-                      TK_UNKNOWN@21..22 "\\"
-                      HTML_TEXT@22..37
+                      HTML_TEXT@20..37
+                        TK_WHITESPACE@20..21 " "
+                        TK_BACKWARD_SLASH@21..22 "\\"
                         TK_WORD@22..23 "t"
                         TK_WHITESPACE@23..24 " "
                         TK_WORD@24..31 "unknown"

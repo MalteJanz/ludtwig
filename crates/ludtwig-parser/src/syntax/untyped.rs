@@ -30,14 +30,81 @@ pub enum SyntaxKind {
     #[regex(r"((\n)|(\r\n))+")]
     TK_LINE_BREAK,
     /// a single word containing only characters, numbers or symbols
-    #[regex(r"[a-zA-Z0-9_.@:#!$&-]+")]
+    /// must start with a character or one of the special starting characters
+    #[regex(r"[a-zA-Z@:#_$][a-zA-Z0-9_-]*")]
     TK_WORD,
+    /// a valid twig number
+    #[regex(r"[0-9]+(\.[0-9]+)?([Ee][\+\-][0-9]+)?")]
+    TK_NUMBER,
+    /// a html escape character like '&NewLine;' or '&#10;' or '&#xA;'
+    #[regex(r"&(([a-zA-Z][a-zA-Z0-9]*)|(#[0-9]+)|(#x[0-9a-fA-F]+));")]
+    TK_HTML_ESCAPE_CHARACTER,
+    #[token(".")]
+    TK_DOT,
+    #[token("..")]
+    TK_DOUBLE_DOT,
+    #[token(",")]
+    TK_COMMA,
+    #[token(":")]
+    TK_COLON,
+    #[token(";")]
+    TK_SEMICOLON,
+    #[token("!")]
+    TK_EXCLAMATION_MARK,
+    #[token("!=")]
+    TK_EXCLAMATION_MARK_EQUALS,
+    #[token("!==")]
+    TK_EXCLAMATION_MARK_DOUBLE_EQUALS,
+    #[token("?")]
+    TK_QUESTION_MARK,
+    #[token("??")]
+    TK_DOUBLE_QUESTION_MARK,
+    #[token("%")]
+    TK_PERCENT,
+    #[token("~")]
+    TK_TILDE,
+    #[token("|")]
+    TK_SINGLE_PIPE,
+    #[token("||")]
+    TK_DOUBLE_PIPE,
+    #[token("&")]
+    TK_AMPERSAND,
+    #[token("&&")]
+    TK_DOUBLE_AMPERSAND,
+    #[token("/")]
+    TK_FORWARD_SLASH,
+    #[token("//")]
+    TK_DOUBLE_FORWARD_SLASH,
+    #[token("\\")]
+    TK_BACKWARD_SLASH,
+    #[token("(")]
+    TK_OPEN_PARENTHESIS,
+    #[token(")")]
+    TK_CLOSE_PARENTHESIS,
+    #[token("{")]
+    TK_OPEN_CURLY,
+    #[token("}")]
+    TK_CLOSE_CURLY,
+    #[token("[")]
+    TK_OPEN_SQUARE,
+    #[token("]")]
+    TK_CLOSE_SQUARE,
     #[token("<")]
     TK_LESS_THAN,
+    #[token("<=")]
+    TK_LESS_THAN_EQUAL,
+    #[token("<=>")]
+    TK_LESS_THAN_EQUAL_GREATER_THAN,
     #[token("</")]
     TK_LESS_THAN_SLASH,
+    #[token("<!")]
+    TK_LESS_THAN_EXCLAMATION_MARK,
+    #[token("DOCTYPE")]
+    TK_DOCTYPE,
     #[token(">")]
     TK_GREATER_THAN,
+    #[token(">=")]
+    TK_GREATER_THAN_EQUAL,
     #[token("/>")]
     TK_SLASH_GREATER_THAN,
     #[token("<!--")]
@@ -46,10 +113,24 @@ pub enum SyntaxKind {
     TK_MINUS_MINUS_GREATER_THAN,
     #[token("=")]
     TK_EQUAL,
+    #[token("==")]
+    TK_DOUBLE_EQUAL,
+    #[token("===")]
+    TK_TRIPLE_EQUAL,
+    #[token("+")]
+    TK_PLUS,
+    #[token("-")]
+    TK_MINUS,
+    #[token("*")]
+    TK_STAR,
+    #[token("**")]
+    TK_DOUBLE_STAR,
     #[token("\"")]
     TK_DOUBLE_QUOTES,
     #[token("'")]
     TK_SINGLE_QUOTES,
+    #[token("`")]
+    TK_GRAVE_ACCENT_QUOTES,
     #[token("{%")]
     TK_CURLY_PERCENT,
     #[token("%}")]
@@ -74,8 +155,6 @@ pub enum SyntaxKind {
     TK_ELSE,
     #[token("endif")]
     TK_ENDIF,
-    #[token(",")]
-    TK_COMMA,
     #[token("ludtwig-ignore-file")]
     TK_LUDTWIG_IGNORE_FILE,
     #[token("ludtwig-ignore")]
@@ -127,16 +206,55 @@ macro_rules! T {
     [ws] => { $crate::syntax::untyped::SyntaxKind::TK_WHITESPACE };
     [lb] => { $crate::syntax::untyped::SyntaxKind::TK_LINE_BREAK };
     [word] => { $crate::syntax::untyped::SyntaxKind::TK_WORD };
+    [number] => { $crate::syntax::untyped::SyntaxKind::TK_NUMBER };
+    [html escape character] => { $crate::syntax::untyped::SyntaxKind::TK_HTML_ESCAPE_CHARACTER };
     [unknown] => { $crate::syntax::untyped::SyntaxKind::TK_UNKNOWN };
+    ["."] => { $crate::syntax::untyped::SyntaxKind::TK_DOT };
+    [".."] => { $crate::syntax::untyped::SyntaxKind::TK_DOUBLE_DOT };
+    [","] => { $crate::syntax::untyped::SyntaxKind::TK_COMMA };
+    [":"] => { $crate::syntax::untyped::SyntaxKind::TK_COLON };
+    [";"] => { $crate::syntax::untyped::SyntaxKind::TK_SEMICOLON };
+    ["!"] => { $crate::syntax::untyped::SyntaxKind::TK_EXCLAMATION_MARK };
+    ["!="] => { $crate::syntax::untyped::SyntaxKind::TK_EXCLAMATION_MARK_EQUALS };
+    ["!=="] => { $crate::syntax::untyped::SyntaxKind::TK_EXCLAMATION_MARK_DOUBLE_EQUALS };
+    ["?"] => { $crate::syntax::untyped::SyntaxKind::TK_QUESTION_MARK };
+    ["??"] => { $crate::syntax::untyped::SyntaxKind::TK_DOUBLE_QUESTION_MARK };
+    ["%"] => { $crate::syntax::untyped::SyntaxKind::TK_PERCENT };
+    ["~"] => { $crate::syntax::untyped::SyntaxKind::TK_TILDE };
+    ["|"] => { $crate::syntax::untyped::SyntaxKind::TK_SINGLE_PIPE };
+    ["||"] => { $crate::syntax::untyped::SyntaxKind::TK_DOUBLE_PIPE };
+    ["&"] => { $crate::syntax::untyped::SyntaxKind::TK_AMPERSAND };
+    ["&&"] => { $crate::syntax::untyped::SyntaxKind::TK_DOUBLE_AMPERSAND };
+    ["/"] => { $crate::syntax::untyped::SyntaxKind::TK_FORWARD_SLASH };
+    ["//"] => { $crate::syntax::untyped::SyntaxKind::TK_DOUBLE_FORWARD_SLASH };
+    ["\\"] => { $crate::syntax::untyped::SyntaxKind::TK_BACKWARD_SLASH };
+    ["("] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_PARENTHESIS };
+    [")"] => { $crate::syntax::untyped::SyntaxKind::TK_CLOSE_PARENTHESIS };
+    ["{"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY };
+    ["}"] => { $crate::syntax::untyped::SyntaxKind::TK_CLOSE_CURLY };
+    ["["] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_SQUARE };
+    ["]"] => { $crate::syntax::untyped::SyntaxKind::TK_CLOSE_SQUARE };
     ["<"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN };
+    ["<="] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_EQUAL };
+    ["<=>"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_EQUAL_GREATER_THAN };
     ["</"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_SLASH };
+    ["<!"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_EXCLAMATION_MARK };
+    ["DOCTYPE"] => { $crate::syntax::untyped::SyntaxKind::TK_DOCTYPE };
     [">"] => { $crate::syntax::untyped::SyntaxKind::TK_GREATER_THAN };
+    [">="] => { $crate::syntax::untyped::SyntaxKind::TK_GREATER_THAN_EQUAL };
     ["/>"] => { $crate::syntax::untyped::SyntaxKind::TK_SLASH_GREATER_THAN };
     ["<!--"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_EXCLAMATION_MARK_MINUS_MINUS };
     ["-->"] => { $crate::syntax::untyped::SyntaxKind::TK_MINUS_MINUS_GREATER_THAN };
     ["="] => { $crate::syntax::untyped::SyntaxKind::TK_EQUAL };
+    ["=="] => { $crate::syntax::untyped::SyntaxKind::TK_DOUBLE_EQUAL };
+    ["==="] => { $crate::syntax::untyped::SyntaxKind::TK_TRIPLE_EQUAL };
+    ["+"] => { $crate::syntax::untyped::SyntaxKind::TK_PLUS };
+    ["-"] => { $crate::syntax::untyped::SyntaxKind::TK_MINUS };
+    ["*"] => { $crate::syntax::untyped::SyntaxKind::TK_STAR };
+    ["**"] => { $crate::syntax::untyped::SyntaxKind::TK_DOUBLE_STAR };
     ["\""] => { $crate::syntax::untyped::SyntaxKind::TK_DOUBLE_QUOTES };
     ["'"] => { $crate::syntax::untyped::SyntaxKind::TK_SINGLE_QUOTES };
+    ["`"] => { $crate::syntax::untyped::SyntaxKind::TK_GRAVE_ACCENT_QUOTES };
     ["{%"] => { $crate::syntax::untyped::SyntaxKind::TK_CURLY_PERCENT };
     ["%}"] => { $crate::syntax::untyped::SyntaxKind::TK_PERCENT_CURLY };
     ["{{"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY_CURLY };
@@ -149,7 +267,6 @@ macro_rules! T {
     ["elseif"] => { $crate::syntax::untyped::SyntaxKind::TK_ELSE_IF };
     ["else"] => { $crate::syntax::untyped::SyntaxKind::TK_ELSE };
     ["endif"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDIF };
-    [","] => { $crate::syntax::untyped::SyntaxKind::TK_COMMA };
     ["ludtwig-ignore-file"] => { $crate::syntax::untyped::SyntaxKind::TK_LUDTWIG_IGNORE_FILE };
     ["ludtwig-ignore"] => { $crate::syntax::untyped::SyntaxKind::TK_LUDTWIG_IGNORE };
 }
@@ -167,15 +284,54 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_WHITESPACE => "whitespace",
             SyntaxKind::TK_LINE_BREAK => "line break",
             SyntaxKind::TK_WORD => "word",
+            SyntaxKind::TK_NUMBER => "number",
+            SyntaxKind::TK_HTML_ESCAPE_CHARACTER => "html escape character",
+            SyntaxKind::TK_DOT => ".",
+            SyntaxKind::TK_DOUBLE_DOT => "..",
+            SyntaxKind::TK_COMMA => ",",
+            SyntaxKind::TK_COLON => ":",
+            SyntaxKind::TK_SEMICOLON => ";",
+            SyntaxKind::TK_EXCLAMATION_MARK => "!",
+            SyntaxKind::TK_EXCLAMATION_MARK_EQUALS => "!=",
+            SyntaxKind::TK_EXCLAMATION_MARK_DOUBLE_EQUALS => "!==",
+            SyntaxKind::TK_QUESTION_MARK => "?",
+            SyntaxKind::TK_DOUBLE_QUESTION_MARK => "??",
+            SyntaxKind::TK_PERCENT => "%",
+            SyntaxKind::TK_TILDE => "~",
+            SyntaxKind::TK_SINGLE_PIPE => "|",
+            SyntaxKind::TK_DOUBLE_PIPE => "||",
+            SyntaxKind::TK_AMPERSAND => "&",
+            SyntaxKind::TK_DOUBLE_AMPERSAND => "&&",
+            SyntaxKind::TK_FORWARD_SLASH => "/",
+            SyntaxKind::TK_DOUBLE_FORWARD_SLASH => "//",
+            SyntaxKind::TK_BACKWARD_SLASH => "\\",
+            SyntaxKind::TK_OPEN_PARENTHESIS => "(",
+            SyntaxKind::TK_CLOSE_PARENTHESIS => ")",
+            SyntaxKind::TK_OPEN_CURLY => "{",
+            SyntaxKind::TK_CLOSE_CURLY => "}",
+            SyntaxKind::TK_OPEN_SQUARE => "[",
+            SyntaxKind::TK_CLOSE_SQUARE => "]",
             SyntaxKind::TK_LESS_THAN => "<",
+            SyntaxKind::TK_LESS_THAN_EQUAL => "<=",
+            SyntaxKind::TK_LESS_THAN_EQUAL_GREATER_THAN => "<=>",
             SyntaxKind::TK_LESS_THAN_SLASH => "</",
+            SyntaxKind::TK_LESS_THAN_EXCLAMATION_MARK => "<!",
+            SyntaxKind::TK_DOCTYPE => "DOCTYPE",
             SyntaxKind::TK_GREATER_THAN => ">",
+            SyntaxKind::TK_GREATER_THAN_EQUAL => ">=",
             SyntaxKind::TK_SLASH_GREATER_THAN => "/>",
             SyntaxKind::TK_LESS_THAN_EXCLAMATION_MARK_MINUS_MINUS => "<!--",
             SyntaxKind::TK_MINUS_MINUS_GREATER_THAN => "-->",
             SyntaxKind::TK_EQUAL => "=",
+            SyntaxKind::TK_DOUBLE_EQUAL => "==",
+            SyntaxKind::TK_TRIPLE_EQUAL => "===",
+            SyntaxKind::TK_PLUS => "+",
+            SyntaxKind::TK_MINUS => "-",
+            SyntaxKind::TK_STAR => "*",
+            SyntaxKind::TK_DOUBLE_STAR => "**",
             SyntaxKind::TK_DOUBLE_QUOTES => "\"",
             SyntaxKind::TK_SINGLE_QUOTES => "'",
+            SyntaxKind::TK_GRAVE_ACCENT_QUOTES => "`",
             SyntaxKind::TK_CURLY_PERCENT => "{%",
             SyntaxKind::TK_PERCENT_CURLY => "%}",
             SyntaxKind::TK_OPEN_CURLY_CURLY => "{{",
@@ -188,7 +344,6 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_ELSE_IF => "elseif",
             SyntaxKind::TK_ELSE => "else",
             SyntaxKind::TK_ENDIF => "endif",
-            SyntaxKind::TK_COMMA => ",",
             SyntaxKind::TK_LUDTWIG_IGNORE_FILE => "ludtwig-ignore-file",
             SyntaxKind::TK_LUDTWIG_IGNORE => "ludtwig-ignore",
             SyntaxKind::TK_UNKNOWN => "unknown",
