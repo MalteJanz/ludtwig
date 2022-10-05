@@ -99,7 +99,7 @@ pub enum SyntaxKind {
     TK_LESS_THAN_SLASH,
     #[token("<!")]
     TK_LESS_THAN_EXCLAMATION_MARK,
-    #[token("DOCTYPE")]
+    #[token("DOCTYPE", ignore(ascii_case))]
     TK_DOCTYPE,
     #[token(">")]
     TK_GREATER_THAN,
@@ -278,9 +278,9 @@ pub enum SyntaxKind {
     TK_SOURCE,
 
     /* special tokens */
-    #[token("ludtwig-ignore-file")]
+    #[token("ludtwig-ignore-file", ignore(ascii_case))]
     TK_LUDTWIG_IGNORE_FILE,
-    #[token("ludtwig-ignore")]
+    #[token("ludtwig-ignore", ignore(ascii_case))]
     TK_LUDTWIG_IGNORE,
     #[error]
     TK_UNKNOWN, // contains invalid / unrecognized syntax (used for error recovery).
@@ -304,6 +304,7 @@ pub enum SyntaxKind {
     TWIG_ELSE_BLOCK,
     TWIG_ENDIF_BLOCK,
     // html
+    HTML_DOCTYPE,
     HTML_ATTRIBUTE,
     HTML_STRING, // used as attribute values
     HTML_TEXT,   // used as plain text between html tags / twig blocks

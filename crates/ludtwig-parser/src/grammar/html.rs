@@ -10,9 +10,23 @@ pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
         Some(parse_html_element(parser))
     } else if parser.at(T!["<!--"]) {
         Some(parse_html_comment(parser))
+    } else if parser.at(T!["<!"]) {
+        Some(parse_html_doctype(parser))
     } else {
         parse_html_text(parser)
     }
+}
+
+fn parse_html_doctype(parser: &mut Parser) -> CompletedMarker {
+    debug_assert!(parser.at(T!["<!"]));
+    let m = parser.start();
+    parser.bump();
+
+    parser.expect(T!["DOCTYPE"]);
+    parser.expect(T![word]);
+    parser.expect(T![">"]);
+
+    parser.complete(m, SyntaxKind::HTML_DOCTYPE)
 }
 
 fn parse_html_text(parser: &mut Parser) -> Option<CompletedMarker> {
@@ -1159,5 +1173,17 @@ mod tests {
                       TK_WORD@25..28 "div"
                       TK_GREATER_THAN@28..29 ">""#]],
         )
+    }
+
+    #[test]
+    fn parse_html_doctype() {
+        check_parse("<!doctype html>", expect![[r#"
+            ROOT@0..15
+              HTML_DOCTYPE@0..15
+                TK_LESS_THAN_EXCLAMATION_MARK@0..2 "<!"
+                TK_DOCTYPE@2..9 "doctype"
+                TK_WHITESPACE@9..10 " "
+                TK_WORD@10..14 "html"
+                TK_GREATER_THAN@14..15 ">""#]])
     }
 }
