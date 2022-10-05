@@ -57,7 +57,7 @@ mod tests {
 
     use super::*;
 
-    fn check(input: &str, kind: SyntaxKind) {
+    fn check_regex(input: &str, kind: SyntaxKind, display: &str) {
         let range = TextRange::up_to(input.text_len());
         let lexer_results = lex(input);
 
@@ -70,6 +70,27 @@ mod tests {
                 range
             }]
         );
+
+        // SyntaxKind display implementation should be there and match
+        assert_eq!(display, format!("{}", lexer_results[0].kind));
+    }
+
+    fn check_token(input: &str, kind: SyntaxKind) {
+        let range = TextRange::up_to(input.text_len());
+        let lexer_results = lex(input);
+
+        // compare lex result
+        assert_eq!(
+            lexer_results,
+            vec![Token {
+                kind,
+                text: input,
+                range
+            }]
+        );
+
+        // compare SyntaxKind display implementation
+        assert_eq!(input, format!("{}", lexer_results[0].kind));
     }
 
     #[test]
@@ -96,511 +117,658 @@ mod tests {
 
     #[test]
     fn lex_whitespace() {
-        check("   ", T![ws]);
-        check(" \t  ", T![ws]);
-        check("\t", T![ws]);
+        check_regex("   ", T![ws], "whitespace");
+        check_regex(" \t  ", T![ws], "whitespace");
+        check_regex("\t", T![ws], "whitespace");
     }
 
     #[test]
     fn lex_line_break() {
-        check("\n", T![lb]);
-        check("\n\n", T![lb]);
-        check("\r\n", T![lb]);
-        check("\r\n\r\n", T![lb]);
-        check("\r\n\n\r\n", T![lb]);
+        check_regex("\n", T![lb], "line break");
+        check_regex("\n\n", T![lb], "line break");
+        check_regex("\r\n", T![lb], "line break");
+        check_regex("\r\n\r\n", T![lb], "line break");
+        check_regex("\r\n\n\r\n", T![lb], "line break");
     }
 
     #[test]
     fn lex_word() {
-        check("hello", T![word]);
-        check("hello123", T![word]);
-        check("camelCase", T![word]);
-        check("kebab-case", T![word]);
-        check("snake_case", T![word]);
-        check(":hello123", T![word]);
-        check("#hello123", T![word]);
-        check("@hello123", T![word]);
-        check("block1", T![word]);
-        check("block_", T![word]);
-        check("blocks", T![word]);
-        check("_blank", T![word]);
-        check("$special", T![word]);
+        check_regex("hello", T![word], "word");
+        check_regex("hello123", T![word], "word");
+        check_regex("camelCase", T![word], "word");
+        check_regex("kebab-case", T![word], "word");
+        check_regex("snake_case", T![word], "word");
+        check_regex(":hello123", T![word], "word");
+        check_regex("#hello123", T![word], "word");
+        check_regex("@hello123", T![word], "word");
+        check_regex("block1", T![word], "word");
+        check_regex("block_", T![word], "word");
+        check_regex("blocks", T![word], "word");
+        check_regex("_blank", T![word], "word");
+        check_regex("$special", T![word], "word");
     }
 
     #[test]
     fn lex_number() {
-        check("123", T![number]);
-        check("0.0", T![number]);
-        check("3.123456789", T![number]);
-        check("3e+2", T![number]);
-        check("3e-2", T![number]);
-        check("10E-7", T![number]);
-        check("10E+6", T![number]);
-        check("1.23E+10", T![number]);
+        check_regex("123", T![number], "number");
+        check_regex("0.0", T![number], "number");
+        check_regex("3.123456789", T![number], "number");
+        check_regex("3e+2", T![number], "number");
+        check_regex("3e-2", T![number], "number");
+        check_regex("10E-7", T![number], "number");
+        check_regex("10E+6", T![number], "number");
+        check_regex("1.23E+10", T![number], "number");
     }
 
     #[test]
     fn lex_html_escape_character() {
-        check("&NewLine;", T![html escape character]);
-        check("&nbsp;", T![html escape character]);
-        check("&#39;", T![html escape character]);
-        check("&#8721;", T![html escape character]);
-        check("&sup3;", T![html escape character]);
-        check("&#x00B3;", T![html escape character]);
+        check_regex(
+            "&NewLine;",
+            T![html escape character],
+            "html escape character",
+        );
+        check_regex("&nbsp;", T![html escape character], "html escape character");
+        check_regex("&#39;", T![html escape character], "html escape character");
+        check_regex(
+            "&#8721;",
+            T![html escape character],
+            "html escape character",
+        );
+        check_regex("&sup3;", T![html escape character], "html escape character");
+        check_regex(
+            "&#x00B3;",
+            T![html escape character],
+            "html escape character",
+        );
     }
 
     #[test]
     fn lex_dot() {
-        check(".", T!["."]);
+        check_token(".", T!["."]);
     }
 
     #[test]
     fn lex_double_dot() {
-        check("..", T![".."]);
+        check_token("..", T![".."]);
     }
 
     #[test]
     fn lex_comma() {
-        check(",", T![","]);
+        check_token(",", T![","]);
     }
 
     #[test]
     fn lex_colon() {
-        check(":", T![":"]);
+        check_token(":", T![":"]);
     }
 
     #[test]
     fn lex_semicolon() {
-        check(";", T![";"]);
+        check_token(";", T![";"]);
     }
 
     #[test]
     fn lex_exclamation_mark() {
-        check("!", T!["!"]);
+        check_token("!", T!["!"]);
     }
 
     #[test]
     fn lex_exclamation_mark_equals() {
-        check("!=", T!["!="]);
+        check_token("!=", T!["!="]);
     }
 
     #[test]
     fn lex_exclamation_mark_double_equals() {
-        check("!==", T!["!=="]);
+        check_token("!==", T!["!=="]);
     }
 
     #[test]
     fn lex_question_mark() {
-        check("?", T!["?"]);
+        check_token("?", T!["?"]);
     }
 
     #[test]
     fn lex_double_question_mark() {
-        check("??", T!["??"]);
+        check_token("??", T!["??"]);
     }
 
     #[test]
     fn lex_percent() {
-        check("%", T!["%"]);
+        check_token("%", T!["%"]);
     }
 
     #[test]
     fn lex_tilde() {
-        check("~", T!["~"]);
+        check_token("~", T!["~"]);
     }
 
     #[test]
     fn lex_single_pipe() {
-        check("|", T!["|"]);
+        check_token("|", T!["|"]);
     }
 
     #[test]
     fn lex_double_pipe() {
-        check("||", T!["||"]);
+        check_token("||", T!["||"]);
     }
 
     #[test]
     fn lex_ampersand() {
-        check("&", T!["&"]);
+        check_token("&", T!["&"]);
     }
 
     #[test]
     fn lex_double_ampersand() {
-        check("&&", T!["&&"]);
+        check_token("&&", T!["&&"]);
     }
 
     #[test]
     fn lex_forward_slash() {
-        check("/", T!["/"]);
+        check_token("/", T!["/"]);
     }
 
     #[test]
     fn lex_double_forward_slash() {
-        check("//", T!["//"]);
+        check_token("//", T!["//"]);
     }
 
     #[test]
     fn lex_backward_slash() {
-        check("\\", T!["\\"]);
+        check_token("\\", T!["\\"]);
     }
 
     #[test]
     fn lex_open_parenthesis() {
-        check("(", T!["("]);
+        check_token("(", T!["("]);
     }
 
     #[test]
     fn lex_close_parenthesis() {
-        check(")", T![")"]);
+        check_token(")", T![")"]);
     }
 
     #[test]
     fn lex_open_curly() {
-        check("{", T!["{"]);
+        check_token("{", T!["{"]);
     }
 
     #[test]
     fn lex_close_curly() {
-        check("}", T!["}"]);
+        check_token("}", T!["}"]);
     }
 
     #[test]
     fn lex_open_square() {
-        check("[", T!["["]);
+        check_token("[", T!["["]);
     }
 
     #[test]
     fn lex_close_square() {
-        check("]", T!["]"]);
+        check_token("]", T!["]"]);
     }
 
     #[test]
     fn lex_less_than() {
-        check("<", T!["<"]);
+        check_token("<", T!["<"]);
     }
 
     #[test]
     fn lex_less_than_equal() {
-        check("<=", T!["<="]);
+        check_token("<=", T!["<="]);
     }
 
     #[test]
     fn lex_less_than_equal_greater_than() {
-        check("<=>", T!["<=>"]);
+        check_token("<=>", T!["<=>"]);
     }
 
     #[test]
     fn lex_less_than_slash() {
-        check("</", T!["</"]);
+        check_token("</", T!["</"]);
     }
 
     #[test]
     fn lex_less_than_exclamation_mark() {
-        check("<!", T!["<!"]);
+        check_token("<!", T!["<!"]);
     }
 
     #[test]
     fn lex_doctype() {
-        check("DOCTYPE", T!["DOCTYPE"]);
+        check_token("DOCTYPE", T!["DOCTYPE"]);
     }
 
     #[test]
     fn lex_greater_than() {
-        check(">", T![">"]);
+        check_token(">", T![">"]);
     }
 
     #[test]
     fn lex_greater_than_equal() {
-        check(">=", T![">="]);
+        check_token(">=", T![">="]);
     }
 
     #[test]
     fn lex_slash_greater_than() {
-        check("/>", T!["/>"]);
+        check_token("/>", T!["/>"]);
     }
 
     #[test]
     fn lex_less_than_exclamation_mark_minus_minus() {
-        check("<!--", T!["<!--"]);
+        check_token("<!--", T!["<!--"]);
     }
 
     #[test]
     fn lex_minus_minus_greater_than() {
-        check("-->", T!["-->"]);
+        check_token("-->", T!["-->"]);
     }
 
     #[test]
     fn lex_equal() {
-        check("=", T!["="]);
+        check_token("=", T!["="]);
     }
 
     #[test]
     fn lex_double_equal() {
-        check("==", T!["=="]);
+        check_token("==", T!["=="]);
     }
 
     #[test]
     fn lex_triple_equal() {
-        check("===", T!["==="]);
+        check_token("===", T!["==="]);
     }
 
     #[test]
     fn lex_plus() {
-        check("+", T!["+"]);
+        check_token("+", T!["+"]);
     }
 
     #[test]
     fn lex_minus() {
-        check("-", T!["-"]);
+        check_token("-", T!["-"]);
     }
 
     #[test]
     fn lex_star() {
-        check("*", T!["*"]);
+        check_token("*", T!["*"]);
     }
 
     #[test]
     fn lex_double_star() {
-        check("**", T!["**"]);
+        check_token("**", T!["**"]);
     }
 
     #[test]
     fn lex_double_quotes() {
-        check("\"", T!["\""]);
+        check_token("\"", T!["\""]);
     }
 
     #[test]
     fn lex_single_quotes() {
-        check("'", T!["'"]);
+        check_token("'", T!["'"]);
     }
 
     #[test]
     fn lex_grave_accent_quotes() {
-        check("`", T!["`"]);
+        check_token("`", T!["`"]);
     }
 
     #[test]
     fn lex_curly_percent() {
-        check("{%", T!["{%"]);
+        check_token("{%", T!["{%"]);
     }
 
     #[test]
     fn lex_percent_curly() {
-        check("%}", T!["%}"]);
+        check_token("%}", T!["%}"]);
     }
 
     #[test]
     fn lex_open_curly_curly() {
-        check("{{", T!["{{"]);
+        check_token("{{", T!["{{"]);
     }
 
     #[test]
     fn lex_close_curly_curly() {
-        check("}}", T!["}}"]);
+        check_token("}}", T!["}}"]);
     }
 
     #[test]
     fn lex_open_curly_hashtag() {
-        check("{#", T!["{#"]);
+        check_token("{#", T!["{#"]);
     }
 
     #[test]
     fn lex_hashtag_close_curly() {
-        check("#}", T!["#}"]);
+        check_token("#}", T!["#}"]);
     }
 
     #[test]
     fn lex_block() {
-        check("block", T!["block"]);
+        check_token("block", T!["block"]);
     }
 
     #[test]
     fn lex_endblock() {
-        check("endblock", T!["endblock"]);
+        check_token("endblock", T!["endblock"]);
     }
 
     #[test]
     fn lex_if() {
-        check("if", T!["if"]);
+        check_token("if", T!["if"]);
     }
 
     #[test]
     fn lex_else_if() {
-        check("elseif", T!["elseif"]);
+        check_token("elseif", T!["elseif"]);
     }
 
     #[test]
     fn lex_else() {
-        check("else", T!["else"]);
+        check_token("else", T!["else"]);
     }
 
     #[test]
     fn lex_endif() {
-        check("endif", T!["endif"]);
+        check_token("endif", T!["endif"]);
+    }
+
+    #[test]
+    fn lex_apply() {
+        check_token("apply", T!["apply"]);
+    }
+
+    #[test]
+    fn lex_endapply() {
+        check_token("endapply", T!["endapply"]);
+    }
+
+    #[test]
+    fn lex_autoescape() {
+        check_token("autoescape", T!["autoescape"]);
+    }
+
+    #[test]
+    fn lex_endautoescape() {
+        check_token("endautoescape", T!["endautoescape"]);
+    }
+
+    #[test]
+    fn lex_cache() {
+        check_token("cache", T!["cache"]);
+    }
+
+    #[test]
+    fn lex_endcache() {
+        check_token("endcache", T!["endcache"]);
+    }
+
+    #[test]
+    fn lex_deprecated() {
+        check_token("deprecated", T!["deprecated"]);
+    }
+
+    #[test]
+    fn lex_do() {
+        check_token("do", T!["do"]);
+    }
+
+    #[test]
+    fn lex_embed() {
+        check_token("embed", T!["embed"]);
+    }
+
+    #[test]
+    fn lex_endembed() {
+        check_token("endembed", T!["endembed"]);
+    }
+
+    #[test]
+    fn lex_extends() {
+        check_token("extends", T!["extends"]);
+    }
+
+    #[test]
+    fn lex_flush() {
+        check_token("flush", T!["flush"]);
+    }
+
+    #[test]
+    fn lex_for() {
+        check_token("for", T!["for"]);
+    }
+
+    #[test]
+    fn lex_endfor() {
+        check_token("endfor", T!["endfor"]);
+    }
+
+    #[test]
+    fn lex_from() {
+        check_token("from", T!["from"]);
+    }
+
+    #[test]
+    fn lex_import() {
+        check_token("import", T!["import"]);
+    }
+
+    #[test]
+    fn lex_macro() {
+        check_token("macro", T!["macro"]);
+    }
+
+    #[test]
+    fn lex_endmacro() {
+        check_token("endmacro", T!["endmacro"]);
+    }
+
+    #[test]
+    fn lex_sandbox() {
+        check_token("sandbox", T!["sandbox"]);
+    }
+
+    #[test]
+    fn lex_endsandbox() {
+        check_token("endsandbox", T!["endsandbox"]);
+    }
+
+    #[test]
+    fn lex_set() {
+        check_token("set", T!["set"]);
+    }
+
+    #[test]
+    fn lex_endset() {
+        check_token("endset", T!["endset"]);
+    }
+
+    #[test]
+    fn lex_use() {
+        check_token("use", T!["use"]);
+    }
+
+    #[test]
+    fn lex_verbatim() {
+        check_token("verbatim", T!["verbatim"]);
+    }
+
+    #[test]
+    fn lex_endverbatim() {
+        check_token("endverbatim", T!["endverbatim"]);
+    }
+
+    #[test]
+    fn lex_with() {
+        check_token("with", T!["with"]);
+    }
+
+    #[test]
+    fn lex_endwith() {
+        check_token("endwith", T!["endwith"]);
     }
 
     #[test]
     fn lex_not() {
-        check("not", T!["not"]);
+        check_token("not", T!["not"]);
     }
 
     #[test]
     fn lex_or() {
-        check("or", T!["or"]);
+        check_token("or", T!["or"]);
     }
 
     #[test]
     fn lex_and() {
-        check("and", T!["and"]);
+        check_token("and", T!["and"]);
     }
 
     #[test]
     fn lex_binary_or() {
-        check("b-or", T!["b-or"]);
+        check_token("b-or", T!["b-or"]);
     }
 
     #[test]
     fn lex_binary_xor() {
-        check("b-xor", T!["b-xor"]);
+        check_token("b-xor", T!["b-xor"]);
     }
 
     #[test]
     fn lex_binary_and() {
-        check("b-and", T!["b-and"]);
+        check_token("b-and", T!["b-and"]);
     }
 
     #[test]
     fn lex_not_in() {
-        check("not in", T!["not in"]);
+        check_token("not in", T!["not in"]);
     }
 
     #[test]
     fn lex_in() {
-        check("in", T!["in"]);
+        check_token("in", T!["in"]);
     }
 
     #[test]
     fn lex_matches() {
-        check("matches", T!["matches"]);
+        check_token("matches", T!["matches"]);
     }
 
     #[test]
     fn lex_starts_with() {
-        check("starts with", T!["starts with"]);
+        check_token("starts with", T!["starts with"]);
     }
 
     #[test]
     fn lex_ends_with() {
-        check("ends with", T!["ends with"]);
+        check_token("ends with", T!["ends with"]);
     }
 
     #[test]
     fn lex_is() {
-        check("is", T!["is"]);
+        check_token("is", T!["is"]);
     }
 
     #[test]
     fn lex_is_not() {
-        check("is not", T!["is not"]);
+        check_token("is not", T!["is not"]);
     }
 
     #[test]
     fn lex_even() {
-        check("even", T!["even"]);
+        check_token("even", T!["even"]);
     }
 
     #[test]
     fn lex_odd() {
-        check("odd", T!["odd"]);
+        check_token("odd", T!["odd"]);
     }
 
     #[test]
     fn lex_defined() {
-        check("defined", T!["defined"]);
+        check_token("defined", T!["defined"]);
     }
 
     #[test]
     fn lex_same_as() {
-        check("same as", T!["same as"]);
+        check_token("same as", T!["same as"]);
     }
 
     #[test]
     fn lex_none() {
-        check("none", T!["none"]);
+        check_token("none", T!["none"]);
     }
 
     #[test]
     fn lex_null() {
-        check("null", T!["null"]);
+        check_token("null", T!["null"]);
     }
 
     #[test]
     fn lex_divisible_by() {
-        check("divisible by", T!["divisible by"]);
+        check_token("divisible by", T!["divisible by"]);
     }
 
     #[test]
     fn lex_constant() {
-        check("constant", T!["constant"]);
+        check_token("constant", T!["constant"]);
     }
 
     #[test]
     fn lex_empty() {
-        check("empty", T!["empty"]);
+        check_token("empty", T!["empty"]);
     }
 
     #[test]
     fn lex_iterable() {
-        check("iterable", T!["iterable"]);
+        check_token("iterable", T!["iterable"]);
     }
 
     #[test]
     fn lex_max() {
-        check("max", T!["max"]);
+        check_token("max", T!["max"]);
     }
 
     #[test]
     fn lex_min() {
-        check("min", T!["min"]);
+        check_token("min", T!["min"]);
     }
 
     #[test]
     fn lex_range() {
-        check("range", T!["range"]);
+        check_token("range", T!["range"]);
     }
 
     #[test]
     fn lex_cycle() {
-        check("cycle", T!["cycle"]);
+        check_token("cycle", T!["cycle"]);
     }
 
     #[test]
     fn lex_random() {
-        check("random", T!["random"]);
+        check_token("random", T!["random"]);
     }
 
     #[test]
     fn lex_date() {
-        check("date", T!["date"]);
+        check_token("date", T!["date"]);
     }
 
     #[test]
     fn lex_include() {
-        check("include", T!["include"]);
+        check_token("include", T!["include"]);
     }
 
     #[test]
     fn lex_source() {
-        check("source", T!["source"]);
+        check_token("source", T!["source"]);
     }
 
     #[test]
     fn lex_ludtwig_ignore_file() {
-        check("ludtwig-ignore-file", T!["ludtwig-ignore-file"]);
+        check_token("ludtwig-ignore-file", T!["ludtwig-ignore-file"]);
     }
 
     #[test]
     fn lex_ludtwig_ignore() {
-        check("ludtwig-ignore", T!["ludtwig-ignore"]);
+        check_token("ludtwig-ignore", T!["ludtwig-ignore"]);
     }
 }

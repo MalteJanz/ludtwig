@@ -157,6 +157,60 @@ pub enum SyntaxKind {
     TK_ELSE,
     #[token("endif")]
     TK_ENDIF,
+    #[token("apply")]
+    TK_APPLY,
+    #[token("endapply")]
+    TK_ENDAPPLY,
+    #[token("autoescape")]
+    TK_AUTOESCAPE,
+    #[token("endautoescape")]
+    TK_ENDAUTOESCAPE,
+    #[token("cache")]
+    TK_CACHE,
+    #[token("endcache")]
+    TK_ENDCACHE,
+    #[token("deprecated")]
+    TK_DEPRECATED,
+    #[token("do")]
+    TK_DO,
+    #[token("embed")]
+    TK_EMBED,
+    #[token("endembed")]
+    TK_ENDEMBED,
+    #[token("extends")]
+    TK_EXTENDS,
+    #[token("flush")]
+    TK_FLUSH,
+    #[token("for")]
+    TK_FOR,
+    #[token("endfor")]
+    TK_ENDFOR,
+    #[token("from")]
+    TK_FROM,
+    #[token("import")]
+    TK_IMPORT,
+    #[token("macro")]
+    TK_MACRO,
+    #[token("endmacro")]
+    TK_ENDMACRO,
+    #[token("sandbox")]
+    TK_SANDBOX,
+    #[token("endsandbox")]
+    TK_ENDSANDBOX,
+    #[token("set")]
+    TK_SET,
+    #[token("endset")]
+    TK_ENDSET,
+    #[token("use")]
+    TK_USE,
+    #[token("verbatim")]
+    TK_VERBATIM,
+    #[token("endverbatim")]
+    TK_ENDVERBATIM,
+    #[token("with")]
+    TK_WITH,
+    #[token("endwith")]
+    TK_ENDWITH,
     /* twig operators */
     #[token("not")]
     TK_NOT,
@@ -336,6 +390,33 @@ macro_rules! T {
     ["elseif"] => { $crate::syntax::untyped::SyntaxKind::TK_ELSE_IF };
     ["else"] => { $crate::syntax::untyped::SyntaxKind::TK_ELSE };
     ["endif"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDIF };
+    ["apply"] => { $crate::syntax::untyped::SyntaxKind::TK_APPLY };
+    ["endapply"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDAPPLY };
+    ["autoescape"] => { $crate::syntax::untyped::SyntaxKind::TK_AUTOESCAPE };
+    ["endautoescape"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDAUTOESCAPE };
+    ["cache"] => { $crate::syntax::untyped::SyntaxKind::TK_CACHE };
+    ["endcache"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDCACHE };
+    ["deprecated"] => { $crate::syntax::untyped::SyntaxKind::TK_DEPRECATED };
+    ["do"] => { $crate::syntax::untyped::SyntaxKind::TK_DO };
+    ["embed"] => { $crate::syntax::untyped::SyntaxKind::TK_EMBED };
+    ["endembed"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDEMBED };
+    ["extends"] => { $crate::syntax::untyped::SyntaxKind::TK_EXTENDS };
+    ["flush"] => { $crate::syntax::untyped::SyntaxKind::TK_FLUSH };
+    ["for"] => { $crate::syntax::untyped::SyntaxKind::TK_FOR };
+    ["endfor"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDFOR };
+    ["from"] => { $crate::syntax::untyped::SyntaxKind::TK_FROM };
+    ["import"] => { $crate::syntax::untyped::SyntaxKind::TK_IMPORT };
+    ["macro"] => { $crate::syntax::untyped::SyntaxKind::TK_MACRO };
+    ["endmacro"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDMACRO };
+    ["sandbox"] => { $crate::syntax::untyped::SyntaxKind::TK_SANDBOX };
+    ["endsandbox"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDSANDBOX };
+    ["set"] => { $crate::syntax::untyped::SyntaxKind::TK_SET };
+    ["endset"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDSET };
+    ["use"] => { $crate::syntax::untyped::SyntaxKind::TK_USE };
+    ["verbatim"] => { $crate::syntax::untyped::SyntaxKind::TK_VERBATIM };
+    ["endverbatim"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDVERBATIM };
+    ["with"] => { $crate::syntax::untyped::SyntaxKind::TK_WITH };
+    ["endwith"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDWITH };
     ["not"] => { $crate::syntax::untyped::SyntaxKind::TK_NOT };
     ["or"] => { $crate::syntax::untyped::SyntaxKind::TK_OR };
     ["and"] => { $crate::syntax::untyped::SyntaxKind::TK_AND };
@@ -444,6 +525,33 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_ELSE_IF => "elseif",
             SyntaxKind::TK_ELSE => "else",
             SyntaxKind::TK_ENDIF => "endif",
+            SyntaxKind::TK_APPLY => "apply",
+            SyntaxKind::TK_ENDAPPLY => "endapply",
+            SyntaxKind::TK_AUTOESCAPE => "autoescape",
+            SyntaxKind::TK_ENDAUTOESCAPE => "endautoescape",
+            SyntaxKind::TK_CACHE => "cache",
+            SyntaxKind::TK_ENDCACHE => "endcache",
+            SyntaxKind::TK_DEPRECATED => "deprecated",
+            SyntaxKind::TK_DO => "do",
+            SyntaxKind::TK_EMBED => "embed",
+            SyntaxKind::TK_ENDEMBED => "endembed",
+            SyntaxKind::TK_EXTENDS => "extends",
+            SyntaxKind::TK_FLUSH => "flush",
+            SyntaxKind::TK_FOR => "for",
+            SyntaxKind::TK_ENDFOR => "endfor",
+            SyntaxKind::TK_FROM => "from",
+            SyntaxKind::TK_IMPORT => "import",
+            SyntaxKind::TK_MACRO => "macro",
+            SyntaxKind::TK_ENDMACRO => "endmacro",
+            SyntaxKind::TK_SANDBOX => "sandbox",
+            SyntaxKind::TK_ENDSANDBOX => "endsandbox",
+            SyntaxKind::TK_SET => "set",
+            SyntaxKind::TK_ENDSET => "endset",
+            SyntaxKind::TK_USE => "use",
+            SyntaxKind::TK_VERBATIM => "verbatim",
+            SyntaxKind::TK_ENDVERBATIM => "endverbatim",
+            SyntaxKind::TK_WITH => "with",
+            SyntaxKind::TK_ENDWITH => "endwith",
             SyntaxKind::TK_NOT => "not",
             SyntaxKind::TK_OR => "or",
             SyntaxKind::TK_AND => "and",
