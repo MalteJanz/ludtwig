@@ -443,6 +443,16 @@ mod tests {
     }
 
     #[test]
+    fn lex_true() {
+        check_token("true", T!["true"]);
+    }
+
+    #[test]
+    fn lex_false() {
+        check_token("false", T!["false"]);
+    }
+
+    #[test]
     fn lex_block() {
         check_token("block", T!["block"]);
     }

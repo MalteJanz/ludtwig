@@ -144,6 +144,11 @@ pub enum SyntaxKind {
     #[token("#}")]
     TK_HASHTAG_CLOSE_CURLY,
 
+    #[token("true")]
+    TK_TRUE,
+    #[token("false")]
+    TK_FALSE,
+
     /* twig tag tokens */
     #[token("block")]
     TK_BLOCK,
@@ -291,6 +296,20 @@ pub enum SyntaxKind {
     */
     BODY,
     TWIG_VAR,
+    TWIG_EXPRESSION,
+    // twig literals
+    TWIG_LITERAL_STRING,
+    TWIG_LITERAL_STRING_INNER,
+    TWIG_LITERAL_NUMBER,
+    TWIG_LITERAL_ARRAY,
+    TWIG_LITERAL_NULL,
+    TWIG_LITERAL_BOOLEAN,
+    TWIG_LITERAL_HASH,
+    TWIG_LITERAL_HASH_PAIR,
+    TWIG_LITERAL_HASH_KEY,
+    TWIG_LITERAL_HASH_VALUE,
+    TWIG_LITERAL_VARIABLE,
+    // twig block like structures
     TWIG_COMMENT,
     // twig block
     TWIG_BLOCK,
@@ -300,7 +319,6 @@ pub enum SyntaxKind {
     TWIG_IF,
     TWIG_IF_BLOCK,
     TWIG_ELSE_IF_BLOCK,
-    TWIG_CONDITION_EXPRESSION,
     TWIG_ELSE_BLOCK,
     TWIG_ENDIF_BLOCK,
     // html
@@ -385,6 +403,8 @@ macro_rules! T {
     ["}}"] => { $crate::syntax::untyped::SyntaxKind::TK_CLOSE_CURLY_CURLY };
     ["{#"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY_HASHTAG };
     ["#}"] => { $crate::syntax::untyped::SyntaxKind::TK_HASHTAG_CLOSE_CURLY };
+    ["true"] => { $crate::syntax::untyped::SyntaxKind::TK_TRUE };
+    ["false"] => { $crate::syntax::untyped::SyntaxKind::TK_FALSE };
     ["block"] => { $crate::syntax::untyped::SyntaxKind::TK_BLOCK };
     ["endblock"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDBLOCK };
     ["if"] => { $crate::syntax::untyped::SyntaxKind::TK_IF };
@@ -520,6 +540,8 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_CLOSE_CURLY_CURLY => "}}",
             SyntaxKind::TK_OPEN_CURLY_HASHTAG => "{#",
             SyntaxKind::TK_HASHTAG_CLOSE_CURLY => "#}",
+            SyntaxKind::TK_TRUE => "true",
+            SyntaxKind::TK_FALSE => "false",
             SyntaxKind::TK_BLOCK => "block",
             SyntaxKind::TK_ENDBLOCK => "endblock",
             SyntaxKind::TK_IF => "if",

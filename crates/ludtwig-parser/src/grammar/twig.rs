@@ -1,3 +1,7 @@
+mod expression;
+pub(crate) mod literal;
+
+use crate::grammar::twig::expression::parse_twig_expression;
 use crate::grammar::{parse_ludtwig_directive, parse_many, ParseFunction};
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser};
@@ -53,7 +57,7 @@ fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {
         parser,
         |p| p.at(T!["}}"]),
         |p| {
-            p.bump();
+            parse_twig_expression(p);
         },
     );
 
@@ -127,7 +131,9 @@ fn parse_twig_if(
     debug_assert!(parser.at(T!["if"]));
 
     parser.expect(T!["if"]);
-    parse_twig_condition_expression(parser);
+    if parse_twig_expression(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new("twig expression"))
+    }
     parser.expect(T!["%}"]);
 
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_IF_BLOCK);
@@ -159,7 +165,9 @@ fn parse_twig_if(
             let branch_m = parser.start();
             parser.bump();
             parser.bump();
-            parse_twig_condition_expression(parser);
+            if parse_twig_expression(parser).is_none() {
+                parser.add_error(ParseErrorBuilder::new("twig expression"))
+            }
             parser.expect(T!["%}"]);
             parser.complete(branch_m, SyntaxKind::TWIG_ELSE_IF_BLOCK);
         } else if parser.at_following(&[T!["{%"], T!["else"]]) {
@@ -181,20 +189,6 @@ fn parse_twig_if(
     parser.complete(end_block_m, SyntaxKind::TWIG_ENDIF_BLOCK);
 
     parser.complete(wrapper_m, SyntaxKind::TWIG_IF)
-}
-
-fn parse_twig_condition_expression(parser: &mut Parser) -> CompletedMarker {
-    let m = parser.start();
-
-    parse_many(
-        parser,
-        |p| p.at(T!["%}"]),
-        |p| {
-            p.bump();
-        },
-    );
-
-    parser.complete(m, SyntaxKind::TWIG_CONDITION_EXPRESSION)
 }
 
 #[cfg(test)]
