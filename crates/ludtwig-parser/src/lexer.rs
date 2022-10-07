@@ -116,6 +116,25 @@ mod tests {
     }
 
     #[test]
+    fn lex_simple_expression() {
+        let results = lex("{{ not a }}");
+        let syntax_kinds: Vec<SyntaxKind> = results.into_iter().map(|t| t.kind).collect();
+
+        assert_eq!(
+            syntax_kinds,
+            vec![
+                T!["{{"],
+                T![ws],
+                T!["not"],
+                T![ws],
+                T![word],
+                T![ws],
+                T!["}}"],
+            ]
+        )
+    }
+
+    #[test]
     fn lex_whitespace() {
         check_regex("   ", T![ws], "whitespace");
         check_regex(" \t  ", T![ws], "whitespace");
