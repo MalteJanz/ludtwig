@@ -85,6 +85,10 @@ impl<'source> Parser<'source> {
         self.source.peek_kind()
     }
 
+    pub(crate) fn peek_token(&mut self) -> Option<&Token> {
+        self.source.peek_token()
+    }
+
     pub(crate) fn get_pos(&self) -> usize {
         self.source.get_pos()
     }
@@ -118,9 +122,25 @@ impl<'source> Parser<'source> {
             .next_token()
             .expect("bump called, but there are no more tokens!");
 
-        self.event_collection.add_token();
+        self.event_collection.add_token(consumed.kind);
 
         consumed
+    }
+
+    #[track_caller]
+    pub(crate) fn bump_as(&mut self, kind: SyntaxKind) -> Token {
+        let consumed = self
+            .source
+            .next_token()
+            .expect("bump called, but there are no more tokens!");
+
+        self.event_collection.add_token(kind);
+
+        Token {
+            kind,
+            text: consumed.text,
+            range: consumed.range,
+        }
     }
 
     pub(crate) fn expect(&mut self, kind: SyntaxKind) -> Option<&Token> {

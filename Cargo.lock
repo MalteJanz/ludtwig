@@ -431,6 +431,8 @@ dependencies = [
  "criterion",
  "expect-test",
  "logos",
+ "once_cell",
+ "regex",
  "rowan",
 ]
 

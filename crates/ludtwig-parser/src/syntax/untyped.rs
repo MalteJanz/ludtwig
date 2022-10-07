@@ -144,9 +144,9 @@ pub enum SyntaxKind {
     #[token("#}")]
     TK_HASHTAG_CLOSE_CURLY,
 
-    #[token("true")]
+    #[token("true", ignore(ascii_case))]
     TK_TRUE,
-    #[token("false")]
+    #[token("false", ignore(ascii_case))]
     TK_FALSE,
 
     /* twig tag tokens */
@@ -252,9 +252,9 @@ pub enum SyntaxKind {
     TK_DEFINED,
     #[token("same as")]
     TK_SAME_AS,
-    #[token("none")]
+    #[token("none", ignore(ascii_case))]
     TK_NONE,
-    #[token("null")]
+    #[token("null", ignore(ascii_case))]
     TK_NULL,
     #[token("divisible by")]
     TK_DIVISIBLE_BY,

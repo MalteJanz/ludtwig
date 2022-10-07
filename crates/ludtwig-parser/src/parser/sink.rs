@@ -3,7 +3,7 @@ use std::mem;
 use crate::lexer::Token;
 use crate::parser::event::{Event, EventCollection};
 use crate::parser::{Parse, ParseError};
-use crate::syntax::untyped::{GreenNodeBuilder, Language, TemplateLanguage};
+use crate::syntax::untyped::{GreenNodeBuilder, Language, SyntaxKind, TemplateLanguage};
 
 /// Sink for all the generated Events by the parser which
 /// the sink can transform into the syntax tree.
@@ -35,7 +35,7 @@ impl<'source> Sink<'source> {
         let mut forward_kinds = Vec::new();
 
         for idx in 0..self.events.len() {
-            if matches!(self.events[idx], Event::AddToken) || idx == self.events.len() - 1 {
+            if matches!(self.events[idx], Event::AddToken { .. }) || idx == self.events.len() - 1 {
                 // consume trivia before any token event or the last event
                 self.consume_trivia();
             }
@@ -75,7 +75,7 @@ impl<'source> Sink<'source> {
                         self.builder.start_node(TemplateLanguage::kind_to_raw(kind));
                     }
                 }
-                Event::AddToken => self.token(),
+                Event::AddToken { kind } => self.token_as(kind),
                 Event::FinishNode => self.builder.finish_node(),
                 Event::Placeholder => {}
             }
@@ -105,8 +105,18 @@ impl<'source> Sink<'source> {
         }
     }
 
+    /// add the token with it's original kind that came from the lexer
     fn token(&mut self) {
         let Token { kind, text, .. } = self.tokens[self.cursor];
+
+        self.builder
+            .token(TemplateLanguage::kind_to_raw(kind), text);
+        self.cursor += 1;
+    }
+
+    /// add the token with another kind that the parser has specified
+    fn token_as(&mut self, kind: SyntaxKind) {
+        let Token { text, .. } = self.tokens[self.cursor];
 
         self.builder
             .token(TemplateLanguage::kind_to_raw(kind), text);
@@ -157,8 +167,8 @@ mod tests {
         ];
         let mut event_collection = EventCollection::new();
         let m = event_collection.start();
-        event_collection.add_token();
-        event_collection.add_token();
+        event_collection.add_token(SyntaxKind::TK_WORD);
+        event_collection.add_token(SyntaxKind::TK_WORD);
         event_collection.complete(m, SyntaxKind::ROOT);
 
         let sink = Sink::new(&tokens, event_collection, vec![]);
@@ -197,7 +207,7 @@ mod tests {
         ];
         let mut event_collection = EventCollection::new();
         let m = event_collection.start();
-        event_collection.add_token();
+        event_collection.add_token(SyntaxKind::TK_WORD);
         // One token missing here
         event_collection.complete(m, SyntaxKind::ROOT);
 
@@ -233,10 +243,10 @@ mod tests {
         ];
         let mut event_collection = EventCollection::new();
         let outer_m = event_collection.start();
-        event_collection.add_token();
+        event_collection.add_token(SyntaxKind::TK_WORD);
 
         let inner_m = event_collection.start();
-        event_collection.add_token();
+        event_collection.add_token(SyntaxKind::TK_WORD);
         let inner_completed = event_collection.complete(inner_m, SyntaxKind::HTML_STRING);
         let inner_wrapper_m = event_collection.precede(inner_completed);
         let inner_wrapper_completed = event_collection.complete(inner_wrapper_m, SyntaxKind::BODY);

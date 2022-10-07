@@ -4,6 +4,11 @@ use crate::parser::event::CompletedMarker;
 use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
 use crate::T;
+use once_cell::sync::Lazy;
+use regex::Regex;
+
+static VARIABLE_NAME_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$"#).unwrap());
 
 pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker> {
     if parser.at(T![number]) {
@@ -18,10 +23,13 @@ pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker>
         Some(parse_twig_boolean(parser))
     } else if parser.at(T!["{"]) {
         Some(parse_twig_hash(parser))
-    } else if parser.at(T![word]) {
-        Some(parse_twig_variable_name(parser))
     } else {
-        None
+        let token_text = parser.peek_token()?.text;
+        if VARIABLE_NAME_REGEX.is_match(token_text) {
+            Some(parse_twig_variable_name(parser))
+        } else {
+            None
+        }
     }
 }
 
@@ -119,11 +127,7 @@ fn parse_twig_hash(parser: &mut Parser) -> CompletedMarker {
 }
 
 fn parse_twig_hash_pair(parser: &mut Parser) -> Option<CompletedMarker> {
-    let key = if parser.at(T![word]) {
-        let m = parser.start();
-        parser.bump();
-        parser.complete(m, SyntaxKind::TWIG_LITERAL_HASH_KEY)
-    } else if parser.at(T![number]) {
+    let key = if parser.at(T![number]) {
         let m = parse_twig_number(parser);
         let preceded = parser.precede(m);
         parser.complete(preceded, SyntaxKind::TWIG_LITERAL_HASH_KEY)
@@ -140,7 +144,14 @@ fn parse_twig_hash_pair(parser: &mut Parser) -> Option<CompletedMarker> {
         parser.expect(T![")"]);
         parser.complete(m, SyntaxKind::TWIG_LITERAL_HASH_KEY)
     } else {
-        return None;
+        let token_text = parser.peek_token()?.text;
+        if VARIABLE_NAME_REGEX.is_match(token_text) {
+            let m = parser.start();
+            parser.bump_as(SyntaxKind::TK_WORD);
+            parser.complete(m, SyntaxKind::TWIG_LITERAL_HASH_KEY)
+        } else {
+            return None;
+        }
     };
 
     // check if key exists
@@ -155,10 +166,10 @@ fn parse_twig_hash_pair(parser: &mut Parser) -> Option<CompletedMarker> {
     Some(parser.complete(preceded, SyntaxKind::TWIG_LITERAL_HASH_PAIR))
 }
 
+/// parses the next token (can be anything!, needs to be validated by VARIABLE_NAME_REGEX first)
 fn parse_twig_variable_name(parser: &mut Parser) -> CompletedMarker {
-    debug_assert!(parser.at(T![word]));
     let m = parser.start();
-    parser.bump();
+    parser.bump_as(SyntaxKind::TK_WORD);
 
     parser.complete(m, SyntaxKind::TWIG_LITERAL_VARIABLE)
 }
@@ -400,6 +411,40 @@ mod tests {
     }
 
     #[test]
+    fn parse_twig_variable_name() {
+        check_parse(
+            "{{ my_variable }}",
+            expect![[r#"
+            ROOT@0..17
+              TWIG_VAR@0..17
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..14
+                  TWIG_LITERAL_VARIABLE@2..14
+                    TK_WHITESPACE@2..3 " "
+                    TK_WORD@3..14 "my_variable"
+                TK_WHITESPACE@14..15 " "
+                TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_token_variable_name() {
+        check_parse(
+            "{{ and }}",
+            expect![[r#"
+                ROOT@0..9
+                  TWIG_VAR@0..9
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..6
+                      TWIG_LITERAL_VARIABLE@2..6
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..6 "and"
+                    TK_WHITESPACE@6..7 " "
+                    TK_CLOSE_CURLY_CURLY@7..9 "}}""#]],
+        );
+    }
+
+    #[test]
     fn parse_twig_number_hash() {
         check_parse(
             "{{ { 1: 'hello' 2: 'world' } }}",
@@ -616,57 +661,43 @@ mod tests {
     #[test]
     fn parse_twig_hash_with_omitted_value() {
         check_parse(
-            "{{ { value, _is, _same, _as, key } }}",
+            "{{ { value, is, same, as, key } }}",
             expect![[r#"
-            ROOT@0..37
-              TWIG_VAR@0..37
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..34
-                  TWIG_LITERAL_HASH@2..34
-                    TK_WHITESPACE@2..3 " "
-                    TK_OPEN_CURLY@3..4 "{"
-                    TWIG_LITERAL_HASH_PAIR@4..10
-                      TWIG_LITERAL_HASH_KEY@4..10
-                        TK_WHITESPACE@4..5 " "
-                        TK_WORD@5..10 "value"
-                    TK_COMMA@10..11 ","
-                    TWIG_LITERAL_HASH_PAIR@11..15
-                      TWIG_LITERAL_HASH_KEY@11..15
-                        TK_WHITESPACE@11..12 " "
-                        TK_WORD@12..15 "_is"
-                    TK_COMMA@15..16 ","
-                    TWIG_LITERAL_HASH_PAIR@16..22
-                      TWIG_LITERAL_HASH_KEY@16..22
-                        TK_WHITESPACE@16..17 " "
-                        TK_WORD@17..22 "_same"
-                    TK_COMMA@22..23 ","
-                    TWIG_LITERAL_HASH_PAIR@23..27
-                      TWIG_LITERAL_HASH_KEY@23..27
-                        TK_WHITESPACE@23..24 " "
-                        TK_WORD@24..27 "_as"
-                    TK_COMMA@27..28 ","
-                    TWIG_LITERAL_HASH_PAIR@28..32
-                      TWIG_LITERAL_HASH_KEY@28..32
-                        TK_WHITESPACE@28..29 " "
-                        TK_WORD@29..32 "key"
-                    TK_WHITESPACE@32..33 " "
-                    TK_CLOSE_CURLY@33..34 "}"
-                TK_WHITESPACE@34..35 " "
-                TK_CLOSE_CURLY_CURLY@35..37 "}}""#]],
+                ROOT@0..34
+                  TWIG_VAR@0..34
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..31
+                      TWIG_LITERAL_HASH@2..31
+                        TK_WHITESPACE@2..3 " "
+                        TK_OPEN_CURLY@3..4 "{"
+                        TWIG_LITERAL_HASH_PAIR@4..10
+                          TWIG_LITERAL_HASH_KEY@4..10
+                            TK_WHITESPACE@4..5 " "
+                            TK_WORD@5..10 "value"
+                        TK_COMMA@10..11 ","
+                        TWIG_LITERAL_HASH_PAIR@11..14
+                          TWIG_LITERAL_HASH_KEY@11..14
+                            TK_WHITESPACE@11..12 " "
+                            TK_WORD@12..14 "is"
+                        TK_COMMA@14..15 ","
+                        TWIG_LITERAL_HASH_PAIR@15..20
+                          TWIG_LITERAL_HASH_KEY@15..20
+                            TK_WHITESPACE@15..16 " "
+                            TK_WORD@16..20 "same"
+                        TK_COMMA@20..21 ","
+                        TWIG_LITERAL_HASH_PAIR@21..24
+                          TWIG_LITERAL_HASH_KEY@21..24
+                            TK_WHITESPACE@21..22 " "
+                            TK_WORD@22..24 "as"
+                        TK_COMMA@24..25 ","
+                        TWIG_LITERAL_HASH_PAIR@25..29
+                          TWIG_LITERAL_HASH_KEY@25..29
+                            TK_WHITESPACE@25..26 " "
+                            TK_WORD@26..29 "key"
+                        TK_WHITESPACE@29..30 " "
+                        TK_CLOSE_CURLY@30..31 "}"
+                    TK_WHITESPACE@31..32 " "
+                    TK_CLOSE_CURLY_CURLY@32..34 "}}""#]],
         );
-    }
-
-    #[test]
-    fn parse_twig_variable_name() {
-        check_parse("{{ my_variable }}", expect![[r#"
-            ROOT@0..17
-              TWIG_VAR@0..17
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..14
-                  TWIG_LITERAL_VARIABLE@2..14
-                    TK_WHITESPACE@2..3 " "
-                    TK_WORD@3..14 "my_variable"
-                TK_WHITESPACE@14..15 " "
-                TK_CLOSE_CURLY_CURLY@15..17 "}}""#]]);
     }
 }

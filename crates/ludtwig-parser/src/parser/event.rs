@@ -7,7 +7,9 @@ pub(super) enum Event {
         kind: SyntaxKind,
         forward_parent: Option<usize>,
     },
-    AddToken,
+    AddToken {
+        kind: SyntaxKind,
+    },
     FinishNode,
     Placeholder,
 }
@@ -29,8 +31,8 @@ impl EventCollection {
         }
     }
 
-    pub(super) fn add_token(&mut self) {
-        self.events.push(Event::AddToken);
+    pub(super) fn add_token(&mut self, kind: SyntaxKind) {
+        self.events.push(Event::AddToken { kind });
     }
 
     pub(super) fn into_event_list(self) -> Vec<Event> {
@@ -143,11 +145,11 @@ mod tests {
     fn event_collection_markers() {
         let mut collection = EventCollection::new();
         let m_outer = collection.start();
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_WORD);
         let m_inner = collection.start();
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_AND);
         collection.complete(m_inner, SyntaxKind::BODY);
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_APPLY);
         collection.complete(m_outer, SyntaxKind::ROOT);
 
         assert_eq!(
@@ -157,14 +159,20 @@ mod tests {
                     kind: SyntaxKind::ROOT,
                     forward_parent: None
                 },
-                Event::AddToken,
+                Event::AddToken {
+                    kind: SyntaxKind::TK_WORD
+                },
                 Event::StartNode {
                     kind: SyntaxKind::BODY,
                     forward_parent: None
                 },
-                Event::AddToken,
+                Event::AddToken {
+                    kind: SyntaxKind::TK_AND
+                },
                 Event::FinishNode,
-                Event::AddToken,
+                Event::AddToken {
+                    kind: SyntaxKind::TK_APPLY
+                },
                 Event::FinishNode
             ]
         );
@@ -174,14 +182,14 @@ mod tests {
     fn event_collection_markers_precede() {
         let mut collection = EventCollection::new();
         let m_outer = collection.start();
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_WORD);
         let m_inner = collection.start();
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_AND);
         let inner_completed = collection.complete(m_inner, SyntaxKind::HTML_STRING);
         let inner_wrapper_m = collection.precede(inner_completed);
         let inner_wrapper_completed = collection.complete(inner_wrapper_m, SyntaxKind::BODY);
         let inner_wrapper_wrapper_m = collection.precede(inner_wrapper_completed);
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_APPLY);
         collection.complete(inner_wrapper_wrapper_m, SyntaxKind::ERROR);
 
         collection.complete(m_outer, SyntaxKind::ROOT);
@@ -193,12 +201,16 @@ mod tests {
                     kind: SyntaxKind::ROOT,
                     forward_parent: None,
                 },
-                Event::AddToken,
+                Event::AddToken {
+                    kind: SyntaxKind::TK_WORD
+                },
                 Event::StartNode {
                     kind: SyntaxKind::HTML_STRING,
                     forward_parent: Some(3),
                 },
-                Event::AddToken,
+                Event::AddToken {
+                    kind: SyntaxKind::TK_AND
+                },
                 Event::FinishNode,
                 Event::StartNode {
                     kind: SyntaxKind::BODY,
@@ -209,7 +221,9 @@ mod tests {
                     kind: SyntaxKind::ERROR,
                     forward_parent: None,
                 },
-                Event::AddToken,
+                Event::AddToken {
+                    kind: SyntaxKind::TK_APPLY
+                },
                 Event::FinishNode,
                 Event::FinishNode,
             ]
@@ -221,12 +235,12 @@ mod tests {
     fn event_collection_markers_dropping_early_panic() {
         let mut collection = EventCollection::new();
         let m_outer = collection.start();
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_WORD);
         let m_inner = collection.start();
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_WORD);
         drop(m_outer); // early drop
         collection.complete(m_inner, SyntaxKind::BODY);
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_WORD);
     }
 
     #[test]
@@ -234,14 +248,14 @@ mod tests {
     fn event_collection_inner_before_outer_markers_panic() {
         let mut collection = EventCollection::new();
         let m_outer = collection.start();
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_WORD);
         let m_inner = collection.start();
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_WORD);
         // this doesn't make sense (why closing root if the inner Body is still open?)
         // and this call should panic!
         collection.complete(m_outer, SyntaxKind::ROOT);
-        collection.add_token();
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_WORD);
+        collection.add_token(SyntaxKind::TK_WORD);
         // same here
         collection.complete(m_inner, SyntaxKind::BODY);
     }
@@ -251,14 +265,14 @@ mod tests {
     fn event_collection_inner_before_outer_preceding_markers_panic() {
         let mut collection = EventCollection::new();
         let m_outer = collection.start();
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_WORD);
         let m_inner = collection.start();
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_WORD);
         // this opens a new marker
         let inner_completed = collection.complete(m_inner, SyntaxKind::ROOT);
         let _m_inner_wrapper = collection.precede(inner_completed);
-        collection.add_token();
-        collection.add_token();
+        collection.add_token(SyntaxKind::TK_WORD);
+        collection.add_token(SyntaxKind::TK_WORD);
         // this should trigger a panic, because there are open inner markers
         collection.complete(m_outer, SyntaxKind::BODY);
     }
