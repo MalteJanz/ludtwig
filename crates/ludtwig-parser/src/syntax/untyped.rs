@@ -31,13 +31,13 @@ pub enum SyntaxKind {
     TK_LINE_BREAK,
     /// a single word containing only characters, numbers or symbols
     /// must start with a character or one of the special starting characters
-    #[regex(r"[a-zA-Z@:#_$][a-zA-Z0-9_-]*")]
+    #[regex(r"[a-zA-Z@:\#_\$][a-zA-Z0-9_\-]*", priority = 1)]
     TK_WORD,
     /// a valid twig number
     #[regex(r"[0-9]+(\.[0-9]+)?([Ee][\+\-][0-9]+)?")]
     TK_NUMBER,
     /// a html escape character like '&NewLine;' or '&#10;' or '&#xA;'
-    #[regex(r"&(([a-zA-Z][a-zA-Z0-9]*)|(#[0-9]+)|(#x[0-9a-fA-F]+));")]
+    #[regex(r"\&(([a-zA-Z][a-zA-Z0-9]*)|(\#[0-9]+)|(\#x[0-9a-fA-F]+));")]
     TK_HTML_ESCAPE_CHARACTER,
     #[token(".")]
     TK_DOT,
@@ -217,7 +217,7 @@ pub enum SyntaxKind {
     #[token("endwith")]
     TK_ENDWITH,
     /* twig operators */
-    #[token("not")]
+    #[token("not", priority = 50)]
     TK_NOT,
     #[token("or")]
     TK_OR,
@@ -229,7 +229,7 @@ pub enum SyntaxKind {
     TK_BINARY_XOR,
     #[token("b-and")]
     TK_BINARY_AND,
-    #[token("not in")]
+    #[token("not in", priority = 60)]
     TK_NOT_IN,
     #[token("in")]
     TK_IN,
@@ -239,9 +239,9 @@ pub enum SyntaxKind {
     TK_STARTS_WITH,
     #[token("ends with")]
     TK_ENDS_WITH,
-    #[token("is")]
+    #[token("is", priority = 50)]
     TK_IS,
-    #[token("is not")]
+    #[token("is not", priority = 55)]
     TK_IS_NOT,
     /* twig tests */
     #[token("even")]

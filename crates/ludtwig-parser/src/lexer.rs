@@ -135,6 +135,151 @@ mod tests {
     }
 
     #[test]
+    fn lex_all_tokens_chained_together() {
+        use std::fmt::Write;
+
+        let mut source = String::new();
+        let mut expected_kinds: Vec<SyntaxKind> = vec![];
+        let mut add = |text: &str, kind: SyntaxKind| {
+            write!(source, "{} ", text).unwrap();
+            expected_kinds.push(kind);
+            expected_kinds.push(T![ws]);
+        };
+
+        // add every token here (except ws)
+        add("\n", T![lb]);
+        add("word", T![word]);
+        add("42.3", T![number]);
+        add("&#10;", T![html escape character]);
+        add(".", T!["."]);
+        add("..", T![".."]);
+        add(",", T![","]);
+        add(":", T![":"]);
+        add(";", T![";"]);
+        add("!", T!["!"]);
+        add("!=", T!["!="]);
+        add("!==", T!["!=="]);
+        add("?", T!["?"]);
+        add("??", T!["??"]);
+        add("%", T!["%"]);
+        add("~", T!["~"]);
+        add("|", T!["|"]);
+        add("||", T!["||"]);
+        add("&", T!["&"]);
+        add("&&", T!["&&"]);
+        add("/", T!["/"]);
+        add("//", T!["//"]);
+        add("\\", T!["\\"]);
+        add("(", T!["("]);
+        add(")", T![")"]);
+        add("{", T!["{"]);
+        add("}", T!["}"]);
+        add("[", T!["["]);
+        add("]", T!["]"]);
+        add("<", T!["<"]);
+        add("<=", T!["<="]);
+        add("<=>", T!["<=>"]);
+        add("</", T!["</"]);
+        add("<!", T!["<!"]);
+        add("doctype", T!["DOCTYPE"]);
+        add(">", T![">"]);
+        add(">=", T![">="]);
+        add("/>", T!["/>"]);
+        add("<!--", T!["<!--"]);
+        add("-->", T!["-->"]);
+        add("=", T!["="]);
+        add("==", T!["=="]);
+        add("===", T!["==="]);
+        add("+", T!["+"]);
+        add("-", T!["-"]);
+        add("*", T!["*"]);
+        add("**", T!["**"]);
+        add("\"", T!["\""]);
+        add("'", T!["'"]);
+        add("`", T!["`"]);
+        add("{%", T!["{%"]);
+        add("%}", T!["%}"]);
+        add("{{", T!["{{"]);
+        add("}}", T!["}}"]);
+        add("{#", T!["{#"]);
+        add("#}", T!["#}"]);
+        add("true", T!["true"]);
+        add("false", T!["false"]);
+        add("block", T!["block"]);
+        add("endblock", T!["endblock"]);
+        add("if", T!["if"]);
+        add("elseif", T!["elseif"]);
+        add("else", T!["else"]);
+        add("endif", T!["endif"]);
+        add("apply", T!["apply"]);
+        add("endapply", T!["endapply"]);
+        add("autoescape", T!["autoescape"]);
+        add("endautoescape", T!["endautoescape"]);
+        add("cache", T!["cache"]);
+        add("endcache", T!["endcache"]);
+        add("deprecated", T!["deprecated"]);
+        add("do", T!["do"]);
+        add("embed", T!["embed"]);
+        add("endembed", T!["endembed"]);
+        add("extends", T!["extends"]);
+        add("flush", T!["flush"]);
+        add("for", T!["for"]);
+        add("endfor", T!["endfor"]);
+        add("from", T!["from"]);
+        add("import", T!["import"]);
+        add("macro", T!["macro"]);
+        add("endmacro", T!["endmacro"]);
+        add("sandbox", T!["sandbox"]);
+        add("endsandbox", T!["endsandbox"]);
+        add("set", T!["set"]);
+        add("endset", T!["endset"]);
+        add("use", T!["use"]);
+        add("verbatim", T!["verbatim"]);
+        add("endverbatim", T!["endverbatim"]);
+        add("with", T!["with"]);
+        add("endwith", T!["endwith"]);
+        add("not", T!["not"]);
+        add("or", T!["or"]);
+        add("and", T!["and"]);
+        add("b-or", T!["b-or"]);
+        add("b-xor", T!["b-xor"]);
+        add("b-and", T!["b-and"]);
+        add("not in", T!["not in"]);
+        add("in", T!["in"]);
+        add("matches", T!["matches"]);
+        add("starts with", T!["starts with"]);
+        add("ends with", T!["ends with"]);
+        add("is", T!["is"]);
+        add("is not", T!["is not"]);
+        add("even", T!["even"]);
+        add("odd", T!["odd"]);
+        add("defined", T!["defined"]);
+        add("same as", T!["same as"]);
+        add("none", T!["none"]);
+        add("null", T!["null"]);
+        add("divisible by", T!["divisible by"]);
+        add("constant", T!["constant"]);
+        add("empty", T!["empty"]);
+        add("iterable", T!["iterable"]);
+        add("max", T!["max"]);
+        add("min", T!["min"]);
+        add("range", T!["range"]);
+        add("cycle", T!["cycle"]);
+        add("random", T!["random"]);
+        add("date", T!["date"]);
+        add("include", T!["include"]);
+        add("source", T!["source"]);
+        add("ludtwig-ignore-file", T!["ludtwig-ignore-file"]);
+        add("ludtwig-ignore", T!["ludtwig-ignore"]);
+        add("€", T![unknown]);
+
+        // lex and compare
+        let results = lex(&source);
+        let found_syntax_kinds: Vec<SyntaxKind> = results.into_iter().map(|t| t.kind).collect();
+        assert_eq!(found_syntax_kinds, expected_kinds)
+    }
+
+    #[test]
     fn lex_whitespace() {
         check_regex("   ", T![ws], "whitespace");
         check_regex(" \t  ", T![ws], "whitespace");
