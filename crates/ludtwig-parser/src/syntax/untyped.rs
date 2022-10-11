@@ -31,7 +31,7 @@ pub enum SyntaxKind {
     TK_LINE_BREAK,
     /// a single word containing only characters, numbers or symbols
     /// must start with a character or one of the special starting characters
-    #[regex(r"[a-zA-Z@:\#_\$][a-zA-Z0-9_\-]*", priority = 1)]
+    #[regex(r"[a-zA-Z@:\#_\$][a-zA-Z0-9_\-]*")]
     TK_WORD,
     /// a valid twig number
     #[regex(r"[0-9]+(\.[0-9]+)?([Ee][\+\-][0-9]+)?")]
@@ -217,7 +217,7 @@ pub enum SyntaxKind {
     #[token("endwith")]
     TK_ENDWITH,
     /* twig operators */
-    #[token("not", priority = 50)]
+    #[token("not")]
     TK_NOT,
     #[token("or")]
     TK_OR,
@@ -229,8 +229,6 @@ pub enum SyntaxKind {
     TK_BINARY_XOR,
     #[token("b-and")]
     TK_BINARY_AND,
-    #[token("not in", priority = 60)]
-    TK_NOT_IN,
     #[token("in")]
     TK_IN,
     #[token("matches")]
@@ -239,10 +237,8 @@ pub enum SyntaxKind {
     TK_STARTS_WITH,
     #[token("ends with")]
     TK_ENDS_WITH,
-    #[token("is", priority = 50)]
+    #[token("is")]
     TK_IS,
-    #[token("is not", priority = 55)]
-    TK_IS_NOT,
     /* twig tests */
     #[token("even")]
     TK_EVEN,
@@ -296,6 +292,7 @@ pub enum SyntaxKind {
     */
     BODY,
     TWIG_VAR,
+    TWIG_EXPRESSION, // covers every expression (binary / unary) or literals (where expressions are allowed)
     TWIG_BINARY_EXPRESSION,
     TWIG_UNARY_EXPRESSION,
     TWIG_PARENTHESES_EXPRESSION,
@@ -447,13 +444,11 @@ macro_rules! T {
     ["b-or"] => { $crate::syntax::untyped::SyntaxKind::TK_BINARY_OR };
     ["b-xor"] => { $crate::syntax::untyped::SyntaxKind::TK_BINARY_XOR };
     ["b-and"] => { $crate::syntax::untyped::SyntaxKind::TK_BINARY_AND };
-    ["not in"] => { $crate::syntax::untyped::SyntaxKind::TK_NOT_IN };
     ["in"] => { $crate::syntax::untyped::SyntaxKind::TK_IN };
     ["matches"] => { $crate::syntax::untyped::SyntaxKind::TK_MATCHES };
     ["starts with"] => { $crate::syntax::untyped::SyntaxKind::TK_STARTS_WITH };
     ["ends with"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDS_WITH };
     ["is"] => { $crate::syntax::untyped::SyntaxKind::TK_IS };
-    ["is not"] => { $crate::syntax::untyped::SyntaxKind::TK_IS_NOT };
     ["even"] => { $crate::syntax::untyped::SyntaxKind::TK_EVEN };
     ["odd"] => { $crate::syntax::untyped::SyntaxKind::TK_ODD };
     ["defined"] => { $crate::syntax::untyped::SyntaxKind::TK_DEFINED };
@@ -584,13 +579,11 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_BINARY_OR => "b-or",
             SyntaxKind::TK_BINARY_XOR => "b-xor",
             SyntaxKind::TK_BINARY_AND => "b-and",
-            SyntaxKind::TK_NOT_IN => "not in",
             SyntaxKind::TK_IN => "in",
             SyntaxKind::TK_MATCHES => "matches",
             SyntaxKind::TK_STARTS_WITH => "starts with",
             SyntaxKind::TK_ENDS_WITH => "ends with",
             SyntaxKind::TK_IS => "is",
-            SyntaxKind::TK_IS_NOT => "is not",
             SyntaxKind::TK_EVEN => "even",
             SyntaxKind::TK_ODD => "odd",
             SyntaxKind::TK_DEFINED => "defined",

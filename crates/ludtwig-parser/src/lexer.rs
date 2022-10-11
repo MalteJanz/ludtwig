@@ -244,13 +244,11 @@ mod tests {
         add("b-or", T!["b-or"]);
         add("b-xor", T!["b-xor"]);
         add("b-and", T!["b-and"]);
-        add("not in", T!["not in"]);
         add("in", T!["in"]);
         add("matches", T!["matches"]);
         add("starts with", T!["starts with"]);
         add("ends with", T!["ends with"]);
         add("is", T!["is"]);
-        add("is not", T!["is not"]);
         add("even", T!["even"]);
         add("odd", T!["odd"]);
         add("defined", T!["defined"]);
@@ -812,11 +810,6 @@ mod tests {
     }
 
     #[test]
-    fn lex_not_in() {
-        check_token("not in", T!["not in"]);
-    }
-
-    #[test]
     fn lex_in() {
         check_token("in", T!["in"]);
     }
@@ -839,11 +832,6 @@ mod tests {
     #[test]
     fn lex_is() {
         check_token("is", T!["is"]);
-    }
-
-    #[test]
-    fn lex_is_not() {
-        check_token("is not", T!["is not"]);
     }
 
     #[test]

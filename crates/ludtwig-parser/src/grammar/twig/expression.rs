@@ -24,6 +24,7 @@ impl Operator for SyntaxKind {
     fn binary_binding_power(&self) -> Option<(u8, u8)> {
         match self {
             // left associative
+            T!["~"] => Some((3, 4)),
             T!["or"] => Some((5, 6)),
             T!["and"] => Some((10, 11)),
             T!["b-or"] => Some((14, 15)),
@@ -36,7 +37,7 @@ impl Operator for SyntaxKind {
             | T![">"]
             | T![">="]
             | T!["<="]
-            | T!["not in"]
+            | T!["not"] // hack for 'not in' operator 'not' alone is not a binary operator!
             | T!["in"]
             | T!["matches"]
             | T!["starts with"]
@@ -44,7 +45,7 @@ impl Operator for SyntaxKind {
             T![".."] => Some((25, 26)),
             T!["+"] | T!["-"] => Some((30, 31)),
             T!["*"] | T!["/"] | T!["%"] | T!["//"] => Some((60, 61)),
-            T!["is"] | T!["is not"] => Some((100, 101)),
+            T!["is"] => Some((100, 101)),
             // right associative
             T!["**"] => Some((121, 120)),
             T!["??"] => Some((151, 150)),
@@ -55,8 +56,9 @@ impl Operator for SyntaxKind {
 
     fn unary_binding_power(&self) -> Option<((), u8)> {
         match self {
-            T!["not"] => Some(((), 200)),
-            T!["+"] | T!["-"] => Some(((), 220)),
+            // TODO: validate if this binding power is right
+            T!["not"] => Some(((), 2)),
+            T!["+"] | T!["-"] => Some(((), 1)),
             _ => None,
         }
     }
@@ -68,6 +70,11 @@ fn parse_twig_expression_binding_power(
 ) -> Option<CompletedMarker> {
     let mut lhs = parse_twig_expression_lhs(parser)?;
 
+    // wrap lhs in expression
+    let m = parser.precede(lhs);
+    lhs = parser.complete(m, SyntaxKind::TWIG_EXPRESSION);
+
+    let mut is_binary = false;
     while let Some((left_binding_power, right_binding_power)) = parser
         .peek_token()
         .and_then(|t| t.kind.binary_binding_power())
@@ -76,8 +83,19 @@ fn parse_twig_expression_binding_power(
             break;
         }
 
+        // 'not' alone is not a binary expression!
+        if parser.at(T!["not"]) && !parser.at_following(&[T!["not"], T!["in"]]) {
+            break;
+        }
+
         // Eat the operator’s token.
-        parser.bump();
+        let eaten_kind = parser.bump().kind;
+        if (eaten_kind == T!["not"] && parser.at(T!["in"]))
+            || (eaten_kind == T!["is"] && parser.at(T!["not"]))
+        {
+            parser.bump(); // eat 'in' / 'not' too
+        }
+        is_binary = true;
 
         // recurse
         let m = parser.precede(lhs);
@@ -87,6 +105,12 @@ fn parse_twig_expression_binding_power(
         if !parsed_rhs {
             break;
         }
+    }
+
+    // wrap hole binary expression inside an expression
+    if is_binary {
+        let m = parser.precede(lhs);
+        lhs = parser.complete(m, SyntaxKind::TWIG_EXPRESSION);
     }
 
     Some(lhs)
@@ -139,40 +163,303 @@ mod tests {
     use crate::parser::check_parse;
 
     #[test]
+    fn parse_twig_simple_number_expression() {
+        check_parse("{{ 1 }}", expect![[r#"
+            ROOT@0..7
+              TWIG_VAR@0..7
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..4
+                  TWIG_LITERAL_NUMBER@2..4
+                    TK_WHITESPACE@2..3 " "
+                    TK_NUMBER@3..4 "1"
+                TK_WHITESPACE@4..5 " "
+                TK_CLOSE_CURLY_CURLY@5..7 "}}""#]])
+    }
+
+    #[test]
+    fn parse_twig_simple_addition_expression() {
+        check_parse("{{ 1 + 2 }}", expect![[r#"
+            ROOT@0..11
+              TWIG_VAR@0..11
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..8
+                  TWIG_BINARY_EXPRESSION@2..8
+                    TWIG_EXPRESSION@2..4
+                      TWIG_LITERAL_NUMBER@2..4
+                        TK_WHITESPACE@2..3 " "
+                        TK_NUMBER@3..4 "1"
+                    TK_WHITESPACE@4..5 " "
+                    TK_PLUS@5..6 "+"
+                    TWIG_EXPRESSION@6..8
+                      TWIG_LITERAL_NUMBER@6..8
+                        TK_WHITESPACE@6..7 " "
+                        TK_NUMBER@7..8 "2"
+                TK_WHITESPACE@8..9 " "
+                TK_CLOSE_CURLY_CURLY@9..11 "}}""#]])
+    }
+
+    #[test]
     fn parse_twig_simple_math_expression() {
         check_parse(
             "{{ 1 + 2 * 3 }}",
             expect![[r#"
-            ROOT@0..15
-              TWIG_VAR@0..15
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_INFIX_EXPRESSION@2..12
-                  TWIG_LITERAL_NUMBER@2..4
-                    TK_WHITESPACE@2..3 " "
-                    TK_NUMBER@3..4 "1"
-                  TK_WHITESPACE@4..5 " "
-                  TK_PLUS@5..6 "+"
-                  TWIG_INFIX_EXPRESSION@6..12
-                    TWIG_LITERAL_NUMBER@6..8
-                      TK_WHITESPACE@6..7 " "
-                      TK_NUMBER@7..8 "2"
-                    TK_WHITESPACE@8..9 " "
-                    TK_STAR@9..10 "*"
-                    TWIG_LITERAL_NUMBER@10..12
-                      TK_WHITESPACE@10..11 " "
-                      TK_NUMBER@11..12 "3"
-                TK_WHITESPACE@12..13 " "
-                TK_CLOSE_CURLY_CURLY@13..15 "}}""#]],
+                ROOT@0..15
+                  TWIG_VAR@0..15
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..12
+                      TWIG_BINARY_EXPRESSION@2..12
+                        TWIG_EXPRESSION@2..4
+                          TWIG_LITERAL_NUMBER@2..4
+                            TK_WHITESPACE@2..3 " "
+                            TK_NUMBER@3..4 "1"
+                        TK_WHITESPACE@4..5 " "
+                        TK_PLUS@5..6 "+"
+                        TWIG_EXPRESSION@6..12
+                          TWIG_BINARY_EXPRESSION@6..12
+                            TWIG_EXPRESSION@6..8
+                              TWIG_LITERAL_NUMBER@6..8
+                                TK_WHITESPACE@6..7 " "
+                                TK_NUMBER@7..8 "2"
+                            TK_WHITESPACE@8..9 " "
+                            TK_STAR@9..10 "*"
+                            TWIG_EXPRESSION@10..12
+                              TWIG_LITERAL_NUMBER@10..12
+                                TK_WHITESPACE@10..11 " "
+                                TK_NUMBER@11..12 "3"
+                    TK_WHITESPACE@12..13 " "
+                    TK_CLOSE_CURLY_CURLY@13..15 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_simple_math_paren_expression() {
+        check_parse(
+            "{{ (1 + 2) * 3 }}",
+            expect![[r#"
+                ROOT@0..17
+                  TWIG_VAR@0..17
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..14
+                      TWIG_BINARY_EXPRESSION@2..14
+                        TWIG_EXPRESSION@2..10
+                          TWIG_PARENTHESES_EXPRESSION@2..10
+                            TK_WHITESPACE@2..3 " "
+                            TK_OPEN_PARENTHESIS@3..4 "("
+                            TWIG_EXPRESSION@4..9
+                              TWIG_BINARY_EXPRESSION@4..9
+                                TWIG_EXPRESSION@4..5
+                                  TWIG_LITERAL_NUMBER@4..5
+                                    TK_NUMBER@4..5 "1"
+                                TK_WHITESPACE@5..6 " "
+                                TK_PLUS@6..7 "+"
+                                TWIG_EXPRESSION@7..9
+                                  TWIG_LITERAL_NUMBER@7..9
+                                    TK_WHITESPACE@7..8 " "
+                                    TK_NUMBER@8..9 "2"
+                            TK_CLOSE_PARENTHESIS@9..10 ")"
+                        TK_WHITESPACE@10..11 " "
+                        TK_STAR@11..12 "*"
+                        TWIG_EXPRESSION@12..14
+                          TWIG_LITERAL_NUMBER@12..14
+                            TK_WHITESPACE@12..13 " "
+                            TK_NUMBER@13..14 "3"
+                    TK_WHITESPACE@14..15 " "
+                    TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
         )
     }
 
     #[test]
     fn parse_twig_simple_comparison_expression() {
-        check_parse("{{ a >= b + 1 }}", expect![[r#""#]])
+        check_parse(
+            "{{ a >= b + 1 }}",
+            expect![[r#"
+                ROOT@0..16
+                  TWIG_VAR@0..16
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..13
+                      TWIG_BINARY_EXPRESSION@2..13
+                        TWIG_EXPRESSION@2..4
+                          TWIG_LITERAL_VARIABLE@2..4
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..4 "a"
+                        TK_WHITESPACE@4..5 " "
+                        TK_GREATER_THAN_EQUAL@5..7 ">="
+                        TWIG_EXPRESSION@7..13
+                          TWIG_BINARY_EXPRESSION@7..13
+                            TWIG_EXPRESSION@7..9
+                              TWIG_LITERAL_VARIABLE@7..9
+                                TK_WHITESPACE@7..8 " "
+                                TK_WORD@8..9 "b"
+                            TK_WHITESPACE@9..10 " "
+                            TK_PLUS@10..11 "+"
+                            TWIG_EXPRESSION@11..13
+                              TWIG_LITERAL_NUMBER@11..13
+                                TK_WHITESPACE@11..12 " "
+                                TK_NUMBER@12..13 "1"
+                    TK_WHITESPACE@13..14 " "
+                    TK_CLOSE_CURLY_CURLY@14..16 "}}""#]],
+        )
     }
 
     #[test]
     fn parse_twig_simple_unary_expression() {
-        check_parse("{{ not a }}", expect![[r#""#]])
+        check_parse(
+            "{{ not a }}",
+            expect![[r#"
+                ROOT@0..11
+                  TWIG_VAR@0..11
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..8
+                      TWIG_UNARY_EXPRESSION@2..8
+                        TK_WHITESPACE@2..3 " "
+                        TK_NOT@3..6 "not"
+                        TWIG_EXPRESSION@6..8
+                          TWIG_LITERAL_VARIABLE@6..8
+                            TK_WHITESPACE@6..7 " "
+                            TK_WORD@7..8 "a"
+                    TK_WHITESPACE@8..9 " "
+                    TK_CLOSE_CURLY_CURLY@9..11 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_simple_binary_expression() {
+        check_parse(
+            "{{ a is odd }}",
+            expect![[r#"
+                ROOT@0..14
+                  TWIG_VAR@0..14
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..11
+                      TWIG_BINARY_EXPRESSION@2..11
+                        TWIG_EXPRESSION@2..4
+                          TWIG_LITERAL_VARIABLE@2..4
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..4 "a"
+                        TK_WHITESPACE@4..5 " "
+                        TK_IS@5..7 "is"
+                        TWIG_EXPRESSION@7..11
+                          TWIG_LITERAL_VARIABLE@7..11
+                            TK_WHITESPACE@7..8 " "
+                            TK_WORD@8..11 "odd"
+                    TK_WHITESPACE@11..12 " "
+                    TK_CLOSE_CURLY_CURLY@12..14 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_simple_string_concatenation() {
+        check_parse(
+            "{{ 'hello ' ~ name ~ ' to the world of ' ~ world }}",
+            expect![[r#"
+                ROOT@0..51
+                  TWIG_VAR@0..51
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..48
+                      TWIG_BINARY_EXPRESSION@2..48
+                        TWIG_BINARY_EXPRESSION@2..40
+                          TWIG_BINARY_EXPRESSION@2..18
+                            TWIG_EXPRESSION@2..11
+                              TWIG_LITERAL_STRING@2..11
+                                TK_WHITESPACE@2..3 " "
+                                TK_SINGLE_QUOTES@3..4 "'"
+                                TWIG_LITERAL_STRING_INNER@4..9
+                                  TK_WORD@4..9 "hello"
+                                TK_WHITESPACE@9..10 " "
+                                TK_SINGLE_QUOTES@10..11 "'"
+                            TK_WHITESPACE@11..12 " "
+                            TK_TILDE@12..13 "~"
+                            TWIG_EXPRESSION@13..18
+                              TWIG_LITERAL_VARIABLE@13..18
+                                TK_WHITESPACE@13..14 " "
+                                TK_WORD@14..18 "name"
+                          TK_WHITESPACE@18..19 " "
+                          TK_TILDE@19..20 "~"
+                          TWIG_EXPRESSION@20..40
+                            TWIG_LITERAL_STRING@20..40
+                              TK_WHITESPACE@20..21 " "
+                              TK_SINGLE_QUOTES@21..22 "'"
+                              TWIG_LITERAL_STRING_INNER@22..38
+                                TK_WHITESPACE@22..23 " "
+                                TK_WORD@23..25 "to"
+                                TK_WHITESPACE@25..26 " "
+                                TK_WORD@26..29 "the"
+                                TK_WHITESPACE@29..30 " "
+                                TK_WORD@30..35 "world"
+                                TK_WHITESPACE@35..36 " "
+                                TK_WORD@36..38 "of"
+                              TK_WHITESPACE@38..39 " "
+                              TK_SINGLE_QUOTES@39..40 "'"
+                        TK_WHITESPACE@40..41 " "
+                        TK_TILDE@41..42 "~"
+                        TWIG_EXPRESSION@42..48
+                          TWIG_LITERAL_VARIABLE@42..48
+                            TK_WHITESPACE@42..43 " "
+                            TK_WORD@43..48 "world"
+                    TK_WHITESPACE@48..49 " "
+                    TK_CLOSE_CURLY_CURLY@49..51 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_simple_binary_and_unary_combined_expression() {
+        check_parse(
+            "{{ not a is not even }}",
+            expect![[r#"
+                ROOT@0..23
+                  TWIG_VAR@0..23
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..20
+                      TWIG_UNARY_EXPRESSION@2..20
+                        TK_WHITESPACE@2..3 " "
+                        TK_NOT@3..6 "not"
+                        TWIG_EXPRESSION@6..20
+                          TWIG_BINARY_EXPRESSION@6..20
+                            TWIG_EXPRESSION@6..8
+                              TWIG_LITERAL_VARIABLE@6..8
+                                TK_WHITESPACE@6..7 " "
+                                TK_WORD@7..8 "a"
+                            TK_WHITESPACE@8..9 " "
+                            TK_IS@9..11 "is"
+                            TK_WHITESPACE@11..12 " "
+                            TK_NOT@12..15 "not"
+                            TWIG_EXPRESSION@15..20
+                              TWIG_LITERAL_VARIABLE@15..20
+                                TK_WHITESPACE@15..16 " "
+                                TK_WORD@16..20 "even"
+                    TK_WHITESPACE@20..21 " "
+                    TK_CLOSE_CURLY_CURLY@21..23 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_expression_not_in() {
+        check_parse(
+            "{{ a not in [1] }}",
+            expect![[r#"
+                ROOT@0..18
+                  TWIG_VAR@0..18
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..15
+                      TWIG_BINARY_EXPRESSION@2..15
+                        TWIG_EXPRESSION@2..4
+                          TWIG_LITERAL_VARIABLE@2..4
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..4 "a"
+                        TK_WHITESPACE@4..5 " "
+                        TK_NOT@5..8 "not"
+                        TK_WHITESPACE@8..9 " "
+                        TK_IN@9..11 "in"
+                        TWIG_EXPRESSION@11..15
+                          TWIG_LITERAL_ARRAY@11..15
+                            TK_WHITESPACE@11..12 " "
+                            TK_OPEN_SQUARE@12..13 "["
+                            TWIG_EXPRESSION@13..14
+                              TWIG_LITERAL_NUMBER@13..14
+                                TK_NUMBER@13..14 "1"
+                            TK_CLOSE_SQUARE@14..15 "]"
+                    TK_WHITESPACE@15..16 " "
+                    TK_CLOSE_CURLY_CURLY@16..18 "}}""#]],
+        )
     }
 }
