@@ -16,7 +16,7 @@ trait Operator {
     fn binary_binding_power(&self) -> Option<(u8, u8)>;
 
     /// Used for the Pratt parsing algorithm
-    /// None means it is not a suitable unary operator (has one operand)
+    /// None means it is not a suitable prefix unary operator (has one operand on the right side)
     fn unary_binding_power(&self) -> Option<((), u8)>;
 }
 
@@ -59,7 +59,7 @@ impl Operator for SyntaxKind {
     fn unary_binding_power(&self) -> Option<((), u8)> {
         match self {
             T!["not"] => Some(((), 51)),
-            T!["+"] | T!["-"] => Some(((), 251)),
+            T!["+"] | T!["-"] => Some(((), 201)),
             _ => None,
         }
     }
@@ -333,7 +333,7 @@ mod tests {
                     TWIG_EXPRESSION@2..13
                       TWIG_BINARY_EXPRESSION@2..13
                         TWIG_EXPRESSION@2..4
-                          TWIG_LITERAL_VARIABLE@2..4
+                          TWIG_LITERAL_NAME@2..4
                             TK_WHITESPACE@2..3 " "
                             TK_WORD@3..4 "a"
                         TK_WHITESPACE@4..5 " "
@@ -341,7 +341,7 @@ mod tests {
                         TWIG_EXPRESSION@7..13
                           TWIG_BINARY_EXPRESSION@7..13
                             TWIG_EXPRESSION@7..9
-                              TWIG_LITERAL_VARIABLE@7..9
+                              TWIG_LITERAL_NAME@7..9
                                 TK_WHITESPACE@7..8 " "
                                 TK_WORD@8..9 "b"
                             TK_WHITESPACE@9..10 " "
@@ -368,7 +368,7 @@ mod tests {
                         TK_WHITESPACE@2..3 " "
                         TK_NOT@3..6 "not"
                         TWIG_EXPRESSION@6..8
-                          TWIG_LITERAL_VARIABLE@6..8
+                          TWIG_LITERAL_NAME@6..8
                             TK_WHITESPACE@6..7 " "
                             TK_WORD@7..8 "a"
                     TK_WHITESPACE@8..9 " "
@@ -387,13 +387,13 @@ mod tests {
                     TWIG_EXPRESSION@2..11
                       TWIG_BINARY_EXPRESSION@2..11
                         TWIG_EXPRESSION@2..4
-                          TWIG_LITERAL_VARIABLE@2..4
+                          TWIG_LITERAL_NAME@2..4
                             TK_WHITESPACE@2..3 " "
                             TK_WORD@3..4 "a"
                         TK_WHITESPACE@4..5 " "
                         TK_IS@5..7 "is"
                         TWIG_EXPRESSION@7..11
-                          TWIG_LITERAL_VARIABLE@7..11
+                          TWIG_LITERAL_NAME@7..11
                             TK_WHITESPACE@7..8 " "
                             TK_WORD@8..11 "odd"
                     TK_WHITESPACE@11..12 " "
@@ -424,7 +424,7 @@ mod tests {
                             TK_WHITESPACE@11..12 " "
                             TK_TILDE@12..13 "~"
                             TWIG_EXPRESSION@13..18
-                              TWIG_LITERAL_VARIABLE@13..18
+                              TWIG_LITERAL_NAME@13..18
                                 TK_WHITESPACE@13..14 " "
                                 TK_WORD@14..18 "name"
                           TK_WHITESPACE@18..19 " "
@@ -447,7 +447,7 @@ mod tests {
                         TK_WHITESPACE@40..41 " "
                         TK_TILDE@41..42 "~"
                         TWIG_EXPRESSION@42..48
-                          TWIG_LITERAL_VARIABLE@42..48
+                          TWIG_LITERAL_NAME@42..48
                             TK_WHITESPACE@42..43 " "
                             TK_WORD@43..48 "world"
                     TK_WHITESPACE@48..49 " "
@@ -470,7 +470,7 @@ mod tests {
                         TWIG_EXPRESSION@6..20
                           TWIG_BINARY_EXPRESSION@6..20
                             TWIG_EXPRESSION@6..8
-                              TWIG_LITERAL_VARIABLE@6..8
+                              TWIG_LITERAL_NAME@6..8
                                 TK_WHITESPACE@6..7 " "
                                 TK_WORD@7..8 "a"
                             TK_WHITESPACE@8..9 " "
@@ -478,7 +478,7 @@ mod tests {
                             TK_WHITESPACE@11..12 " "
                             TK_NOT@12..15 "not"
                             TWIG_EXPRESSION@15..20
-                              TWIG_LITERAL_VARIABLE@15..20
+                              TWIG_LITERAL_NAME@15..20
                                 TK_WHITESPACE@15..16 " "
                                 TK_WORD@16..20 "even"
                     TK_WHITESPACE@20..21 " "
@@ -491,33 +491,33 @@ mod tests {
         check_parse(
             "{{ not a not in [false] }}",
             expect![[r#"
-            ROOT@0..26
-              TWIG_VAR@0..26
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..23
-                  TWIG_BINARY_EXPRESSION@2..23
-                    TWIG_EXPRESSION@2..8
-                      TWIG_UNARY_EXPRESSION@2..8
-                        TK_WHITESPACE@2..3 " "
-                        TK_NOT@3..6 "not"
-                        TWIG_EXPRESSION@6..8
-                          TWIG_LITERAL_VARIABLE@6..8
-                            TK_WHITESPACE@6..7 " "
-                            TK_WORD@7..8 "a"
-                    TK_WHITESPACE@8..9 " "
-                    TK_NOT@9..12 "not"
-                    TK_WHITESPACE@12..13 " "
-                    TK_IN@13..15 "in"
-                    TWIG_EXPRESSION@15..23
-                      TWIG_LITERAL_ARRAY@15..23
-                        TK_WHITESPACE@15..16 " "
-                        TK_OPEN_SQUARE@16..17 "["
-                        TWIG_EXPRESSION@17..22
-                          TWIG_LITERAL_BOOLEAN@17..22
-                            TK_FALSE@17..22 "false"
-                        TK_CLOSE_SQUARE@22..23 "]"
-                TK_WHITESPACE@23..24 " "
-                TK_CLOSE_CURLY_CURLY@24..26 "}}""#]],
+                ROOT@0..26
+                  TWIG_VAR@0..26
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..23
+                      TWIG_BINARY_EXPRESSION@2..23
+                        TWIG_EXPRESSION@2..8
+                          TWIG_UNARY_EXPRESSION@2..8
+                            TK_WHITESPACE@2..3 " "
+                            TK_NOT@3..6 "not"
+                            TWIG_EXPRESSION@6..8
+                              TWIG_LITERAL_NAME@6..8
+                                TK_WHITESPACE@6..7 " "
+                                TK_WORD@7..8 "a"
+                        TK_WHITESPACE@8..9 " "
+                        TK_NOT@9..12 "not"
+                        TK_WHITESPACE@12..13 " "
+                        TK_IN@13..15 "in"
+                        TWIG_EXPRESSION@15..23
+                          TWIG_LITERAL_ARRAY@15..23
+                            TK_WHITESPACE@15..16 " "
+                            TK_OPEN_SQUARE@16..17 "["
+                            TWIG_EXPRESSION@17..22
+                              TWIG_LITERAL_BOOLEAN@17..22
+                                TK_FALSE@17..22 "false"
+                            TK_CLOSE_SQUARE@22..23 "]"
+                    TK_WHITESPACE@23..24 " "
+                    TK_CLOSE_CURLY_CURLY@24..26 "}}""#]],
         )
     }
 
@@ -532,7 +532,7 @@ mod tests {
                     TWIG_EXPRESSION@2..15
                       TWIG_BINARY_EXPRESSION@2..15
                         TWIG_EXPRESSION@2..4
-                          TWIG_LITERAL_VARIABLE@2..4
+                          TWIG_LITERAL_NAME@2..4
                             TK_WHITESPACE@2..3 " "
                             TK_WORD@3..4 "a"
                         TK_WHITESPACE@4..5 " "
@@ -557,32 +557,32 @@ mod tests {
         check_parse(
             "{{ -n not in [1] }}",
             expect![[r#"
-            ROOT@0..19
-              TWIG_VAR@0..19
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..16
-                  TWIG_BINARY_EXPRESSION@2..16
-                    TWIG_EXPRESSION@2..5
-                      TWIG_UNARY_EXPRESSION@2..5
-                        TK_WHITESPACE@2..3 " "
-                        TK_MINUS@3..4 "-"
-                        TWIG_EXPRESSION@4..5
-                          TWIG_LITERAL_VARIABLE@4..5
-                            TK_WORD@4..5 "n"
-                    TK_WHITESPACE@5..6 " "
-                    TK_NOT@6..9 "not"
-                    TK_WHITESPACE@9..10 " "
-                    TK_IN@10..12 "in"
-                    TWIG_EXPRESSION@12..16
-                      TWIG_LITERAL_ARRAY@12..16
-                        TK_WHITESPACE@12..13 " "
-                        TK_OPEN_SQUARE@13..14 "["
-                        TWIG_EXPRESSION@14..15
-                          TWIG_LITERAL_NUMBER@14..15
-                            TK_NUMBER@14..15 "1"
-                        TK_CLOSE_SQUARE@15..16 "]"
-                TK_WHITESPACE@16..17 " "
-                TK_CLOSE_CURLY_CURLY@17..19 "}}""#]],
+                ROOT@0..19
+                  TWIG_VAR@0..19
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..16
+                      TWIG_BINARY_EXPRESSION@2..16
+                        TWIG_EXPRESSION@2..5
+                          TWIG_UNARY_EXPRESSION@2..5
+                            TK_WHITESPACE@2..3 " "
+                            TK_MINUS@3..4 "-"
+                            TWIG_EXPRESSION@4..5
+                              TWIG_LITERAL_NAME@4..5
+                                TK_WORD@4..5 "n"
+                        TK_WHITESPACE@5..6 " "
+                        TK_NOT@6..9 "not"
+                        TK_WHITESPACE@9..10 " "
+                        TK_IN@10..12 "in"
+                        TWIG_EXPRESSION@12..16
+                          TWIG_LITERAL_ARRAY@12..16
+                            TK_WHITESPACE@12..13 " "
+                            TK_OPEN_SQUARE@13..14 "["
+                            TWIG_EXPRESSION@14..15
+                              TWIG_LITERAL_NUMBER@14..15
+                                TK_NUMBER@14..15 "1"
+                            TK_CLOSE_SQUARE@15..16 "]"
+                    TK_WHITESPACE@16..17 " "
+                    TK_CLOSE_CURLY_CURLY@17..19 "}}""#]],
         )
     }
 
@@ -591,27 +591,27 @@ mod tests {
         check_parse(
             "{{ not a == b }}",
             expect![[r#"
-            ROOT@0..16
-              TWIG_VAR@0..16
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..13
-                  TWIG_BINARY_EXPRESSION@2..13
-                    TWIG_EXPRESSION@2..8
-                      TWIG_UNARY_EXPRESSION@2..8
-                        TK_WHITESPACE@2..3 " "
-                        TK_NOT@3..6 "not"
-                        TWIG_EXPRESSION@6..8
-                          TWIG_LITERAL_VARIABLE@6..8
-                            TK_WHITESPACE@6..7 " "
-                            TK_WORD@7..8 "a"
-                    TK_WHITESPACE@8..9 " "
-                    TK_DOUBLE_EQUAL@9..11 "=="
-                    TWIG_EXPRESSION@11..13
-                      TWIG_LITERAL_VARIABLE@11..13
-                        TK_WHITESPACE@11..12 " "
-                        TK_WORD@12..13 "b"
-                TK_WHITESPACE@13..14 " "
-                TK_CLOSE_CURLY_CURLY@14..16 "}}""#]],
+                ROOT@0..16
+                  TWIG_VAR@0..16
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..13
+                      TWIG_BINARY_EXPRESSION@2..13
+                        TWIG_EXPRESSION@2..8
+                          TWIG_UNARY_EXPRESSION@2..8
+                            TK_WHITESPACE@2..3 " "
+                            TK_NOT@3..6 "not"
+                            TWIG_EXPRESSION@6..8
+                              TWIG_LITERAL_NAME@6..8
+                                TK_WHITESPACE@6..7 " "
+                                TK_WORD@7..8 "a"
+                        TK_WHITESPACE@8..9 " "
+                        TK_DOUBLE_EQUAL@9..11 "=="
+                        TWIG_EXPRESSION@11..13
+                          TWIG_LITERAL_NAME@11..13
+                            TK_WHITESPACE@11..12 " "
+                            TK_WORD@12..13 "b"
+                    TK_WHITESPACE@13..14 " "
+                    TK_CLOSE_CURLY_CURLY@14..16 "}}""#]],
         )
     }
 
@@ -620,27 +620,27 @@ mod tests {
         check_parse(
             "{{ not a === b }}",
             expect![[r#"
-            ROOT@0..17
-              TWIG_VAR@0..17
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..14
-                  TWIG_BINARY_EXPRESSION@2..14
-                    TWIG_EXPRESSION@2..8
-                      TWIG_UNARY_EXPRESSION@2..8
-                        TK_WHITESPACE@2..3 " "
-                        TK_NOT@3..6 "not"
-                        TWIG_EXPRESSION@6..8
-                          TWIG_LITERAL_VARIABLE@6..8
-                            TK_WHITESPACE@6..7 " "
-                            TK_WORD@7..8 "a"
-                    TK_WHITESPACE@8..9 " "
-                    TK_TRIPLE_EQUAL@9..12 "==="
-                    TWIG_EXPRESSION@12..14
-                      TWIG_LITERAL_VARIABLE@12..14
-                        TK_WHITESPACE@12..13 " "
-                        TK_WORD@13..14 "b"
-                TK_WHITESPACE@14..15 " "
-                TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
+                ROOT@0..17
+                  TWIG_VAR@0..17
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..14
+                      TWIG_BINARY_EXPRESSION@2..14
+                        TWIG_EXPRESSION@2..8
+                          TWIG_UNARY_EXPRESSION@2..8
+                            TK_WHITESPACE@2..3 " "
+                            TK_NOT@3..6 "not"
+                            TWIG_EXPRESSION@6..8
+                              TWIG_LITERAL_NAME@6..8
+                                TK_WHITESPACE@6..7 " "
+                                TK_WORD@7..8 "a"
+                        TK_WHITESPACE@8..9 " "
+                        TK_TRIPLE_EQUAL@9..12 "==="
+                        TWIG_EXPRESSION@12..14
+                          TWIG_LITERAL_NAME@12..14
+                            TK_WHITESPACE@12..13 " "
+                            TK_WORD@13..14 "b"
+                    TK_WHITESPACE@14..15 " "
+                    TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
         )
     }
 
@@ -649,43 +649,43 @@ mod tests {
         check_parse(
             "{{ a > b ? 'Y' : 'N' }}",
             expect![[r#"
-            ROOT@0..23
-              TWIG_VAR@0..23
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..20
-                  TWIG_CONDITIONAL_EXPRESSION@2..20
-                    TWIG_EXPRESSION@2..8
-                      TWIG_BINARY_EXPRESSION@2..8
-                        TWIG_EXPRESSION@2..4
-                          TWIG_LITERAL_VARIABLE@2..4
-                            TK_WHITESPACE@2..3 " "
-                            TK_WORD@3..4 "a"
-                        TK_WHITESPACE@4..5 " "
-                        TK_GREATER_THAN@5..6 ">"
-                        TWIG_EXPRESSION@6..8
-                          TWIG_LITERAL_VARIABLE@6..8
-                            TK_WHITESPACE@6..7 " "
-                            TK_WORD@7..8 "b"
-                    TK_WHITESPACE@8..9 " "
-                    TK_QUESTION_MARK@9..10 "?"
-                    TWIG_EXPRESSION@10..14
-                      TWIG_LITERAL_STRING@10..14
-                        TK_WHITESPACE@10..11 " "
-                        TK_SINGLE_QUOTES@11..12 "'"
-                        TWIG_LITERAL_STRING_INNER@12..13
-                          TK_WORD@12..13 "Y"
-                        TK_SINGLE_QUOTES@13..14 "'"
-                    TK_WHITESPACE@14..15 " "
-                    TK_COLON@15..16 ":"
-                    TWIG_EXPRESSION@16..20
-                      TWIG_LITERAL_STRING@16..20
-                        TK_WHITESPACE@16..17 " "
-                        TK_SINGLE_QUOTES@17..18 "'"
-                        TWIG_LITERAL_STRING_INNER@18..19
-                          TK_WORD@18..19 "N"
-                        TK_SINGLE_QUOTES@19..20 "'"
-                TK_WHITESPACE@20..21 " "
-                TK_CLOSE_CURLY_CURLY@21..23 "}}""#]],
+                ROOT@0..23
+                  TWIG_VAR@0..23
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..20
+                      TWIG_CONDITIONAL_EXPRESSION@2..20
+                        TWIG_EXPRESSION@2..8
+                          TWIG_BINARY_EXPRESSION@2..8
+                            TWIG_EXPRESSION@2..4
+                              TWIG_LITERAL_NAME@2..4
+                                TK_WHITESPACE@2..3 " "
+                                TK_WORD@3..4 "a"
+                            TK_WHITESPACE@4..5 " "
+                            TK_GREATER_THAN@5..6 ">"
+                            TWIG_EXPRESSION@6..8
+                              TWIG_LITERAL_NAME@6..8
+                                TK_WHITESPACE@6..7 " "
+                                TK_WORD@7..8 "b"
+                        TK_WHITESPACE@8..9 " "
+                        TK_QUESTION_MARK@9..10 "?"
+                        TWIG_EXPRESSION@10..14
+                          TWIG_LITERAL_STRING@10..14
+                            TK_WHITESPACE@10..11 " "
+                            TK_SINGLE_QUOTES@11..12 "'"
+                            TWIG_LITERAL_STRING_INNER@12..13
+                              TK_WORD@12..13 "Y"
+                            TK_SINGLE_QUOTES@13..14 "'"
+                        TK_WHITESPACE@14..15 " "
+                        TK_COLON@15..16 ":"
+                        TWIG_EXPRESSION@16..20
+                          TWIG_LITERAL_STRING@16..20
+                            TK_WHITESPACE@16..17 " "
+                            TK_SINGLE_QUOTES@17..18 "'"
+                            TWIG_LITERAL_STRING_INNER@18..19
+                              TK_WORD@18..19 "N"
+                            TK_SINGLE_QUOTES@19..20 "'"
+                    TK_WHITESPACE@20..21 " "
+                    TK_CLOSE_CURLY_CURLY@21..23 "}}""#]],
         )
     }
 
@@ -695,34 +695,34 @@ mod tests {
         check_parse(
             "{{ a > b ? 'Y' }}",
             expect![[r#"
-            ROOT@0..17
-              TWIG_VAR@0..17
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..14
-                  TWIG_CONDITIONAL_EXPRESSION@2..14
-                    TWIG_EXPRESSION@2..8
-                      TWIG_BINARY_EXPRESSION@2..8
-                        TWIG_EXPRESSION@2..4
-                          TWIG_LITERAL_VARIABLE@2..4
-                            TK_WHITESPACE@2..3 " "
-                            TK_WORD@3..4 "a"
-                        TK_WHITESPACE@4..5 " "
-                        TK_GREATER_THAN@5..6 ">"
-                        TWIG_EXPRESSION@6..8
-                          TWIG_LITERAL_VARIABLE@6..8
-                            TK_WHITESPACE@6..7 " "
-                            TK_WORD@7..8 "b"
-                    TK_WHITESPACE@8..9 " "
-                    TK_QUESTION_MARK@9..10 "?"
-                    TWIG_EXPRESSION@10..14
-                      TWIG_LITERAL_STRING@10..14
-                        TK_WHITESPACE@10..11 " "
-                        TK_SINGLE_QUOTES@11..12 "'"
-                        TWIG_LITERAL_STRING_INNER@12..13
-                          TK_WORD@12..13 "Y"
-                        TK_SINGLE_QUOTES@13..14 "'"
-                TK_WHITESPACE@14..15 " "
-                TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
+                ROOT@0..17
+                  TWIG_VAR@0..17
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..14
+                      TWIG_CONDITIONAL_EXPRESSION@2..14
+                        TWIG_EXPRESSION@2..8
+                          TWIG_BINARY_EXPRESSION@2..8
+                            TWIG_EXPRESSION@2..4
+                              TWIG_LITERAL_NAME@2..4
+                                TK_WHITESPACE@2..3 " "
+                                TK_WORD@3..4 "a"
+                            TK_WHITESPACE@4..5 " "
+                            TK_GREATER_THAN@5..6 ">"
+                            TWIG_EXPRESSION@6..8
+                              TWIG_LITERAL_NAME@6..8
+                                TK_WHITESPACE@6..7 " "
+                                TK_WORD@7..8 "b"
+                        TK_WHITESPACE@8..9 " "
+                        TK_QUESTION_MARK@9..10 "?"
+                        TWIG_EXPRESSION@10..14
+                          TWIG_LITERAL_STRING@10..14
+                            TK_WHITESPACE@10..11 " "
+                            TK_SINGLE_QUOTES@11..12 "'"
+                            TWIG_LITERAL_STRING_INNER@12..13
+                              TK_WORD@12..13 "Y"
+                            TK_SINGLE_QUOTES@13..14 "'"
+                    TK_WHITESPACE@14..15 " "
+                    TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
         )
     }
 
@@ -740,13 +740,13 @@ mod tests {
                         TWIG_EXPRESSION@2..8
                           TWIG_BINARY_EXPRESSION@2..8
                             TWIG_EXPRESSION@2..4
-                              TWIG_LITERAL_VARIABLE@2..4
+                              TWIG_LITERAL_NAME@2..4
                                 TK_WHITESPACE@2..3 " "
                                 TK_WORD@3..4 "a"
                             TK_WHITESPACE@4..5 " "
                             TK_GREATER_THAN@5..6 ">"
                             TWIG_EXPRESSION@6..8
-                              TWIG_LITERAL_VARIABLE@6..8
+                              TWIG_LITERAL_NAME@6..8
                                 TK_WHITESPACE@6..7 " "
                                 TK_WORD@7..8 "b"
                         TK_WHITESPACE@8..9 " "
@@ -766,43 +766,46 @@ mod tests {
 
     #[test]
     fn parse_twig_conditional_expression_nested() {
-        check_parse("{{ a ? b ? 'B' : 'N' }}", expect![[r#"
-            ROOT@0..23
-              TWIG_VAR@0..23
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..20
-                  TWIG_CONDITIONAL_EXPRESSION@2..20
-                    TWIG_EXPRESSION@2..4
-                      TWIG_LITERAL_VARIABLE@2..4
-                        TK_WHITESPACE@2..3 " "
-                        TK_WORD@3..4 "a"
-                    TK_WHITESPACE@4..5 " "
-                    TK_QUESTION_MARK@5..6 "?"
-                    TWIG_EXPRESSION@6..20
-                      TWIG_CONDITIONAL_EXPRESSION@6..20
-                        TWIG_EXPRESSION@6..8
-                          TWIG_LITERAL_VARIABLE@6..8
-                            TK_WHITESPACE@6..7 " "
-                            TK_WORD@7..8 "b"
-                        TK_WHITESPACE@8..9 " "
-                        TK_QUESTION_MARK@9..10 "?"
-                        TWIG_EXPRESSION@10..14
-                          TWIG_LITERAL_STRING@10..14
-                            TK_WHITESPACE@10..11 " "
-                            TK_SINGLE_QUOTES@11..12 "'"
-                            TWIG_LITERAL_STRING_INNER@12..13
-                              TK_WORD@12..13 "B"
-                            TK_SINGLE_QUOTES@13..14 "'"
-                        TK_WHITESPACE@14..15 " "
-                        TK_COLON@15..16 ":"
-                        TWIG_EXPRESSION@16..20
-                          TWIG_LITERAL_STRING@16..20
-                            TK_WHITESPACE@16..17 " "
-                            TK_SINGLE_QUOTES@17..18 "'"
-                            TWIG_LITERAL_STRING_INNER@18..19
-                              TK_WORD@18..19 "N"
-                            TK_SINGLE_QUOTES@19..20 "'"
-                TK_WHITESPACE@20..21 " "
-                TK_CLOSE_CURLY_CURLY@21..23 "}}""#]])
+        check_parse(
+            "{{ a ? b ? 'B' : 'N' }}",
+            expect![[r#"
+                ROOT@0..23
+                  TWIG_VAR@0..23
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..20
+                      TWIG_CONDITIONAL_EXPRESSION@2..20
+                        TWIG_EXPRESSION@2..4
+                          TWIG_LITERAL_NAME@2..4
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..4 "a"
+                        TK_WHITESPACE@4..5 " "
+                        TK_QUESTION_MARK@5..6 "?"
+                        TWIG_EXPRESSION@6..20
+                          TWIG_CONDITIONAL_EXPRESSION@6..20
+                            TWIG_EXPRESSION@6..8
+                              TWIG_LITERAL_NAME@6..8
+                                TK_WHITESPACE@6..7 " "
+                                TK_WORD@7..8 "b"
+                            TK_WHITESPACE@8..9 " "
+                            TK_QUESTION_MARK@9..10 "?"
+                            TWIG_EXPRESSION@10..14
+                              TWIG_LITERAL_STRING@10..14
+                                TK_WHITESPACE@10..11 " "
+                                TK_SINGLE_QUOTES@11..12 "'"
+                                TWIG_LITERAL_STRING_INNER@12..13
+                                  TK_WORD@12..13 "B"
+                                TK_SINGLE_QUOTES@13..14 "'"
+                            TK_WHITESPACE@14..15 " "
+                            TK_COLON@15..16 ":"
+                            TWIG_EXPRESSION@16..20
+                              TWIG_LITERAL_STRING@16..20
+                                TK_WHITESPACE@16..17 " "
+                                TK_SINGLE_QUOTES@17..18 "'"
+                                TWIG_LITERAL_STRING_INNER@18..19
+                                  TK_WORD@18..19 "N"
+                                TK_SINGLE_QUOTES@19..20 "'"
+                    TK_WHITESPACE@20..21 " "
+                    TK_CLOSE_CURLY_CURLY@21..23 "}}""#]],
+        )
     }
 }

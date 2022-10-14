@@ -537,7 +537,7 @@ mod tests {
                             TK_WHITESPACE@17..18 " "
                             TK_OPEN_CURLY_CURLY@18..20 "{{"
                             TWIG_EXPRESSION@20..25
-                              TWIG_LITERAL_VARIABLE@20..25
+                              TWIG_LITERAL_NAME@20..25
                                 TK_WHITESPACE@20..21 " "
                                 TK_WORD@21..25 "twig"
                             TK_WHITESPACE@25..26 " "
@@ -725,13 +725,13 @@ mod tests {
                               TWIG_EXPRESSION@23..29
                                 TWIG_BINARY_EXPRESSION@23..29
                                   TWIG_EXPRESSION@23..25
-                                    TWIG_LITERAL_VARIABLE@23..25
+                                    TWIG_LITERAL_NAME@23..25
                                       TK_WHITESPACE@23..24 " "
                                       TK_WORD@24..25 "A"
                                   TK_WHITESPACE@25..26 " "
                                   TK_GREATER_THAN@26..27 ">"
                                   TWIG_EXPRESSION@27..29
-                                    TWIG_LITERAL_VARIABLE@27..29
+                                    TWIG_LITERAL_NAME@27..29
                                       TK_WHITESPACE@27..28 " "
                                       TK_WORD@28..29 "B"
                               TK_WHITESPACE@29..30 " "
@@ -747,13 +747,13 @@ mod tests {
                               TWIG_EXPRESSION@50..57
                                 TWIG_BINARY_EXPRESSION@50..57
                                   TWIG_EXPRESSION@50..52
-                                    TWIG_LITERAL_VARIABLE@50..52
+                                    TWIG_LITERAL_NAME@50..52
                                       TK_WHITESPACE@50..51 " "
                                       TK_WORD@51..52 "A"
                                   TK_WHITESPACE@52..53 " "
                                   TK_DOUBLE_EQUAL@53..55 "=="
                                   TWIG_EXPRESSION@55..57
-                                    TWIG_LITERAL_VARIABLE@55..57
+                                    TWIG_LITERAL_NAME@55..57
                                       TK_WHITESPACE@55..56 " "
                                       TK_WORD@56..57 "B"
                               TK_WHITESPACE@57..58 " "
@@ -915,7 +915,7 @@ mod tests {
                         TK_WHITESPACE@18..19 " "
                         TK_OPEN_CURLY_CURLY@19..21 "{{"
                         TWIG_EXPRESSION@21..26
-                          TWIG_LITERAL_VARIABLE@21..26
+                          TWIG_LITERAL_NAME@21..26
                             TK_WHITESPACE@21..22 " "
                             TK_WORD@22..26 "twig"
                         TK_WHITESPACE@26..27 " "
@@ -1191,13 +1191,16 @@ mod tests {
 
     #[test]
     fn parse_html_doctype() {
-        check_parse("<!doctype html>", expect![[r#"
+        check_parse(
+            "<!doctype html>",
+            expect![[r#"
             ROOT@0..15
               HTML_DOCTYPE@0..15
                 TK_LESS_THAN_EXCLAMATION_MARK@0..2 "<!"
                 TK_DOCTYPE@2..9 "doctype"
                 TK_WHITESPACE@9..10 " "
                 TK_WORD@10..14 "html"
-                TK_GREATER_THAN@14..15 ">""#]])
+                TK_GREATER_THAN@14..15 ">""#]],
+        )
     }
 }

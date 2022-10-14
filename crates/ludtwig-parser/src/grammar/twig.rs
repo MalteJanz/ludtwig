@@ -325,7 +325,7 @@ mod tests {
                   TWIG_VAR@0..15
                     TK_OPEN_CURLY_CURLY@0..2 "{{"
                     TWIG_EXPRESSION@2..12
-                      TWIG_LITERAL_VARIABLE@2..12
+                      TWIG_LITERAL_NAME@2..12
                         TK_WHITESPACE@2..3 " "
                         TK_WORD@3..12 "something"
                     TK_WHITESPACE@12..13 " "
@@ -337,7 +337,7 @@ mod tests {
                     TK_WHITESPACE@21..22 " "
                     TK_OPEN_CURLY_CURLY@22..24 "{{"
                     TWIG_EXPRESSION@24..29
-                      TWIG_LITERAL_VARIABLE@24..29
+                      TWIG_LITERAL_NAME@24..29
                         TK_WHITESPACE@24..25 " "
                         TK_WORD@25..29 "else"
                     TK_WHITESPACE@29..30 " "
@@ -394,7 +394,7 @@ mod tests {
                       TK_WHITESPACE@2..3 " "
                       TK_IF@3..5 "if"
                       TWIG_EXPRESSION@5..12
-                        TWIG_LITERAL_VARIABLE@5..12
+                        TWIG_LITERAL_NAME@5..12
                           TK_WHITESPACE@5..6 " "
                           TK_WORD@6..12 "isTrue"
                       TK_WHITESPACE@12..13 " "
@@ -428,7 +428,7 @@ mod tests {
                         TWIG_BINARY_EXPRESSION@5..43
                           TWIG_BINARY_EXPRESSION@5..22
                             TWIG_EXPRESSION@5..17
-                              TWIG_LITERAL_VARIABLE@5..17
+                              TWIG_LITERAL_NAME@5..17
                                 TK_WHITESPACE@5..6 " "
                                 TK_WORD@6..17 "temperature"
                             TK_WHITESPACE@17..18 " "
@@ -442,7 +442,7 @@ mod tests {
                           TWIG_EXPRESSION@26..43
                             TWIG_BINARY_EXPRESSION@26..43
                               TWIG_EXPRESSION@26..38
-                                TWIG_LITERAL_VARIABLE@26..38
+                                TWIG_LITERAL_NAME@26..38
                                   TK_WHITESPACE@26..27 " "
                                   TK_WORD@27..38 "temperature"
                               TK_WHITESPACE@38..39 " "
@@ -479,7 +479,7 @@ mod tests {
                       TK_WHITESPACE@2..3 " "
                       TK_IF@3..5 "if"
                       TWIG_EXPRESSION@5..12
-                        TWIG_LITERAL_VARIABLE@5..12
+                        TWIG_LITERAL_NAME@5..12
                           TK_WHITESPACE@5..6 " "
                           TK_WORD@6..12 "isTrue"
                       TK_WHITESPACE@12..13 " "
@@ -521,7 +521,7 @@ mod tests {
                       TK_WHITESPACE@2..3 " "
                       TK_IF@3..5 "if"
                       TWIG_EXPRESSION@5..9
-                        TWIG_LITERAL_VARIABLE@5..9
+                        TWIG_LITERAL_NAME@5..9
                           TK_WHITESPACE@5..6 " "
                           TK_WORD@6..9 "isA"
                       TK_WHITESPACE@9..10 " "
@@ -536,7 +536,7 @@ mod tests {
                       TK_WHITESPACE@17..18 " "
                       TK_ELSE_IF@18..24 "elseif"
                       TWIG_EXPRESSION@24..28
-                        TWIG_LITERAL_VARIABLE@24..28
+                        TWIG_LITERAL_NAME@24..28
                           TK_WHITESPACE@24..25 " "
                           TK_WORD@25..28 "isB"
                       TK_WHITESPACE@28..29 " "
@@ -567,7 +567,7 @@ mod tests {
                       TK_WHITESPACE@2..3 " "
                       TK_IF@3..5 "if"
                       TWIG_EXPRESSION@5..9
-                        TWIG_LITERAL_VARIABLE@5..9
+                        TWIG_LITERAL_NAME@5..9
                           TK_WHITESPACE@5..6 " "
                           TK_WORD@6..9 "isA"
                       TK_WHITESPACE@9..10 " "
@@ -582,7 +582,7 @@ mod tests {
                       TK_WHITESPACE@17..18 " "
                       TK_ELSE_IF@18..24 "elseif"
                       TWIG_EXPRESSION@24..28
-                        TWIG_LITERAL_VARIABLE@24..28
+                        TWIG_LITERAL_NAME@24..28
                           TK_WHITESPACE@24..25 " "
                           TK_WORD@25..28 "isB"
                       TK_WHITESPACE@28..29 " "
@@ -624,7 +624,7 @@ mod tests {
                       TK_WHITESPACE@2..3 " "
                       TK_IF@3..5 "if"
                       TWIG_EXPRESSION@5..9
-                        TWIG_LITERAL_VARIABLE@5..9
+                        TWIG_LITERAL_NAME@5..9
                           TK_WHITESPACE@5..6 " "
                           TK_WORD@6..9 "isA"
                       TK_WHITESPACE@9..10 " "
@@ -639,7 +639,7 @@ mod tests {
                       TK_WHITESPACE@17..18 " "
                       TK_ELSE_IF@18..24 "elseif"
                       TWIG_EXPRESSION@24..28
-                        TWIG_LITERAL_VARIABLE@24..28
+                        TWIG_LITERAL_NAME@24..28
                           TK_WHITESPACE@24..25 " "
                           TK_WORD@25..28 "isB"
                       TK_WHITESPACE@28..29 " "
@@ -654,7 +654,7 @@ mod tests {
                       TK_WHITESPACE@36..37 " "
                       TK_ELSE_IF@37..43 "elseif"
                       TWIG_EXPRESSION@43..47
-                        TWIG_LITERAL_VARIABLE@43..47
+                        TWIG_LITERAL_NAME@43..47
                           TK_WHITESPACE@43..44 " "
                           TK_WORD@44..47 "isC"
                       TK_WHITESPACE@47..48 " "

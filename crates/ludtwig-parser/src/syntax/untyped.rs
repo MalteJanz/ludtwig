@@ -298,6 +298,11 @@ pub enum SyntaxKind {
     TWIG_PARENTHESES_EXPRESSION,
     TWIG_CONDITIONAL_EXPRESSION,
 
+    TWIG_ACCESSOR,        // accessor node like 'product.price'
+    TWIG_INDEXER,         // indexer node like 'products[0]'
+    TWIG_PIPE,            // pipe node like 'name|title'
+    TWIG_LITERAL_OPERAND, // covers the operands in TWIG_ACCESSOR, TWIG_INDEXER and TWIG_PIPE
+
     // twig literals
     TWIG_LITERAL_STRING,
     TWIG_LITERAL_STRING_INNER,
@@ -309,7 +314,8 @@ pub enum SyntaxKind {
     TWIG_LITERAL_HASH_PAIR,
     TWIG_LITERAL_HASH_KEY,
     TWIG_LITERAL_HASH_VALUE,
-    TWIG_LITERAL_VARIABLE,
+    TWIG_LITERAL_NAME,
+
     // twig block like structures
     TWIG_COMMENT,
     // twig block
