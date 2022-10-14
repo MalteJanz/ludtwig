@@ -95,7 +95,7 @@ impl EventCollection {
 }
 
 /// Marks the start of a node in the syntax tree and must be completed
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct Marker {
     pos: usize,
     completed: bool,

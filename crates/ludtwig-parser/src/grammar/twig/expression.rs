@@ -40,7 +40,9 @@ impl Operator for SyntaxKind {
             | T!["in"]
             | T!["matches"]
             | T!["starts with"]
-            | T!["ends with"] => Some((20, 21)),
+            | T!["ends with"]
+            | T!["==="] // not official twig but still parse `===` and `!==` to later notify the user by rule
+            | T!["!=="] => Some((20, 21)),
             T![".."] => Some((25, 26)),
             T!["+"] | T!["-"] => Some((30, 31)),
             T!["~"] => Some((40, 41)),
@@ -112,7 +114,43 @@ fn parse_twig_expression_binding_power(
         lhs = parser.complete(m, SyntaxKind::TWIG_EXPRESSION);
     }
 
+    // check for ternary operator (conditional expression) on top level
+    if minimum_binding_power == 0 {
+        if let Some(m) = parse_conditional_expression(parser, lhs.clone()) {
+            lhs = m;
+        }
+    }
+
     Some(lhs)
+}
+
+fn parse_conditional_expression(
+    parser: &mut Parser,
+    lhs: CompletedMarker,
+) -> Option<CompletedMarker> {
+    if !parser.at(T!["?"]) {
+        return None;
+    }
+    let m = parser.precede(lhs);
+    parser.bump();
+
+    // truthy expression
+    if parse_twig_expression_binding_power(parser, 0).is_none() && !parser.at(T![":"]) {
+        parser.add_error(ParseErrorBuilder::new("twig expression or ':'"));
+    }
+
+    if parser.at(T![":"]) {
+        parser.bump();
+
+        // falsy expression
+        if parse_twig_expression_binding_power(parser, 0).is_none() {
+            parser.add_error(ParseErrorBuilder::new("twig expression"));
+        }
+    }
+
+    let conditional_m = parser.complete(m, SyntaxKind::TWIG_CONDITIONAL_EXPRESSION);
+    let outer = parser.precede(conditional_m);
+    Some(parser.complete(outer, SyntaxKind::TWIG_EXPRESSION))
 }
 
 fn parse_twig_expression_lhs(parser: &mut Parser) -> Option<CompletedMarker> {
@@ -120,11 +158,8 @@ fn parse_twig_expression_lhs(parser: &mut Parser) -> Option<CompletedMarker> {
         Some(parse_paren_expression(parser))
     } else if parser.at_set(&[T!["-"], T!["+"], T!["not"]]) {
         Some(parse_unary_expression(parser))
-    } else if let Some(literal) = parse_twig_literal(parser) {
-        Some(literal)
     } else {
-        parser.add_error(ParseErrorBuilder::new("twig expression"));
-        None
+        parse_twig_literal(parser)
     }
 }
 
@@ -160,6 +195,20 @@ mod tests {
     use expect_test::expect;
 
     use crate::parser::check_parse;
+
+    #[test]
+    fn parse_twig_empty_expression() {
+        check_parse(
+            "{{ }}",
+            expect![[r#"
+            ROOT@0..5
+              TWIG_VAR@0..5
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TK_WHITESPACE@2..3 " "
+                TK_CLOSE_CURLY_CURLY@3..5 "}}"
+            error at 3..3: expected twig expression but found }}"#]],
+        )
+    }
 
     #[test]
     fn parse_twig_simple_number_expression() {
@@ -439,7 +488,9 @@ mod tests {
 
     #[test]
     fn parse_twig_another_binary_and_unary_combined_expression() {
-        check_parse("{{ not a not in [false] }}", expect![[r#"
+        check_parse(
+            "{{ not a not in [false] }}",
+            expect![[r#"
             ROOT@0..26
               TWIG_VAR@0..26
                 TK_OPEN_CURLY_CURLY@0..2 "{{"
@@ -466,7 +517,8 @@ mod tests {
                             TK_FALSE@17..22 "false"
                         TK_CLOSE_SQUARE@22..23 "]"
                 TK_WHITESPACE@23..24 " "
-                TK_CLOSE_CURLY_CURLY@24..26 "}}""#]])
+                TK_CLOSE_CURLY_CURLY@24..26 "}}""#]],
+        )
     }
 
     #[test]
@@ -561,5 +613,196 @@ mod tests {
                 TK_WHITESPACE@13..14 " "
                 TK_CLOSE_CURLY_CURLY@14..16 "}}""#]],
         )
+    }
+
+    #[test]
+    fn parse_twig_expression_triple_equal() {
+        check_parse(
+            "{{ not a === b }}",
+            expect![[r#"
+            ROOT@0..17
+              TWIG_VAR@0..17
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..14
+                  TWIG_BINARY_EXPRESSION@2..14
+                    TWIG_EXPRESSION@2..8
+                      TWIG_UNARY_EXPRESSION@2..8
+                        TK_WHITESPACE@2..3 " "
+                        TK_NOT@3..6 "not"
+                        TWIG_EXPRESSION@6..8
+                          TWIG_LITERAL_VARIABLE@6..8
+                            TK_WHITESPACE@6..7 " "
+                            TK_WORD@7..8 "a"
+                    TK_WHITESPACE@8..9 " "
+                    TK_TRIPLE_EQUAL@9..12 "==="
+                    TWIG_EXPRESSION@12..14
+                      TWIG_LITERAL_VARIABLE@12..14
+                        TK_WHITESPACE@12..13 " "
+                        TK_WORD@13..14 "b"
+                TK_WHITESPACE@14..15 " "
+                TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_conditional_expression() {
+        check_parse(
+            "{{ a > b ? 'Y' : 'N' }}",
+            expect![[r#"
+            ROOT@0..23
+              TWIG_VAR@0..23
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..20
+                  TWIG_CONDITIONAL_EXPRESSION@2..20
+                    TWIG_EXPRESSION@2..8
+                      TWIG_BINARY_EXPRESSION@2..8
+                        TWIG_EXPRESSION@2..4
+                          TWIG_LITERAL_VARIABLE@2..4
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..4 "a"
+                        TK_WHITESPACE@4..5 " "
+                        TK_GREATER_THAN@5..6 ">"
+                        TWIG_EXPRESSION@6..8
+                          TWIG_LITERAL_VARIABLE@6..8
+                            TK_WHITESPACE@6..7 " "
+                            TK_WORD@7..8 "b"
+                    TK_WHITESPACE@8..9 " "
+                    TK_QUESTION_MARK@9..10 "?"
+                    TWIG_EXPRESSION@10..14
+                      TWIG_LITERAL_STRING@10..14
+                        TK_WHITESPACE@10..11 " "
+                        TK_SINGLE_QUOTES@11..12 "'"
+                        TWIG_LITERAL_STRING_INNER@12..13
+                          TK_WORD@12..13 "Y"
+                        TK_SINGLE_QUOTES@13..14 "'"
+                    TK_WHITESPACE@14..15 " "
+                    TK_COLON@15..16 ":"
+                    TWIG_EXPRESSION@16..20
+                      TWIG_LITERAL_STRING@16..20
+                        TK_WHITESPACE@16..17 " "
+                        TK_SINGLE_QUOTES@17..18 "'"
+                        TWIG_LITERAL_STRING_INNER@18..19
+                          TK_WORD@18..19 "N"
+                        TK_SINGLE_QUOTES@19..20 "'"
+                TK_WHITESPACE@20..21 " "
+                TK_CLOSE_CURLY_CURLY@21..23 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_conditional_expression_without_falsy() {
+        // means basically the same as {{ a > b ? 'Y' : '' }}
+        check_parse(
+            "{{ a > b ? 'Y' }}",
+            expect![[r#"
+            ROOT@0..17
+              TWIG_VAR@0..17
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..14
+                  TWIG_CONDITIONAL_EXPRESSION@2..14
+                    TWIG_EXPRESSION@2..8
+                      TWIG_BINARY_EXPRESSION@2..8
+                        TWIG_EXPRESSION@2..4
+                          TWIG_LITERAL_VARIABLE@2..4
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..4 "a"
+                        TK_WHITESPACE@4..5 " "
+                        TK_GREATER_THAN@5..6 ">"
+                        TWIG_EXPRESSION@6..8
+                          TWIG_LITERAL_VARIABLE@6..8
+                            TK_WHITESPACE@6..7 " "
+                            TK_WORD@7..8 "b"
+                    TK_WHITESPACE@8..9 " "
+                    TK_QUESTION_MARK@9..10 "?"
+                    TWIG_EXPRESSION@10..14
+                      TWIG_LITERAL_STRING@10..14
+                        TK_WHITESPACE@10..11 " "
+                        TK_SINGLE_QUOTES@11..12 "'"
+                        TWIG_LITERAL_STRING_INNER@12..13
+                          TK_WORD@12..13 "Y"
+                        TK_SINGLE_QUOTES@13..14 "'"
+                TK_WHITESPACE@14..15 " "
+                TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_conditional_expression_without_truthy() {
+        // means basically the same as {{ a > b ? a > b : 'N' }}
+        check_parse(
+            "{{ a > b ?: 'N' }}",
+            expect![[r#"
+                ROOT@0..18
+                  TWIG_VAR@0..18
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..15
+                      TWIG_CONDITIONAL_EXPRESSION@2..15
+                        TWIG_EXPRESSION@2..8
+                          TWIG_BINARY_EXPRESSION@2..8
+                            TWIG_EXPRESSION@2..4
+                              TWIG_LITERAL_VARIABLE@2..4
+                                TK_WHITESPACE@2..3 " "
+                                TK_WORD@3..4 "a"
+                            TK_WHITESPACE@4..5 " "
+                            TK_GREATER_THAN@5..6 ">"
+                            TWIG_EXPRESSION@6..8
+                              TWIG_LITERAL_VARIABLE@6..8
+                                TK_WHITESPACE@6..7 " "
+                                TK_WORD@7..8 "b"
+                        TK_WHITESPACE@8..9 " "
+                        TK_QUESTION_MARK@9..10 "?"
+                        TK_COLON@10..11 ":"
+                        TWIG_EXPRESSION@11..15
+                          TWIG_LITERAL_STRING@11..15
+                            TK_WHITESPACE@11..12 " "
+                            TK_SINGLE_QUOTES@12..13 "'"
+                            TWIG_LITERAL_STRING_INNER@13..14
+                              TK_WORD@13..14 "N"
+                            TK_SINGLE_QUOTES@14..15 "'"
+                    TK_WHITESPACE@15..16 " "
+                    TK_CLOSE_CURLY_CURLY@16..18 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_conditional_expression_nested() {
+        check_parse("{{ a ? b ? 'B' : 'N' }}", expect![[r#"
+            ROOT@0..23
+              TWIG_VAR@0..23
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..20
+                  TWIG_CONDITIONAL_EXPRESSION@2..20
+                    TWIG_EXPRESSION@2..4
+                      TWIG_LITERAL_VARIABLE@2..4
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..4 "a"
+                    TK_WHITESPACE@4..5 " "
+                    TK_QUESTION_MARK@5..6 "?"
+                    TWIG_EXPRESSION@6..20
+                      TWIG_CONDITIONAL_EXPRESSION@6..20
+                        TWIG_EXPRESSION@6..8
+                          TWIG_LITERAL_VARIABLE@6..8
+                            TK_WHITESPACE@6..7 " "
+                            TK_WORD@7..8 "b"
+                        TK_WHITESPACE@8..9 " "
+                        TK_QUESTION_MARK@9..10 "?"
+                        TWIG_EXPRESSION@10..14
+                          TWIG_LITERAL_STRING@10..14
+                            TK_WHITESPACE@10..11 " "
+                            TK_SINGLE_QUOTES@11..12 "'"
+                            TWIG_LITERAL_STRING_INNER@12..13
+                              TK_WORD@12..13 "B"
+                            TK_SINGLE_QUOTES@13..14 "'"
+                        TK_WHITESPACE@14..15 " "
+                        TK_COLON@15..16 ":"
+                        TWIG_EXPRESSION@16..20
+                          TWIG_LITERAL_STRING@16..20
+                            TK_WHITESPACE@16..17 " "
+                            TK_SINGLE_QUOTES@17..18 "'"
+                            TWIG_LITERAL_STRING_INNER@18..19
+                              TK_WORD@18..19 "N"
+                            TK_SINGLE_QUOTES@19..20 "'"
+                TK_WHITESPACE@20..21 " "
+                TK_CLOSE_CURLY_CURLY@21..23 "}}""#]])
     }
 }

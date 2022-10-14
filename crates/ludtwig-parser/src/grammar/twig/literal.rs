@@ -10,6 +10,8 @@ use regex::Regex;
 static VARIABLE_NAME_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$"#).unwrap());
 
+// TODO: what about [] and . for variables accessors?
+
 pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker> {
     if parser.at(T![number]) {
         Some(parse_twig_number(parser))
