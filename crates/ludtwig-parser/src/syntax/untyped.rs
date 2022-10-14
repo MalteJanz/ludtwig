@@ -30,8 +30,8 @@ pub enum SyntaxKind {
     #[regex(r"((\n)|(\r\n))+")]
     TK_LINE_BREAK,
     /// a single word containing only characters, numbers or symbols
-    /// must start with a character or one of the special starting characters
-    #[regex(r"[a-zA-Z@:\#_\$][a-zA-Z0-9_\-]*")]
+    /// must start with a alpha or one of the special starting characters followed by a normal alpha
+    #[regex(r"([a-zA-Z]|([:@\#_\$][a-zA-Z]))[a-zA-Z0-9_\-]*")]
     TK_WORD,
     /// a valid twig number
     #[regex(r"[0-9]+(\.[0-9]+)?([Ee][\+\-][0-9]+)?")]
@@ -298,10 +298,13 @@ pub enum SyntaxKind {
     TWIG_PARENTHESES_EXPRESSION,
     TWIG_CONDITIONAL_EXPRESSION,
 
+    TWIG_LITERAL_OPERAND, // covers the operands in TWIG_ACCESSOR, TWIG_INDEX_LOOKUP and TWIG_PIPE
     TWIG_ACCESSOR,        // accessor node like 'product.price'
-    TWIG_INDEXER,         // indexer node like 'products[0]'
     TWIG_PIPE,            // pipe node like 'name|title'
-    TWIG_LITERAL_OPERAND, // covers the operands in TWIG_ACCESSOR, TWIG_INDEXER and TWIG_PIPE
+
+    TWIG_INDEX_LOOKUP, // indexer node like 'products[0]'
+    TWIG_INDEX,        // covers a array index '5' inside []
+    TWIG_INDEX_RANGE,  // covers a array index range like '0:10' inside []
 
     // twig literals
     TWIG_LITERAL_STRING,

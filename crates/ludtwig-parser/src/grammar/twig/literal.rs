@@ -161,101 +161,126 @@ fn parse_twig_hash_pair(parser: &mut Parser) -> Option<CompletedMarker> {
     Some(parser.complete(preceded, SyntaxKind::TWIG_LITERAL_HASH_PAIR))
 }
 
-trait AccessorExt {
-    /// left and right binding power used for the Pratt parsing algorithm
-    /// None means it is not a suitable binary operator (has two operands)
-    /// if the left number is lower => left-associative
-    /// if the right number is lower => right-associative
-    fn accessor_binding_power(&self) -> Option<(u8, u8)>;
-}
-
-impl AccessorExt for SyntaxKind {
-    fn accessor_binding_power(&self) -> Option<(u8, u8)> {
-        match self {
-            // left associative
-            T!["|"] => Some((205, 206)),
-            T!["["] => Some((210, 211)),
-            T!["."] => Some((215, 216)),
-
-            _ => None,
-        }
-    }
-}
-
 fn parse_twig_name_postfix(parser: &mut Parser) -> Option<CompletedMarker> {
-    parse_twig_name_postfix_binding_power(parser, 0)
-}
+    let mut node = parse_twig_name(parser)?;
 
-fn parse_twig_name_postfix_binding_power(
-    parser: &mut Parser,
-    minimum_binding_power: u8,
-) -> Option<CompletedMarker> {
-    let mut lhs = parse_twig_name_postfix_lhs(parser)?;
-
-    let mut is_binary = false;
-    while let Some((left_binding_power, right_binding_power)) = parser
-        .peek_token()
-        .and_then(|t| t.kind.accessor_binding_power())
-    {
-        if left_binding_power < minimum_binding_power {
-            break;
-        }
-
-        // wrap prev node in an operand
-        let m = parser.precede(lhs);
-        lhs = parser.complete(m, SyntaxKind::TWIG_LITERAL_OPERAND);
-        is_binary = true;
-
-        // Eat the operator’s token and decide about binary syntax node kind
-        let accessor_kind = parser.bump().kind;
-        let syntax_node_kind = match accessor_kind {
-            T!["|"] => SyntaxKind::TWIG_PIPE,
-            T!["["] => SyntaxKind::TWIG_INDEXER,
-            T!["."] => SyntaxKind::TWIG_ACCESSOR,
-            _ => unreachable!(
-                "literal accessor with binding_power should have a corresponding syntax node kind"
-            ),
-        };
-
-        // special case for array indexer
-        if accessor_kind == T!["["] {
-            if parse_twig_expression(parser).is_none() {
-                parser.add_error(ParseErrorBuilder::new("twig expression"));
+    parse_many(
+        parser,
+        |_| false,
+        |p| {
+            if p.at(T!["."]) {
+                node = parse_twig_accessor(p, node.clone());
+            } else if p.at(T!["["]) {
+                node = parse_twig_indexer(p, node.clone());
+            } else if p.at(T!["|"]) {
+                node = parse_twig_pipe(p, node.clone());
             }
-            parser.expect(T!["]"]);
-        }
+        },
+    );
 
-        // recurse
-        let m = parser.precede(lhs);
-        let parsed_rhs =
-            parse_twig_name_postfix_binding_power(parser, right_binding_power).is_some();
-        lhs = parser.complete(m, syntax_node_kind);
-
-        if !parsed_rhs {
-            break;
-        }
-    }
-
-    if !is_binary && minimum_binding_power != 0 {
-        // only lhs exists, which still needs to be wrapped in an operand
-        // if not on the root level
-        let m = parser.precede(lhs);
-        lhs = parser.complete(m, SyntaxKind::TWIG_LITERAL_OPERAND);
-    }
-
-    Some(lhs)
+    Some(node)
 }
 
-fn parse_twig_name_postfix_lhs(parser: &mut Parser) -> Option<CompletedMarker> {
-    let token_text = parser.peek_token()?.text;
-    if TWIG_NAME_REGEX.is_match(token_text) {
-        let m = parser.start();
-        parser.bump_as(SyntaxKind::TK_WORD);
+fn parse_twig_pipe(parser: &mut Parser, mut last_node: CompletedMarker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["|"]));
 
-        Some(parser.complete(m, SyntaxKind::TWIG_LITERAL_NAME))
-    } else {
-        None
+    // wrap last_node in an operand and create outer marker
+    let m = parser.precede(last_node);
+    last_node = parser.complete(m, SyntaxKind::TWIG_LITERAL_OPERAND);
+    let outer = parser.precede(last_node);
+
+    // bump the operator
+    parser.bump();
+
+    // parse the rhs and wrap it also in an operand
+    let m = parser.start();
+    if parse_twig_name(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new("twig filter"));
     }
+    parser.complete(m, SyntaxKind::TWIG_LITERAL_OPERAND);
+
+    // complete the outer marker
+    parser.complete(outer, SyntaxKind::TWIG_PIPE)
+}
+
+fn parse_twig_indexer(parser: &mut Parser, mut last_node: CompletedMarker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["["]));
+
+    // wrap last_node in an operand and create outer marker
+    let m = parser.precede(last_node);
+    last_node = parser.complete(m, SyntaxKind::TWIG_LITERAL_OPERAND);
+    let outer = parser.precede(last_node);
+
+    // bump the opening '['
+    parser.bump();
+
+    let index_m = parser.start();
+    let mut is_slice = false;
+    if parser.at(T![":"]) {
+        parser.bump();
+        is_slice = true;
+    }
+
+    // parse the index expression
+    if parse_twig_expression(parser).is_none() && !parser.at(T![":"]) {
+        parser.add_error(ParseErrorBuilder::new("twig expression"));
+    }
+
+    if parser.at(T![":"]) {
+        parser.bump();
+        is_slice = true;
+        if parse_twig_expression(parser).is_none() {
+            parser.add_error(ParseErrorBuilder::new("twig expression"));
+        }
+    }
+    parser.complete(
+        index_m,
+        match is_slice {
+            true => SyntaxKind::TWIG_INDEX_RANGE,
+            false => SyntaxKind::TWIG_INDEX,
+        },
+    );
+
+    parser.expect(T!["]"]);
+
+    // complete the outer marker
+    parser.complete(outer, SyntaxKind::TWIG_INDEX_LOOKUP)
+}
+
+fn parse_twig_accessor(parser: &mut Parser, mut last_node: CompletedMarker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["."]));
+
+    // wrap last_node in an operand and create outer marker
+    let m = parser.precede(last_node);
+    last_node = parser.complete(m, SyntaxKind::TWIG_LITERAL_OPERAND);
+    let outer = parser.precede(last_node);
+
+    // bump the operator
+    parser.bump();
+
+    // parse the rhs and wrap it also in an operand
+    let m = parser.start();
+    if parse_twig_name(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new(
+            "twig variable property, key or method",
+        ));
+    }
+    parser.complete(m, SyntaxKind::TWIG_LITERAL_OPERAND);
+
+    // complete the outer marker
+    parser.complete(outer, SyntaxKind::TWIG_ACCESSOR)
+}
+
+fn parse_twig_name(parser: &mut Parser) -> Option<CompletedMarker> {
+    let token_text = parser.peek_token()?.text;
+    if !TWIG_NAME_REGEX.is_match(token_text) {
+        return None;
+    }
+
+    let m = parser.start();
+    parser.bump_as(SyntaxKind::TK_WORD);
+    let m = parser.complete(m, SyntaxKind::TWIG_LITERAL_NAME);
+    Some(m)
 }
 
 #[cfg(test)]
@@ -854,41 +879,234 @@ mod tests {
         check_parse(
             r#"{{ product.prices['eur'] }}"#,
             expect![[r#"
-            ROOT@0..27
-              TWIG_VAR@0..27
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..24
-                  TWIG_INDEXER@2..24
-                    TWIG_LITERAL_OPERAND@2..17
-                      TWIG_ACCESSOR@2..17
-                        TWIG_LITERAL_OPERAND@2..10
-                          TWIG_LITERAL_NAME@2..10
-                            TK_WHITESPACE@2..3 " "
-                            TK_WORD@3..10 "product"
-                        TK_DOT@10..11 "."
-                        TWIG_LITERAL_OPERAND@11..17
-                          TWIG_LITERAL_NAME@11..17
-                            TK_WORD@11..17 "prices"
-                    TK_OPEN_SQUARE@17..18 "["
-                    TWIG_EXPRESSION@18..23
-                      TWIG_LITERAL_STRING@18..23
-                        TK_SINGLE_QUOTES@18..19 "'"
-                        TWIG_LITERAL_STRING_INNER@19..22
-                          TK_WORD@19..22 "eur"
-                        TK_SINGLE_QUOTES@22..23 "'"
-                    TK_CLOSE_SQUARE@23..24 "]"
-                TK_WHITESPACE@24..25 " "
-                TK_CLOSE_CURLY_CURLY@25..27 "}}""#]],
+                ROOT@0..27
+                  TWIG_VAR@0..27
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..24
+                      TWIG_INDEX_LOOKUP@2..24
+                        TWIG_LITERAL_OPERAND@2..17
+                          TWIG_ACCESSOR@2..17
+                            TWIG_LITERAL_OPERAND@2..10
+                              TWIG_LITERAL_NAME@2..10
+                                TK_WHITESPACE@2..3 " "
+                                TK_WORD@3..10 "product"
+                            TK_DOT@10..11 "."
+                            TWIG_LITERAL_OPERAND@11..17
+                              TWIG_LITERAL_NAME@11..17
+                                TK_WORD@11..17 "prices"
+                        TK_OPEN_SQUARE@17..18 "["
+                        TWIG_INDEX@18..23
+                          TWIG_EXPRESSION@18..23
+                            TWIG_LITERAL_STRING@18..23
+                              TK_SINGLE_QUOTES@18..19 "'"
+                              TWIG_LITERAL_STRING_INNER@19..22
+                                TK_WORD@19..22 "eur"
+                              TK_SINGLE_QUOTES@22..23 "'"
+                        TK_CLOSE_SQUARE@23..24 "]"
+                    TK_WHITESPACE@24..25 " "
+                    TK_CLOSE_CURLY_CURLY@25..27 "}}""#]],
         );
     }
 
     #[test]
     fn parse_twig_variable_nested_array_accessor() {
-        check_parse(r#"{{ product.prices['eur'][0] }}"#, expect![[r#""#]]);
+        check_parse(
+            r#"{{ product.prices['eur'][0] }}"#,
+            expect![[r#"
+                ROOT@0..30
+                  TWIG_VAR@0..30
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..27
+                      TWIG_INDEX_LOOKUP@2..27
+                        TWIG_LITERAL_OPERAND@2..24
+                          TWIG_INDEX_LOOKUP@2..24
+                            TWIG_LITERAL_OPERAND@2..17
+                              TWIG_ACCESSOR@2..17
+                                TWIG_LITERAL_OPERAND@2..10
+                                  TWIG_LITERAL_NAME@2..10
+                                    TK_WHITESPACE@2..3 " "
+                                    TK_WORD@3..10 "product"
+                                TK_DOT@10..11 "."
+                                TWIG_LITERAL_OPERAND@11..17
+                                  TWIG_LITERAL_NAME@11..17
+                                    TK_WORD@11..17 "prices"
+                            TK_OPEN_SQUARE@17..18 "["
+                            TWIG_INDEX@18..23
+                              TWIG_EXPRESSION@18..23
+                                TWIG_LITERAL_STRING@18..23
+                                  TK_SINGLE_QUOTES@18..19 "'"
+                                  TWIG_LITERAL_STRING_INNER@19..22
+                                    TK_WORD@19..22 "eur"
+                                  TK_SINGLE_QUOTES@22..23 "'"
+                            TK_CLOSE_SQUARE@23..24 "]"
+                        TK_OPEN_SQUARE@24..25 "["
+                        TWIG_INDEX@25..26
+                          TWIG_EXPRESSION@25..26
+                            TWIG_LITERAL_NUMBER@25..26
+                              TK_NUMBER@25..26 "0"
+                        TK_CLOSE_SQUARE@26..27 "]"
+                    TK_WHITESPACE@27..28 " "
+                    TK_CLOSE_CURLY_CURLY@28..30 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_variable_array_range_accessor() {
+        check_parse(
+            r#"{{ prices[0:10] }}"#,
+            expect![[r#"
+            ROOT@0..18
+              TWIG_VAR@0..18
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..15
+                  TWIG_INDEX_LOOKUP@2..15
+                    TWIG_LITERAL_OPERAND@2..9
+                      TWIG_LITERAL_NAME@2..9
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..9 "prices"
+                    TK_OPEN_SQUARE@9..10 "["
+                    TWIG_INDEX_RANGE@10..14
+                      TWIG_EXPRESSION@10..11
+                        TWIG_LITERAL_NUMBER@10..11
+                          TK_NUMBER@10..11 "0"
+                      TK_COLON@11..12 ":"
+                      TWIG_EXPRESSION@12..14
+                        TWIG_LITERAL_NUMBER@12..14
+                          TK_NUMBER@12..14 "10"
+                    TK_CLOSE_SQUARE@14..15 "]"
+                TK_WHITESPACE@15..16 " "
+                TK_CLOSE_CURLY_CURLY@16..18 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_variable_array_range_left_accessor() {
+        check_parse(
+            r#"{{ prices[10:] }}"#,
+            expect![[r#"
+            ROOT@0..17
+              TWIG_VAR@0..17
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..14
+                  TWIG_INDEX_LOOKUP@2..14
+                    TWIG_LITERAL_OPERAND@2..9
+                      TWIG_LITERAL_NAME@2..9
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..9 "prices"
+                    TK_OPEN_SQUARE@9..10 "["
+                    TWIG_INDEX_RANGE@10..13
+                      TWIG_EXPRESSION@10..12
+                        TWIG_LITERAL_NUMBER@10..12
+                          TK_NUMBER@10..12 "10"
+                      TK_COLON@12..13 ":"
+                    TK_CLOSE_SQUARE@13..14 "]"
+                TK_WHITESPACE@14..15 " "
+                TK_CLOSE_CURLY_CURLY@15..17 "}}"
+            error at 13..13: expected twig expression but found ]"#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_variable_array_range_right_accessor() {
+        check_parse(
+            r#"{{ prices[:10] }}"#,
+            expect![[r#"
+            ROOT@0..17
+              TWIG_VAR@0..17
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..14
+                  TWIG_INDEX_LOOKUP@2..14
+                    TWIG_LITERAL_OPERAND@2..9
+                      TWIG_LITERAL_NAME@2..9
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..9 "prices"
+                    TK_OPEN_SQUARE@9..10 "["
+                    TWIG_INDEX_RANGE@10..13
+                      TK_COLON@10..11 ":"
+                      TWIG_EXPRESSION@11..13
+                        TWIG_LITERAL_NUMBER@11..13
+                          TK_NUMBER@11..13 "10"
+                    TK_CLOSE_SQUARE@13..14 "]"
+                TK_WHITESPACE@14..15 " "
+                TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_variable_accessor_indexer_and_filter() {
+        check_parse(
+            r#"{{ product.prices['eur'][0]|title }}"#,
+            expect![[r#"
+                ROOT@0..36
+                  TWIG_VAR@0..36
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..33
+                      TWIG_PIPE@2..33
+                        TWIG_LITERAL_OPERAND@2..27
+                          TWIG_INDEX_LOOKUP@2..27
+                            TWIG_LITERAL_OPERAND@2..24
+                              TWIG_INDEX_LOOKUP@2..24
+                                TWIG_LITERAL_OPERAND@2..17
+                                  TWIG_ACCESSOR@2..17
+                                    TWIG_LITERAL_OPERAND@2..10
+                                      TWIG_LITERAL_NAME@2..10
+                                        TK_WHITESPACE@2..3 " "
+                                        TK_WORD@3..10 "product"
+                                    TK_DOT@10..11 "."
+                                    TWIG_LITERAL_OPERAND@11..17
+                                      TWIG_LITERAL_NAME@11..17
+                                        TK_WORD@11..17 "prices"
+                                TK_OPEN_SQUARE@17..18 "["
+                                TWIG_INDEX@18..23
+                                  TWIG_EXPRESSION@18..23
+                                    TWIG_LITERAL_STRING@18..23
+                                      TK_SINGLE_QUOTES@18..19 "'"
+                                      TWIG_LITERAL_STRING_INNER@19..22
+                                        TK_WORD@19..22 "eur"
+                                      TK_SINGLE_QUOTES@22..23 "'"
+                                TK_CLOSE_SQUARE@23..24 "]"
+                            TK_OPEN_SQUARE@24..25 "["
+                            TWIG_INDEX@25..26
+                              TWIG_EXPRESSION@25..26
+                                TWIG_LITERAL_NUMBER@25..26
+                                  TK_NUMBER@25..26 "0"
+                            TK_CLOSE_SQUARE@26..27 "]"
+                        TK_SINGLE_PIPE@27..28 "|"
+                        TWIG_LITERAL_OPERAND@28..33
+                          TWIG_LITERAL_NAME@28..33
+                            TK_WORD@28..33 "title"
+                    TK_WHITESPACE@33..34 " "
+                    TK_CLOSE_CURLY_CURLY@34..36 "}}""#]],
+        );
     }
 
     #[test]
     fn parse_twig_variable_function_accessor() {
-        check_parse(r#"{{ product.prices().gross }}"#, expect![[r#""#]]);
+        check_parse(r#"{{ product.prices('eur').gross }}"#, expect![[r#""#]]);
+    }
+
+    #[test]
+    fn parse_twig_function() {
+        check_parse(r#"{{ doIt() }}"#, expect![[r#""#]]);
+    }
+
+    #[test]
+    fn parse_twig_function_arguments() {
+        check_parse(r#"{{ sum(1, 2) }}"#, expect![[r#""#]]);
+    }
+
+    #[test]
+    fn parse_twig_function_named_arguments() {
+        check_parse(r#"{{ sum(a=1, b=2) }}"#, expect![[r#""#]]);
+    }
+
+    #[test]
+    fn parse_twig_function_mixed_named_arguments() {
+        check_parse(r#"{{ sum(1, b=2) }}"#, expect![[r#""#]]);
+    }
+
+    #[test]
+    fn parse_twig_filter_arguments() {
+        check_parse(r#"{{ list|join(', ') }}"#, expect![[r#""#]]);
     }
 }
