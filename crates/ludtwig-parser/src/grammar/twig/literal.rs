@@ -7,11 +7,12 @@ use crate::T;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
+// TODO: maybe allow more here to partly support twig.js. Needs testing on real world templates
 static TWIG_NAME_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$"#).unwrap());
 
 pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker> {
-    if parser.at(T![number]) {
+    let last_node = if parser.at(T![number]) {
         Some(parse_twig_number(parser))
     } else if parser.at_set(&[T!["\""], T!["'"]]) {
         Some(parse_twig_string(parser))
@@ -25,7 +26,25 @@ pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker>
         Some(parse_twig_hash(parser))
     } else {
         parse_twig_name_postfix(parser)
-    }
+    };
+
+    let mut node = match last_node {
+        None => return None,
+        Some(last_node) => last_node,
+    };
+
+    // parse any amount of filters
+    parse_many(
+        parser,
+        |_| false,
+        |p| {
+            if p.at(T!["|"]) {
+                node = parse_twig_pipe(p, node.clone());
+            }
+        },
+    );
+
+    Some(node)
 }
 
 fn parse_twig_number(parser: &mut Parser) -> CompletedMarker {
@@ -175,8 +194,6 @@ fn parse_twig_name_postfix(parser: &mut Parser) -> Option<CompletedMarker> {
                 node = parse_twig_indexer(p, node.clone());
             } else if p.at(T!["("]) {
                 node = parse_twig_function(p, node.clone());
-            } else if p.at(T!["|"]) {
-                node = parse_twig_pipe(p, node.clone());
             }
         },
     );
@@ -445,6 +462,29 @@ mod tests {
                         TK_DOUBLE_QUOTES@7..8 "\""
                     TK_WHITESPACE@8..9 " "
                     TK_CLOSE_CURLY_CURLY@9..11 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_string_interpolation() {
+        // TODO: make string interpolation work
+        check_parse(
+            r#"{{ "foo #{1 + 2} baz" }}"#,
+            expect![[r##"
+            ROOT@0..24
+              TWIG_VAR@0..24
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..21
+                  TWIG_LITERAL_STRING@2..21
+                    TK_WHITESPACE@2..3 " "
+                    TK_DOUBLE_QUOTES@3..4 "\""
+                    TWIG_LITERAL_STRING_INNER@4..20
+                      TK_WORD@4..7 "foo"
+                      TK_WHITESPACE@7..8 " "
+                      TK_WORD@17..20 "baz"
+                    TK_DOUBLE_QUOTES@20..21 "\""
+                TK_WHITESPACE@21..22 " "
+                TK_CLOSE_CURLY_CURLY@22..24 "}}""##]],
         );
     }
 
@@ -778,6 +818,94 @@ mod tests {
     }
 
     #[test]
+    fn parse_twig_complex_expression_hash() {
+        check_parse(
+            "{{ { (foo): 'foo', (1 + 1): 'bar', (foo ~ 'b'): 'baz' } }}",
+            expect![[r#"
+                ROOT@0..58
+                  TWIG_VAR@0..58
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..55
+                      TWIG_LITERAL_HASH@2..55
+                        TK_WHITESPACE@2..3 " "
+                        TK_OPEN_CURLY@3..4 "{"
+                        TWIG_LITERAL_HASH_PAIR@4..17
+                          TWIG_LITERAL_HASH_KEY@4..10
+                            TK_WHITESPACE@4..5 " "
+                            TK_OPEN_PARENTHESIS@5..6 "("
+                            TWIG_EXPRESSION@6..9
+                              TWIG_LITERAL_NAME@6..9
+                                TK_WORD@6..9 "foo"
+                            TK_CLOSE_PARENTHESIS@9..10 ")"
+                          TK_COLON@10..11 ":"
+                          TWIG_EXPRESSION@11..17
+                            TWIG_LITERAL_STRING@11..17
+                              TK_WHITESPACE@11..12 " "
+                              TK_SINGLE_QUOTES@12..13 "'"
+                              TWIG_LITERAL_STRING_INNER@13..16
+                                TK_WORD@13..16 "foo"
+                              TK_SINGLE_QUOTES@16..17 "'"
+                        TK_COMMA@17..18 ","
+                        TWIG_LITERAL_HASH_PAIR@18..33
+                          TWIG_LITERAL_HASH_KEY@18..26
+                            TK_WHITESPACE@18..19 " "
+                            TK_OPEN_PARENTHESIS@19..20 "("
+                            TWIG_EXPRESSION@20..25
+                              TWIG_BINARY_EXPRESSION@20..25
+                                TWIG_EXPRESSION@20..21
+                                  TWIG_LITERAL_NUMBER@20..21
+                                    TK_NUMBER@20..21 "1"
+                                TK_WHITESPACE@21..22 " "
+                                TK_PLUS@22..23 "+"
+                                TWIG_EXPRESSION@23..25
+                                  TWIG_LITERAL_NUMBER@23..25
+                                    TK_WHITESPACE@23..24 " "
+                                    TK_NUMBER@24..25 "1"
+                            TK_CLOSE_PARENTHESIS@25..26 ")"
+                          TK_COLON@26..27 ":"
+                          TWIG_EXPRESSION@27..33
+                            TWIG_LITERAL_STRING@27..33
+                              TK_WHITESPACE@27..28 " "
+                              TK_SINGLE_QUOTES@28..29 "'"
+                              TWIG_LITERAL_STRING_INNER@29..32
+                                TK_WORD@29..32 "bar"
+                              TK_SINGLE_QUOTES@32..33 "'"
+                        TK_COMMA@33..34 ","
+                        TWIG_LITERAL_HASH_PAIR@34..53
+                          TWIG_LITERAL_HASH_KEY@34..46
+                            TK_WHITESPACE@34..35 " "
+                            TK_OPEN_PARENTHESIS@35..36 "("
+                            TWIG_EXPRESSION@36..45
+                              TWIG_BINARY_EXPRESSION@36..45
+                                TWIG_EXPRESSION@36..39
+                                  TWIG_LITERAL_NAME@36..39
+                                    TK_WORD@36..39 "foo"
+                                TK_WHITESPACE@39..40 " "
+                                TK_TILDE@40..41 "~"
+                                TWIG_EXPRESSION@41..45
+                                  TWIG_LITERAL_STRING@41..45
+                                    TK_WHITESPACE@41..42 " "
+                                    TK_SINGLE_QUOTES@42..43 "'"
+                                    TWIG_LITERAL_STRING_INNER@43..44
+                                      TK_WORD@43..44 "b"
+                                    TK_SINGLE_QUOTES@44..45 "'"
+                            TK_CLOSE_PARENTHESIS@45..46 ")"
+                          TK_COLON@46..47 ":"
+                          TWIG_EXPRESSION@47..53
+                            TWIG_LITERAL_STRING@47..53
+                              TK_WHITESPACE@47..48 " "
+                              TK_SINGLE_QUOTES@48..49 "'"
+                              TWIG_LITERAL_STRING_INNER@49..52
+                                TK_WORD@49..52 "baz"
+                              TK_SINGLE_QUOTES@52..53 "'"
+                        TK_WHITESPACE@53..54 " "
+                        TK_CLOSE_CURLY@54..55 "}"
+                    TK_WHITESPACE@55..56 " "
+                    TK_CLOSE_CURLY_CURLY@56..58 "}}""#]],
+        );
+    }
+
+    #[test]
     fn parse_twig_nested_hash() {
         check_parse(
             "{{ { outer: { inner: 'hello' } } }}",
@@ -859,6 +987,48 @@ mod tests {
                         TK_CLOSE_CURLY@30..31 "}"
                     TK_WHITESPACE@31..32 " "
                     TK_CLOSE_CURLY_CURLY@32..34 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_array_with_hash_mixed() {
+        check_parse(
+            r#"{{ [1, {"foo": "bar"}] }}"#,
+            expect![[r#"
+            ROOT@0..25
+              TWIG_VAR@0..25
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..22
+                  TWIG_LITERAL_ARRAY@2..22
+                    TK_WHITESPACE@2..3 " "
+                    TK_OPEN_SQUARE@3..4 "["
+                    TWIG_EXPRESSION@4..5
+                      TWIG_LITERAL_NUMBER@4..5
+                        TK_NUMBER@4..5 "1"
+                    TK_COMMA@5..6 ","
+                    TWIG_EXPRESSION@6..21
+                      TWIG_LITERAL_HASH@6..21
+                        TK_WHITESPACE@6..7 " "
+                        TK_OPEN_CURLY@7..8 "{"
+                        TWIG_LITERAL_HASH_PAIR@8..20
+                          TWIG_LITERAL_HASH_KEY@8..13
+                            TWIG_LITERAL_STRING@8..13
+                              TK_DOUBLE_QUOTES@8..9 "\""
+                              TWIG_LITERAL_STRING_INNER@9..12
+                                TK_WORD@9..12 "foo"
+                              TK_DOUBLE_QUOTES@12..13 "\""
+                          TK_COLON@13..14 ":"
+                          TWIG_EXPRESSION@14..20
+                            TWIG_LITERAL_STRING@14..20
+                              TK_WHITESPACE@14..15 " "
+                              TK_DOUBLE_QUOTES@15..16 "\""
+                              TWIG_LITERAL_STRING_INNER@16..19
+                                TK_WORD@16..19 "bar"
+                              TK_DOUBLE_QUOTES@19..20 "\""
+                        TK_CLOSE_CURLY@20..21 "}"
+                    TK_CLOSE_SQUARE@21..22 "]"
+                TK_WHITESPACE@22..23 " "
+                TK_CLOSE_CURLY_CURLY@23..25 "}}""#]],
         );
     }
 
@@ -1480,6 +1650,126 @@ mod tests {
                             TK_WORD@19..23 "trim"
                     TK_WHITESPACE@23..24 " "
                     TK_CLOSE_CURLY_CURLY@24..26 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_filter_after_string_with_named_argument() {
+        check_parse(
+            r#"{{ "now"|date('d/m/Y H:i', timezone="Europe/Paris") }}"#,
+            expect![[r#"
+                ROOT@0..54
+                  TWIG_VAR@0..54
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..51
+                      TWIG_PIPE@2..51
+                        TWIG_OPERAND@2..8
+                          TWIG_LITERAL_STRING@2..8
+                            TK_WHITESPACE@2..3 " "
+                            TK_DOUBLE_QUOTES@3..4 "\""
+                            TWIG_LITERAL_STRING_INNER@4..7
+                              TK_WORD@4..7 "now"
+                            TK_DOUBLE_QUOTES@7..8 "\""
+                        TK_SINGLE_PIPE@8..9 "|"
+                        TWIG_OPERAND@9..51
+                          TWIG_LITERAL_NAME@9..13
+                            TK_WORD@9..13 "date"
+                          TK_OPEN_PARENTHESIS@13..14 "("
+                          TWIG_ARGUMENTS@14..50
+                            TWIG_EXPRESSION@14..25
+                              TWIG_LITERAL_STRING@14..25
+                                TK_SINGLE_QUOTES@14..15 "'"
+                                TWIG_LITERAL_STRING_INNER@15..24
+                                  TK_WORD@15..16 "d"
+                                  TK_FORWARD_SLASH@16..17 "/"
+                                  TK_WORD@17..18 "m"
+                                  TK_FORWARD_SLASH@18..19 "/"
+                                  TK_WORD@19..20 "Y"
+                                  TK_WHITESPACE@20..21 " "
+                                  TK_WORD@21..22 "H"
+                                  TK_WORD@22..24 ":i"
+                                TK_SINGLE_QUOTES@24..25 "'"
+                            TK_COMMA@25..26 ","
+                            TWIG_NAMED_ARGUMENT@26..50
+                              TK_WHITESPACE@26..27 " "
+                              TK_WORD@27..35 "timezone"
+                              TK_EQUAL@35..36 "="
+                              TWIG_EXPRESSION@36..50
+                                TWIG_LITERAL_STRING@36..50
+                                  TK_DOUBLE_QUOTES@36..37 "\""
+                                  TWIG_LITERAL_STRING_INNER@37..49
+                                    TK_WORD@37..43 "Europe"
+                                    TK_FORWARD_SLASH@43..44 "/"
+                                    TK_WORD@44..49 "Paris"
+                                  TK_DOUBLE_QUOTES@49..50 "\""
+                          TK_CLOSE_PARENTHESIS@50..51 ")"
+                    TK_WHITESPACE@51..52 " "
+                    TK_CLOSE_CURLY_CURLY@52..54 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_filter_within_binary_comparison() {
+        check_parse(
+            r#"{{ users|length > 0 }}"#,
+            expect![[r#"
+            ROOT@0..22
+              TWIG_VAR@0..22
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..19
+                  TWIG_BINARY_EXPRESSION@2..19
+                    TWIG_EXPRESSION@2..15
+                      TWIG_PIPE@2..15
+                        TWIG_OPERAND@2..8
+                          TWIG_LITERAL_NAME@2..8
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..8 "users"
+                        TK_SINGLE_PIPE@8..9 "|"
+                        TWIG_OPERAND@9..15
+                          TWIG_LITERAL_NAME@9..15
+                            TK_WORD@9..15 "length"
+                    TK_WHITESPACE@15..16 " "
+                    TK_GREATER_THAN@16..17 ">"
+                    TWIG_EXPRESSION@17..19
+                      TWIG_LITERAL_NUMBER@17..19
+                        TK_WHITESPACE@17..18 " "
+                        TK_NUMBER@18..19 "0"
+                TK_WHITESPACE@19..20 " "
+                TK_CLOSE_CURLY_CURLY@20..22 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_include_function_call() {
+        check_parse(
+            r#"{{ include('sections/articles/sidebar.html') }}"#,
+            expect![[r#"
+                ROOT@0..47
+                  TWIG_VAR@0..47
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..44
+                      TWIG_FUNCTION_CALL@2..44
+                        TWIG_OPERAND@2..10
+                          TWIG_LITERAL_NAME@2..10
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..10 "include"
+                        TK_OPEN_PARENTHESIS@10..11 "("
+                        TWIG_ARGUMENTS@11..43
+                          TWIG_EXPRESSION@11..43
+                            TWIG_LITERAL_STRING@11..43
+                              TK_SINGLE_QUOTES@11..12 "'"
+                              TWIG_LITERAL_STRING_INNER@12..42
+                                TK_WORD@12..20 "sections"
+                                TK_FORWARD_SLASH@20..21 "/"
+                                TK_WORD@21..29 "articles"
+                                TK_FORWARD_SLASH@29..30 "/"
+                                TK_WORD@30..37 "sidebar"
+                                TK_DOT@37..38 "."
+                                TK_WORD@38..42 "html"
+                              TK_SINGLE_QUOTES@42..43 "'"
+                        TK_CLOSE_PARENTHESIS@43..44 ")"
+                    TK_WHITESPACE@44..45 " "
+                    TK_CLOSE_CURLY_CURLY@45..47 "}}""#]],
         );
     }
 }
