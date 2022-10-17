@@ -298,17 +298,17 @@ pub enum SyntaxKind {
     TWIG_PARENTHESES_EXPRESSION,
     TWIG_CONDITIONAL_EXPRESSION,
 
-    TWIG_LITERAL_OPERAND, // covers the operands in TWIG_ACCESSOR, TWIG_INDEX_LOOKUP and TWIG_PIPE
-    TWIG_ACCESSOR,        // accessor node like 'product.price'
-    TWIG_PIPE,            // pipe node like 'name|title'
+    TWIG_OPERAND, // covers the operands in TWIG_ACCESSOR, TWIG_INDEX_LOOKUP, TWIG_PIPE and TWIG_FUNCTION_CALL
+    TWIG_ACCESSOR, // accessor node like 'product.price'
+    TWIG_PIPE,    // pipe node like 'name|title'
 
     TWIG_INDEX_LOOKUP, // indexer node like 'products[0]'
     TWIG_INDEX,        // covers a array index '5' inside []
     TWIG_INDEX_RANGE,  // covers a array index range like '0:10' inside []
 
     TWIG_FUNCTION_CALL,
-    TWIG_FUNCTION_ARGUMENTS,
-    TWIG_FUNCTION_NAMED_ARGUMENT,
+    TWIG_ARGUMENTS,
+    TWIG_NAMED_ARGUMENT,
 
     // twig literals
     TWIG_LITERAL_STRING,
