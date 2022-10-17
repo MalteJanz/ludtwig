@@ -1,5 +1,5 @@
 use crate::grammar::twig::parse_any_twig;
-use crate::grammar::{parse_any_element, parse_ludtwig_directive, parse_many};
+use crate::grammar::{parse_any_element, parse_ludtwig_directive, parse_many, ParseFunction};
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser, RECOVERY_SET};
 use crate::syntax::untyped::SyntaxKind;
@@ -172,46 +172,111 @@ fn parse_html_attribute_or_twig(parser: &mut Parser) -> Option<CompletedMarker> 
 
 fn parse_html_string_including_twig(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
-    parser.expect(T!["\""]);
+    let quote_kind = if parser.at_set(&[T!["\""], T!["'"]]) {
+        let starting_quote_token = parser.bump();
+        Some(starting_quote_token.kind)
+    } else {
+        // the HTML specification also allows no quotes but then
+        // the value must only be a single word
+        None
+    };
 
-    fn inner_str_parser(parser: &mut Parser) -> Option<CompletedMarker> {
+    fn inner_double_quote_parser(parser: &mut Parser) -> Option<CompletedMarker> {
         parse_many(
             parser,
             |p| {
-                // TODO: needs special care for future endfor, endif, ...
                 if p.at(T!("\"")) {
                     return true;
                 }
 
-                if p.at_following(&[T!["{%"], T!["endblock"]])
-                    || p.at_following(&[T!["{%"], T!["elseif"]])
-                    || p.at_following(&[T!["{%"], T!["else"]])
-                    || p.at_following(&[T!["{%"], T!["endif"]])
-                {
-                    return true;
-                }
-
-                false
+                child_early_return(p)
             },
-            |p| {
-                if parse_any_twig(p, inner_str_parser).is_none() {
-                    if p.at_set(RECOVERY_SET) || p.at_end() {
-                        return;
-                    }
-
-                    p.bump();
-                }
-            },
+            |p| child_parser(p, inner_double_quote_parser),
         );
         None
     }
 
+    fn inner_single_quote_parser(parser: &mut Parser) -> Option<CompletedMarker> {
+        parse_many(
+            parser,
+            |p| {
+                if p.at(T!("'")) {
+                    return true;
+                }
+
+                child_early_return(p)
+            },
+            |p| child_parser(p, inner_single_quote_parser),
+        );
+        None
+    }
+
+    fn inner_no_quote_parser(parser: &mut Parser) -> Option<CompletedMarker> {
+        if parser.at(T![word]) {
+            parser.bump();
+        } else {
+            parser.add_error(ParseErrorBuilder::new("html attribute value"))
+        }
+
+        None
+    }
+
+    fn child_early_return(p: &mut Parser) -> bool {
+        // TODO: needs special care for future endfor, endif, ...
+        if p.at_following(&[T!["{%"], T!["endblock"]])
+            || p.at_following(&[T!["{%"], T!["elseif"]])
+            || p.at_following(&[T!["{%"], T!["else"]])
+            || p.at_following(&[T!["{%"], T!["endif"]])
+        {
+            return true;
+        }
+
+        false
+    }
+
+    fn child_parser(p: &mut Parser, inner_twig_child_parser: ParseFunction) {
+        if parse_any_twig(p, inner_twig_child_parser).is_none() {
+            if p.at_set(RECOVERY_SET) || p.at_end() {
+                return;
+            }
+
+            p.bump();
+        }
+    }
+
     let inner_m = parser.start();
-    inner_str_parser(parser);
+    // run the appropriate inner parser
+    match quote_kind {
+        Some(quote_kind) if quote_kind == T!["\""] => {
+            inner_double_quote_parser(parser);
+        }
+        Some(quote_kind) if quote_kind == T!["'"] => {
+            inner_single_quote_parser(parser);
+        }
+        None => {
+            inner_no_quote_parser(parser);
+        }
+        Some(_) => unreachable!(),
+    }
     parser.explicitly_consume_trivia(); // consume any trailing trivia to be inside the inner string
     parser.complete(inner_m, SyntaxKind::HTML_STRING_INNER);
 
-    parser.expect(T!["\""]);
+    // expect the same closing quote if a starting quote existed
+    if let Some(quote_kind) = quote_kind {
+        parser.expect(quote_kind);
+    } else {
+        // check for unexpected quote which this parser still consumes to make missing leading quote errors simpler
+        if parser.at_set(&[T!["\""], T!["'"]]) {
+            let error_m = parser.start();
+            let quote = parser.bump();
+            let parser_err =
+                ParseErrorBuilder::new("no trailing quote because there is no leading quote")
+                    .at_token(quote);
+            parser.add_error(parser_err);
+            parser.complete(error_m, SyntaxKind::ERROR);
+        }
+    }
+
     parser.complete(m, SyntaxKind::HTML_STRING)
 }
 
@@ -523,7 +588,9 @@ mod tests {
 
     #[test]
     fn parse_html_string_with_leading_and_trailing_trivia() {
-        check_parse("<div class=\" my-class \"></div>", expect![[r#"
+        check_parse(
+            "<div class=\" my-class \"></div>",
+            expect![[r#"
             ROOT@0..30
               HTML_TAG@0..30
                 HTML_STARTING_TAG@0..24
@@ -545,7 +612,8 @@ mod tests {
                 HTML_ENDING_TAG@24..30
                   TK_LESS_THAN_SLASH@24..26 "</"
                   TK_WORD@26..29 "div"
-                  TK_GREATER_THAN@29..30 ">""#]]);
+                  TK_GREATER_THAN@29..30 ">""#]],
+        );
     }
 
     #[test]
@@ -842,11 +910,10 @@ mod tests {
                         TK_WORD@5..10 "claSs"
                         TK_EQUAL@10..11 "="
                         HTML_STRING@11..19
-                          ERROR@11..12
-                            TK_SINGLE_QUOTES@11..12 "'"
-                          HTML_STRING_INNER@12..19
+                          TK_SINGLE_QUOTES@11..12 "'"
+                          HTML_STRING_INNER@12..18
                             TK_WORD@12..18 "my-div"
-                            TK_SINGLE_QUOTES@18..19 "'"
+                          TK_SINGLE_QUOTES@18..19 "'"
                       TK_GREATER_THAN@19..20 ">"
                     BODY@20..40
                       HTML_TEXT@20..40
@@ -860,9 +927,249 @@ mod tests {
                       TK_WHITESPACE@41..45 "    "
                       TK_LESS_THAN_SLASH@45..47 "</"
                       TK_WORD@47..50 "div"
-                      TK_GREATER_THAN@50..51 ">"
-                error at 11..11: expected " but found '
-                error at 19..19: expected " but found >"#]],
+                      TK_GREATER_THAN@50..51 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_with_trailing_single_quote_missing() {
+        check_parse(
+            "<div claSs='my-div>
+        hello world
+    </div>",
+            expect![[r#"
+                ROOT@0..50
+                  HTML_TAG@0..50
+                    HTML_STARTING_TAG@0..19
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE@4..18
+                        TK_WHITESPACE@4..5 " "
+                        TK_WORD@5..10 "claSs"
+                        TK_EQUAL@10..11 "="
+                        HTML_STRING@11..18
+                          TK_SINGLE_QUOTES@11..12 "'"
+                          HTML_STRING_INNER@12..18
+                            TK_WORD@12..18 "my-div"
+                      TK_GREATER_THAN@18..19 ">"
+                    BODY@19..39
+                      HTML_TEXT@19..39
+                        TK_LINE_BREAK@19..20 "\n"
+                        TK_WHITESPACE@20..28 "        "
+                        TK_WORD@28..33 "hello"
+                        TK_WHITESPACE@33..34 " "
+                        TK_WORD@34..39 "world"
+                    HTML_ENDING_TAG@39..50
+                      TK_LINE_BREAK@39..40 "\n"
+                      TK_WHITESPACE@40..44 "    "
+                      TK_LESS_THAN_SLASH@44..46 "</"
+                      TK_WORD@46..49 "div"
+                      TK_GREATER_THAN@49..50 ">"
+                error at 18..18: expected ' but found >"#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_with_leading_single_quote_missing() {
+        check_parse(
+            "<div claSs=my-div'>
+        hello world
+    </div>",
+            expect![[r#"
+                ROOT@0..50
+                  HTML_TAG@0..50
+                    HTML_STARTING_TAG@0..19
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE@4..18
+                        TK_WHITESPACE@4..5 " "
+                        TK_WORD@5..10 "claSs"
+                        TK_EQUAL@10..11 "="
+                        HTML_STRING@11..18
+                          HTML_STRING_INNER@11..17
+                            TK_WORD@11..17 "my-div"
+                          ERROR@17..18
+                            TK_SINGLE_QUOTES@17..18 "'"
+                      TK_GREATER_THAN@18..19 ">"
+                    BODY@19..39
+                      HTML_TEXT@19..39
+                        TK_LINE_BREAK@19..20 "\n"
+                        TK_WHITESPACE@20..28 "        "
+                        TK_WORD@28..33 "hello"
+                        TK_WHITESPACE@33..34 " "
+                        TK_WORD@34..39 "world"
+                    HTML_ENDING_TAG@39..50
+                      TK_LINE_BREAK@39..40 "\n"
+                      TK_WHITESPACE@40..44 "    "
+                      TK_LESS_THAN_SLASH@44..46 "</"
+                      TK_WORD@46..49 "div"
+                      TK_GREATER_THAN@49..50 ">"
+                error at 17..17: expected no trailing quote because there is no leading quote but found '"#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_with_trailing_double_quote_missing() {
+        check_parse(
+            r#"<div claSs="my-div required>
+        hello world
+    </div>"#,
+            expect![[r#"
+                ROOT@0..59
+                  HTML_TAG@0..59
+                    HTML_STARTING_TAG@0..28
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE@4..27
+                        TK_WHITESPACE@4..5 " "
+                        TK_WORD@5..10 "claSs"
+                        TK_EQUAL@10..11 "="
+                        HTML_STRING@11..27
+                          TK_DOUBLE_QUOTES@11..12 "\""
+                          HTML_STRING_INNER@12..27
+                            TK_WORD@12..18 "my-div"
+                            TK_WHITESPACE@18..19 " "
+                            TK_WORD@19..27 "required"
+                      TK_GREATER_THAN@27..28 ">"
+                    BODY@28..48
+                      HTML_TEXT@28..48
+                        TK_LINE_BREAK@28..29 "\n"
+                        TK_WHITESPACE@29..37 "        "
+                        TK_WORD@37..42 "hello"
+                        TK_WHITESPACE@42..43 " "
+                        TK_WORD@43..48 "world"
+                    HTML_ENDING_TAG@48..59
+                      TK_LINE_BREAK@48..49 "\n"
+                      TK_WHITESPACE@49..53 "    "
+                      TK_LESS_THAN_SLASH@53..55 "</"
+                      TK_WORD@55..58 "div"
+                      TK_GREATER_THAN@58..59 ">"
+                error at 27..27: expected " but found >"#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_with_leading_double_quote_missing() {
+        check_parse(
+            r#"<div claSs=my-div" required>
+        hello world
+    </div>"#,
+            expect![[r#"
+                ROOT@0..59
+                  HTML_TAG@0..59
+                    HTML_STARTING_TAG@0..28
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE@4..18
+                        TK_WHITESPACE@4..5 " "
+                        TK_WORD@5..10 "claSs"
+                        TK_EQUAL@10..11 "="
+                        HTML_STRING@11..18
+                          HTML_STRING_INNER@11..17
+                            TK_WORD@11..17 "my-div"
+                          ERROR@17..18
+                            TK_DOUBLE_QUOTES@17..18 "\""
+                      HTML_ATTRIBUTE@18..27
+                        TK_WHITESPACE@18..19 " "
+                        TK_WORD@19..27 "required"
+                      TK_GREATER_THAN@27..28 ">"
+                    BODY@28..48
+                      HTML_TEXT@28..48
+                        TK_LINE_BREAK@28..29 "\n"
+                        TK_WHITESPACE@29..37 "        "
+                        TK_WORD@37..42 "hello"
+                        TK_WHITESPACE@42..43 " "
+                        TK_WORD@43..48 "world"
+                    HTML_ENDING_TAG@48..59
+                      TK_LINE_BREAK@48..49 "\n"
+                      TK_WHITESPACE@49..53 "    "
+                      TK_LESS_THAN_SLASH@53..55 "</"
+                      TK_WORD@55..58 "div"
+                      TK_GREATER_THAN@58..59 ">"
+                error at 17..17: expected no trailing quote because there is no leading quote but found ""#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_with_no_quotes() {
+        check_parse(
+            "<div claSs=my-div required>
+        hello world
+    </div>",
+            expect![[r#"
+                ROOT@0..58
+                  HTML_TAG@0..58
+                    HTML_STARTING_TAG@0..27
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE@4..18
+                        TK_WHITESPACE@4..5 " "
+                        TK_WORD@5..10 "claSs"
+                        TK_EQUAL@10..11 "="
+                        HTML_STRING@11..18
+                          HTML_STRING_INNER@11..18
+                            TK_WORD@11..17 "my-div"
+                            TK_WHITESPACE@17..18 " "
+                      HTML_ATTRIBUTE@18..26
+                        TK_WORD@18..26 "required"
+                      TK_GREATER_THAN@26..27 ">"
+                    BODY@27..47
+                      HTML_TEXT@27..47
+                        TK_LINE_BREAK@27..28 "\n"
+                        TK_WHITESPACE@28..36 "        "
+                        TK_WORD@36..41 "hello"
+                        TK_WHITESPACE@41..42 " "
+                        TK_WORD@42..47 "world"
+                    HTML_ENDING_TAG@47..58
+                      TK_LINE_BREAK@47..48 "\n"
+                      TK_WHITESPACE@48..52 "    "
+                      TK_LESS_THAN_SLASH@52..54 "</"
+                      TK_WORD@54..57 "div"
+                      TK_GREATER_THAN@57..58 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_with_no_quotes_and_twig_var() {
+        check_parse(
+            "<div claSs={{ my_class }}>
+        hello world
+    </div>",
+            expect![[r#"
+                ROOT@0..57
+                  HTML_TAG@0..57
+                    HTML_STARTING_TAG@0..26
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE@4..11
+                        TK_WHITESPACE@4..5 " "
+                        TK_WORD@5..10 "claSs"
+                        TK_EQUAL@10..11 "="
+                        HTML_STRING@11..11
+                          HTML_STRING_INNER@11..11
+                      TWIG_VAR@11..25
+                        TK_OPEN_CURLY_CURLY@11..13 "{{"
+                        TWIG_EXPRESSION@13..22
+                          TWIG_LITERAL_NAME@13..22
+                            TK_WHITESPACE@13..14 " "
+                            TK_WORD@14..22 "my_class"
+                        TK_WHITESPACE@22..23 " "
+                        TK_CLOSE_CURLY_CURLY@23..25 "}}"
+                      TK_GREATER_THAN@25..26 ">"
+                    BODY@26..46
+                      HTML_TEXT@26..46
+                        TK_LINE_BREAK@26..27 "\n"
+                        TK_WHITESPACE@27..35 "        "
+                        TK_WORD@35..40 "hello"
+                        TK_WHITESPACE@40..41 " "
+                        TK_WORD@41..46 "world"
+                    HTML_ENDING_TAG@46..57
+                      TK_LINE_BREAK@46..47 "\n"
+                      TK_WHITESPACE@47..51 "    "
+                      TK_LESS_THAN_SLASH@51..53 "</"
+                      TK_WORD@53..56 "div"
+                      TK_GREATER_THAN@56..57 ">"
+                error at 11..11: expected html attribute value but found {{"#]],
         );
     }
 
@@ -1185,21 +1492,21 @@ mod tests {
                     HTML_STARTING_TAG@0..8
                       TK_LESS_THAN@0..1 "<"
                       TK_WORD@1..2 "d"
-                      HTML_ATTRIBUTE@2..8
+                      HTML_ATTRIBUTE@2..5
                         TK_WHITESPACE@2..3 " "
                         TK_WORD@3..4 "a"
                         TK_EQUAL@4..5 "="
-                        HTML_STRING@5..8
-                          HTML_STRING_INNER@5..8
-                            ERROR@5..7
-                              TK_CURLY_PERCENT@5..7 "{%"
-                            TK_PERCENT@7..8 "%"
+                        HTML_STRING@5..5
+                          HTML_STRING_INNER@5..5
+                      ERROR@5..7
+                        TK_CURLY_PERCENT@5..7 "{%"
+                      ERROR@7..8
+                        TK_PERCENT@7..8 "%"
                     BODY@8..8
                     HTML_ENDING_TAG@8..8
-                error at 5..5: expected " but found {%
+                error at 5..5: expected html attribute value but found {%
                 error at 7..7: expected 'block' or 'if' (nothing else supported yet) but found %
-                error at 7..7: expected " but reached end of file
-                error at 7..7: expected > but reached end of file
+                error at 7..7: expected > but found %
                 error at 7..7: expected </d> ending tag but reached end of file"#]],
         );
     }

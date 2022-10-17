@@ -1,3 +1,4 @@
+use crate::lexer::Token;
 use std::fmt;
 use std::fmt::Formatter;
 
@@ -24,15 +25,9 @@ impl ParseErrorBuilder {
         }
     }
 
-    #[allow(unused)]
-    pub fn range(mut self, range: TextRange) -> Self {
-        self.range = Some(range);
-        self
-    }
-
-    #[allow(unused)]
-    pub fn found(mut self, found: SyntaxKind) -> Self {
-        self.found = Some(found);
+    pub(crate) fn at_token(mut self, token: &Token) -> Self {
+        self.range = Some(token.range);
+        self.found = Some(token.kind);
         self
     }
 
