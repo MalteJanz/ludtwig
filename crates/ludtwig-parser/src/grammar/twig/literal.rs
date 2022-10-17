@@ -55,6 +55,7 @@ fn parse_twig_string(parser: &mut Parser) -> CompletedMarker {
             p.bump();
         },
     );
+    parser.explicitly_consume_trivia(); // consume any trailing trivia inside the string
     parser.complete(m_inner, SyntaxKind::TWIG_LITERAL_STRING_INNER);
 
     parser.expect(quote_kind);
@@ -426,23 +427,24 @@ mod tests {
     }
 
     #[test]
-    fn parse_twig_string_suffix_whitespace() {
+    fn parse_twig_string_with_leading_and_trailing_trivia() {
         check_parse(
-            r#"{{ ", " }}"#,
+            r#"{{ " , " }}"#,
             expect![[r#"
-            ROOT@0..10
-              TWIG_VAR@0..10
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..7
-                  TWIG_LITERAL_STRING@2..7
-                    TK_WHITESPACE@2..3 " "
-                    TK_DOUBLE_QUOTES@3..4 "\""
-                    TWIG_LITERAL_STRING_INNER@4..5
-                      TK_COMMA@4..5 ","
-                      TK_WHITESPACE@5..6 " "
-                    TK_DOUBLE_QUOTES@6..7 "\""
-                TK_WHITESPACE@7..8 " "
-                TK_CLOSE_CURLY_CURLY@8..10 "}}""#]],
+                ROOT@0..11
+                  TWIG_VAR@0..11
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..8
+                      TWIG_LITERAL_STRING@2..8
+                        TK_WHITESPACE@2..3 " "
+                        TK_DOUBLE_QUOTES@3..4 "\""
+                        TWIG_LITERAL_STRING_INNER@4..7
+                          TK_WHITESPACE@4..5 " "
+                          TK_COMMA@5..6 ","
+                          TK_WHITESPACE@6..7 " "
+                        TK_DOUBLE_QUOTES@7..8 "\""
+                    TK_WHITESPACE@8..9 " "
+                    TK_CLOSE_CURLY_CURLY@9..11 "}}""#]],
         );
     }
 
@@ -1414,45 +1416,10 @@ mod tests {
         check_parse(
             r#"{{ list|join(', ') }}"#,
             expect![[r#"
-            ROOT@0..21
-              TWIG_VAR@0..21
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..18
-                  TWIG_PIPE@2..18
-                    TWIG_OPERAND@2..7
-                      TWIG_LITERAL_NAME@2..7
-                        TK_WHITESPACE@2..3 " "
-                        TK_WORD@3..7 "list"
-                    TK_SINGLE_PIPE@7..8 "|"
-                    TWIG_OPERAND@8..18
-                      TWIG_LITERAL_NAME@8..12
-                        TK_WORD@8..12 "join"
-                      TK_OPEN_PARENTHESIS@12..13 "("
-                      TWIG_ARGUMENTS@13..17
-                        TWIG_EXPRESSION@13..17
-                          TWIG_LITERAL_STRING@13..17
-                            TK_SINGLE_QUOTES@13..14 "'"
-                            TWIG_LITERAL_STRING_INNER@14..15
-                              TK_COMMA@14..15 ","
-                              TK_WHITESPACE@15..16 " "
-                            TK_SINGLE_QUOTES@16..17 "'"
-                      TK_CLOSE_PARENTHESIS@17..18 ")"
-                TK_WHITESPACE@18..19 " "
-                TK_CLOSE_CURLY_CURLY@19..21 "}}""#]],
-        );
-    }
-
-    #[test]
-    fn parse_twig_double_filter_arguments() {
-        check_parse(
-            r#"{{ list|join(', ')|trim }}"#,
-            expect![[r#"
-            ROOT@0..26
-              TWIG_VAR@0..26
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..23
-                  TWIG_PIPE@2..23
-                    TWIG_OPERAND@2..18
+                ROOT@0..21
+                  TWIG_VAR@0..21
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..18
                       TWIG_PIPE@2..18
                         TWIG_OPERAND@2..7
                           TWIG_LITERAL_NAME@2..7
@@ -1467,17 +1434,52 @@ mod tests {
                             TWIG_EXPRESSION@13..17
                               TWIG_LITERAL_STRING@13..17
                                 TK_SINGLE_QUOTES@13..14 "'"
-                                TWIG_LITERAL_STRING_INNER@14..15
+                                TWIG_LITERAL_STRING_INNER@14..16
                                   TK_COMMA@14..15 ","
                                   TK_WHITESPACE@15..16 " "
                                 TK_SINGLE_QUOTES@16..17 "'"
                           TK_CLOSE_PARENTHESIS@17..18 ")"
-                    TK_SINGLE_PIPE@18..19 "|"
-                    TWIG_OPERAND@19..23
-                      TWIG_LITERAL_NAME@19..23
-                        TK_WORD@19..23 "trim"
-                TK_WHITESPACE@23..24 " "
-                TK_CLOSE_CURLY_CURLY@24..26 "}}""#]],
+                    TK_WHITESPACE@18..19 " "
+                    TK_CLOSE_CURLY_CURLY@19..21 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_double_filter_arguments() {
+        check_parse(
+            r#"{{ list|join(', ')|trim }}"#,
+            expect![[r#"
+                ROOT@0..26
+                  TWIG_VAR@0..26
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..23
+                      TWIG_PIPE@2..23
+                        TWIG_OPERAND@2..18
+                          TWIG_PIPE@2..18
+                            TWIG_OPERAND@2..7
+                              TWIG_LITERAL_NAME@2..7
+                                TK_WHITESPACE@2..3 " "
+                                TK_WORD@3..7 "list"
+                            TK_SINGLE_PIPE@7..8 "|"
+                            TWIG_OPERAND@8..18
+                              TWIG_LITERAL_NAME@8..12
+                                TK_WORD@8..12 "join"
+                              TK_OPEN_PARENTHESIS@12..13 "("
+                              TWIG_ARGUMENTS@13..17
+                                TWIG_EXPRESSION@13..17
+                                  TWIG_LITERAL_STRING@13..17
+                                    TK_SINGLE_QUOTES@13..14 "'"
+                                    TWIG_LITERAL_STRING_INNER@14..16
+                                      TK_COMMA@14..15 ","
+                                      TK_WHITESPACE@15..16 " "
+                                    TK_SINGLE_QUOTES@16..17 "'"
+                              TK_CLOSE_PARENTHESIS@17..18 ")"
+                        TK_SINGLE_PIPE@18..19 "|"
+                        TWIG_OPERAND@19..23
+                          TWIG_LITERAL_NAME@19..23
+                            TK_WORD@19..23 "trim"
+                    TK_WHITESPACE@23..24 " "
+                    TK_CLOSE_CURLY_CURLY@24..26 "}}""#]],
         );
     }
 }

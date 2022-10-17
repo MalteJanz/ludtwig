@@ -132,7 +132,8 @@ mod tests {
                             TK_EQUAL@35..36 "="
                             HTML_STRING@36..44
                               TK_DOUBLE_QUOTES@36..37 "\""
-                              TK_WORD@37..43 "my-div"
+                              HTML_STRING_INNER@37..43
+                                TK_WORD@37..43 "my-div"
                               TK_DOUBLE_QUOTES@43..44 "\""
                           TK_GREATER_THAN@44..45 ">"
                         BODY@45..59

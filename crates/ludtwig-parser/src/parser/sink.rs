@@ -76,6 +76,7 @@ impl<'source> Sink<'source> {
                     }
                 }
                 Event::AddToken { kind } => self.token_as(kind),
+                Event::ExplicitlyConsumeTrivia => self.consume_trivia(),
                 Event::FinishNode => self.builder.finish_node(),
                 Event::Placeholder => {}
             }

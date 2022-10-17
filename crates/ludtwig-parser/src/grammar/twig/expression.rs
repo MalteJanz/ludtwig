@@ -419,9 +419,9 @@ mod tests {
                               TWIG_LITERAL_STRING@2..11
                                 TK_WHITESPACE@2..3 " "
                                 TK_SINGLE_QUOTES@3..4 "'"
-                                TWIG_LITERAL_STRING_INNER@4..9
+                                TWIG_LITERAL_STRING_INNER@4..10
                                   TK_WORD@4..9 "hello"
-                                TK_WHITESPACE@9..10 " "
+                                  TK_WHITESPACE@9..10 " "
                                 TK_SINGLE_QUOTES@10..11 "'"
                             TK_WHITESPACE@11..12 " "
                             TK_TILDE@12..13 "~"
@@ -435,7 +435,7 @@ mod tests {
                             TWIG_LITERAL_STRING@20..40
                               TK_WHITESPACE@20..21 " "
                               TK_SINGLE_QUOTES@21..22 "'"
-                              TWIG_LITERAL_STRING_INNER@22..38
+                              TWIG_LITERAL_STRING_INNER@22..39
                                 TK_WHITESPACE@22..23 " "
                                 TK_WORD@23..25 "to"
                                 TK_WHITESPACE@25..26 " "
@@ -444,7 +444,7 @@ mod tests {
                                 TK_WORD@30..35 "world"
                                 TK_WHITESPACE@35..36 " "
                                 TK_WORD@36..38 "of"
-                              TK_WHITESPACE@38..39 " "
+                                TK_WHITESPACE@38..39 " "
                               TK_SINGLE_QUOTES@39..40 "'"
                         TK_WHITESPACE@40..41 " "
                         TK_TILDE@41..42 "~"

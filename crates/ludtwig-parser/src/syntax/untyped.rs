@@ -338,8 +338,9 @@ pub enum SyntaxKind {
     // html
     HTML_DOCTYPE,
     HTML_ATTRIBUTE,
-    HTML_STRING, // used as attribute values
-    HTML_TEXT,   // used as plain text between html tags / twig blocks
+    HTML_STRING,       // used as attribute values
+    HTML_STRING_INNER, // content inside the quotes of html attribute values
+    HTML_TEXT,         // used as plain text between html tags / twig blocks
     HTML_COMMENT,
     HTML_TAG,
     HTML_STARTING_TAG,

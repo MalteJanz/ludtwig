@@ -127,6 +127,15 @@ impl<'source> Parser<'source> {
         consumed
     }
 
+    /// In most cases trivia like whitespace comes before any Tokens in a Node
+    /// But sometimes it is necessary to consume the trivia even after the last Token in a Node.
+    ///
+    /// This does exactly that and can be used to consume trailing trivia in a string parser
+    /// (where trivia should be inside as part of the string). Just call this before a call to parser.complete(...).
+    pub(crate) fn explicitly_consume_trivia(&mut self) {
+        self.event_collection.explicitly_consume_trivia()
+    }
+
     #[track_caller]
     pub(crate) fn bump_as(&mut self, kind: SyntaxKind) -> Token {
         let consumed = self

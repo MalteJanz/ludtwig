@@ -11,6 +11,8 @@ pub(super) enum Event {
         kind: SyntaxKind,
     },
     FinishNode,
+    /// Should consume any amount of trivia at this exact point in the tree
+    ExplicitlyConsumeTrivia,
     Placeholder,
 }
 
@@ -33,6 +35,10 @@ impl EventCollection {
 
     pub(super) fn add_token(&mut self, kind: SyntaxKind) {
         self.events.push(Event::AddToken { kind });
+    }
+
+    pub(super) fn explicitly_consume_trivia(&mut self) {
+        self.events.push(Event::ExplicitlyConsumeTrivia)
     }
 
     pub(super) fn into_event_list(self) -> Vec<Event> {
