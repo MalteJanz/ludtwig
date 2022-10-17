@@ -24,8 +24,10 @@ impl Operator for SyntaxKind {
     fn binary_binding_power(&self) -> Option<(u8, u8)> {
         match self {
             // left associative
-            T!["or"] => Some((5, 6)),
-            T!["and"] => Some((10, 11)),
+            T!["or"]
+            | T!["||"]=> Some((5, 6)), // '||' is not official twig but still parse it
+            T!["and"]
+            | T!["&&"] => Some((10, 11)), // '&&' is not official twig but still parse it
             T!["b-or"] => Some((14, 15)),
             T!["b-xor"] => Some((16, 17)),
             T!["b-and"] => Some((18, 19)),

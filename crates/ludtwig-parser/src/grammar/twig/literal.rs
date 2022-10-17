@@ -172,6 +172,8 @@ fn parse_twig_name_postfix(parser: &mut Parser) -> Option<CompletedMarker> {
                 node = parse_twig_accessor(p, node.clone());
             } else if p.at(T!["["]) {
                 node = parse_twig_indexer(p, node.clone());
+            } else if p.at(T!["("]) {
+                node = parse_twig_function(p, node.clone());
             } else if p.at(T!["|"]) {
                 node = parse_twig_pipe(p, node.clone());
             }
@@ -269,6 +271,51 @@ fn parse_twig_accessor(parser: &mut Parser, mut last_node: CompletedMarker) -> C
 
     // complete the outer marker
     parser.complete(outer, SyntaxKind::TWIG_ACCESSOR)
+}
+
+fn parse_twig_function(parser: &mut Parser, mut last_node: CompletedMarker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["("]));
+
+    // wrap last_node in an operand and create outer marker
+    let m = parser.precede(last_node);
+    last_node = parser.complete(m, SyntaxKind::TWIG_LITERAL_OPERAND);
+    let outer = parser.precede(last_node);
+
+    // bump the opening '('
+    parser.bump();
+
+    // parse any amount of arguments
+    let arguments_m = parser.start();
+    parse_many(
+        parser,
+        |p| p.at(T![")"]),
+        |p| {
+            parse_twig_function_argument(p);
+            if p.at(T![","]) {
+                p.bump();
+            }
+        },
+    );
+    parser.complete(arguments_m, SyntaxKind::TWIG_FUNCTION_ARGUMENTS);
+
+    parser.expect(T![")"]);
+
+    // complete the outer marker
+    parser.complete(outer, SyntaxKind::TWIG_FUNCTION_CALL)
+}
+
+fn parse_twig_function_argument(parser: &mut Parser) -> Option<CompletedMarker> {
+    // must be specific here with word followed by equal, because otherwise it could
+    // be a normal variable or another function call or something else..
+    if parser.at_following(&[T![word], T!["="]]) {
+        let named_arg_m = parser.start();
+        parser.bump();
+        parser.expect(T!["="]);
+        parse_twig_expression(parser);
+        Some(parser.complete(named_arg_m, SyntaxKind::TWIG_FUNCTION_NAMED_ARGUMENT))
+    } else {
+        parse_twig_expression(parser)
+    }
 }
 
 fn parse_twig_name(parser: &mut Parser) -> Option<CompletedMarker> {
@@ -1082,27 +1129,247 @@ mod tests {
 
     #[test]
     fn parse_twig_variable_function_accessor() {
-        check_parse(r#"{{ product.prices('eur').gross }}"#, expect![[r#""#]]);
+        check_parse(
+            r#"{{ product.prices('eur').gross }}"#,
+            expect![[r#"
+            ROOT@0..33
+              TWIG_VAR@0..33
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..30
+                  TWIG_ACCESSOR@2..30
+                    TWIG_LITERAL_OPERAND@2..24
+                      TWIG_FUNCTION_CALL@2..24
+                        TWIG_LITERAL_OPERAND@2..17
+                          TWIG_ACCESSOR@2..17
+                            TWIG_LITERAL_OPERAND@2..10
+                              TWIG_LITERAL_NAME@2..10
+                                TK_WHITESPACE@2..3 " "
+                                TK_WORD@3..10 "product"
+                            TK_DOT@10..11 "."
+                            TWIG_LITERAL_OPERAND@11..17
+                              TWIG_LITERAL_NAME@11..17
+                                TK_WORD@11..17 "prices"
+                        TK_OPEN_PARENTHESIS@17..18 "("
+                        TWIG_FUNCTION_ARGUMENTS@18..23
+                          TWIG_EXPRESSION@18..23
+                            TWIG_LITERAL_STRING@18..23
+                              TK_SINGLE_QUOTES@18..19 "'"
+                              TWIG_LITERAL_STRING_INNER@19..22
+                                TK_WORD@19..22 "eur"
+                              TK_SINGLE_QUOTES@22..23 "'"
+                        TK_CLOSE_PARENTHESIS@23..24 ")"
+                    TK_DOT@24..25 "."
+                    TWIG_LITERAL_OPERAND@25..30
+                      TWIG_LITERAL_NAME@25..30
+                        TK_WORD@25..30 "gross"
+                TK_WHITESPACE@30..31 " "
+                TK_CLOSE_CURLY_CURLY@31..33 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_variable_deep_function_accessor() {
+        check_parse(
+            r#"{{ product.prices.gross('eur').gross }}"#,
+            expect![[r#"
+                ROOT@0..39
+                  TWIG_VAR@0..39
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..36
+                      TWIG_ACCESSOR@2..36
+                        TWIG_LITERAL_OPERAND@2..30
+                          TWIG_FUNCTION_CALL@2..30
+                            TWIG_LITERAL_OPERAND@2..23
+                              TWIG_ACCESSOR@2..23
+                                TWIG_LITERAL_OPERAND@2..17
+                                  TWIG_ACCESSOR@2..17
+                                    TWIG_LITERAL_OPERAND@2..10
+                                      TWIG_LITERAL_NAME@2..10
+                                        TK_WHITESPACE@2..3 " "
+                                        TK_WORD@3..10 "product"
+                                    TK_DOT@10..11 "."
+                                    TWIG_LITERAL_OPERAND@11..17
+                                      TWIG_LITERAL_NAME@11..17
+                                        TK_WORD@11..17 "prices"
+                                TK_DOT@17..18 "."
+                                TWIG_LITERAL_OPERAND@18..23
+                                  TWIG_LITERAL_NAME@18..23
+                                    TK_WORD@18..23 "gross"
+                            TK_OPEN_PARENTHESIS@23..24 "("
+                            TWIG_FUNCTION_ARGUMENTS@24..29
+                              TWIG_EXPRESSION@24..29
+                                TWIG_LITERAL_STRING@24..29
+                                  TK_SINGLE_QUOTES@24..25 "'"
+                                  TWIG_LITERAL_STRING_INNER@25..28
+                                    TK_WORD@25..28 "eur"
+                                  TK_SINGLE_QUOTES@28..29 "'"
+                            TK_CLOSE_PARENTHESIS@29..30 ")"
+                        TK_DOT@30..31 "."
+                        TWIG_LITERAL_OPERAND@31..36
+                          TWIG_LITERAL_NAME@31..36
+                            TK_WORD@31..36 "gross"
+                    TK_WHITESPACE@36..37 " "
+                    TK_CLOSE_CURLY_CURLY@37..39 "}}""#]],
+        );
     }
 
     #[test]
     fn parse_twig_function() {
-        check_parse(r#"{{ doIt() }}"#, expect![[r#""#]]);
+        check_parse(
+            r#"{{ doIt() }}"#,
+            expect![[r#"
+            ROOT@0..12
+              TWIG_VAR@0..12
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..9
+                  TWIG_FUNCTION_CALL@2..9
+                    TWIG_LITERAL_OPERAND@2..7
+                      TWIG_LITERAL_NAME@2..7
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..7 "doIt"
+                    TK_OPEN_PARENTHESIS@7..8 "("
+                    TWIG_FUNCTION_ARGUMENTS@8..8
+                    TK_CLOSE_PARENTHESIS@8..9 ")"
+                TK_WHITESPACE@9..10 " "
+                TK_CLOSE_CURLY_CURLY@10..12 "}}""#]],
+        );
     }
 
     #[test]
     fn parse_twig_function_arguments() {
-        check_parse(r#"{{ sum(1, 2) }}"#, expect![[r#""#]]);
+        check_parse(
+            r#"{{ sum(1, 2) }}"#,
+            expect![[r#"
+            ROOT@0..15
+              TWIG_VAR@0..15
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..12
+                  TWIG_FUNCTION_CALL@2..12
+                    TWIG_LITERAL_OPERAND@2..6
+                      TWIG_LITERAL_NAME@2..6
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..6 "sum"
+                    TK_OPEN_PARENTHESIS@6..7 "("
+                    TWIG_FUNCTION_ARGUMENTS@7..11
+                      TWIG_EXPRESSION@7..8
+                        TWIG_LITERAL_NUMBER@7..8
+                          TK_NUMBER@7..8 "1"
+                      TK_COMMA@8..9 ","
+                      TWIG_EXPRESSION@9..11
+                        TWIG_LITERAL_NUMBER@9..11
+                          TK_WHITESPACE@9..10 " "
+                          TK_NUMBER@10..11 "2"
+                    TK_CLOSE_PARENTHESIS@11..12 ")"
+                TK_WHITESPACE@12..13 " "
+                TK_CLOSE_CURLY_CURLY@13..15 "}}""#]],
+        );
     }
 
     #[test]
     fn parse_twig_function_named_arguments() {
-        check_parse(r#"{{ sum(a=1, b=2) }}"#, expect![[r#""#]]);
+        check_parse(
+            r#"{{ sum(a=1, b=2) }}"#,
+            expect![[r#"
+            ROOT@0..19
+              TWIG_VAR@0..19
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..16
+                  TWIG_FUNCTION_CALL@2..16
+                    TWIG_LITERAL_OPERAND@2..6
+                      TWIG_LITERAL_NAME@2..6
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..6 "sum"
+                    TK_OPEN_PARENTHESIS@6..7 "("
+                    TWIG_FUNCTION_ARGUMENTS@7..15
+                      TWIG_FUNCTION_NAMED_ARGUMENT@7..10
+                        TK_WORD@7..8 "a"
+                        TK_EQUAL@8..9 "="
+                        TWIG_EXPRESSION@9..10
+                          TWIG_LITERAL_NUMBER@9..10
+                            TK_NUMBER@9..10 "1"
+                      TK_COMMA@10..11 ","
+                      TWIG_FUNCTION_NAMED_ARGUMENT@11..15
+                        TK_WHITESPACE@11..12 " "
+                        TK_WORD@12..13 "b"
+                        TK_EQUAL@13..14 "="
+                        TWIG_EXPRESSION@14..15
+                          TWIG_LITERAL_NUMBER@14..15
+                            TK_NUMBER@14..15 "2"
+                    TK_CLOSE_PARENTHESIS@15..16 ")"
+                TK_WHITESPACE@16..17 " "
+                TK_CLOSE_CURLY_CURLY@17..19 "}}""#]],
+        );
     }
 
     #[test]
     fn parse_twig_function_mixed_named_arguments() {
-        check_parse(r#"{{ sum(1, b=2) }}"#, expect![[r#""#]]);
+        check_parse(
+            r#"{{ sum(1, b=my_number) }}"#,
+            expect![[r#"
+            ROOT@0..25
+              TWIG_VAR@0..25
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..22
+                  TWIG_FUNCTION_CALL@2..22
+                    TWIG_LITERAL_OPERAND@2..6
+                      TWIG_LITERAL_NAME@2..6
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..6 "sum"
+                    TK_OPEN_PARENTHESIS@6..7 "("
+                    TWIG_FUNCTION_ARGUMENTS@7..21
+                      TWIG_EXPRESSION@7..8
+                        TWIG_LITERAL_NUMBER@7..8
+                          TK_NUMBER@7..8 "1"
+                      TK_COMMA@8..9 ","
+                      TWIG_FUNCTION_NAMED_ARGUMENT@9..21
+                        TK_WHITESPACE@9..10 " "
+                        TK_WORD@10..11 "b"
+                        TK_EQUAL@11..12 "="
+                        TWIG_EXPRESSION@12..21
+                          TWIG_LITERAL_NAME@12..21
+                            TK_WORD@12..21 "my_number"
+                    TK_CLOSE_PARENTHESIS@21..22 ")"
+                TK_WHITESPACE@22..23 " "
+                TK_CLOSE_CURLY_CURLY@23..25 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_function_nested_call() {
+        check_parse(
+            r#"{{ sum(1, sin(1)) }}"#,
+            expect![[r#"
+            ROOT@0..20
+              TWIG_VAR@0..20
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..17
+                  TWIG_FUNCTION_CALL@2..17
+                    TWIG_LITERAL_OPERAND@2..6
+                      TWIG_LITERAL_NAME@2..6
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..6 "sum"
+                    TK_OPEN_PARENTHESIS@6..7 "("
+                    TWIG_FUNCTION_ARGUMENTS@7..16
+                      TWIG_EXPRESSION@7..8
+                        TWIG_LITERAL_NUMBER@7..8
+                          TK_NUMBER@7..8 "1"
+                      TK_COMMA@8..9 ","
+                      TWIG_EXPRESSION@9..16
+                        TWIG_FUNCTION_CALL@9..16
+                          TWIG_LITERAL_OPERAND@9..13
+                            TWIG_LITERAL_NAME@9..13
+                              TK_WHITESPACE@9..10 " "
+                              TK_WORD@10..13 "sin"
+                          TK_OPEN_PARENTHESIS@13..14 "("
+                          TWIG_FUNCTION_ARGUMENTS@14..15
+                            TWIG_EXPRESSION@14..15
+                              TWIG_LITERAL_NUMBER@14..15
+                                TK_NUMBER@14..15 "1"
+                          TK_CLOSE_PARENTHESIS@15..16 ")"
+                    TK_CLOSE_PARENTHESIS@16..17 ")"
+                TK_WHITESPACE@17..18 " "
+                TK_CLOSE_CURLY_CURLY@18..20 "}}""#]],
+        );
     }
 
     #[test]

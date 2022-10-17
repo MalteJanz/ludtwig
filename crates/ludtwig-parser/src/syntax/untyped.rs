@@ -306,6 +306,10 @@ pub enum SyntaxKind {
     TWIG_INDEX,        // covers a array index '5' inside []
     TWIG_INDEX_RANGE,  // covers a array index range like '0:10' inside []
 
+    TWIG_FUNCTION_CALL,
+    TWIG_FUNCTION_ARGUMENTS,
+    TWIG_FUNCTION_NAMED_ARGUMENT,
+
     // twig literals
     TWIG_LITERAL_STRING,
     TWIG_LITERAL_STRING_INNER,
