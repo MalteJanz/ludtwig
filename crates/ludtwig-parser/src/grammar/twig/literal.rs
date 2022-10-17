@@ -1088,7 +1088,7 @@ mod tests {
                         TK_CLOSE_SQUARE@13..14 "]"
                     TK_WHITESPACE@14..15 " "
                     TK_CLOSE_CURLY_CURLY@15..17 "}}"
-                error at 13..13: expected twig expression but found ]"#]],
+                error at 13..14: expected twig expression but found ]"#]],
         );
     }
 

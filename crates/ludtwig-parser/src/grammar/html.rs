@@ -502,7 +502,7 @@ mod tests {
                       TK_LESS_THAN_SLASH@22..24 "</"
                       TK_WORD@24..27 "div"
                       TK_GREATER_THAN@27..28 ">"
-                error at 22..22: expected </span> ending tag but found </"#]],
+                error at 22..24: expected </span> ending tag but found </"#]],
         );
     }
 
@@ -537,9 +537,9 @@ mod tests {
                       TK_LESS_THAN_SLASH@29..31 "</"
                       TK_WORD@31..34 "div"
                       TK_GREATER_THAN@34..35 ">"
-                error at 29..29: expected {% but found </
-                error at 29..29: expected endblock but found </
-                error at 29..29: expected %} but found </"#]],
+                error at 29..31: expected {% but found </
+                error at 29..31: expected endblock but found </
+                error at 29..31: expected %} but found </"#]],
         )
     }
 
@@ -579,10 +579,10 @@ mod tests {
                       TK_LESS_THAN_SLASH@33..35 "</"
                       TK_WORD@35..38 "div"
                       TK_GREATER_THAN@38..39 ">"
-                error at 33..33: expected </span> ending tag but found </
-                error at 33..33: expected {% but found </
-                error at 33..33: expected endblock but found </
-                error at 33..33: expected %} but found </"#]],
+                error at 33..35: expected </span> ending tag but found </
+                error at 33..35: expected {% but found </
+                error at 33..35: expected endblock but found </
+                error at 33..35: expected %} but found </"#]],
         )
     }
 
@@ -965,7 +965,7 @@ mod tests {
                       TK_LESS_THAN_SLASH@44..46 "</"
                       TK_WORD@46..49 "div"
                       TK_GREATER_THAN@49..50 ">"
-                error at 18..18: expected ' but found >"#]],
+                error at 18..19: expected ' but found >"#]],
         );
     }
 
@@ -1004,7 +1004,7 @@ mod tests {
                       TK_LESS_THAN_SLASH@44..46 "</"
                       TK_WORD@46..49 "div"
                       TK_GREATER_THAN@49..50 ">"
-                error at 17..17: expected no trailing quote because there is no leading quote but found '"#]],
+                error at 17..18: expected no trailing quote because there is no leading quote but found '"#]],
         );
     }
 
@@ -1044,7 +1044,7 @@ mod tests {
                       TK_LESS_THAN_SLASH@53..55 "</"
                       TK_WORD@55..58 "div"
                       TK_GREATER_THAN@58..59 ">"
-                error at 27..27: expected " but found >"#]],
+                error at 27..28: expected " but found >"#]],
         );
     }
 
@@ -1086,7 +1086,7 @@ mod tests {
                       TK_LESS_THAN_SLASH@53..55 "</"
                       TK_WORD@55..58 "div"
                       TK_GREATER_THAN@58..59 ">"
-                error at 17..17: expected no trailing quote because there is no leading quote but found ""#]],
+                error at 17..18: expected no trailing quote because there is no leading quote but found ""#]],
         );
     }
 
@@ -1169,7 +1169,7 @@ mod tests {
                       TK_LESS_THAN_SLASH@51..53 "</"
                       TK_WORD@53..56 "div"
                       TK_GREATER_THAN@56..57 ">"
-                error at 11..11: expected html attribute value but found {{"#]],
+                error at 11..13: expected html attribute value but found {{"#]],
         );
     }
 
@@ -1398,12 +1398,12 @@ mod tests {
                     TK_WORD@52..55 "div"
                   ERROR@55..56
                     TK_GREATER_THAN@55..56 ">"
-                error at 29..29: expected {% but found <
-                error at 29..29: expected endblock but found <
-                error at 29..29: expected %} but found <
-                error at 29..29: expected > but found <
-                error at 35..35: expected </div> ending tag but found {%
-                error at 38..38: expected 'block' or 'if' (nothing else supported yet) but found endblock"#]],
+                error at 29..30: expected {% but found <
+                error at 29..30: expected endblock but found <
+                error at 29..30: expected %} but found <
+                error at 29..30: expected > but found <
+                error at 35..37: expected </div> ending tag but found {%
+                error at 38..46: expected 'block' or 'if' (nothing else supported yet) but found endblock"#]],
         );
     }
 
@@ -1504,10 +1504,10 @@ mod tests {
                         TK_PERCENT@7..8 "%"
                     BODY@8..8
                     HTML_ENDING_TAG@8..8
-                error at 5..5: expected html attribute value but found {%
-                error at 7..7: expected 'block' or 'if' (nothing else supported yet) but found %
-                error at 7..7: expected > but found %
-                error at 7..7: expected </d> ending tag but reached end of file"#]],
+                error at 5..7: expected html attribute value but found {%
+                error at 7..8: expected 'block' or 'if' (nothing else supported yet) but found %
+                error at 7..8: expected > but found %
+                error at 7..8: expected </d> ending tag but reached end of file"#]],
         );
     }
 

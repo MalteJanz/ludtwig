@@ -62,9 +62,31 @@ impl fmt::Display for ParseError {
             f,
             "error at {}..{}: ",
             u32::from(self.range.start()),
-            u32::from(self.range.start()),
+            u32::from(self.range.end()),
         )?;
 
         write!(f, "{}", self.expected_message())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::T;
+    use rowan::TextSize;
+
+    #[test]
+    fn parse_error_display() {
+        let range = TextRange::new(TextSize::from(3), TextSize::from(5));
+        let parse_error = ParseError {
+            range,
+            found: Some(T!["{%"]),
+            expected: "word".to_string(),
+        };
+
+        assert_eq!(
+            format!("{}", parse_error),
+            "error at 3..5: expected word but found {%"
+        );
     }
 }

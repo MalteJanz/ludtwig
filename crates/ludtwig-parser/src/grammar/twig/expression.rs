@@ -203,12 +203,12 @@ mod tests {
         check_parse(
             "{{ }}",
             expect![[r#"
-            ROOT@0..5
-              TWIG_VAR@0..5
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TK_WHITESPACE@2..3 " "
-                TK_CLOSE_CURLY_CURLY@3..5 "}}"
-            error at 3..3: expected twig expression but found }}"#]],
+                ROOT@0..5
+                  TWIG_VAR@0..5
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TK_WHITESPACE@2..3 " "
+                    TK_CLOSE_CURLY_CURLY@3..5 "}}"
+                error at 3..5: expected twig expression but found }}"#]],
         )
     }
 

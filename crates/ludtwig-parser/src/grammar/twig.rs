@@ -312,7 +312,7 @@ mod tests {
                   HTML_TEXT@2..7
                     TK_WHITESPACE@2..3 " "
                     TK_WORD@3..7 "asdf"
-                error at 3..3: expected 'block' or 'if' (nothing else supported yet) but found word"#]],
+                error at 3..7: expected 'block' or 'if' (nothing else supported yet) but found word"#]],
         )
     }
 
@@ -735,9 +735,9 @@ mod tests {
                       TK_PERCENT_CURLY@18..20 "%}"
                     BODY@20..20
                     TWIG_ENDING_BLOCK@20..20
-                error at 18..18: expected {% but reached end of file
-                error at 18..18: expected endblock but reached end of file
-                error at 18..18: expected %} but reached end of file"#]],
+                error at 18..20: expected {% but reached end of file
+                error at 18..20: expected endblock but reached end of file
+                error at 18..20: expected %} but reached end of file"#]],
         )
     }
 }
