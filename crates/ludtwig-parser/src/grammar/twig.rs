@@ -265,28 +265,54 @@ fn parse_twig_block(
 ) -> CompletedMarker {
     debug_assert!(parser.at(T!["block"]));
     parser.bump();
-    parser.expect(T![word]);
+    let block_name = parser.expect(T![word]).map(|t| t.text.to_owned());
+    // look for optional shortcut
+    let mut found_shortcut = false;
+    if !parser.at(T!["%}"]) {
+        if parse_twig_expression(parser).is_none() {
+            parser.add_error(ParseErrorBuilder::new("twig expression or '%}'"));
+        } else {
+            found_shortcut = true;
+        }
+    }
     parser.expect(T!["%}"]);
 
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_STARTING_BLOCK);
     let wrapper_m = parser.precede(wrapper_m);
 
-    // parse all the children except endblock
-    let body_m = parser.start();
-    parse_many(
-        parser,
-        |p| p.at_following(&[T!["{%"], T!["endblock"]]),
-        |p| {
-            child_parser(p);
-        },
-    );
-    parser.complete(body_m, SyntaxKind::BODY);
+    if !found_shortcut {
+        // parse all the children except endblock
+        let body_m = parser.start();
+        parse_many(
+            parser,
+            |p| p.at_following(&[T!["{%"], T!["endblock"]]),
+            |p| {
+                child_parser(p);
+            },
+        );
+        parser.complete(body_m, SyntaxKind::BODY);
 
-    let end_block_m = parser.start();
-    parser.expect(T!["{%"]);
-    parser.expect(T!["endblock"]);
-    parser.expect(T!["%}"]);
-    parser.complete(end_block_m, SyntaxKind::TWIG_ENDING_BLOCK);
+        let end_block_m = parser.start();
+        parser.expect(T!["{%"]);
+        parser.expect(T!["endblock"]);
+        // check for optional name behind endblock
+        if parser.at(T![word]) {
+            let end_block_name_token = parser.bump();
+            if let Some(block_name) = block_name {
+                if end_block_name_token.text != block_name {
+                    let parser_err = ParseErrorBuilder::new(format!(
+                        "nothing or same twig block name as opening ({})",
+                        block_name
+                    ))
+                    .at_token(end_block_name_token);
+
+                    parser.add_error(parser_err);
+                }
+            }
+        }
+        parser.expect(T!["%}"]);
+        parser.complete(end_block_m, SyntaxKind::TWIG_ENDING_BLOCK);
+    }
 
     // close overall twig block
     parser.complete(wrapper_m, SyntaxKind::TWIG_BLOCK)
@@ -911,6 +937,153 @@ mod tests {
                 error at 18..20: expected {% but reached end of file
                 error at 18..20: expected endblock but reached end of file
                 error at 18..20: expected %} but reached end of file"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_block_with_named_endlbock() {
+        check_parse(
+            "{% block sidebar %}
+    {% block inner_sidebar %}
+        ...
+    {% endblock inner_sidebar %}
+{% endblock sidebar %}",
+            expect![[r#"
+                ROOT@0..117
+                  TWIG_BLOCK@0..117
+                    TWIG_STARTING_BLOCK@0..19
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_BLOCK@3..8 "block"
+                      TK_WHITESPACE@8..9 " "
+                      TK_WORD@9..16 "sidebar"
+                      TK_WHITESPACE@16..17 " "
+                      TK_PERCENT_CURLY@17..19 "%}"
+                    BODY@19..94
+                      TWIG_BLOCK@19..94
+                        TWIG_STARTING_BLOCK@19..49
+                          TK_LINE_BREAK@19..20 "\n"
+                          TK_WHITESPACE@20..24 "    "
+                          TK_CURLY_PERCENT@24..26 "{%"
+                          TK_WHITESPACE@26..27 " "
+                          TK_BLOCK@27..32 "block"
+                          TK_WHITESPACE@32..33 " "
+                          TK_WORD@33..46 "inner_sidebar"
+                          TK_WHITESPACE@46..47 " "
+                          TK_PERCENT_CURLY@47..49 "%}"
+                        BODY@49..61
+                          HTML_TEXT@49..61
+                            TK_LINE_BREAK@49..50 "\n"
+                            TK_WHITESPACE@50..58 "        "
+                            TK_DOUBLE_DOT@58..60 ".."
+                            TK_DOT@60..61 "."
+                        TWIG_ENDING_BLOCK@61..94
+                          TK_LINE_BREAK@61..62 "\n"
+                          TK_WHITESPACE@62..66 "    "
+                          TK_CURLY_PERCENT@66..68 "{%"
+                          TK_WHITESPACE@68..69 " "
+                          TK_ENDBLOCK@69..77 "endblock"
+                          TK_WHITESPACE@77..78 " "
+                          TK_WORD@78..91 "inner_sidebar"
+                          TK_WHITESPACE@91..92 " "
+                          TK_PERCENT_CURLY@92..94 "%}"
+                    TWIG_ENDING_BLOCK@94..117
+                      TK_LINE_BREAK@94..95 "\n"
+                      TK_CURLY_PERCENT@95..97 "{%"
+                      TK_WHITESPACE@97..98 " "
+                      TK_ENDBLOCK@98..106 "endblock"
+                      TK_WHITESPACE@106..107 " "
+                      TK_WORD@107..114 "sidebar"
+                      TK_WHITESPACE@114..115 " "
+                      TK_PERCENT_CURLY@115..117 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_block_with_named_endlbock_mismatch() {
+        check_parse(
+            "{% block sidebar %}
+    {% block inner_sidebar %}
+        ...
+    {% endblock sidebar %}
+{% endblock sidebar %}",
+            expect![[r#"
+                ROOT@0..111
+                  TWIG_BLOCK@0..111
+                    TWIG_STARTING_BLOCK@0..19
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_BLOCK@3..8 "block"
+                      TK_WHITESPACE@8..9 " "
+                      TK_WORD@9..16 "sidebar"
+                      TK_WHITESPACE@16..17 " "
+                      TK_PERCENT_CURLY@17..19 "%}"
+                    BODY@19..88
+                      TWIG_BLOCK@19..88
+                        TWIG_STARTING_BLOCK@19..49
+                          TK_LINE_BREAK@19..20 "\n"
+                          TK_WHITESPACE@20..24 "    "
+                          TK_CURLY_PERCENT@24..26 "{%"
+                          TK_WHITESPACE@26..27 " "
+                          TK_BLOCK@27..32 "block"
+                          TK_WHITESPACE@32..33 " "
+                          TK_WORD@33..46 "inner_sidebar"
+                          TK_WHITESPACE@46..47 " "
+                          TK_PERCENT_CURLY@47..49 "%}"
+                        BODY@49..61
+                          HTML_TEXT@49..61
+                            TK_LINE_BREAK@49..50 "\n"
+                            TK_WHITESPACE@50..58 "        "
+                            TK_DOUBLE_DOT@58..60 ".."
+                            TK_DOT@60..61 "."
+                        TWIG_ENDING_BLOCK@61..88
+                          TK_LINE_BREAK@61..62 "\n"
+                          TK_WHITESPACE@62..66 "    "
+                          TK_CURLY_PERCENT@66..68 "{%"
+                          TK_WHITESPACE@68..69 " "
+                          TK_ENDBLOCK@69..77 "endblock"
+                          TK_WHITESPACE@77..78 " "
+                          TK_WORD@78..85 "sidebar"
+                          TK_WHITESPACE@85..86 " "
+                          TK_PERCENT_CURLY@86..88 "%}"
+                    TWIG_ENDING_BLOCK@88..111
+                      TK_LINE_BREAK@88..89 "\n"
+                      TK_CURLY_PERCENT@89..91 "{%"
+                      TK_WHITESPACE@91..92 " "
+                      TK_ENDBLOCK@92..100 "endblock"
+                      TK_WHITESPACE@100..101 " "
+                      TK_WORD@101..108 "sidebar"
+                      TK_WHITESPACE@108..109 " "
+                      TK_PERCENT_CURLY@109..111 "%}"
+                error at 78..85: expected nothing or same twig block name as opening (inner_sidebar) but found word"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_block_shortcut() {
+        check_parse(
+            "{% block title page_title|title %}",
+            expect![[r#"
+            ROOT@0..34
+              TWIG_BLOCK@0..34
+                TWIG_STARTING_BLOCK@0..34
+                  TK_CURLY_PERCENT@0..2 "{%"
+                  TK_WHITESPACE@2..3 " "
+                  TK_BLOCK@3..8 "block"
+                  TK_WHITESPACE@8..9 " "
+                  TK_WORD@9..14 "title"
+                  TWIG_EXPRESSION@14..31
+                    TWIG_PIPE@14..31
+                      TWIG_OPERAND@14..25
+                        TWIG_LITERAL_NAME@14..25
+                          TK_WHITESPACE@14..15 " "
+                          TK_WORD@15..25 "page_title"
+                      TK_SINGLE_PIPE@25..26 "|"
+                      TWIG_OPERAND@26..31
+                        TWIG_LITERAL_NAME@26..31
+                          TK_WORD@26..31 "title"
+                  TK_WHITESPACE@31..32 " "
+                  TK_PERCENT_CURLY@32..34 "%}""#]],
         )
     }
 
