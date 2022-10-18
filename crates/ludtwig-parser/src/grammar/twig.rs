@@ -78,6 +78,8 @@ fn parse_twig_block_statement(
         Some(parse_twig_set(parser, m, child_parser))
     } else if parser.at(T!["for"]) {
         Some(parse_twig_for(parser, m, child_parser))
+    } else if parser.at(T!["extends"]) {
+        Some(parse_twig_extends(parser, m))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
         parser.add_error(ParseErrorBuilder::new(
@@ -87,6 +89,19 @@ fn parse_twig_block_statement(
         parser.complete(m, SyntaxKind::ERROR);
         None
     }
+}
+
+fn parse_twig_extends(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["extends"]));
+    parser.bump();
+
+    if parse_twig_expression(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new("twig expression"));
+    }
+
+    parser.expect(T!["%}"]);
+
+    parser.complete(outer, SyntaxKind::TWIG_EXTENDS)
 }
 
 fn parse_twig_for(
@@ -1887,6 +1902,146 @@ mod tests {
                       TK_WHITESPACE@68..69 " "
                       TK_PERCENT_CURLY@69..71 "%}"
                 error at 15..17: expected twig expression but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_extends_with_string() {
+        check_parse(
+            r#"{% extends "base.html" %}"#,
+            expect![[r#"
+            ROOT@0..25
+              TWIG_EXTENDS@0..25
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_EXTENDS@3..10 "extends"
+                TWIG_EXPRESSION@10..22
+                  TWIG_LITERAL_STRING@10..22
+                    TK_WHITESPACE@10..11 " "
+                    TK_DOUBLE_QUOTES@11..12 "\""
+                    TWIG_LITERAL_STRING_INNER@12..21
+                      TK_WORD@12..16 "base"
+                      TK_DOT@16..17 "."
+                      TK_WORD@17..21 "html"
+                    TK_DOUBLE_QUOTES@21..22 "\""
+                TK_WHITESPACE@22..23 " "
+                TK_PERCENT_CURLY@23..25 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_extends_with_variable() {
+        check_parse(
+            r#"{% extends some_var %}"#,
+            expect![[r#"
+            ROOT@0..22
+              TWIG_EXTENDS@0..22
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_EXTENDS@3..10 "extends"
+                TWIG_EXPRESSION@10..19
+                  TWIG_LITERAL_NAME@10..19
+                    TK_WHITESPACE@10..11 " "
+                    TK_WORD@11..19 "some_var"
+                TK_WHITESPACE@19..20 " "
+                TK_PERCENT_CURLY@20..22 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_extends_with_array() {
+        check_parse(
+            r#"{% extends ['layout.html', 'base_layout.html'] %}"#,
+            expect![[r#"
+                ROOT@0..49
+                  TWIG_EXTENDS@0..49
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_EXTENDS@3..10 "extends"
+                    TWIG_EXPRESSION@10..46
+                      TWIG_LITERAL_ARRAY@10..46
+                        TK_WHITESPACE@10..11 " "
+                        TK_OPEN_SQUARE@11..12 "["
+                        TWIG_EXPRESSION@12..25
+                          TWIG_LITERAL_STRING@12..25
+                            TK_SINGLE_QUOTES@12..13 "'"
+                            TWIG_LITERAL_STRING_INNER@13..24
+                              TK_WORD@13..19 "layout"
+                              TK_DOT@19..20 "."
+                              TK_WORD@20..24 "html"
+                            TK_SINGLE_QUOTES@24..25 "'"
+                        TK_COMMA@25..26 ","
+                        TWIG_EXPRESSION@26..45
+                          TWIG_LITERAL_STRING@26..45
+                            TK_WHITESPACE@26..27 " "
+                            TK_SINGLE_QUOTES@27..28 "'"
+                            TWIG_LITERAL_STRING_INNER@28..44
+                              TK_WORD@28..39 "base_layout"
+                              TK_DOT@39..40 "."
+                              TK_WORD@40..44 "html"
+                            TK_SINGLE_QUOTES@44..45 "'"
+                        TK_CLOSE_SQUARE@45..46 "]"
+                    TK_WHITESPACE@46..47 " "
+                    TK_PERCENT_CURLY@47..49 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_extends_with_conditional() {
+        check_parse(
+            r#"{% extends standalone ? "minimum.html" : "base.html" %}"#,
+            expect![[r#"
+                ROOT@0..55
+                  TWIG_EXTENDS@0..55
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_EXTENDS@3..10 "extends"
+                    TWIG_EXPRESSION@10..52
+                      TWIG_CONDITIONAL_EXPRESSION@10..52
+                        TWIG_EXPRESSION@10..21
+                          TWIG_LITERAL_NAME@10..21
+                            TK_WHITESPACE@10..11 " "
+                            TK_WORD@11..21 "standalone"
+                        TK_WHITESPACE@21..22 " "
+                        TK_QUESTION_MARK@22..23 "?"
+                        TWIG_EXPRESSION@23..38
+                          TWIG_LITERAL_STRING@23..38
+                            TK_WHITESPACE@23..24 " "
+                            TK_DOUBLE_QUOTES@24..25 "\""
+                            TWIG_LITERAL_STRING_INNER@25..37
+                              TK_WORD@25..32 "minimum"
+                              TK_DOT@32..33 "."
+                              TK_WORD@33..37 "html"
+                            TK_DOUBLE_QUOTES@37..38 "\""
+                        TK_WHITESPACE@38..39 " "
+                        TK_COLON@39..40 ":"
+                        TWIG_EXPRESSION@40..52
+                          TWIG_LITERAL_STRING@40..52
+                            TK_WHITESPACE@40..41 " "
+                            TK_DOUBLE_QUOTES@41..42 "\""
+                            TWIG_LITERAL_STRING_INNER@42..51
+                              TK_WORD@42..46 "base"
+                              TK_DOT@46..47 "."
+                              TK_WORD@47..51 "html"
+                            TK_DOUBLE_QUOTES@51..52 "\""
+                    TK_WHITESPACE@52..53 " "
+                    TK_PERCENT_CURLY@53..55 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_extends_missing_expression() {
+        check_parse(
+            r#"{% extends %}"#,
+            expect![[r#"
+            ROOT@0..13
+              TWIG_EXTENDS@0..13
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_EXTENDS@3..10 "extends"
+                TK_WHITESPACE@10..11 " "
+                TK_PERCENT_CURLY@11..13 "%}"
+            error at 11..13: expected twig expression but found %}"#]],
         )
     }
 }

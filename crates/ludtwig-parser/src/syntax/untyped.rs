@@ -348,6 +348,8 @@ pub enum SyntaxKind {
     TWIG_FOR_BLOCK,
     TWIG_FOR_ELSE_BLOCK,
     TWIG_ENDFOR_BLOCK,
+    // twig extends
+    TWIG_EXTENDS,
 
     // html
     HTML_DOCTYPE,
