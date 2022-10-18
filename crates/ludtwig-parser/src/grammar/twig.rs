@@ -80,6 +80,8 @@ fn parse_twig_block_statement(
         Some(parse_twig_for(parser, m, child_parser))
     } else if parser.at(T!["extends"]) {
         Some(parse_twig_extends(parser, m))
+    } else if parser.at(T!["include"]) {
+        Some(parse_twig_include(parser, m))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
         parser.add_error(ParseErrorBuilder::new(
@@ -89,6 +91,36 @@ fn parse_twig_block_statement(
         parser.complete(m, SyntaxKind::ERROR);
         None
     }
+}
+
+fn parse_twig_include(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["include"]));
+    parser.bump();
+
+    if parse_twig_expression(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new("twig expression as template name"));
+    }
+
+    if parser.at(T!["ignore missing"]) {
+        parser.bump();
+    }
+
+    if parser.at(T!["with"]) {
+        let with_value_m = parser.start();
+        parser.bump();
+        if parse_twig_expression(parser).is_none() {
+            parser.add_error(ParseErrorBuilder::new("twig expression as with value"));
+        }
+        parser.complete(with_value_m, SyntaxKind::TWIG_INCLUDE_WITH);
+    }
+
+    if parser.at(T!["only"]) {
+        parser.bump();
+    }
+
+    parser.expect(T!["%}"]);
+
+    parser.complete(outer, SyntaxKind::TWIG_INCLUDE)
 }
 
 fn parse_twig_extends(parser: &mut Parser, outer: Marker) -> CompletedMarker {
@@ -2042,6 +2074,316 @@ mod tests {
                 TK_WHITESPACE@10..11 " "
                 TK_PERCENT_CURLY@11..13 "%}"
             error at 11..13: expected twig expression but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_include_string() {
+        check_parse(
+            r#"{% include 'header.html' %}"#,
+            expect![[r#"
+            ROOT@0..27
+              TWIG_INCLUDE@0..27
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_INCLUDE@3..10 "include"
+                TWIG_EXPRESSION@10..24
+                  TWIG_LITERAL_STRING@10..24
+                    TK_WHITESPACE@10..11 " "
+                    TK_SINGLE_QUOTES@11..12 "'"
+                    TWIG_LITERAL_STRING_INNER@12..23
+                      TK_WORD@12..18 "header"
+                      TK_DOT@18..19 "."
+                      TK_WORD@19..23 "html"
+                    TK_SINGLE_QUOTES@23..24 "'"
+                TK_WHITESPACE@24..25 " "
+                TK_PERCENT_CURLY@25..27 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_include_with_variable() {
+        check_parse(
+            r#"{% include 'template.html' with vars %}"#,
+            expect![[r#"
+                ROOT@0..39
+                  TWIG_INCLUDE@0..39
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_INCLUDE@3..10 "include"
+                    TWIG_EXPRESSION@10..26
+                      TWIG_LITERAL_STRING@10..26
+                        TK_WHITESPACE@10..11 " "
+                        TK_SINGLE_QUOTES@11..12 "'"
+                        TWIG_LITERAL_STRING_INNER@12..25
+                          TK_WORD@12..20 "template"
+                          TK_DOT@20..21 "."
+                          TK_WORD@21..25 "html"
+                        TK_SINGLE_QUOTES@25..26 "'"
+                    TWIG_INCLUDE_WITH@26..36
+                      TK_WHITESPACE@26..27 " "
+                      TK_WITH@27..31 "with"
+                      TWIG_EXPRESSION@31..36
+                        TWIG_LITERAL_NAME@31..36
+                          TK_WHITESPACE@31..32 " "
+                          TK_WORD@32..36 "vars"
+                    TK_WHITESPACE@36..37 " "
+                    TK_PERCENT_CURLY@37..39 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_include_with_hash() {
+        check_parse(
+            r#"{% include 'template.html' with {'foo': 'bar'} %}"#,
+            expect![[r#"
+                ROOT@0..49
+                  TWIG_INCLUDE@0..49
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_INCLUDE@3..10 "include"
+                    TWIG_EXPRESSION@10..26
+                      TWIG_LITERAL_STRING@10..26
+                        TK_WHITESPACE@10..11 " "
+                        TK_SINGLE_QUOTES@11..12 "'"
+                        TWIG_LITERAL_STRING_INNER@12..25
+                          TK_WORD@12..20 "template"
+                          TK_DOT@20..21 "."
+                          TK_WORD@21..25 "html"
+                        TK_SINGLE_QUOTES@25..26 "'"
+                    TWIG_INCLUDE_WITH@26..46
+                      TK_WHITESPACE@26..27 " "
+                      TK_WITH@27..31 "with"
+                      TWIG_EXPRESSION@31..46
+                        TWIG_LITERAL_HASH@31..46
+                          TK_WHITESPACE@31..32 " "
+                          TK_OPEN_CURLY@32..33 "{"
+                          TWIG_LITERAL_HASH_PAIR@33..45
+                            TWIG_LITERAL_HASH_KEY@33..38
+                              TWIG_LITERAL_STRING@33..38
+                                TK_SINGLE_QUOTES@33..34 "'"
+                                TWIG_LITERAL_STRING_INNER@34..37
+                                  TK_WORD@34..37 "foo"
+                                TK_SINGLE_QUOTES@37..38 "'"
+                            TK_COLON@38..39 ":"
+                            TWIG_EXPRESSION@39..45
+                              TWIG_LITERAL_STRING@39..45
+                                TK_WHITESPACE@39..40 " "
+                                TK_SINGLE_QUOTES@40..41 "'"
+                                TWIG_LITERAL_STRING_INNER@41..44
+                                  TK_WORD@41..44 "bar"
+                                TK_SINGLE_QUOTES@44..45 "'"
+                          TK_CLOSE_CURLY@45..46 "}"
+                    TK_WHITESPACE@46..47 " "
+                    TK_PERCENT_CURLY@47..49 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_include_with_hash_only() {
+        check_parse(
+            r#"{% include 'template.html' with {'foo': 'bar'} only %}"#,
+            expect![[r#"
+                ROOT@0..54
+                  TWIG_INCLUDE@0..54
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_INCLUDE@3..10 "include"
+                    TWIG_EXPRESSION@10..26
+                      TWIG_LITERAL_STRING@10..26
+                        TK_WHITESPACE@10..11 " "
+                        TK_SINGLE_QUOTES@11..12 "'"
+                        TWIG_LITERAL_STRING_INNER@12..25
+                          TK_WORD@12..20 "template"
+                          TK_DOT@20..21 "."
+                          TK_WORD@21..25 "html"
+                        TK_SINGLE_QUOTES@25..26 "'"
+                    TWIG_INCLUDE_WITH@26..46
+                      TK_WHITESPACE@26..27 " "
+                      TK_WITH@27..31 "with"
+                      TWIG_EXPRESSION@31..46
+                        TWIG_LITERAL_HASH@31..46
+                          TK_WHITESPACE@31..32 " "
+                          TK_OPEN_CURLY@32..33 "{"
+                          TWIG_LITERAL_HASH_PAIR@33..45
+                            TWIG_LITERAL_HASH_KEY@33..38
+                              TWIG_LITERAL_STRING@33..38
+                                TK_SINGLE_QUOTES@33..34 "'"
+                                TWIG_LITERAL_STRING_INNER@34..37
+                                  TK_WORD@34..37 "foo"
+                                TK_SINGLE_QUOTES@37..38 "'"
+                            TK_COLON@38..39 ":"
+                            TWIG_EXPRESSION@39..45
+                              TWIG_LITERAL_STRING@39..45
+                                TK_WHITESPACE@39..40 " "
+                                TK_SINGLE_QUOTES@40..41 "'"
+                                TWIG_LITERAL_STRING_INNER@41..44
+                                  TK_WORD@41..44 "bar"
+                                TK_SINGLE_QUOTES@44..45 "'"
+                          TK_CLOSE_CURLY@45..46 "}"
+                    TK_WHITESPACE@46..47 " "
+                    TK_ONLY@47..51 "only"
+                    TK_WHITESPACE@51..52 " "
+                    TK_PERCENT_CURLY@52..54 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_include_only() {
+        check_parse(
+            r#"{% include 'template.html' only %}"#,
+            expect![[r#"
+            ROOT@0..34
+              TWIG_INCLUDE@0..34
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_INCLUDE@3..10 "include"
+                TWIG_EXPRESSION@10..26
+                  TWIG_LITERAL_STRING@10..26
+                    TK_WHITESPACE@10..11 " "
+                    TK_SINGLE_QUOTES@11..12 "'"
+                    TWIG_LITERAL_STRING_INNER@12..25
+                      TK_WORD@12..20 "template"
+                      TK_DOT@20..21 "."
+                      TK_WORD@21..25 "html"
+                    TK_SINGLE_QUOTES@25..26 "'"
+                TK_WHITESPACE@26..27 " "
+                TK_ONLY@27..31 "only"
+                TK_WHITESPACE@31..32 " "
+                TK_PERCENT_CURLY@32..34 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_include_expression() {
+        check_parse(
+            r#"{% include ajax ? 'ajax.html' : 'not_ajax.html' %}"#,
+            expect![[r#"
+                ROOT@0..50
+                  TWIG_INCLUDE@0..50
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_INCLUDE@3..10 "include"
+                    TWIG_EXPRESSION@10..47
+                      TWIG_CONDITIONAL_EXPRESSION@10..47
+                        TWIG_EXPRESSION@10..15
+                          TWIG_LITERAL_NAME@10..15
+                            TK_WHITESPACE@10..11 " "
+                            TK_WORD@11..15 "ajax"
+                        TK_WHITESPACE@15..16 " "
+                        TK_QUESTION_MARK@16..17 "?"
+                        TWIG_EXPRESSION@17..29
+                          TWIG_LITERAL_STRING@17..29
+                            TK_WHITESPACE@17..18 " "
+                            TK_SINGLE_QUOTES@18..19 "'"
+                            TWIG_LITERAL_STRING_INNER@19..28
+                              TK_WORD@19..23 "ajax"
+                              TK_DOT@23..24 "."
+                              TK_WORD@24..28 "html"
+                            TK_SINGLE_QUOTES@28..29 "'"
+                        TK_WHITESPACE@29..30 " "
+                        TK_COLON@30..31 ":"
+                        TWIG_EXPRESSION@31..47
+                          TWIG_LITERAL_STRING@31..47
+                            TK_WHITESPACE@31..32 " "
+                            TK_SINGLE_QUOTES@32..33 "'"
+                            TWIG_LITERAL_STRING_INNER@33..46
+                              TK_WORD@33..41 "not_ajax"
+                              TK_DOT@41..42 "."
+                              TK_WORD@42..46 "html"
+                            TK_SINGLE_QUOTES@46..47 "'"
+                    TK_WHITESPACE@47..48 " "
+                    TK_PERCENT_CURLY@48..50 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_include_variable_ignore_missing_with_hash_only() {
+        check_parse(
+            r#"{% include some_var ignore missing with {'foo': 'bar'} only %}"#,
+            expect![[r#"
+                ROOT@0..62
+                  TWIG_INCLUDE@0..62
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_INCLUDE@3..10 "include"
+                    TWIG_EXPRESSION@10..19
+                      TWIG_LITERAL_NAME@10..19
+                        TK_WHITESPACE@10..11 " "
+                        TK_WORD@11..19 "some_var"
+                    TK_WHITESPACE@19..20 " "
+                    TK_IGNORE_MISSING@20..34 "ignore missing"
+                    TWIG_INCLUDE_WITH@34..54
+                      TK_WHITESPACE@34..35 " "
+                      TK_WITH@35..39 "with"
+                      TWIG_EXPRESSION@39..54
+                        TWIG_LITERAL_HASH@39..54
+                          TK_WHITESPACE@39..40 " "
+                          TK_OPEN_CURLY@40..41 "{"
+                          TWIG_LITERAL_HASH_PAIR@41..53
+                            TWIG_LITERAL_HASH_KEY@41..46
+                              TWIG_LITERAL_STRING@41..46
+                                TK_SINGLE_QUOTES@41..42 "'"
+                                TWIG_LITERAL_STRING_INNER@42..45
+                                  TK_WORD@42..45 "foo"
+                                TK_SINGLE_QUOTES@45..46 "'"
+                            TK_COLON@46..47 ":"
+                            TWIG_EXPRESSION@47..53
+                              TWIG_LITERAL_STRING@47..53
+                                TK_WHITESPACE@47..48 " "
+                                TK_SINGLE_QUOTES@48..49 "'"
+                                TWIG_LITERAL_STRING_INNER@49..52
+                                  TK_WORD@49..52 "bar"
+                                TK_SINGLE_QUOTES@52..53 "'"
+                          TK_CLOSE_CURLY@53..54 "}"
+                    TK_WHITESPACE@54..55 " "
+                    TK_ONLY@55..59 "only"
+                    TK_WHITESPACE@59..60 " "
+                    TK_PERCENT_CURLY@60..62 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_include_missing_template() {
+        check_parse(
+            r#"{% include %}"#,
+            expect![[r#"
+            ROOT@0..13
+              TWIG_INCLUDE@0..13
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_INCLUDE@3..10 "include"
+                TK_WHITESPACE@10..11 " "
+                TK_PERCENT_CURLY@11..13 "%}"
+            error at 11..13: expected twig expression as template name but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_include_missing_with_value() {
+        check_parse(
+            r#"{% include 'template.html' with %}"#,
+            expect![[r#"
+                ROOT@0..34
+                  TWIG_INCLUDE@0..34
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_INCLUDE@3..10 "include"
+                    TWIG_EXPRESSION@10..26
+                      TWIG_LITERAL_STRING@10..26
+                        TK_WHITESPACE@10..11 " "
+                        TK_SINGLE_QUOTES@11..12 "'"
+                        TWIG_LITERAL_STRING_INNER@12..25
+                          TK_WORD@12..20 "template"
+                          TK_DOT@20..21 "."
+                          TK_WORD@21..25 "html"
+                        TK_SINGLE_QUOTES@25..26 "'"
+                    TWIG_INCLUDE_WITH@26..31
+                      TK_WHITESPACE@26..27 " "
+                      TK_WITH@27..31 "with"
+                    TK_WHITESPACE@31..32 " "
+                    TK_PERCENT_CURLY@32..34 "%}"
+                error at 32..34: expected twig expression as with value but found %}"#]],
         )
     }
 }

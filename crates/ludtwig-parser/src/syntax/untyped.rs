@@ -214,6 +214,10 @@ pub enum SyntaxKind {
     TK_VERBATIM,
     #[token("endverbatim")]
     TK_ENDVERBATIM,
+    #[token("only")]
+    TK_ONLY,
+    #[token("ignore missing")]
+    TK_IGNORE_MISSING,
     #[token("with")]
     TK_WITH,
     #[token("endwith")]
@@ -350,6 +354,9 @@ pub enum SyntaxKind {
     TWIG_ENDFOR_BLOCK,
     // twig extends
     TWIG_EXTENDS,
+    // twig include
+    TWIG_INCLUDE,
+    TWIG_INCLUDE_WITH,
 
     // html
     HTML_DOCTYPE,
@@ -468,6 +475,8 @@ macro_rules! T {
     ["use"] => { $crate::syntax::untyped::SyntaxKind::TK_USE };
     ["verbatim"] => { $crate::syntax::untyped::SyntaxKind::TK_VERBATIM };
     ["endverbatim"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDVERBATIM };
+    ["only"] => { $crate::syntax::untyped::SyntaxKind::TK_ONLY };
+    ["ignore missing"] => { $crate::syntax::untyped::SyntaxKind::TK_IGNORE_MISSING };
     ["with"] => { $crate::syntax::untyped::SyntaxKind::TK_WITH };
     ["endwith"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDWITH };
     ["not"] => { $crate::syntax::untyped::SyntaxKind::TK_NOT };
@@ -604,6 +613,8 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_USE => "use",
             SyntaxKind::TK_VERBATIM => "verbatim",
             SyntaxKind::TK_ENDVERBATIM => "endverbatim",
+            SyntaxKind::TK_ONLY => "only",
+            SyntaxKind::TK_IGNORE_MISSING => "ignore missing",
             SyntaxKind::TK_WITH => "with",
             SyntaxKind::TK_ENDWITH => "endwith",
             SyntaxKind::TK_NOT => "not",

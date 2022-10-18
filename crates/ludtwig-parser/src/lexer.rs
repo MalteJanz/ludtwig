@@ -237,6 +237,8 @@ mod tests {
         add("use", T!["use"]);
         add("verbatim", T!["verbatim"]);
         add("endverbatim", T!["endverbatim"]);
+        add("only", T!["only"]);
+        add("ignore missing", T!["ignore missing"]);
         add("with", T!["with"]);
         add("endwith", T!["endwith"]);
         add("not", T!["not"]);
@@ -773,6 +775,16 @@ mod tests {
     #[test]
     fn lex_endverbatim() {
         check_token("endverbatim", T!["endverbatim"]);
+    }
+
+    #[test]
+    fn lex_only() {
+        check_token("only", T!["only"]);
+    }
+
+    #[test]
+    fn lex_ignore_missing() {
+        check_token("ignore missing", T!["ignore missing"]);
     }
 
     #[test]
