@@ -143,6 +143,8 @@ pub enum SyntaxKind {
     TK_OPEN_CURLY_HASHTAG,
     #[token("#}")]
     TK_HASHTAG_CLOSE_CURLY,
+    #[token("#{")]
+    TK_HASHTAG_OPEN_CURLY,
 
     #[token("true", ignore(ascii_case))]
     TK_TRUE,
@@ -313,6 +315,7 @@ pub enum SyntaxKind {
     // twig literals
     TWIG_LITERAL_STRING,
     TWIG_LITERAL_STRING_INNER,
+    TWIG_LITERAL_STRING_INTERPOLATION,
     TWIG_LITERAL_NUMBER,
     TWIG_LITERAL_ARRAY,
     TWIG_LITERAL_NULL,
@@ -418,6 +421,7 @@ macro_rules! T {
     ["}}"] => { $crate::syntax::untyped::SyntaxKind::TK_CLOSE_CURLY_CURLY };
     ["{#"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY_HASHTAG };
     ["#}"] => { $crate::syntax::untyped::SyntaxKind::TK_HASHTAG_CLOSE_CURLY };
+    ["#{"] => { $crate::syntax::untyped::SyntaxKind::TK_HASHTAG_OPEN_CURLY };
     ["true"] => { $crate::syntax::untyped::SyntaxKind::TK_TRUE };
     ["false"] => { $crate::syntax::untyped::SyntaxKind::TK_FALSE };
     ["block"] => { $crate::syntax::untyped::SyntaxKind::TK_BLOCK };
@@ -553,6 +557,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_CLOSE_CURLY_CURLY => "}}",
             SyntaxKind::TK_OPEN_CURLY_HASHTAG => "{#",
             SyntaxKind::TK_HASHTAG_CLOSE_CURLY => "#}",
+            SyntaxKind::TK_HASHTAG_OPEN_CURLY => "#{",
             SyntaxKind::TK_TRUE => "true",
             SyntaxKind::TK_FALSE => "false",
             SyntaxKind::TK_BLOCK => "block",

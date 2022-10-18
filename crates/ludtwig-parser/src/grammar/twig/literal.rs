@@ -69,9 +69,24 @@ fn parse_twig_string(parser: &mut Parser) -> CompletedMarker {
             if p.at_following(&[T!["\\"], quote_kind]) {
                 // escaped quote should be consumed
                 p.bump();
+                p.bump();
+            } else if p.at(T!["#{"]) {
+                // found twig expression in string (string interpolation)
+                p.explicitly_consume_trivia(); // keep trivia out of interpolation node (its part of the raw string)
+                let interpolation_m = p.start();
+                p.bump();
+                if parse_twig_expression(p).is_none() {
+                    p.add_error(ParseErrorBuilder::new("twig expression"));
+                }
+                p.expect(T!["}"]);
+                p.complete(
+                    interpolation_m,
+                    SyntaxKind::TWIG_LITERAL_STRING_INTERPOLATION,
+                );
+            } else {
+                // bump the token inside the string
+                p.bump();
             }
-
-            p.bump();
         },
     );
     parser.explicitly_consume_trivia(); // consume any trailing trivia inside the string
@@ -467,25 +482,64 @@ mod tests {
 
     #[test]
     fn parse_twig_string_interpolation() {
-        // TODO: make string interpolation work
         check_parse(
             r#"{{ "foo #{1 + 2} baz" }}"#,
             expect![[r##"
-            ROOT@0..24
-              TWIG_VAR@0..24
+                ROOT@0..24
+                  TWIG_VAR@0..24
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..21
+                      TWIG_LITERAL_STRING@2..21
+                        TK_WHITESPACE@2..3 " "
+                        TK_DOUBLE_QUOTES@3..4 "\""
+                        TWIG_LITERAL_STRING_INNER@4..20
+                          TK_WORD@4..7 "foo"
+                          TK_WHITESPACE@7..8 " "
+                          TWIG_LITERAL_STRING_INTERPOLATION@8..16
+                            TK_HASHTAG_OPEN_CURLY@8..10 "#{"
+                            TWIG_EXPRESSION@10..15
+                              TWIG_BINARY_EXPRESSION@10..15
+                                TWIG_EXPRESSION@10..11
+                                  TWIG_LITERAL_NUMBER@10..11
+                                    TK_NUMBER@10..11 "1"
+                                TK_WHITESPACE@11..12 " "
+                                TK_PLUS@12..13 "+"
+                                TWIG_EXPRESSION@13..15
+                                  TWIG_LITERAL_NUMBER@13..15
+                                    TK_WHITESPACE@13..14 " "
+                                    TK_NUMBER@14..15 "2"
+                            TK_CLOSE_CURLY@15..16 "}"
+                          TK_WHITESPACE@16..17 " "
+                          TK_WORD@17..20 "baz"
+                        TK_DOUBLE_QUOTES@20..21 "\""
+                    TK_WHITESPACE@21..22 " "
+                    TK_CLOSE_CURLY_CURLY@22..24 "}}""##]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_string_interpolation_missing_expression() {
+        check_parse(r#"{{ "foo #{ } baz" }}"#, expect![[r##"
+            ROOT@0..20
+              TWIG_VAR@0..20
                 TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..21
-                  TWIG_LITERAL_STRING@2..21
+                TWIG_EXPRESSION@2..17
+                  TWIG_LITERAL_STRING@2..17
                     TK_WHITESPACE@2..3 " "
                     TK_DOUBLE_QUOTES@3..4 "\""
-                    TWIG_LITERAL_STRING_INNER@4..20
+                    TWIG_LITERAL_STRING_INNER@4..16
                       TK_WORD@4..7 "foo"
                       TK_WHITESPACE@7..8 " "
-                      TK_WORD@17..20 "baz"
-                    TK_DOUBLE_QUOTES@20..21 "\""
-                TK_WHITESPACE@21..22 " "
-                TK_CLOSE_CURLY_CURLY@22..24 "}}""##]],
-        );
+                      TWIG_LITERAL_STRING_INTERPOLATION@8..12
+                        TK_HASHTAG_OPEN_CURLY@8..10 "#{"
+                        TK_WHITESPACE@10..11 " "
+                        TK_CLOSE_CURLY@11..12 "}"
+                      TK_WHITESPACE@12..13 " "
+                      TK_WORD@13..16 "baz"
+                    TK_DOUBLE_QUOTES@16..17 "\""
+                TK_WHITESPACE@17..18 " "
+                TK_CLOSE_CURLY_CURLY@18..20 "}}"
+            error at 11..12: expected twig expression but found }"##]]);
     }
 
     #[test]

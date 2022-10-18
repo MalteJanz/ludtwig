@@ -203,6 +203,7 @@ mod tests {
         add("}}", T!["}}"]);
         add("{#", T!["{#"]);
         add("#}", T!["#}"]);
+        add("#{", T!["#{"]);
         add("true", T!["true"]);
         add("false", T!["false"]);
         add("block", T!["block"]);
@@ -602,6 +603,11 @@ mod tests {
     #[test]
     fn lex_hashtag_close_curly() {
         check_token("#}", T!["#}"]);
+    }
+
+    #[test]
+    fn lex_hashtag_open_curly() {
+        check_token("#{", T!["#{"]);
     }
 
     #[test]
