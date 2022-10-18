@@ -256,6 +256,7 @@ mod tests {
         add("odd", T!["odd"]);
         add("defined", T!["defined"]);
         add("same as", T!["same as"]);
+        add("as", T!["as"]);
         add("none", T!["none"]);
         add("null", T!["null"]);
         add("divisible by", T!["divisible by"]);
@@ -870,6 +871,11 @@ mod tests {
     #[test]
     fn lex_same_as() {
         check_token("same as", T!["same as"]);
+    }
+
+    #[test]
+    fn lex_as() {
+        check_token("as", T!["as"]);
     }
 
     #[test]

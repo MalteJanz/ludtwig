@@ -2,7 +2,7 @@ mod expression;
 pub(crate) mod literal;
 
 use crate::grammar::twig::expression::parse_twig_expression;
-use crate::grammar::twig::literal::parse_twig_name;
+use crate::grammar::twig::literal::{parse_twig_name, parse_twig_string};
 use crate::grammar::{parse_ludtwig_directive, parse_many, ParseFunction};
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser};
@@ -82,6 +82,8 @@ fn parse_twig_block_statement(
         Some(parse_twig_extends(parser, m))
     } else if parser.at(T!["include"]) {
         Some(parse_twig_include(parser, m))
+    } else if parser.at(T!["use"]) {
+        Some(parse_twig_use(parser, m))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
         parser.add_error(ParseErrorBuilder::new(
@@ -91,6 +93,54 @@ fn parse_twig_block_statement(
         parser.complete(m, SyntaxKind::ERROR);
         None
     }
+}
+
+fn parse_twig_use(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["use"]));
+    parser.bump();
+
+    if parser.at_set(&[T!["\""], T!["'"]]) {
+        parse_twig_string(parser, false);
+    } else {
+        parser.add_error(ParseErrorBuilder::new("twig string as template"));
+    }
+
+    if parser.at(T!["with"]) {
+        parser.bump();
+
+        let mut override_count = 0;
+        parse_many(
+            parser,
+            |p| p.at(T!["%}"]),
+            |p| {
+                let override_m = p.start();
+                override_count += 1;
+                if parse_twig_name(p).is_none() {
+                    p.add_error(ParseErrorBuilder::new("block name"));
+                }
+                p.expect(T!["as"]);
+                if parse_twig_name(p).is_none() {
+                    p.add_error(ParseErrorBuilder::new("block name"));
+                }
+                p.complete(override_m, SyntaxKind::TWIG_USE_OVERRIDE);
+
+                if p.at(T![","]) {
+                    // consume optional comma
+                    p.bump();
+                }
+            },
+        );
+
+        if override_count < 1 {
+            parser.add_error(ParseErrorBuilder::new(
+                "at least one block name as block name",
+            ));
+        }
+    }
+
+    parser.expect(T!["%}"]);
+
+    parser.complete(outer, SyntaxKind::TWIG_USE)
 }
 
 fn parse_twig_include(parser: &mut Parser, outer: Marker) -> CompletedMarker {
@@ -2384,6 +2434,199 @@ mod tests {
                     TK_WHITESPACE@31..32 " "
                     TK_PERCENT_CURLY@32..34 "%}"
                 error at 32..34: expected twig expression as with value but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_include_array() {
+        check_parse(
+            r#"{% include ['page_detailed.html', 'page.html'] %}"#,
+            expect![[r#"
+                ROOT@0..49
+                  TWIG_INCLUDE@0..49
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_INCLUDE@3..10 "include"
+                    TWIG_EXPRESSION@10..46
+                      TWIG_LITERAL_ARRAY@10..46
+                        TK_WHITESPACE@10..11 " "
+                        TK_OPEN_SQUARE@11..12 "["
+                        TWIG_EXPRESSION@12..32
+                          TWIG_LITERAL_STRING@12..32
+                            TK_SINGLE_QUOTES@12..13 "'"
+                            TWIG_LITERAL_STRING_INNER@13..31
+                              TK_WORD@13..26 "page_detailed"
+                              TK_DOT@26..27 "."
+                              TK_WORD@27..31 "html"
+                            TK_SINGLE_QUOTES@31..32 "'"
+                        TK_COMMA@32..33 ","
+                        TWIG_EXPRESSION@33..45
+                          TWIG_LITERAL_STRING@33..45
+                            TK_WHITESPACE@33..34 " "
+                            TK_SINGLE_QUOTES@34..35 "'"
+                            TWIG_LITERAL_STRING_INNER@35..44
+                              TK_WORD@35..39 "page"
+                              TK_DOT@39..40 "."
+                              TK_WORD@40..44 "html"
+                            TK_SINGLE_QUOTES@44..45 "'"
+                        TK_CLOSE_SQUARE@45..46 "]"
+                    TK_WHITESPACE@46..47 " "
+                    TK_PERCENT_CURLY@47..49 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_use_string() {
+        check_parse(
+            r#"{% use "blocks.html" %}"#,
+            expect![[r#"
+            ROOT@0..23
+              TWIG_USE@0..23
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_USE@3..6 "use"
+                TWIG_LITERAL_STRING@6..20
+                  TK_WHITESPACE@6..7 " "
+                  TK_DOUBLE_QUOTES@7..8 "\""
+                  TWIG_LITERAL_STRING_INNER@8..19
+                    TK_WORD@8..14 "blocks"
+                    TK_DOT@14..15 "."
+                    TK_WORD@15..19 "html"
+                  TK_DOUBLE_QUOTES@19..20 "\""
+                TK_WHITESPACE@20..21 " "
+                TK_PERCENT_CURLY@21..23 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_use_interpolated_string() {
+        // should not! be parsed as an interpolated string, because here only plain strings are allowed
+        // also should add a parser error that this is not supported
+        check_parse(
+            r#"{% use "blocks#{1+1}.html" %}"#,
+            expect![[r##"
+            ROOT@0..29
+              TWIG_USE@0..29
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_USE@3..6 "use"
+                TWIG_LITERAL_STRING@6..26
+                  TK_WHITESPACE@6..7 " "
+                  TK_DOUBLE_QUOTES@7..8 "\""
+                  TWIG_LITERAL_STRING_INNER@8..25
+                    TK_WORD@8..14 "blocks"
+                    TK_HASHTAG_OPEN_CURLY@14..16 "#{"
+                    TK_NUMBER@16..17 "1"
+                    TK_PLUS@17..18 "+"
+                    TK_NUMBER@18..19 "1"
+                    TK_CLOSE_CURLY@19..20 "}"
+                    TK_DOT@20..21 "."
+                    TK_WORD@21..25 "html"
+                  TK_DOUBLE_QUOTES@25..26 "\""
+                TK_WHITESPACE@26..27 " "
+                TK_PERCENT_CURLY@27..29 "%}"
+            error at 14..16: expected no string interpolation, because it isn't allowed here but found #{"##]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_use_string_with_as() {
+        check_parse(
+            r#"{% use "blocks.html" with sidebar as base_sidebar, title as base_title %}"#,
+            expect![[r#"
+                ROOT@0..73
+                  TWIG_USE@0..73
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_USE@3..6 "use"
+                    TWIG_LITERAL_STRING@6..20
+                      TK_WHITESPACE@6..7 " "
+                      TK_DOUBLE_QUOTES@7..8 "\""
+                      TWIG_LITERAL_STRING_INNER@8..19
+                        TK_WORD@8..14 "blocks"
+                        TK_DOT@14..15 "."
+                        TK_WORD@15..19 "html"
+                      TK_DOUBLE_QUOTES@19..20 "\""
+                    TK_WHITESPACE@20..21 " "
+                    TK_WITH@21..25 "with"
+                    TWIG_USE_OVERRIDE@25..49
+                      TWIG_LITERAL_NAME@25..33
+                        TK_WHITESPACE@25..26 " "
+                        TK_WORD@26..33 "sidebar"
+                      TK_WHITESPACE@33..34 " "
+                      TK_AS@34..36 "as"
+                      TWIG_LITERAL_NAME@36..49
+                        TK_WHITESPACE@36..37 " "
+                        TK_WORD@37..49 "base_sidebar"
+                    TK_COMMA@49..50 ","
+                    TWIG_USE_OVERRIDE@50..70
+                      TWIG_LITERAL_NAME@50..56
+                        TK_WHITESPACE@50..51 " "
+                        TK_WORD@51..56 "title"
+                      TK_WHITESPACE@56..57 " "
+                      TK_AS@57..59 "as"
+                      TWIG_LITERAL_NAME@59..70
+                        TK_WHITESPACE@59..60 " "
+                        TK_WORD@60..70 "base_title"
+                    TK_WHITESPACE@70..71 " "
+                    TK_PERCENT_CURLY@71..73 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_use_string_with_missing() {
+        check_parse(
+            r#"{% use "blocks.html" with %}"#,
+            expect![[r#"
+            ROOT@0..28
+              TWIG_USE@0..28
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_USE@3..6 "use"
+                TWIG_LITERAL_STRING@6..20
+                  TK_WHITESPACE@6..7 " "
+                  TK_DOUBLE_QUOTES@7..8 "\""
+                  TWIG_LITERAL_STRING_INNER@8..19
+                    TK_WORD@8..14 "blocks"
+                    TK_DOT@14..15 "."
+                    TK_WORD@15..19 "html"
+                  TK_DOUBLE_QUOTES@19..20 "\""
+                TK_WHITESPACE@20..21 " "
+                TK_WITH@21..25 "with"
+                TK_WHITESPACE@25..26 " "
+                TK_PERCENT_CURLY@26..28 "%}"
+            error at 26..28: expected at least one block name as block name but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_use_string_with_name_as_missing() {
+        check_parse(
+            r#"{% use "blocks.html" with a %}"#,
+            expect![[r#"
+            ROOT@0..30
+              TWIG_USE@0..30
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_USE@3..6 "use"
+                TWIG_LITERAL_STRING@6..20
+                  TK_WHITESPACE@6..7 " "
+                  TK_DOUBLE_QUOTES@7..8 "\""
+                  TWIG_LITERAL_STRING_INNER@8..19
+                    TK_WORD@8..14 "blocks"
+                    TK_DOT@14..15 "."
+                    TK_WORD@15..19 "html"
+                  TK_DOUBLE_QUOTES@19..20 "\""
+                TK_WHITESPACE@20..21 " "
+                TK_WITH@21..25 "with"
+                TWIG_USE_OVERRIDE@25..27
+                  TWIG_LITERAL_NAME@25..27
+                    TK_WHITESPACE@25..26 " "
+                    TK_WORD@26..27 "a"
+                TK_WHITESPACE@27..28 " "
+                TK_PERCENT_CURLY@28..30 "%}"
+            error at 28..30: expected as but found %}
+            error at 28..30: expected block name but found %}"#]],
         )
     }
 }

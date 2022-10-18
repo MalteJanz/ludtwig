@@ -15,7 +15,7 @@ pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker>
     let last_node = if parser.at(T![number]) {
         Some(parse_twig_number(parser))
     } else if parser.at_set(&[T!["\""], T!["'"]]) {
-        Some(parse_twig_string(parser))
+        Some(parse_twig_string(parser, true))
     } else if parser.at(T!["["]) {
         Some(parse_twig_array(parser))
     } else if parser.at(T!["null"]) {
@@ -55,11 +55,18 @@ fn parse_twig_number(parser: &mut Parser) -> CompletedMarker {
     parser.complete(m, SyntaxKind::TWIG_LITERAL_NUMBER)
 }
 
-fn parse_twig_string(parser: &mut Parser) -> CompletedMarker {
+pub(crate) fn parse_twig_string(
+    parser: &mut Parser,
+    mut interpolation_allowed: bool,
+) -> CompletedMarker {
     debug_assert!(parser.at_set(&[T!["\""], T!["'"]]));
     let m = parser.start();
     let starting_quote_token = parser.bump();
     let quote_kind = starting_quote_token.kind;
+    interpolation_allowed = match quote_kind {
+        T!["\""] => interpolation_allowed,
+        _ => false, // interpolation only allowed in double quoted strings,
+    };
 
     let m_inner = parser.start();
     parse_many(
@@ -71,6 +78,16 @@ fn parse_twig_string(parser: &mut Parser) -> CompletedMarker {
                 p.bump();
                 p.bump();
             } else if p.at(T!["#{"]) {
+                if !interpolation_allowed {
+                    let opening_token = p.bump();
+                    let interpolation_error = ParseErrorBuilder::new(
+                        "no string interpolation, because it isn't allowed here",
+                    )
+                    .at_token(opening_token);
+                    p.add_error(interpolation_error);
+                    return;
+                }
+
                 // found twig expression in string (string interpolation)
                 p.explicitly_consume_trivia(); // keep trivia out of interpolation node (its part of the raw string)
                 let interpolation_m = p.start();
@@ -162,7 +179,7 @@ fn parse_twig_hash_pair(parser: &mut Parser) -> Option<CompletedMarker> {
         let preceded = parser.precede(m);
         parser.complete(preceded, SyntaxKind::TWIG_LITERAL_HASH_KEY)
     } else if parser.at_set(&[T!["'"], T!["\""]]) {
-        let m = parse_twig_string(parser);
+        let m = parse_twig_string(parser, false); // no interpolation in keys
         let preceded = parser.precede(m);
         parser.complete(preceded, SyntaxKind::TWIG_LITERAL_HASH_KEY)
     } else if parser.at(T!["("]) {

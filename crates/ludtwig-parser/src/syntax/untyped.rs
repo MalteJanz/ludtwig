@@ -254,6 +254,8 @@ pub enum SyntaxKind {
     TK_DEFINED,
     #[token("same as")]
     TK_SAME_AS,
+    #[token("as")]
+    TK_AS,
     #[token("none", ignore(ascii_case))]
     TK_NONE,
     #[token("null", ignore(ascii_case))]
@@ -357,6 +359,9 @@ pub enum SyntaxKind {
     // twig include
     TWIG_INCLUDE,
     TWIG_INCLUDE_WITH,
+    // twig use
+    TWIG_USE,
+    TWIG_USE_OVERRIDE,
 
     // html
     HTML_DOCTYPE,
@@ -494,6 +499,7 @@ macro_rules! T {
     ["odd"] => { $crate::syntax::untyped::SyntaxKind::TK_ODD };
     ["defined"] => { $crate::syntax::untyped::SyntaxKind::TK_DEFINED };
     ["same as"] => { $crate::syntax::untyped::SyntaxKind::TK_SAME_AS };
+    ["as"] => { $crate::syntax::untyped::SyntaxKind::TK_AS };
     ["none"] => { $crate::syntax::untyped::SyntaxKind::TK_NONE };
     ["null"] => { $crate::syntax::untyped::SyntaxKind::TK_NULL };
     ["divisible by"] => { $crate::syntax::untyped::SyntaxKind::TK_DIVISIBLE_BY };
@@ -632,6 +638,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_ODD => "odd",
             SyntaxKind::TK_DEFINED => "defined",
             SyntaxKind::TK_SAME_AS => "same as",
+            SyntaxKind::TK_AS => "as",
             SyntaxKind::TK_NONE => "none",
             SyntaxKind::TK_NULL => "null",
             SyntaxKind::TK_DIVISIBLE_BY => "divisible by",
