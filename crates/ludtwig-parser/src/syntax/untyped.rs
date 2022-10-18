@@ -338,6 +338,11 @@ pub enum SyntaxKind {
     TWIG_ELSE_IF_BLOCK,
     TWIG_ELSE_BLOCK,
     TWIG_ENDIF_BLOCK,
+    // twig set
+    TWIG_SET,
+    TWIG_SET_BLOCK,
+    TWIG_ENDSET_BLOCK,
+    TWIG_ASSIGNMENT,
     // html
     HTML_DOCTYPE,
     HTML_ATTRIBUTE,

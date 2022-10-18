@@ -367,7 +367,7 @@ fn parse_twig_function_argument(parser: &mut Parser) -> Option<CompletedMarker> 
     }
 }
 
-fn parse_twig_name(parser: &mut Parser) -> Option<CompletedMarker> {
+pub(crate) fn parse_twig_name(parser: &mut Parser) -> Option<CompletedMarker> {
     let token_text = parser.peek_token()?.text;
     if !TWIG_NAME_REGEX.is_match(token_text) {
         return None;
@@ -519,7 +519,9 @@ mod tests {
 
     #[test]
     fn parse_twig_string_interpolation_missing_expression() {
-        check_parse(r#"{{ "foo #{ } baz" }}"#, expect![[r##"
+        check_parse(
+            r#"{{ "foo #{ } baz" }}"#,
+            expect![[r##"
             ROOT@0..20
               TWIG_VAR@0..20
                 TK_OPEN_CURLY_CURLY@0..2 "{{"
@@ -539,7 +541,8 @@ mod tests {
                     TK_DOUBLE_QUOTES@16..17 "\""
                 TK_WHITESPACE@17..18 " "
                 TK_CLOSE_CURLY_CURLY@18..20 "}}"
-            error at 11..12: expected twig expression but found }"##]]);
+            error at 11..12: expected twig expression but found }"##]],
+        );
     }
 
     #[test]

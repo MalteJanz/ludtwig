@@ -2,6 +2,7 @@ mod expression;
 pub(crate) mod literal;
 
 use crate::grammar::twig::expression::parse_twig_expression;
+use crate::grammar::twig::literal::parse_twig_name;
 use crate::grammar::{parse_ludtwig_directive, parse_many, ParseFunction};
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser};
@@ -73,6 +74,8 @@ fn parse_twig_block_statement(
         Some(parse_twig_block(parser, m, child_parser))
     } else if parser.at(T!["if"]) {
         Some(parse_twig_if(parser, m, child_parser))
+    } else if parser.at(T!["set"]) {
+        Some(parse_twig_set(parser, m, child_parser))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
         parser.add_error(ParseErrorBuilder::new(
@@ -84,14 +87,110 @@ fn parse_twig_block_statement(
     }
 }
 
+fn parse_twig_set(
+    parser: &mut Parser,
+    outer: Marker,
+    child_parser: ParseFunction,
+) -> CompletedMarker {
+    debug_assert!(parser.at(T!["set"]));
+    parser.bump();
+
+    // parse any amount of words seperated by comma
+    let assignment_m = parser.start();
+    let mut declaration_count = 0;
+    parse_many(
+        parser,
+        |p| p.at_set(&[T!["="], T!["%}"]]),
+        |p| {
+            if parse_twig_name(p).is_some() {
+                declaration_count += 1;
+            } else {
+                p.add_error(ParseErrorBuilder::new("twig variable name"));
+            }
+
+            if p.at(T![","]) {
+                p.bump();
+            }
+        },
+    );
+    if declaration_count == 0 {
+        parser.add_error(ParseErrorBuilder::new("twig variable name"));
+    }
+
+    // check for equal assignment
+    let mut is_assigned_by_equal = false;
+    if parser.at(T!["="]) {
+        parser.bump();
+        is_assigned_by_equal = true;
+
+        let mut assignment_count = 0;
+        parse_many(
+            parser,
+            |p| p.at(T!["%}"]),
+            |p| {
+                if parse_twig_expression(p).is_some() {
+                    assignment_count += 1;
+                } else {
+                    p.add_error(ParseErrorBuilder::new("twig expression"));
+                }
+
+                if p.at(T![","]) {
+                    p.bump();
+                }
+            },
+        );
+
+        if declaration_count != assignment_count {
+            parser.add_error(ParseErrorBuilder::new(format!(
+                "a total of {} twig expressions (same amount as declarations) instead of {}",
+                declaration_count, assignment_count
+            )));
+        }
+    } else if declaration_count > 1 {
+        parser.add_error(ParseErrorBuilder::new(format!(
+            "= followed by {} twig expressions",
+            declaration_count
+        )));
+    }
+
+    parser.complete(assignment_m, SyntaxKind::TWIG_ASSIGNMENT);
+    parser.expect(T!["%}"]);
+
+    let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_SET_BLOCK);
+    let wrapper_m = parser.precede(wrapper_m);
+
+    if !is_assigned_by_equal {
+        // children and a closing endset should be there
+
+        // parse all the children except endset
+        let body_m = parser.start();
+        parse_many(
+            parser,
+            |p| p.at_following(&[T!["{%"], T!["endset"]]),
+            |p| {
+                child_parser(p);
+            },
+        );
+        parser.complete(body_m, SyntaxKind::BODY);
+
+        let end_block_m = parser.start();
+        parser.expect(T!["{%"]);
+        parser.expect(T!["endset"]);
+        parser.expect(T!["%}"]);
+        parser.complete(end_block_m, SyntaxKind::TWIG_ENDSET_BLOCK);
+    }
+
+    // close overall twig set
+    parser.complete(wrapper_m, SyntaxKind::TWIG_SET)
+}
+
 fn parse_twig_block(
     parser: &mut Parser,
     outer: Marker,
     child_parser: ParseFunction,
 ) -> CompletedMarker {
     debug_assert!(parser.at(T!["block"]));
-
-    parser.expect(T!["block"]);
+    parser.bump();
     parser.expect(T![word]);
     parser.expect(T!["%}"]);
 
@@ -125,8 +224,8 @@ fn parse_twig_if(
     child_parser: ParseFunction,
 ) -> CompletedMarker {
     debug_assert!(parser.at(T!["if"]));
+    parser.bump();
 
-    parser.expect(T!["if"]);
     if parse_twig_expression(parser).is_none() {
         parser.add_error(ParseErrorBuilder::new("twig expression"))
     }
@@ -738,6 +837,317 @@ mod tests {
                 error at 18..20: expected {% but reached end of file
                 error at 18..20: expected endblock but reached end of file
                 error at 18..20: expected %} but reached end of file"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_single_set() {
+        check_parse(
+            "{% set foo = 'bar' %}",
+            expect![[r#"
+            ROOT@0..21
+              TWIG_SET@0..21
+                TWIG_SET_BLOCK@0..21
+                  TK_CURLY_PERCENT@0..2 "{%"
+                  TK_WHITESPACE@2..3 " "
+                  TK_SET@3..6 "set"
+                  TWIG_ASSIGNMENT@6..18
+                    TWIG_LITERAL_NAME@6..10
+                      TK_WHITESPACE@6..7 " "
+                      TK_WORD@7..10 "foo"
+                    TK_WHITESPACE@10..11 " "
+                    TK_EQUAL@11..12 "="
+                    TWIG_EXPRESSION@12..18
+                      TWIG_LITERAL_STRING@12..18
+                        TK_WHITESPACE@12..13 " "
+                        TK_SINGLE_QUOTES@13..14 "'"
+                        TWIG_LITERAL_STRING_INNER@14..17
+                          TK_WORD@14..17 "bar"
+                        TK_SINGLE_QUOTES@17..18 "'"
+                  TK_WHITESPACE@18..19 " "
+                  TK_PERCENT_CURLY@19..21 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_capturing_set() {
+        check_parse(
+            r#"{% set foo %}
+            hello world
+            {% endset %}
+        "#,
+            expect![[r#"
+                ROOT@0..71
+                  TWIG_SET@0..62
+                    TWIG_SET_BLOCK@0..13
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_SET@3..6 "set"
+                      TWIG_ASSIGNMENT@6..10
+                        TWIG_LITERAL_NAME@6..10
+                          TK_WHITESPACE@6..7 " "
+                          TK_WORD@7..10 "foo"
+                      TK_WHITESPACE@10..11 " "
+                      TK_PERCENT_CURLY@11..13 "%}"
+                    BODY@13..37
+                      HTML_TEXT@13..37
+                        TK_LINE_BREAK@13..14 "\n"
+                        TK_WHITESPACE@14..26 "            "
+                        TK_WORD@26..31 "hello"
+                        TK_WHITESPACE@31..32 " "
+                        TK_WORD@32..37 "world"
+                    TWIG_ENDSET_BLOCK@37..62
+                      TK_LINE_BREAK@37..38 "\n"
+                      TK_WHITESPACE@38..50 "            "
+                      TK_CURLY_PERCENT@50..52 "{%"
+                      TK_WHITESPACE@52..53 " "
+                      TK_ENDSET@53..59 "endset"
+                      TK_WHITESPACE@59..60 " "
+                      TK_PERCENT_CURLY@60..62 "%}"
+                  TK_LINE_BREAK@62..63 "\n"
+                  TK_WHITESPACE@63..71 "        ""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_multi_set() {
+        check_parse(
+            r#"{% set foo, bar, baz = 'foo', 'bar', 'baz' %}"#,
+            expect![[r#"
+                ROOT@0..45
+                  TWIG_SET@0..45
+                    TWIG_SET_BLOCK@0..45
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_SET@3..6 "set"
+                      TWIG_ASSIGNMENT@6..42
+                        TWIG_LITERAL_NAME@6..10
+                          TK_WHITESPACE@6..7 " "
+                          TK_WORD@7..10 "foo"
+                        TK_COMMA@10..11 ","
+                        TWIG_LITERAL_NAME@11..15
+                          TK_WHITESPACE@11..12 " "
+                          TK_WORD@12..15 "bar"
+                        TK_COMMA@15..16 ","
+                        TWIG_LITERAL_NAME@16..20
+                          TK_WHITESPACE@16..17 " "
+                          TK_WORD@17..20 "baz"
+                        TK_WHITESPACE@20..21 " "
+                        TK_EQUAL@21..22 "="
+                        TWIG_EXPRESSION@22..28
+                          TWIG_LITERAL_STRING@22..28
+                            TK_WHITESPACE@22..23 " "
+                            TK_SINGLE_QUOTES@23..24 "'"
+                            TWIG_LITERAL_STRING_INNER@24..27
+                              TK_WORD@24..27 "foo"
+                            TK_SINGLE_QUOTES@27..28 "'"
+                        TK_COMMA@28..29 ","
+                        TWIG_EXPRESSION@29..35
+                          TWIG_LITERAL_STRING@29..35
+                            TK_WHITESPACE@29..30 " "
+                            TK_SINGLE_QUOTES@30..31 "'"
+                            TWIG_LITERAL_STRING_INNER@31..34
+                              TK_WORD@31..34 "bar"
+                            TK_SINGLE_QUOTES@34..35 "'"
+                        TK_COMMA@35..36 ","
+                        TWIG_EXPRESSION@36..42
+                          TWIG_LITERAL_STRING@36..42
+                            TK_WHITESPACE@36..37 " "
+                            TK_SINGLE_QUOTES@37..38 "'"
+                            TWIG_LITERAL_STRING_INNER@38..41
+                              TK_WORD@38..41 "baz"
+                            TK_SINGLE_QUOTES@41..42 "'"
+                      TK_WHITESPACE@42..43 " "
+                      TK_PERCENT_CURLY@43..45 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_multi_set_non_equal_declarations() {
+        check_parse(
+            r#"{% set foo, bar, baz = 'foo', 'bar' %}"#,
+            expect![[r#"
+                ROOT@0..38
+                  TWIG_SET@0..38
+                    TWIG_SET_BLOCK@0..38
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_SET@3..6 "set"
+                      TWIG_ASSIGNMENT@6..35
+                        TWIG_LITERAL_NAME@6..10
+                          TK_WHITESPACE@6..7 " "
+                          TK_WORD@7..10 "foo"
+                        TK_COMMA@10..11 ","
+                        TWIG_LITERAL_NAME@11..15
+                          TK_WHITESPACE@11..12 " "
+                          TK_WORD@12..15 "bar"
+                        TK_COMMA@15..16 ","
+                        TWIG_LITERAL_NAME@16..20
+                          TK_WHITESPACE@16..17 " "
+                          TK_WORD@17..20 "baz"
+                        TK_WHITESPACE@20..21 " "
+                        TK_EQUAL@21..22 "="
+                        TWIG_EXPRESSION@22..28
+                          TWIG_LITERAL_STRING@22..28
+                            TK_WHITESPACE@22..23 " "
+                            TK_SINGLE_QUOTES@23..24 "'"
+                            TWIG_LITERAL_STRING_INNER@24..27
+                              TK_WORD@24..27 "foo"
+                            TK_SINGLE_QUOTES@27..28 "'"
+                        TK_COMMA@28..29 ","
+                        TWIG_EXPRESSION@29..35
+                          TWIG_LITERAL_STRING@29..35
+                            TK_WHITESPACE@29..30 " "
+                            TK_SINGLE_QUOTES@30..31 "'"
+                            TWIG_LITERAL_STRING_INNER@31..34
+                              TK_WORD@31..34 "bar"
+                            TK_SINGLE_QUOTES@34..35 "'"
+                      TK_WHITESPACE@35..36 " "
+                      TK_PERCENT_CURLY@36..38 "%}"
+                error at 36..38: expected a total of 3 twig expressions (same amount as declarations) instead of 2 but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_multi_with_capturing() {
+        check_parse(
+            r#"{% set foo, bar, baz %}
+                hello world
+            {% endset %}
+            "#,
+            expect![[r#"
+                ROOT@0..89
+                  TWIG_SET@0..76
+                    TWIG_SET_BLOCK@0..23
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_SET@3..6 "set"
+                      TWIG_ASSIGNMENT@6..20
+                        TWIG_LITERAL_NAME@6..10
+                          TK_WHITESPACE@6..7 " "
+                          TK_WORD@7..10 "foo"
+                        TK_COMMA@10..11 ","
+                        TWIG_LITERAL_NAME@11..15
+                          TK_WHITESPACE@11..12 " "
+                          TK_WORD@12..15 "bar"
+                        TK_COMMA@15..16 ","
+                        TWIG_LITERAL_NAME@16..20
+                          TK_WHITESPACE@16..17 " "
+                          TK_WORD@17..20 "baz"
+                      TK_WHITESPACE@20..21 " "
+                      TK_PERCENT_CURLY@21..23 "%}"
+                    BODY@23..51
+                      HTML_TEXT@23..51
+                        TK_LINE_BREAK@23..24 "\n"
+                        TK_WHITESPACE@24..40 "                "
+                        TK_WORD@40..45 "hello"
+                        TK_WHITESPACE@45..46 " "
+                        TK_WORD@46..51 "world"
+                    TWIG_ENDSET_BLOCK@51..76
+                      TK_LINE_BREAK@51..52 "\n"
+                      TK_WHITESPACE@52..64 "            "
+                      TK_CURLY_PERCENT@64..66 "{%"
+                      TK_WHITESPACE@66..67 " "
+                      TK_ENDSET@67..73 "endset"
+                      TK_WHITESPACE@73..74 " "
+                      TK_PERCENT_CURLY@74..76 "%}"
+                  TK_LINE_BREAK@76..77 "\n"
+                  TK_WHITESPACE@77..89 "            "
+                error at 21..23: expected = followed by 3 twig expressions but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_set_missing_declaration() {
+        check_parse(
+            r#"{% set = 'foo' %}
+            "#,
+            expect![[r#"
+                ROOT@0..30
+                  TWIG_SET@0..17
+                    TWIG_SET_BLOCK@0..17
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_SET@3..6 "set"
+                      TWIG_ASSIGNMENT@6..14
+                        TK_WHITESPACE@6..7 " "
+                        TK_EQUAL@7..8 "="
+                        TWIG_EXPRESSION@8..14
+                          TWIG_LITERAL_STRING@8..14
+                            TK_WHITESPACE@8..9 " "
+                            TK_SINGLE_QUOTES@9..10 "'"
+                            TWIG_LITERAL_STRING_INNER@10..13
+                              TK_WORD@10..13 "foo"
+                            TK_SINGLE_QUOTES@13..14 "'"
+                      TK_WHITESPACE@14..15 " "
+                      TK_PERCENT_CURLY@15..17 "%}"
+                  TK_LINE_BREAK@17..18 "\n"
+                  TK_WHITESPACE@18..30 "            "
+                error at 7..8: expected twig variable name but found =
+                error at 15..17: expected a total of 0 twig expressions (same amount as declarations) instead of 1 but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_set_missing_assignment() {
+        check_parse(
+            r#"{% set foo = %}
+            "#,
+            expect![[r#"
+                ROOT@0..28
+                  TWIG_SET@0..15
+                    TWIG_SET_BLOCK@0..15
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_SET@3..6 "set"
+                      TWIG_ASSIGNMENT@6..12
+                        TWIG_LITERAL_NAME@6..10
+                          TK_WHITESPACE@6..7 " "
+                          TK_WORD@7..10 "foo"
+                        TK_WHITESPACE@10..11 " "
+                        TK_EQUAL@11..12 "="
+                      TK_WHITESPACE@12..13 " "
+                      TK_PERCENT_CURLY@13..15 "%}"
+                  TK_LINE_BREAK@15..16 "\n"
+                  TK_WHITESPACE@16..28 "            "
+                error at 13..15: expected a total of 1 twig expressions (same amount as declarations) instead of 0 but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_set_missing_equal() {
+        check_parse(
+            r#"{% set foo, bar, baz %}
+            "#,
+            expect![[r#"
+                ROOT@0..36
+                  TWIG_SET@0..23
+                    TWIG_SET_BLOCK@0..23
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_SET@3..6 "set"
+                      TWIG_ASSIGNMENT@6..20
+                        TWIG_LITERAL_NAME@6..10
+                          TK_WHITESPACE@6..7 " "
+                          TK_WORD@7..10 "foo"
+                        TK_COMMA@10..11 ","
+                        TWIG_LITERAL_NAME@11..15
+                          TK_WHITESPACE@11..12 " "
+                          TK_WORD@12..15 "bar"
+                        TK_COMMA@15..16 ","
+                        TWIG_LITERAL_NAME@16..20
+                          TK_WHITESPACE@16..17 " "
+                          TK_WORD@17..20 "baz"
+                      TK_WHITESPACE@20..21 " "
+                      TK_PERCENT_CURLY@21..23 "%}"
+                    BODY@23..23
+                    TWIG_ENDSET_BLOCK@23..23
+                  TK_LINE_BREAK@23..24 "\n"
+                  TK_WHITESPACE@24..36 "            "
+                error at 21..23: expected = followed by 3 twig expressions but found %}
+                error at 24..36: expected {% but reached end of file
+                error at 24..36: expected endset but reached end of file
+                error at 24..36: expected %} but reached end of file"#]],
         )
     }
 }
