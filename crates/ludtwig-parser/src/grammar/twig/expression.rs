@@ -810,4 +810,50 @@ mod tests {
                     TK_CLOSE_CURLY_CURLY@21..23 "}}""#]],
         )
     }
+
+    #[test]
+    fn parse_twig_function_with_is_defined_test() {
+        check_parse(
+            r#"{{ block("footer", "common_blocks.twig") is defined }}"#,
+            expect![[r#"
+                ROOT@0..54
+                  TWIG_VAR@0..54
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..51
+                      TWIG_BINARY_EXPRESSION@2..51
+                        TWIG_EXPRESSION@2..40
+                          TWIG_FUNCTION_CALL@2..40
+                            TWIG_OPERAND@2..8
+                              TWIG_LITERAL_NAME@2..8
+                                TK_WHITESPACE@2..3 " "
+                                TK_WORD@3..8 "block"
+                            TK_OPEN_PARENTHESIS@8..9 "("
+                            TWIG_ARGUMENTS@9..39
+                              TWIG_EXPRESSION@9..17
+                                TWIG_LITERAL_STRING@9..17
+                                  TK_DOUBLE_QUOTES@9..10 "\""
+                                  TWIG_LITERAL_STRING_INNER@10..16
+                                    TK_WORD@10..16 "footer"
+                                  TK_DOUBLE_QUOTES@16..17 "\""
+                              TK_COMMA@17..18 ","
+                              TWIG_EXPRESSION@18..39
+                                TWIG_LITERAL_STRING@18..39
+                                  TK_WHITESPACE@18..19 " "
+                                  TK_DOUBLE_QUOTES@19..20 "\""
+                                  TWIG_LITERAL_STRING_INNER@20..38
+                                    TK_WORD@20..33 "common_blocks"
+                                    TK_DOT@33..34 "."
+                                    TK_WORD@34..38 "twig"
+                                  TK_DOUBLE_QUOTES@38..39 "\""
+                            TK_CLOSE_PARENTHESIS@39..40 ")"
+                        TK_WHITESPACE@40..41 " "
+                        TK_IS@41..43 "is"
+                        TWIG_EXPRESSION@43..51
+                          TWIG_LITERAL_NAME@43..51
+                            TK_WHITESPACE@43..44 " "
+                            TK_WORD@44..51 "defined"
+                    TK_WHITESPACE@51..52 " "
+                    TK_CLOSE_CURLY_CURLY@52..54 "}}""#]],
+        )
+    }
 }
