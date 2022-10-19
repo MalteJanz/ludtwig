@@ -767,6 +767,69 @@ mod tests {
     }
 
     #[test]
+    fn parse_twig_conditional_expression_missing_falsy_expression() {
+        check_parse("{{ a > b ? 'N' : }}", expect![[r#"
+            ROOT@0..19
+              TWIG_VAR@0..19
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..16
+                  TWIG_CONDITIONAL_EXPRESSION@2..16
+                    TWIG_EXPRESSION@2..8
+                      TWIG_BINARY_EXPRESSION@2..8
+                        TWIG_EXPRESSION@2..4
+                          TWIG_LITERAL_NAME@2..4
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..4 "a"
+                        TK_WHITESPACE@4..5 " "
+                        TK_GREATER_THAN@5..6 ">"
+                        TWIG_EXPRESSION@6..8
+                          TWIG_LITERAL_NAME@6..8
+                            TK_WHITESPACE@6..7 " "
+                            TK_WORD@7..8 "b"
+                    TK_WHITESPACE@8..9 " "
+                    TK_QUESTION_MARK@9..10 "?"
+                    TWIG_EXPRESSION@10..14
+                      TWIG_LITERAL_STRING@10..14
+                        TK_WHITESPACE@10..11 " "
+                        TK_SINGLE_QUOTES@11..12 "'"
+                        TWIG_LITERAL_STRING_INNER@12..13
+                          TK_WORD@12..13 "N"
+                        TK_SINGLE_QUOTES@13..14 "'"
+                    TK_WHITESPACE@14..15 " "
+                    TK_COLON@15..16 ":"
+                TK_WHITESPACE@16..17 " "
+                TK_CLOSE_CURLY_CURLY@17..19 "}}"
+            error at 17..19: expected twig expression but found }}"#]])
+    }
+
+    #[test]
+    fn parse_twig_conditional_expression_missing_truthy_expression() {
+        check_parse("{{ a > b ? }}", expect![[r#"
+            ROOT@0..13
+              TWIG_VAR@0..13
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..10
+                  TWIG_CONDITIONAL_EXPRESSION@2..10
+                    TWIG_EXPRESSION@2..8
+                      TWIG_BINARY_EXPRESSION@2..8
+                        TWIG_EXPRESSION@2..4
+                          TWIG_LITERAL_NAME@2..4
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..4 "a"
+                        TK_WHITESPACE@4..5 " "
+                        TK_GREATER_THAN@5..6 ">"
+                        TWIG_EXPRESSION@6..8
+                          TWIG_LITERAL_NAME@6..8
+                            TK_WHITESPACE@6..7 " "
+                            TK_WORD@7..8 "b"
+                    TK_WHITESPACE@8..9 " "
+                    TK_QUESTION_MARK@9..10 "?"
+                TK_WHITESPACE@10..11 " "
+                TK_CLOSE_CURLY_CURLY@11..13 "}}"
+            error at 11..13: expected twig expression or ':' but found }}"#]])
+    }
+
+    #[test]
     fn parse_twig_conditional_expression_nested() {
         check_parse(
             "{{ a ? b ? 'B' : 'N' }}",
