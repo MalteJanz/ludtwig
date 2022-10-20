@@ -30,6 +30,8 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_extends(parser, m))
     } else if parser.at(T!["include"]) {
         Some(parse_twig_include(parser, m))
+    } else if parser.at(T!["embed"]) {
+        Some(parse_twig_embed(parser, m, child_parser))
     } else if parser.at(T!["use"]) {
         Some(parse_twig_use(parser, m))
     } else if parser.at(T!["apply"]) {
@@ -236,6 +238,63 @@ fn parse_twig_use(parser: &mut Parser, outer: Marker) -> CompletedMarker {
     parser.expect(T!["%}"]);
 
     parser.complete(outer, SyntaxKind::TWIG_USE)
+}
+
+fn parse_twig_embed(
+    parser: &mut Parser,
+    outer: Marker,
+    child_parser: ParseFunction,
+) -> CompletedMarker {
+    debug_assert!(parser.at(T!["embed"]));
+    parser.bump();
+
+    // same arguments as include tag
+    if parse_twig_expression(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new("twig expression as template name"));
+    }
+
+    if parser.at(T!["ignore missing"]) {
+        parser.bump();
+    }
+
+    if parser.at(T!["with"]) {
+        let with_value_m = parser.start();
+        parser.bump();
+        if parse_twig_expression(parser).is_none() {
+            parser.add_error(ParseErrorBuilder::new("twig expression as with value"));
+        }
+        parser.complete(with_value_m, SyntaxKind::TWIG_INCLUDE_WITH);
+    }
+
+    if parser.at(T!["only"]) {
+        parser.bump();
+    }
+
+    parser.expect(T!["%}"]);
+
+    // but embed has a body
+    let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_EMBED_STARTING_BLOCK);
+    let wrapper_m = parser.precede(wrapper_m);
+
+    // parse all the children except endembed
+    let body_m = parser.start();
+    parse_many(
+        parser,
+        |p| p.at_following(&[T!["{%"], T!["endembed"]]),
+        |p| {
+            child_parser(p);
+        },
+    );
+    parser.complete(body_m, SyntaxKind::BODY);
+
+    let end_block_m = parser.start();
+    parser.expect(T!["{%"]);
+    parser.expect(T!["endembed"]);
+    parser.expect(T!["%}"]);
+    parser.complete(end_block_m, SyntaxKind::TWIG_EMBED_ENDING_BLOCK);
+
+    // close overall twig embed
+    parser.complete(wrapper_m, SyntaxKind::TWIG_EMBED)
 }
 
 fn parse_twig_include(parser: &mut Parser, outer: Marker) -> CompletedMarker {
@@ -3227,6 +3286,170 @@ mod tests {
                 TK_WHITESPACE@5..6 " "
                 TK_PERCENT_CURLY@6..8 "%}"
             error at 6..8: expected twig expression but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_embed_template_with_value() {
+        check_parse(
+            r#"{% embed "base" with {'foo': 'bar'} %}
+    ...
+{% endembed %}"#,
+            expect![[r#"
+                ROOT@0..61
+                  TWIG_EMBED@0..61
+                    TWIG_EMBED_STARTING_BLOCK@0..38
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_EMBED@3..8 "embed"
+                      TWIG_EXPRESSION@8..15
+                        TWIG_LITERAL_STRING@8..15
+                          TK_WHITESPACE@8..9 " "
+                          TK_DOUBLE_QUOTES@9..10 "\""
+                          TWIG_LITERAL_STRING_INNER@10..14
+                            TK_WORD@10..14 "base"
+                          TK_DOUBLE_QUOTES@14..15 "\""
+                      TWIG_INCLUDE_WITH@15..35
+                        TK_WHITESPACE@15..16 " "
+                        TK_WITH@16..20 "with"
+                        TWIG_EXPRESSION@20..35
+                          TWIG_LITERAL_HASH@20..35
+                            TK_WHITESPACE@20..21 " "
+                            TK_OPEN_CURLY@21..22 "{"
+                            TWIG_LITERAL_HASH_PAIR@22..34
+                              TWIG_LITERAL_HASH_KEY@22..27
+                                TWIG_LITERAL_STRING@22..27
+                                  TK_SINGLE_QUOTES@22..23 "'"
+                                  TWIG_LITERAL_STRING_INNER@23..26
+                                    TK_WORD@23..26 "foo"
+                                  TK_SINGLE_QUOTES@26..27 "'"
+                              TK_COLON@27..28 ":"
+                              TWIG_EXPRESSION@28..34
+                                TWIG_LITERAL_STRING@28..34
+                                  TK_WHITESPACE@28..29 " "
+                                  TK_SINGLE_QUOTES@29..30 "'"
+                                  TWIG_LITERAL_STRING_INNER@30..33
+                                    TK_WORD@30..33 "bar"
+                                  TK_SINGLE_QUOTES@33..34 "'"
+                            TK_CLOSE_CURLY@34..35 "}"
+                      TK_WHITESPACE@35..36 " "
+                      TK_PERCENT_CURLY@36..38 "%}"
+                    BODY@38..46
+                      HTML_TEXT@38..46
+                        TK_LINE_BREAK@38..39 "\n"
+                        TK_WHITESPACE@39..43 "    "
+                        TK_DOUBLE_DOT@43..45 ".."
+                        TK_DOT@45..46 "."
+                    TWIG_EMBED_ENDING_BLOCK@46..61
+                      TK_LINE_BREAK@46..47 "\n"
+                      TK_CURLY_PERCENT@47..49 "{%"
+                      TK_WHITESPACE@49..50 " "
+                      TK_ENDEMBED@50..58 "endembed"
+                      TK_WHITESPACE@58..59 " "
+                      TK_PERCENT_CURLY@59..61 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_embed_template_with_value_only() {
+        check_parse(
+            r#"{% embed "base" with {'foo': 'bar'} only %}
+    ...
+{% endembed %}"#,
+            expect![[r#"
+                ROOT@0..66
+                  TWIG_EMBED@0..66
+                    TWIG_EMBED_STARTING_BLOCK@0..43
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_EMBED@3..8 "embed"
+                      TWIG_EXPRESSION@8..15
+                        TWIG_LITERAL_STRING@8..15
+                          TK_WHITESPACE@8..9 " "
+                          TK_DOUBLE_QUOTES@9..10 "\""
+                          TWIG_LITERAL_STRING_INNER@10..14
+                            TK_WORD@10..14 "base"
+                          TK_DOUBLE_QUOTES@14..15 "\""
+                      TWIG_INCLUDE_WITH@15..35
+                        TK_WHITESPACE@15..16 " "
+                        TK_WITH@16..20 "with"
+                        TWIG_EXPRESSION@20..35
+                          TWIG_LITERAL_HASH@20..35
+                            TK_WHITESPACE@20..21 " "
+                            TK_OPEN_CURLY@21..22 "{"
+                            TWIG_LITERAL_HASH_PAIR@22..34
+                              TWIG_LITERAL_HASH_KEY@22..27
+                                TWIG_LITERAL_STRING@22..27
+                                  TK_SINGLE_QUOTES@22..23 "'"
+                                  TWIG_LITERAL_STRING_INNER@23..26
+                                    TK_WORD@23..26 "foo"
+                                  TK_SINGLE_QUOTES@26..27 "'"
+                              TK_COLON@27..28 ":"
+                              TWIG_EXPRESSION@28..34
+                                TWIG_LITERAL_STRING@28..34
+                                  TK_WHITESPACE@28..29 " "
+                                  TK_SINGLE_QUOTES@29..30 "'"
+                                  TWIG_LITERAL_STRING_INNER@30..33
+                                    TK_WORD@30..33 "bar"
+                                  TK_SINGLE_QUOTES@33..34 "'"
+                            TK_CLOSE_CURLY@34..35 "}"
+                      TK_WHITESPACE@35..36 " "
+                      TK_ONLY@36..40 "only"
+                      TK_WHITESPACE@40..41 " "
+                      TK_PERCENT_CURLY@41..43 "%}"
+                    BODY@43..51
+                      HTML_TEXT@43..51
+                        TK_LINE_BREAK@43..44 "\n"
+                        TK_WHITESPACE@44..48 "    "
+                        TK_DOUBLE_DOT@48..50 ".."
+                        TK_DOT@50..51 "."
+                    TWIG_EMBED_ENDING_BLOCK@51..66
+                      TK_LINE_BREAK@51..52 "\n"
+                      TK_CURLY_PERCENT@52..54 "{%"
+                      TK_WHITESPACE@54..55 " "
+                      TK_ENDEMBED@55..63 "endembed"
+                      TK_WHITESPACE@63..64 " "
+                      TK_PERCENT_CURLY@64..66 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_embed_template_ignore_missing() {
+        check_parse(
+            r#"{% embed "base" ignore missing %}
+    ...
+{% endembed %}"#,
+            expect![[r#"
+                ROOT@0..56
+                  TWIG_EMBED@0..56
+                    TWIG_EMBED_STARTING_BLOCK@0..33
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_EMBED@3..8 "embed"
+                      TWIG_EXPRESSION@8..15
+                        TWIG_LITERAL_STRING@8..15
+                          TK_WHITESPACE@8..9 " "
+                          TK_DOUBLE_QUOTES@9..10 "\""
+                          TWIG_LITERAL_STRING_INNER@10..14
+                            TK_WORD@10..14 "base"
+                          TK_DOUBLE_QUOTES@14..15 "\""
+                      TK_WHITESPACE@15..16 " "
+                      TK_IGNORE_MISSING@16..30 "ignore missing"
+                      TK_WHITESPACE@30..31 " "
+                      TK_PERCENT_CURLY@31..33 "%}"
+                    BODY@33..41
+                      HTML_TEXT@33..41
+                        TK_LINE_BREAK@33..34 "\n"
+                        TK_WHITESPACE@34..38 "    "
+                        TK_DOUBLE_DOT@38..40 ".."
+                        TK_DOT@40..41 "."
+                    TWIG_EMBED_ENDING_BLOCK@41..56
+                      TK_LINE_BREAK@41..42 "\n"
+                      TK_CURLY_PERCENT@42..44 "{%"
+                      TK_WHITESPACE@44..45 " "
+                      TK_ENDEMBED@45..53 "endembed"
+                      TK_WHITESPACE@53..54 " "
+                      TK_PERCENT_CURLY@54..56 "%}""#]],
         )
     }
 }

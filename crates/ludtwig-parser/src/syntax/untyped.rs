@@ -374,6 +374,10 @@ pub enum SyntaxKind {
     TWIG_DEPRECATED,
     // twig do
     TWIG_DO,
+    // twig embed
+    TWIG_EMBED,
+    TWIG_EMBED_STARTING_BLOCK,
+    TWIG_EMBED_ENDING_BLOCK,
 
     // html
     HTML_DOCTYPE,
