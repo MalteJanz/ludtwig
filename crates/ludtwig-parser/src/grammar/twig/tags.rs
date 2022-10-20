@@ -32,6 +32,8 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_use(parser, m))
     } else if parser.at(T!["apply"]) {
         Some(parse_twig_apply(parser, m, child_parser))
+    } else if parser.at(T!["autoescape"]) {
+        Some(parse_twig_autoescape(parser, m, child_parser))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
         parser.add_error(ParseErrorBuilder::new(
@@ -41,6 +43,50 @@ pub(crate) fn parse_twig_block_statement(
         parser.complete(m, SyntaxKind::ERROR);
         None
     }
+}
+
+fn parse_twig_autoescape(
+    parser: &mut Parser,
+    outer: Marker,
+    child_parser: ParseFunction,
+) -> CompletedMarker {
+    debug_assert!(parser.at(T!["autoescape"]));
+    parser.bump();
+
+    if parser.at_set(&[T!["\""], T!["'"]]) {
+        parse_twig_string(parser, false);
+    } else if parser.at(T!["false"]) {
+        parser.bump();
+    } else if !parser.at(T!["%}"]) {
+        parser.add_error(ParseErrorBuilder::new(
+            "twig escape strategy as string or 'false'",
+        ));
+    }
+
+    parser.expect(T!["%}"]);
+
+    let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_AUTOESCAPE_STARTING_BLOCK);
+    let wrapper_m = parser.precede(wrapper_m);
+
+    // parse all the children except endautoescape
+    let body_m = parser.start();
+    parse_many(
+        parser,
+        |p| p.at_following(&[T!["{%"], T!["endautoescape"]]),
+        |p| {
+            child_parser(p);
+        },
+    );
+    parser.complete(body_m, SyntaxKind::BODY);
+
+    let end_block_m = parser.start();
+    parser.expect(T!["{%"]);
+    parser.expect(T!["endautoescape"]);
+    parser.expect(T!["%}"]);
+    parser.complete(end_block_m, SyntaxKind::TWIG_AUTOESCAPE_ENDING_BLOCK);
+
+    // close overall twig autoescape
+    parser.complete(wrapper_m, SyntaxKind::TWIG_AUTOESCAPE)
 }
 
 fn parse_twig_apply(
@@ -2662,6 +2708,245 @@ mod tests {
                       TK_PERCENT_CURLY@38..40 "%}"
                   TK_LINE_BREAK@40..41 "\n"
                 error at 9..11: expected twig filter but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_autoescape() {
+        check_parse(
+            r#"{% autoescape %}
+    Everything will be automatically escaped in this block
+    using the HTML strategy
+{% endautoescape %}
+"#,
+            expect![[r#"
+                ROOT@0..124
+                  TWIG_AUTOESCAPE@0..123
+                    TWIG_AUTOESCAPE_STARTING_BLOCK@0..16
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_AUTOESCAPE@3..13 "autoescape"
+                      TK_WHITESPACE@13..14 " "
+                      TK_PERCENT_CURLY@14..16 "%}"
+                    BODY@16..103
+                      HTML_TEXT@16..103
+                        TK_LINE_BREAK@16..17 "\n"
+                        TK_WHITESPACE@17..21 "    "
+                        TK_WORD@21..31 "Everything"
+                        TK_WHITESPACE@31..32 " "
+                        TK_WORD@32..36 "will"
+                        TK_WHITESPACE@36..37 " "
+                        TK_WORD@37..39 "be"
+                        TK_WHITESPACE@39..40 " "
+                        TK_WORD@40..53 "automatically"
+                        TK_WHITESPACE@53..54 " "
+                        TK_WORD@54..61 "escaped"
+                        TK_WHITESPACE@61..62 " "
+                        TK_IN@62..64 "in"
+                        TK_WHITESPACE@64..65 " "
+                        TK_WORD@65..69 "this"
+                        TK_WHITESPACE@69..70 " "
+                        TK_BLOCK@70..75 "block"
+                        TK_LINE_BREAK@75..76 "\n"
+                        TK_WHITESPACE@76..80 "    "
+                        TK_WORD@80..85 "using"
+                        TK_WHITESPACE@85..86 " "
+                        TK_WORD@86..89 "the"
+                        TK_WHITESPACE@89..90 " "
+                        TK_WORD@90..94 "HTML"
+                        TK_WHITESPACE@94..95 " "
+                        TK_WORD@95..103 "strategy"
+                    TWIG_AUTOESCAPE_ENDING_BLOCK@103..123
+                      TK_LINE_BREAK@103..104 "\n"
+                      TK_CURLY_PERCENT@104..106 "{%"
+                      TK_WHITESPACE@106..107 " "
+                      TK_ENDAUTOESCAPE@107..120 "endautoescape"
+                      TK_WHITESPACE@120..121 " "
+                      TK_PERCENT_CURLY@121..123 "%}"
+                  TK_LINE_BREAK@123..124 "\n""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_autoescape_strategy() {
+        check_parse(
+            r#"{% autoescape 'js' %}
+    Everything will be automatically escaped in this block
+    using the js escaping strategy
+{% endautoescape %}
+"#,
+            expect![[r#"
+                ROOT@0..136
+                  TWIG_AUTOESCAPE@0..135
+                    TWIG_AUTOESCAPE_STARTING_BLOCK@0..21
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_AUTOESCAPE@3..13 "autoescape"
+                      TWIG_LITERAL_STRING@13..18
+                        TK_WHITESPACE@13..14 " "
+                        TK_SINGLE_QUOTES@14..15 "'"
+                        TWIG_LITERAL_STRING_INNER@15..17
+                          TK_WORD@15..17 "js"
+                        TK_SINGLE_QUOTES@17..18 "'"
+                      TK_WHITESPACE@18..19 " "
+                      TK_PERCENT_CURLY@19..21 "%}"
+                    BODY@21..115
+                      HTML_TEXT@21..115
+                        TK_LINE_BREAK@21..22 "\n"
+                        TK_WHITESPACE@22..26 "    "
+                        TK_WORD@26..36 "Everything"
+                        TK_WHITESPACE@36..37 " "
+                        TK_WORD@37..41 "will"
+                        TK_WHITESPACE@41..42 " "
+                        TK_WORD@42..44 "be"
+                        TK_WHITESPACE@44..45 " "
+                        TK_WORD@45..58 "automatically"
+                        TK_WHITESPACE@58..59 " "
+                        TK_WORD@59..66 "escaped"
+                        TK_WHITESPACE@66..67 " "
+                        TK_IN@67..69 "in"
+                        TK_WHITESPACE@69..70 " "
+                        TK_WORD@70..74 "this"
+                        TK_WHITESPACE@74..75 " "
+                        TK_BLOCK@75..80 "block"
+                        TK_LINE_BREAK@80..81 "\n"
+                        TK_WHITESPACE@81..85 "    "
+                        TK_WORD@85..90 "using"
+                        TK_WHITESPACE@90..91 " "
+                        TK_WORD@91..94 "the"
+                        TK_WHITESPACE@94..95 " "
+                        TK_WORD@95..97 "js"
+                        TK_WHITESPACE@97..98 " "
+                        TK_WORD@98..106 "escaping"
+                        TK_WHITESPACE@106..107 " "
+                        TK_WORD@107..115 "strategy"
+                    TWIG_AUTOESCAPE_ENDING_BLOCK@115..135
+                      TK_LINE_BREAK@115..116 "\n"
+                      TK_CURLY_PERCENT@116..118 "{%"
+                      TK_WHITESPACE@118..119 " "
+                      TK_ENDAUTOESCAPE@119..132 "endautoescape"
+                      TK_WHITESPACE@132..133 " "
+                      TK_PERCENT_CURLY@133..135 "%}"
+                  TK_LINE_BREAK@135..136 "\n""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_autoescape_false() {
+        check_parse(
+            r#"{% autoescape false %}
+    Everything will be outputted as is in this block
+{% endautoescape %}
+"#,
+            expect![[r#"
+                ROOT@0..96
+                  TWIG_AUTOESCAPE@0..95
+                    TWIG_AUTOESCAPE_STARTING_BLOCK@0..22
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_AUTOESCAPE@3..13 "autoescape"
+                      TK_WHITESPACE@13..14 " "
+                      TK_FALSE@14..19 "false"
+                      TK_WHITESPACE@19..20 " "
+                      TK_PERCENT_CURLY@20..22 "%}"
+                    BODY@22..75
+                      HTML_TEXT@22..75
+                        TK_LINE_BREAK@22..23 "\n"
+                        TK_WHITESPACE@23..27 "    "
+                        TK_WORD@27..37 "Everything"
+                        TK_WHITESPACE@37..38 " "
+                        TK_WORD@38..42 "will"
+                        TK_WHITESPACE@42..43 " "
+                        TK_WORD@43..45 "be"
+                        TK_WHITESPACE@45..46 " "
+                        TK_WORD@46..55 "outputted"
+                        TK_WHITESPACE@55..56 " "
+                        TK_AS@56..58 "as"
+                        TK_WHITESPACE@58..59 " "
+                        TK_IS@59..61 "is"
+                        TK_WHITESPACE@61..62 " "
+                        TK_IN@62..64 "in"
+                        TK_WHITESPACE@64..65 " "
+                        TK_WORD@65..69 "this"
+                        TK_WHITESPACE@69..70 " "
+                        TK_BLOCK@70..75 "block"
+                    TWIG_AUTOESCAPE_ENDING_BLOCK@75..95
+                      TK_LINE_BREAK@75..76 "\n"
+                      TK_CURLY_PERCENT@76..78 "{%"
+                      TK_WHITESPACE@78..79 " "
+                      TK_ENDAUTOESCAPE@79..92 "endautoescape"
+                      TK_WHITESPACE@92..93 " "
+                      TK_PERCENT_CURLY@93..95 "%}"
+                  TK_LINE_BREAK@95..96 "\n""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_autoescape_wrong_var() {
+        check_parse(
+            r#"{% autoescape my_var %}
+    Everything will be automatically escaped in this block
+    using the js escaping strategy
+{% endautoescape %}
+"#,
+            expect![[r#"
+                ROOT@0..138
+                  TWIG_AUTOESCAPE@0..23
+                    TWIG_AUTOESCAPE_STARTING_BLOCK@0..20
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_AUTOESCAPE@3..13 "autoescape"
+                      ERROR@13..20
+                        TK_WHITESPACE@13..14 " "
+                        TK_WORD@14..20 "my_var"
+                    BODY@20..20
+                    TWIG_AUTOESCAPE_ENDING_BLOCK@20..23
+                      TK_WHITESPACE@20..21 " "
+                      TK_PERCENT_CURLY@21..23 "%}"
+                  HTML_TEXT@23..117
+                    TK_LINE_BREAK@23..24 "\n"
+                    TK_WHITESPACE@24..28 "    "
+                    TK_WORD@28..38 "Everything"
+                    TK_WHITESPACE@38..39 " "
+                    TK_WORD@39..43 "will"
+                    TK_WHITESPACE@43..44 " "
+                    TK_WORD@44..46 "be"
+                    TK_WHITESPACE@46..47 " "
+                    TK_WORD@47..60 "automatically"
+                    TK_WHITESPACE@60..61 " "
+                    TK_WORD@61..68 "escaped"
+                    TK_WHITESPACE@68..69 " "
+                    TK_IN@69..71 "in"
+                    TK_WHITESPACE@71..72 " "
+                    TK_WORD@72..76 "this"
+                    TK_WHITESPACE@76..77 " "
+                    TK_BLOCK@77..82 "block"
+                    TK_LINE_BREAK@82..83 "\n"
+                    TK_WHITESPACE@83..87 "    "
+                    TK_WORD@87..92 "using"
+                    TK_WHITESPACE@92..93 " "
+                    TK_WORD@93..96 "the"
+                    TK_WHITESPACE@96..97 " "
+                    TK_WORD@97..99 "js"
+                    TK_WHITESPACE@99..100 " "
+                    TK_WORD@100..108 "escaping"
+                    TK_WHITESPACE@108..109 " "
+                    TK_WORD@109..117 "strategy"
+                  ERROR@117..120
+                    TK_LINE_BREAK@117..118 "\n"
+                    TK_CURLY_PERCENT@118..120 "{%"
+                  HTML_TEXT@120..134
+                    TK_WHITESPACE@120..121 " "
+                    TK_ENDAUTOESCAPE@121..134 "endautoescape"
+                  ERROR@134..137
+                    TK_WHITESPACE@134..135 " "
+                    TK_PERCENT_CURLY@135..137 "%}"
+                  TK_LINE_BREAK@137..138 "\n"
+                error at 14..20: expected twig escape strategy as string or 'false' but found word
+                error at 14..20: expected %} but found word
+                error at 21..23: expected {% but found %}
+                error at 21..23: expected endautoescape but found %}
+                error at 121..134: expected 'block', 'if', 'set' or 'for' (nothing else supported yet) but found endautoescape"#]],
         )
     }
 }
