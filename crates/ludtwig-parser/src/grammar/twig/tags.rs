@@ -36,6 +36,8 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_apply(parser, m, child_parser))
     } else if parser.at(T!["autoescape"]) {
         Some(parse_twig_autoescape(parser, m, child_parser))
+    } else if parser.at(T!["deprecated"]) {
+        Some(parse_twig_deprecated(parser, m))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
         parser.add_error(ParseErrorBuilder::new(
@@ -45,6 +47,20 @@ pub(crate) fn parse_twig_block_statement(
         parser.complete(m, SyntaxKind::ERROR);
         None
     }
+}
+
+fn parse_twig_deprecated(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["deprecated"]));
+    parser.bump();
+
+    if parser.at_set(&[T!["\""], T!["'"]]) {
+        parse_twig_string(parser, false);
+    } else {
+        parser.add_error(ParseErrorBuilder::new("twig deprecation message as string"));
+    }
+
+    parser.expect(T!["%}"]);
+    parser.complete(outer, SyntaxKind::TWIG_DEPRECATED)
 }
 
 fn parse_twig_autoescape(
@@ -3107,6 +3123,71 @@ mod tests {
                 error at 21..23: expected {% but found %}
                 error at 21..23: expected endautoescape but found %}
                 error at 121..134: expected 'block', 'if', 'set' or 'for' (nothing else supported yet) but found endautoescape"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_deprecated() {
+        check_parse(
+            r#"{% deprecated 'The "base.twig" template is deprecated, use "layout.twig" instead.' %}
+"#,
+            expect![[r#"
+                ROOT@0..86
+                  TWIG_DEPRECATED@0..85
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_DEPRECATED@3..13 "deprecated"
+                    TWIG_LITERAL_STRING@13..82
+                      TK_WHITESPACE@13..14 " "
+                      TK_SINGLE_QUOTES@14..15 "'"
+                      TWIG_LITERAL_STRING_INNER@15..81
+                        TK_WORD@15..18 "The"
+                        TK_WHITESPACE@18..19 " "
+                        TK_DOUBLE_QUOTES@19..20 "\""
+                        TK_WORD@20..24 "base"
+                        TK_DOT@24..25 "."
+                        TK_WORD@25..29 "twig"
+                        TK_DOUBLE_QUOTES@29..30 "\""
+                        TK_WHITESPACE@30..31 " "
+                        TK_WORD@31..39 "template"
+                        TK_WHITESPACE@39..40 " "
+                        TK_IS@40..42 "is"
+                        TK_WHITESPACE@42..43 " "
+                        TK_DEPRECATED@43..53 "deprecated"
+                        TK_COMMA@53..54 ","
+                        TK_WHITESPACE@54..55 " "
+                        TK_USE@55..58 "use"
+                        TK_WHITESPACE@58..59 " "
+                        TK_DOUBLE_QUOTES@59..60 "\""
+                        TK_WORD@60..66 "layout"
+                        TK_DOT@66..67 "."
+                        TK_WORD@67..71 "twig"
+                        TK_DOUBLE_QUOTES@71..72 "\""
+                        TK_WHITESPACE@72..73 " "
+                        TK_WORD@73..80 "instead"
+                        TK_DOT@80..81 "."
+                      TK_SINGLE_QUOTES@81..82 "'"
+                    TK_WHITESPACE@82..83 " "
+                    TK_PERCENT_CURLY@83..85 "%}"
+                  TK_LINE_BREAK@85..86 "\n""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_deprecated_missing_string() {
+        check_parse(
+            r#"{% deprecated %}
+"#,
+            expect![[r#"
+                ROOT@0..17
+                  TWIG_DEPRECATED@0..16
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_DEPRECATED@3..13 "deprecated"
+                    TK_WHITESPACE@13..14 " "
+                    TK_PERCENT_CURLY@14..16 "%}"
+                  TK_LINE_BREAK@16..17 "\n"
+                error at 14..16: expected twig deprecation message as string but found %}"#]],
         )
     }
 }
