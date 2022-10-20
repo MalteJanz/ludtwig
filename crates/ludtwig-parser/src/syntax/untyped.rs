@@ -384,6 +384,14 @@ pub enum SyntaxKind {
     TWIG_FROM, // shares TWIG_OVERRIDE with twig use tag
     // twig import
     TWIG_IMPORT,
+    // twig sandbox
+    TWIG_SANDBOX,
+    TWIG_SANDBOX_STARTING_BLOCK,
+    TWIG_SANDBOX_ENDING_BLOCK,
+    // twig verbatim
+    TWIG_VERBATIM,
+    TWIG_VERBATIM_STARTING_BLOCK,
+    TWIG_VERBATIM_ENDING_BLOCK,
 
     // html
     HTML_DOCTYPE,

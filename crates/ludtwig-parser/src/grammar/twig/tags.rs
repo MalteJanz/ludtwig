@@ -48,6 +48,10 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_do(parser, m))
     } else if parser.at(T!["flush"]) {
         Some(parse_twig_flush(parser, m))
+    } else if parser.at(T!["sandbox"]) {
+        Some(parse_twig_sandbox(parser, m, child_parser))
+    } else if parser.at(T!["verbatim"]) {
+        Some(parse_twig_verbatim(parser, m, child_parser))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
         parser.add_error(ParseErrorBuilder::new(
@@ -57,6 +61,72 @@ pub(crate) fn parse_twig_block_statement(
         parser.complete(m, SyntaxKind::ERROR);
         None
     }
+}
+
+fn parse_twig_verbatim(
+    parser: &mut Parser,
+    outer: Marker,
+    child_parser: ParseFunction,
+) -> CompletedMarker {
+    debug_assert!(parser.at(T!["verbatim"]));
+    parser.bump();
+    parser.expect(T!["%}"]);
+
+    let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_VERBATIM_STARTING_BLOCK);
+    let wrapper_m = parser.precede(wrapper_m);
+
+    // parse all the children except endverbatim
+    let body_m = parser.start();
+    parse_many(
+        parser,
+        |p| p.at_following(&[T!["{%"], T!["endverbatim"]]),
+        |p| {
+            child_parser(p);
+        },
+    );
+    parser.complete(body_m, SyntaxKind::BODY);
+
+    let end_block_m = parser.start();
+    parser.expect(T!["{%"]);
+    parser.expect(T!["endverbatim"]);
+    parser.expect(T!["%}"]);
+    parser.complete(end_block_m, SyntaxKind::TWIG_VERBATIM_ENDING_BLOCK);
+
+    // close overall twig sandbox
+    parser.complete(wrapper_m, SyntaxKind::TWIG_VERBATIM)
+}
+
+fn parse_twig_sandbox(
+    parser: &mut Parser,
+    outer: Marker,
+    child_parser: ParseFunction,
+) -> CompletedMarker {
+    debug_assert!(parser.at(T!["sandbox"]));
+    parser.bump();
+    parser.expect(T!["%}"]);
+
+    let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_SANDBOX_STARTING_BLOCK);
+    let wrapper_m = parser.precede(wrapper_m);
+
+    // parse all the children except endsandbox
+    let body_m = parser.start();
+    parse_many(
+        parser,
+        |p| p.at_following(&[T!["{%"], T!["endsandbox"]]),
+        |p| {
+            child_parser(p);
+        },
+    );
+    parser.complete(body_m, SyntaxKind::BODY);
+
+    let end_block_m = parser.start();
+    parser.expect(T!["{%"]);
+    parser.expect(T!["endsandbox"]);
+    parser.expect(T!["%}"]);
+    parser.complete(end_block_m, SyntaxKind::TWIG_SANDBOX_ENDING_BLOCK);
+
+    // close overall twig sandbox
+    parser.complete(wrapper_m, SyntaxKind::TWIG_SANDBOX)
 }
 
 fn parse_twig_flush(parser: &mut Parser, outer: Marker) -> CompletedMarker {
@@ -3781,6 +3851,140 @@ mod tests {
                 TK_PERCENT_CURLY@23..25 "%}"
             error at 23..25: expected as but found %}
             error at 23..25: expected name for twig macro but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_sandbox() {
+        check_parse(
+            r#"{% sandbox %}
+    {% include 'user.html' %}
+{% endsandbox %}"#,
+            expect![[r#"
+                ROOT@0..60
+                  TWIG_SANDBOX@0..60
+                    TWIG_SANDBOX_STARTING_BLOCK@0..13
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_SANDBOX@3..10 "sandbox"
+                      TK_WHITESPACE@10..11 " "
+                      TK_PERCENT_CURLY@11..13 "%}"
+                    BODY@13..43
+                      TWIG_INCLUDE@13..43
+                        TK_LINE_BREAK@13..14 "\n"
+                        TK_WHITESPACE@14..18 "    "
+                        TK_CURLY_PERCENT@18..20 "{%"
+                        TK_WHITESPACE@20..21 " "
+                        TK_INCLUDE@21..28 "include"
+                        TWIG_EXPRESSION@28..40
+                          TWIG_LITERAL_STRING@28..40
+                            TK_WHITESPACE@28..29 " "
+                            TK_SINGLE_QUOTES@29..30 "'"
+                            TWIG_LITERAL_STRING_INNER@30..39
+                              TK_WORD@30..34 "user"
+                              TK_DOT@34..35 "."
+                              TK_WORD@35..39 "html"
+                            TK_SINGLE_QUOTES@39..40 "'"
+                        TK_WHITESPACE@40..41 " "
+                        TK_PERCENT_CURLY@41..43 "%}"
+                    TWIG_SANDBOX_ENDING_BLOCK@43..60
+                      TK_LINE_BREAK@43..44 "\n"
+                      TK_CURLY_PERCENT@44..46 "{%"
+                      TK_WHITESPACE@46..47 " "
+                      TK_ENDSANDBOX@47..57 "endsandbox"
+                      TK_WHITESPACE@57..58 " "
+                      TK_PERCENT_CURLY@58..60 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_verbatim() {
+        check_parse(
+            r#"{% verbatim %}
+    <ul>
+    {% for item in seq %}
+        <li>{{ item }}</li>
+    {% endfor %}
+    </ul>
+{% endverbatim %}"#,
+            expect![[r#"
+                ROOT@0..122
+                  TWIG_VERBATIM@0..122
+                    TWIG_VERBATIM_STARTING_BLOCK@0..14
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_VERBATIM@3..11 "verbatim"
+                      TK_WHITESPACE@11..12 " "
+                      TK_PERCENT_CURLY@12..14 "%}"
+                    BODY@14..104
+                      HTML_TAG@14..104
+                        HTML_STARTING_TAG@14..23
+                          TK_LINE_BREAK@14..15 "\n"
+                          TK_WHITESPACE@15..19 "    "
+                          TK_LESS_THAN@19..20 "<"
+                          TK_WORD@20..22 "ul"
+                          TK_GREATER_THAN@22..23 ">"
+                        BODY@23..94
+                          TWIG_FOR@23..94
+                            TWIG_FOR_BLOCK@23..49
+                              TK_LINE_BREAK@23..24 "\n"
+                              TK_WHITESPACE@24..28 "    "
+                              TK_CURLY_PERCENT@28..30 "{%"
+                              TK_WHITESPACE@30..31 " "
+                              TK_FOR@31..34 "for"
+                              TWIG_LITERAL_NAME@34..39
+                                TK_WHITESPACE@34..35 " "
+                                TK_WORD@35..39 "item"
+                              TK_WHITESPACE@39..40 " "
+                              TK_IN@40..42 "in"
+                              TWIG_EXPRESSION@42..46
+                                TWIG_LITERAL_NAME@42..46
+                                  TK_WHITESPACE@42..43 " "
+                                  TK_WORD@43..46 "seq"
+                              TK_WHITESPACE@46..47 " "
+                              TK_PERCENT_CURLY@47..49 "%}"
+                            BODY@49..77
+                              HTML_TAG@49..77
+                                HTML_STARTING_TAG@49..62
+                                  TK_LINE_BREAK@49..50 "\n"
+                                  TK_WHITESPACE@50..58 "        "
+                                  TK_LESS_THAN@58..59 "<"
+                                  TK_WORD@59..61 "li"
+                                  TK_GREATER_THAN@61..62 ">"
+                                BODY@62..72
+                                  TWIG_VAR@62..72
+                                    TK_OPEN_CURLY_CURLY@62..64 "{{"
+                                    TWIG_EXPRESSION@64..69
+                                      TWIG_LITERAL_NAME@64..69
+                                        TK_WHITESPACE@64..65 " "
+                                        TK_WORD@65..69 "item"
+                                    TK_WHITESPACE@69..70 " "
+                                    TK_CLOSE_CURLY_CURLY@70..72 "}}"
+                                HTML_ENDING_TAG@72..77
+                                  TK_LESS_THAN_SLASH@72..74 "</"
+                                  TK_WORD@74..76 "li"
+                                  TK_GREATER_THAN@76..77 ">"
+                            TWIG_ENDFOR_BLOCK@77..94
+                              TK_LINE_BREAK@77..78 "\n"
+                              TK_WHITESPACE@78..82 "    "
+                              TK_CURLY_PERCENT@82..84 "{%"
+                              TK_WHITESPACE@84..85 " "
+                              TK_ENDFOR@85..91 "endfor"
+                              TK_WHITESPACE@91..92 " "
+                              TK_PERCENT_CURLY@92..94 "%}"
+                        HTML_ENDING_TAG@94..104
+                          TK_LINE_BREAK@94..95 "\n"
+                          TK_WHITESPACE@95..99 "    "
+                          TK_LESS_THAN_SLASH@99..101 "</"
+                          TK_WORD@101..103 "ul"
+                          TK_GREATER_THAN@103..104 ">"
+                    TWIG_VERBATIM_ENDING_BLOCK@104..122
+                      TK_LINE_BREAK@104..105 "\n"
+                      TK_CURLY_PERCENT@105..107 "{%"
+                      TK_WHITESPACE@107..108 " "
+                      TK_ENDVERBATIM@108..119 "endverbatim"
+                      TK_WHITESPACE@119..120 " "
+                      TK_PERCENT_CURLY@120..122 "%}""#]],
         )
     }
 }
