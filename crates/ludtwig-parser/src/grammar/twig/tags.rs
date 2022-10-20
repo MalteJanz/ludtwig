@@ -42,6 +42,8 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_deprecated(parser, m))
     } else if parser.at(T!["do"]) {
         Some(parse_twig_do(parser, m))
+    } else if parser.at(T!["flush"]) {
+        Some(parse_twig_flush(parser, m))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
         parser.add_error(ParseErrorBuilder::new(
@@ -51,6 +53,13 @@ pub(crate) fn parse_twig_block_statement(
         parser.complete(m, SyntaxKind::ERROR);
         None
     }
+}
+
+fn parse_twig_flush(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["flush"]));
+    parser.bump();
+    parser.expect(T!["%}"]);
+    parser.complete(outer, SyntaxKind::TWIG_FLUSH)
 }
 
 fn parse_twig_do(parser: &mut Parser, outer: Marker) -> CompletedMarker {
@@ -3450,6 +3459,21 @@ mod tests {
                       TK_ENDEMBED@45..53 "endembed"
                       TK_WHITESPACE@53..54 " "
                       TK_PERCENT_CURLY@54..56 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_flush() {
+        check_parse(
+            r#"{% flush %}"#,
+            expect![[r#"
+            ROOT@0..11
+              TWIG_FLUSH@0..11
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_FLUSH@3..8 "flush"
+                TK_WHITESPACE@8..9 " "
+                TK_PERCENT_CURLY@9..11 "%}""#]],
         )
     }
 }

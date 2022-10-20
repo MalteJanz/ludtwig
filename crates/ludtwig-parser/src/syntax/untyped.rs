@@ -378,6 +378,8 @@ pub enum SyntaxKind {
     TWIG_EMBED,
     TWIG_EMBED_STARTING_BLOCK,
     TWIG_EMBED_ENDING_BLOCK,
+    // twig flush
+    TWIG_FLUSH,
 
     // html
     HTML_DOCTYPE,
