@@ -233,7 +233,10 @@ fn parse_twig_name_postfix(parser: &mut Parser) -> Option<CompletedMarker> {
     Some(node)
 }
 
-fn parse_twig_pipe(parser: &mut Parser, mut last_node: CompletedMarker) -> CompletedMarker {
+pub(crate) fn parse_twig_pipe(
+    parser: &mut Parser,
+    mut last_node: CompletedMarker,
+) -> CompletedMarker {
     debug_assert!(parser.at(T!["|"]));
 
     // wrap last_node in an operand and create outer marker
@@ -370,7 +373,7 @@ fn parse_twig_function(parser: &mut Parser, mut last_node: CompletedMarker) -> C
     parser.complete(outer, SyntaxKind::TWIG_FUNCTION_CALL)
 }
 
-fn parse_twig_function_argument(parser: &mut Parser) -> Option<CompletedMarker> {
+pub(crate) fn parse_twig_function_argument(parser: &mut Parser) -> Option<CompletedMarker> {
     // must be specific here with word followed by equal, because otherwise it could
     // be a normal variable or another function call or something else..
     if parser.at_following(&[T![word], T!["="]]) {
