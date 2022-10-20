@@ -361,7 +361,7 @@ pub enum SyntaxKind {
     TWIG_INCLUDE_WITH,
     // twig use
     TWIG_USE,
-    TWIG_USE_OVERRIDE,
+    TWIG_OVERRIDE,
     // twig apply
     TWIG_APPLY,
     TWIG_APPLY_STARTING_BLOCK,
@@ -380,6 +380,8 @@ pub enum SyntaxKind {
     TWIG_EMBED_ENDING_BLOCK,
     // twig flush
     TWIG_FLUSH,
+    // twig from
+    TWIG_FROM, // shares TWIG_OVERRIDE with twig use tag
 
     // html
     HTML_DOCTYPE,
