@@ -372,6 +372,8 @@ pub enum SyntaxKind {
     TWIG_AUTOESCAPE_ENDING_BLOCK,
     // twig deprecated
     TWIG_DEPRECATED,
+    // twig do
+    TWIG_DO,
 
     // html
     HTML_DOCTYPE,

@@ -38,6 +38,8 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_autoescape(parser, m, child_parser))
     } else if parser.at(T!["deprecated"]) {
         Some(parse_twig_deprecated(parser, m))
+    } else if parser.at(T!["do"]) {
+        Some(parse_twig_do(parser, m))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
         parser.add_error(ParseErrorBuilder::new(
@@ -47,6 +49,18 @@ pub(crate) fn parse_twig_block_statement(
         parser.complete(m, SyntaxKind::ERROR);
         None
     }
+}
+
+fn parse_twig_do(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["do"]));
+    parser.bump();
+
+    if parse_twig_expression(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new("twig expression"));
+    }
+
+    parser.expect(T!["%}"]);
+    parser.complete(outer, SyntaxKind::TWIG_DO)
 }
 
 fn parse_twig_deprecated(parser: &mut Parser, outer: Marker) -> CompletedMarker {
@@ -2724,10 +2738,9 @@ mod tests {
         check_parse(
             r#"{% apply lower|escape('html')|trim('-', side='left') %}
     <strong>SOME TEXT</strong>
-{% endapply %}
-"#,
+{% endapply %}"#,
             expect![[r#"
-                ROOT@0..102
+                ROOT@0..101
                   TWIG_APPLY@0..101
                     TWIG_APPLY_STARTING_BLOCK@0..55
                       TK_CURLY_PERCENT@0..2 "{%"
@@ -2802,8 +2815,7 @@ mod tests {
                       TK_WHITESPACE@89..90 " "
                       TK_ENDAPPLY@90..98 "endapply"
                       TK_WHITESPACE@98..99 " "
-                      TK_PERCENT_CURLY@99..101 "%}"
-                  TK_LINE_BREAK@101..102 "\n""#]],
+                      TK_PERCENT_CURLY@99..101 "%}""#]],
         )
     }
 
@@ -2812,10 +2824,9 @@ mod tests {
         check_parse(
             r#"{% apply %}
     SOME TEXT
-{% endapply %}
-"#,
+{% endapply %}"#,
             expect![[r#"
-                ROOT@0..41
+                ROOT@0..40
                   TWIG_APPLY@0..40
                     TWIG_APPLY_STARTING_BLOCK@0..11
                       TK_CURLY_PERCENT@0..2 "{%"
@@ -2837,7 +2848,6 @@ mod tests {
                       TK_ENDAPPLY@29..37 "endapply"
                       TK_WHITESPACE@37..38 " "
                       TK_PERCENT_CURLY@38..40 "%}"
-                  TK_LINE_BREAK@40..41 "\n"
                 error at 9..11: expected twig filter but found %}"#]],
         )
     }
@@ -2847,10 +2857,9 @@ mod tests {
         check_parse(
             r#"{% apply 5 %}
     SOME TEXT
-{% endapply %}
-"#,
+{% endapply %}"#,
             expect![[r#"
-                ROOT@0..43
+                ROOT@0..42
                   TWIG_APPLY@0..13
                     TWIG_APPLY_STARTING_BLOCK@0..10
                       TK_CURLY_PERCENT@0..2 "{%"
@@ -2878,7 +2887,6 @@ mod tests {
                   ERROR@39..42
                     TK_WHITESPACE@39..40 " "
                     TK_PERCENT_CURLY@40..42 "%}"
-                  TK_LINE_BREAK@42..43 "\n"
                 error at 9..10: expected twig filter but found number
                 error at 9..10: expected %} but found number
                 error at 11..13: expected {% but found %}
@@ -2893,10 +2901,9 @@ mod tests {
             r#"{% autoescape %}
     Everything will be automatically escaped in this block
     using the HTML strategy
-{% endautoescape %}
-"#,
+{% endautoescape %}"#,
             expect![[r#"
-                ROOT@0..124
+                ROOT@0..123
                   TWIG_AUTOESCAPE@0..123
                     TWIG_AUTOESCAPE_STARTING_BLOCK@0..16
                       TK_CURLY_PERCENT@0..2 "{%"
@@ -2938,8 +2945,7 @@ mod tests {
                       TK_WHITESPACE@106..107 " "
                       TK_ENDAUTOESCAPE@107..120 "endautoescape"
                       TK_WHITESPACE@120..121 " "
-                      TK_PERCENT_CURLY@121..123 "%}"
-                  TK_LINE_BREAK@123..124 "\n""#]],
+                      TK_PERCENT_CURLY@121..123 "%}""#]],
         )
     }
 
@@ -2949,10 +2955,9 @@ mod tests {
             r#"{% autoescape 'js' %}
     Everything will be automatically escaped in this block
     using the js escaping strategy
-{% endautoescape %}
-"#,
+{% endautoescape %}"#,
             expect![[r#"
-                ROOT@0..136
+                ROOT@0..135
                   TWIG_AUTOESCAPE@0..135
                     TWIG_AUTOESCAPE_STARTING_BLOCK@0..21
                       TK_CURLY_PERCENT@0..2 "{%"
@@ -3002,8 +3007,7 @@ mod tests {
                       TK_WHITESPACE@118..119 " "
                       TK_ENDAUTOESCAPE@119..132 "endautoescape"
                       TK_WHITESPACE@132..133 " "
-                      TK_PERCENT_CURLY@133..135 "%}"
-                  TK_LINE_BREAK@135..136 "\n""#]],
+                      TK_PERCENT_CURLY@133..135 "%}""#]],
         )
     }
 
@@ -3012,10 +3016,9 @@ mod tests {
         check_parse(
             r#"{% autoescape false %}
     Everything will be outputted as is in this block
-{% endautoescape %}
-"#,
+{% endautoescape %}"#,
             expect![[r#"
-                ROOT@0..96
+                ROOT@0..95
                   TWIG_AUTOESCAPE@0..95
                     TWIG_AUTOESCAPE_STARTING_BLOCK@0..22
                       TK_CURLY_PERCENT@0..2 "{%"
@@ -3052,8 +3055,7 @@ mod tests {
                       TK_WHITESPACE@78..79 " "
                       TK_ENDAUTOESCAPE@79..92 "endautoescape"
                       TK_WHITESPACE@92..93 " "
-                      TK_PERCENT_CURLY@93..95 "%}"
-                  TK_LINE_BREAK@95..96 "\n""#]],
+                      TK_PERCENT_CURLY@93..95 "%}""#]],
         )
     }
 
@@ -3063,10 +3065,9 @@ mod tests {
             r#"{% autoescape my_var %}
     Everything will be automatically escaped in this block
     using the js escaping strategy
-{% endautoescape %}
-"#,
+{% endautoescape %}"#,
             expect![[r#"
-                ROOT@0..138
+                ROOT@0..137
                   TWIG_AUTOESCAPE@0..23
                     TWIG_AUTOESCAPE_STARTING_BLOCK@0..20
                       TK_CURLY_PERCENT@0..2 "{%"
@@ -3117,7 +3118,6 @@ mod tests {
                   ERROR@134..137
                     TK_WHITESPACE@134..135 " "
                     TK_PERCENT_CURLY@135..137 "%}"
-                  TK_LINE_BREAK@137..138 "\n"
                 error at 14..20: expected twig escape strategy as string or 'false' but found word
                 error at 14..20: expected %} but found word
                 error at 21..23: expected {% but found %}
@@ -3129,10 +3129,9 @@ mod tests {
     #[test]
     fn parse_twig_deprecated() {
         check_parse(
-            r#"{% deprecated 'The "base.twig" template is deprecated, use "layout.twig" instead.' %}
-"#,
+            r#"{% deprecated 'The "base.twig" template is deprecated, use "layout.twig" instead.' %}"#,
             expect![[r#"
-                ROOT@0..86
+                ROOT@0..85
                   TWIG_DEPRECATED@0..85
                     TK_CURLY_PERCENT@0..2 "{%"
                     TK_WHITESPACE@2..3 " "
@@ -3168,26 +3167,66 @@ mod tests {
                         TK_DOT@80..81 "."
                       TK_SINGLE_QUOTES@81..82 "'"
                     TK_WHITESPACE@82..83 " "
-                    TK_PERCENT_CURLY@83..85 "%}"
-                  TK_LINE_BREAK@85..86 "\n""#]],
+                    TK_PERCENT_CURLY@83..85 "%}""#]],
         )
     }
 
     #[test]
     fn parse_twig_deprecated_missing_string() {
         check_parse(
-            r#"{% deprecated %}
-"#,
+            r#"{% deprecated %}"#,
             expect![[r#"
-                ROOT@0..17
+                ROOT@0..16
                   TWIG_DEPRECATED@0..16
                     TK_CURLY_PERCENT@0..2 "{%"
                     TK_WHITESPACE@2..3 " "
                     TK_DEPRECATED@3..13 "deprecated"
                     TK_WHITESPACE@13..14 " "
                     TK_PERCENT_CURLY@14..16 "%}"
-                  TK_LINE_BREAK@16..17 "\n"
                 error at 14..16: expected twig deprecation message as string but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_do() {
+        check_parse(
+            r#"{% do 1 + 2 %}"#,
+            expect![[r#"
+            ROOT@0..14
+              TWIG_DO@0..14
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_DO@3..5 "do"
+                TWIG_EXPRESSION@5..11
+                  TWIG_BINARY_EXPRESSION@5..11
+                    TWIG_EXPRESSION@5..7
+                      TWIG_LITERAL_NUMBER@5..7
+                        TK_WHITESPACE@5..6 " "
+                        TK_NUMBER@6..7 "1"
+                    TK_WHITESPACE@7..8 " "
+                    TK_PLUS@8..9 "+"
+                    TWIG_EXPRESSION@9..11
+                      TWIG_LITERAL_NUMBER@9..11
+                        TK_WHITESPACE@9..10 " "
+                        TK_NUMBER@10..11 "2"
+                TK_WHITESPACE@11..12 " "
+                TK_PERCENT_CURLY@12..14 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_do_missing_expression() {
+        check_parse(
+            r#"{% do %}"#,
+            expect![[r#"
+            ROOT@0..8
+              TWIG_DO@0..8
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_DO@3..5 "do"
+                TK_WHITESPACE@5..6 " "
+                TK_PERCENT_CURLY@6..8 "%}"
+            error at 6..8: expected twig expression but found %}"#]],
         )
     }
 }
