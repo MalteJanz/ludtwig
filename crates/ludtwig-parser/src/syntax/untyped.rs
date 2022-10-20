@@ -382,6 +382,8 @@ pub enum SyntaxKind {
     TWIG_FLUSH,
     // twig from
     TWIG_FROM, // shares TWIG_OVERRIDE with twig use tag
+    // twig import
+    TWIG_IMPORT,
 
     // html
     HTML_DOCTYPE,

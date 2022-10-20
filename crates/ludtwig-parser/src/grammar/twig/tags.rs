@@ -36,6 +36,8 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_use(parser, m))
     } else if parser.at(T!["from"]) {
         Some(parse_twig_from(parser, m))
+    } else if parser.at(T!["import"]) {
+        Some(parse_twig_import(parser, m))
     } else if parser.at(T!["apply"]) {
         Some(parse_twig_apply(parser, m, child_parser))
     } else if parser.at(T!["autoescape"]) {
@@ -201,6 +203,25 @@ fn parse_twig_apply(
 
     // close overall twig apply
     parser.complete(wrapper_m, SyntaxKind::TWIG_APPLY)
+}
+
+fn parse_twig_import(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["import"]));
+    parser.bump();
+
+    if parse_twig_expression(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new("twig expression as template"));
+    }
+
+    parser.expect(T!["as"]);
+
+    if parse_twig_name(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new("name for twig macro"));
+    }
+
+    parser.expect(T!["%}"]);
+
+    parser.complete(outer, SyntaxKind::TWIG_IMPORT)
 }
 
 fn parse_twig_from(parser: &mut Parser, outer: Marker) -> CompletedMarker {
@@ -3648,6 +3669,118 @@ mod tests {
                 TK_PERCENT_CURLY@21..23 "%}"
             error at 21..23: expected import but found %}
             error at 21..23: expected at least one macro name as macro name but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_import_template_as_macro() {
+        check_parse(
+            r#"{% import "forms.html" as forms %}"#,
+            expect![[r#"
+            ROOT@0..34
+              TWIG_IMPORT@0..34
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_IMPORT@3..9 "import"
+                TWIG_EXPRESSION@9..22
+                  TWIG_LITERAL_STRING@9..22
+                    TK_WHITESPACE@9..10 " "
+                    TK_DOUBLE_QUOTES@10..11 "\""
+                    TWIG_LITERAL_STRING_INNER@11..21
+                      TK_WORD@11..16 "forms"
+                      TK_DOT@16..17 "."
+                      TK_WORD@17..21 "html"
+                    TK_DOUBLE_QUOTES@21..22 "\""
+                TK_WHITESPACE@22..23 " "
+                TK_AS@23..25 "as"
+                TWIG_LITERAL_NAME@25..31
+                  TK_WHITESPACE@25..26 " "
+                  TK_WORD@26..31 "forms"
+                TK_WHITESPACE@31..32 " "
+                TK_PERCENT_CURLY@32..34 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_import_expression_as_macro() {
+        check_parse(
+            r#"{% import my_var|trim as forms %}"#,
+            expect![[r#"
+            ROOT@0..33
+              TWIG_IMPORT@0..33
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_IMPORT@3..9 "import"
+                TWIG_EXPRESSION@9..21
+                  TWIG_PIPE@9..21
+                    TWIG_OPERAND@9..16
+                      TWIG_LITERAL_NAME@9..16
+                        TK_WHITESPACE@9..10 " "
+                        TK_WORD@10..16 "my_var"
+                    TK_SINGLE_PIPE@16..17 "|"
+                    TWIG_OPERAND@17..21
+                      TWIG_LITERAL_NAME@17..21
+                        TK_WORD@17..21 "trim"
+                TK_WHITESPACE@21..22 " "
+                TK_AS@22..24 "as"
+                TWIG_LITERAL_NAME@24..30
+                  TK_WHITESPACE@24..25 " "
+                  TK_WORD@25..30 "forms"
+                TK_WHITESPACE@30..31 " "
+                TK_PERCENT_CURLY@31..33 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_import_template_as_missing_macro() {
+        check_parse(
+            r#"{% import "forms.html" as %}"#,
+            expect![[r#"
+            ROOT@0..28
+              TWIG_IMPORT@0..28
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_IMPORT@3..9 "import"
+                TWIG_EXPRESSION@9..22
+                  TWIG_LITERAL_STRING@9..22
+                    TK_WHITESPACE@9..10 " "
+                    TK_DOUBLE_QUOTES@10..11 "\""
+                    TWIG_LITERAL_STRING_INNER@11..21
+                      TK_WORD@11..16 "forms"
+                      TK_DOT@16..17 "."
+                      TK_WORD@17..21 "html"
+                    TK_DOUBLE_QUOTES@21..22 "\""
+                TK_WHITESPACE@22..23 " "
+                TK_AS@23..25 "as"
+                TK_WHITESPACE@25..26 " "
+                TK_PERCENT_CURLY@26..28 "%}"
+            error at 26..28: expected name for twig macro but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_import_template_missing_as() {
+        check_parse(
+            r#"{% import "forms.html" %}"#,
+            expect![[r#"
+            ROOT@0..25
+              TWIG_IMPORT@0..25
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_IMPORT@3..9 "import"
+                TWIG_EXPRESSION@9..22
+                  TWIG_LITERAL_STRING@9..22
+                    TK_WHITESPACE@9..10 " "
+                    TK_DOUBLE_QUOTES@10..11 "\""
+                    TWIG_LITERAL_STRING_INNER@11..21
+                      TK_WORD@11..16 "forms"
+                      TK_DOT@16..17 "."
+                      TK_WORD@17..21 "html"
+                    TK_DOUBLE_QUOTES@21..22 "\""
+                TK_WHITESPACE@22..23 " "
+                TK_PERCENT_CURLY@23..25 "%}"
+            error at 23..25: expected as but found %}
+            error at 23..25: expected name for twig macro but found %}"#]],
         )
     }
 }
