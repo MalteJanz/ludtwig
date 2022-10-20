@@ -385,8 +385,10 @@ fn parse_twig_function_argument(parser: &mut Parser) -> Option<CompletedMarker> 
 }
 
 pub(crate) fn parse_twig_name(parser: &mut Parser) -> Option<CompletedMarker> {
+    // special case to allow for 'same as' and 'divisible by' twig test ('is' / 'is not' operator)
+    let is_at_special = parser.at_set(&[T!["same as"], T!["divisible by"]]);
     let token_text = parser.peek_token()?.text;
-    if !TWIG_NAME_REGEX.is_match(token_text) {
+    if !is_at_special && !TWIG_NAME_REGEX.is_match(token_text) {
         return None;
     }
 

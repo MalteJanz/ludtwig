@@ -768,7 +768,9 @@ mod tests {
 
     #[test]
     fn parse_twig_conditional_expression_missing_falsy_expression() {
-        check_parse("{{ a > b ? 'N' : }}", expect![[r#"
+        check_parse(
+            "{{ a > b ? 'N' : }}",
+            expect![[r#"
             ROOT@0..19
               TWIG_VAR@0..19
                 TK_OPEN_CURLY_CURLY@0..2 "{{"
@@ -799,12 +801,15 @@ mod tests {
                     TK_COLON@15..16 ":"
                 TK_WHITESPACE@16..17 " "
                 TK_CLOSE_CURLY_CURLY@17..19 "}}"
-            error at 17..19: expected twig expression but found }}"#]])
+            error at 17..19: expected twig expression but found }}"#]],
+        )
     }
 
     #[test]
     fn parse_twig_conditional_expression_missing_truthy_expression() {
-        check_parse("{{ a > b ? }}", expect![[r#"
+        check_parse(
+            "{{ a > b ? }}",
+            expect![[r#"
             ROOT@0..13
               TWIG_VAR@0..13
                 TK_OPEN_CURLY_CURLY@0..2 "{{"
@@ -826,7 +831,8 @@ mod tests {
                     TK_QUESTION_MARK@9..10 "?"
                 TK_WHITESPACE@10..11 " "
                 TK_CLOSE_CURLY_CURLY@11..13 "}}"
-            error at 11..13: expected twig expression or ':' but found }}"#]])
+            error at 11..13: expected twig expression or ':' but found }}"#]],
+        )
     }
 
     #[test]
@@ -917,6 +923,109 @@ mod tests {
                             TK_WORD@44..51 "defined"
                     TK_WHITESPACE@51..52 " "
                     TK_CLOSE_CURLY_CURLY@52..54 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_expression_is_even() {
+        check_parse(
+            r#"{{ var is even }}"#,
+            expect![[r#"
+            ROOT@0..17
+              TWIG_VAR@0..17
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..14
+                  TWIG_BINARY_EXPRESSION@2..14
+                    TWIG_EXPRESSION@2..6
+                      TWIG_LITERAL_NAME@2..6
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..6 "var"
+                    TK_WHITESPACE@6..7 " "
+                    TK_IS@7..9 "is"
+                    TWIG_EXPRESSION@9..14
+                      TWIG_LITERAL_NAME@9..14
+                        TK_WHITESPACE@9..10 " "
+                        TK_WORD@10..14 "even"
+                TK_WHITESPACE@14..15 " "
+                TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_expression_is_same_as() {
+        check_parse(
+            r#"{{ foo.attribute is same as(false) }}"#,
+            expect![[r#"
+            ROOT@0..37
+              TWIG_VAR@0..37
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..34
+                  TWIG_BINARY_EXPRESSION@2..34
+                    TWIG_EXPRESSION@2..16
+                      TWIG_ACCESSOR@2..16
+                        TWIG_OPERAND@2..6
+                          TWIG_LITERAL_NAME@2..6
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..6 "foo"
+                        TK_DOT@6..7 "."
+                        TWIG_OPERAND@7..16
+                          TWIG_LITERAL_NAME@7..16
+                            TK_WORD@7..16 "attribute"
+                    TK_WHITESPACE@16..17 " "
+                    TK_IS@17..19 "is"
+                    TWIG_EXPRESSION@19..34
+                      TWIG_FUNCTION_CALL@19..34
+                        TWIG_OPERAND@19..27
+                          TWIG_LITERAL_NAME@19..27
+                            TK_WHITESPACE@19..20 " "
+                            TK_WORD@20..27 "same as"
+                        TK_OPEN_PARENTHESIS@27..28 "("
+                        TWIG_ARGUMENTS@28..33
+                          TWIG_EXPRESSION@28..33
+                            TWIG_LITERAL_BOOLEAN@28..33
+                              TK_FALSE@28..33 "false"
+                        TK_CLOSE_PARENTHESIS@33..34 ")"
+                TK_WHITESPACE@34..35 " "
+                TK_CLOSE_CURLY_CURLY@35..37 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_expression_is_divisible_by() {
+        check_parse(
+            r#"{{ foo.attribute is divisible by(false) }}"#,
+            expect![[r#"
+            ROOT@0..42
+              TWIG_VAR@0..42
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..39
+                  TWIG_BINARY_EXPRESSION@2..39
+                    TWIG_EXPRESSION@2..16
+                      TWIG_ACCESSOR@2..16
+                        TWIG_OPERAND@2..6
+                          TWIG_LITERAL_NAME@2..6
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..6 "foo"
+                        TK_DOT@6..7 "."
+                        TWIG_OPERAND@7..16
+                          TWIG_LITERAL_NAME@7..16
+                            TK_WORD@7..16 "attribute"
+                    TK_WHITESPACE@16..17 " "
+                    TK_IS@17..19 "is"
+                    TWIG_EXPRESSION@19..39
+                      TWIG_FUNCTION_CALL@19..39
+                        TWIG_OPERAND@19..32
+                          TWIG_LITERAL_NAME@19..32
+                            TK_WHITESPACE@19..20 " "
+                            TK_WORD@20..32 "divisible by"
+                        TK_OPEN_PARENTHESIS@32..33 "("
+                        TWIG_ARGUMENTS@33..38
+                          TWIG_EXPRESSION@33..38
+                            TWIG_LITERAL_BOOLEAN@33..38
+                              TK_FALSE@33..38 "false"
+                        TK_CLOSE_PARENTHESIS@38..39 ")"
+                TK_WHITESPACE@39..40 " "
+                TK_CLOSE_CURLY_CURLY@40..42 "}}""#]],
         )
     }
 }
