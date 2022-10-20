@@ -362,6 +362,10 @@ pub enum SyntaxKind {
     // twig use
     TWIG_USE,
     TWIG_USE_OVERRIDE,
+    // twig apply
+    TWIG_APPLY,
+    TWIG_APPLY_STARTING_BLOCK,
+    TWIG_APPLY_ENDING_BLOCK,
 
     // html
     HTML_DOCTYPE,

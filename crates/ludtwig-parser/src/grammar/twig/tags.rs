@@ -30,6 +30,8 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_include(parser, m))
     } else if parser.at(T!["use"]) {
         Some(parse_twig_use(parser, m))
+    } else if parser.at(T!["apply"]) {
+        Some(parse_twig_apply(parser, m, child_parser))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
         parser.add_error(ParseErrorBuilder::new(
@@ -39,6 +41,45 @@ pub(crate) fn parse_twig_block_statement(
         parser.complete(m, SyntaxKind::ERROR);
         None
     }
+}
+
+fn parse_twig_apply(
+    parser: &mut Parser,
+    outer: Marker,
+    child_parser: ParseFunction,
+) -> CompletedMarker {
+    debug_assert!(parser.at(T!["apply"]));
+    parser.bump();
+
+    // TODO: ideally this should only parse filters
+    if parse_twig_expression(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new("twig filter"));
+    }
+
+    parser.expect(T!["%}"]);
+
+    let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_APPLY_STARTING_BLOCK);
+    let wrapper_m = parser.precede(wrapper_m);
+
+    // parse all the children except endapply
+    let body_m = parser.start();
+    parse_many(
+        parser,
+        |p| p.at_following(&[T!["{%"], T!["endapply"]]),
+        |p| {
+            child_parser(p);
+        },
+    );
+    parser.complete(body_m, SyntaxKind::BODY);
+
+    let end_block_m = parser.start();
+    parser.expect(T!["{%"]);
+    parser.expect(T!["endapply"]);
+    parser.expect(T!["%}"]);
+    parser.complete(end_block_m, SyntaxKind::TWIG_APPLY_ENDING_BLOCK);
+
+    // close overall twig apply
+    parser.complete(wrapper_m, SyntaxKind::TWIG_APPLY)
 }
 
 fn parse_twig_use(parser: &mut Parser, outer: Marker) -> CompletedMarker {
@@ -2483,6 +2524,144 @@ mod tests {
             TK_PERCENT_CURLY@28..30 "%}"
         error at 28..30: expected as but found %}
         error at 28..30: expected block name but found %}"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_apply_filter() {
+        check_parse(
+            r#"{% apply upper %}
+    This text becomes uppercase
+{% endapply %}"#,
+            expect![[r#"
+                ROOT@0..64
+                  TWIG_APPLY@0..64
+                    TWIG_APPLY_STARTING_BLOCK@0..17
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_APPLY@3..8 "apply"
+                      TWIG_EXPRESSION@8..14
+                        TWIG_LITERAL_NAME@8..14
+                          TK_WHITESPACE@8..9 " "
+                          TK_WORD@9..14 "upper"
+                      TK_WHITESPACE@14..15 " "
+                      TK_PERCENT_CURLY@15..17 "%}"
+                    BODY@17..49
+                      HTML_TEXT@17..49
+                        TK_LINE_BREAK@17..18 "\n"
+                        TK_WHITESPACE@18..22 "    "
+                        TK_WORD@22..26 "This"
+                        TK_WHITESPACE@26..27 " "
+                        TK_WORD@27..31 "text"
+                        TK_WHITESPACE@31..32 " "
+                        TK_WORD@32..39 "becomes"
+                        TK_WHITESPACE@39..40 " "
+                        TK_WORD@40..49 "uppercase"
+                    TWIG_APPLY_ENDING_BLOCK@49..64
+                      TK_LINE_BREAK@49..50 "\n"
+                      TK_CURLY_PERCENT@50..52 "{%"
+                      TK_WHITESPACE@52..53 " "
+                      TK_ENDAPPLY@53..61 "endapply"
+                      TK_WHITESPACE@61..62 " "
+                      TK_PERCENT_CURLY@62..64 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_apply_filter_chained() {
+        check_parse(
+            r#"{% apply lower|escape('html') %}
+    <strong>SOME TEXT</strong>
+{% endapply %}
+"#,
+            expect![[r#"
+                ROOT@0..79
+                  TWIG_APPLY@0..78
+                    TWIG_APPLY_STARTING_BLOCK@0..32
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_APPLY@3..8 "apply"
+                      TWIG_EXPRESSION@8..29
+                        TWIG_PIPE@8..29
+                          TWIG_OPERAND@8..14
+                            TWIG_LITERAL_NAME@8..14
+                              TK_WHITESPACE@8..9 " "
+                              TK_WORD@9..14 "lower"
+                          TK_SINGLE_PIPE@14..15 "|"
+                          TWIG_OPERAND@15..29
+                            TWIG_LITERAL_NAME@15..21
+                              TK_WORD@15..21 "escape"
+                            TK_OPEN_PARENTHESIS@21..22 "("
+                            TWIG_ARGUMENTS@22..28
+                              TWIG_EXPRESSION@22..28
+                                TWIG_LITERAL_STRING@22..28
+                                  TK_SINGLE_QUOTES@22..23 "'"
+                                  TWIG_LITERAL_STRING_INNER@23..27
+                                    TK_WORD@23..27 "html"
+                                  TK_SINGLE_QUOTES@27..28 "'"
+                            TK_CLOSE_PARENTHESIS@28..29 ")"
+                      TK_WHITESPACE@29..30 " "
+                      TK_PERCENT_CURLY@30..32 "%}"
+                    BODY@32..63
+                      HTML_TAG@32..63
+                        HTML_STARTING_TAG@32..45
+                          TK_LINE_BREAK@32..33 "\n"
+                          TK_WHITESPACE@33..37 "    "
+                          TK_LESS_THAN@37..38 "<"
+                          TK_WORD@38..44 "strong"
+                          TK_GREATER_THAN@44..45 ">"
+                        BODY@45..54
+                          HTML_TEXT@45..54
+                            TK_WORD@45..49 "SOME"
+                            TK_WHITESPACE@49..50 " "
+                            TK_WORD@50..54 "TEXT"
+                        HTML_ENDING_TAG@54..63
+                          TK_LESS_THAN_SLASH@54..56 "</"
+                          TK_WORD@56..62 "strong"
+                          TK_GREATER_THAN@62..63 ">"
+                    TWIG_APPLY_ENDING_BLOCK@63..78
+                      TK_LINE_BREAK@63..64 "\n"
+                      TK_CURLY_PERCENT@64..66 "{%"
+                      TK_WHITESPACE@66..67 " "
+                      TK_ENDAPPLY@67..75 "endapply"
+                      TK_WHITESPACE@75..76 " "
+                      TK_PERCENT_CURLY@76..78 "%}"
+                  TK_LINE_BREAK@78..79 "\n""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_apply_missing_filter() {
+        check_parse(
+            r#"{% apply %}
+    SOME TEXT
+{% endapply %}
+"#,
+            expect![[r#"
+                ROOT@0..41
+                  TWIG_APPLY@0..40
+                    TWIG_APPLY_STARTING_BLOCK@0..11
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_APPLY@3..8 "apply"
+                      TK_WHITESPACE@8..9 " "
+                      TK_PERCENT_CURLY@9..11 "%}"
+                    BODY@11..25
+                      HTML_TEXT@11..25
+                        TK_LINE_BREAK@11..12 "\n"
+                        TK_WHITESPACE@12..16 "    "
+                        TK_WORD@16..20 "SOME"
+                        TK_WHITESPACE@20..21 " "
+                        TK_WORD@21..25 "TEXT"
+                    TWIG_APPLY_ENDING_BLOCK@25..40
+                      TK_LINE_BREAK@25..26 "\n"
+                      TK_CURLY_PERCENT@26..28 "{%"
+                      TK_WHITESPACE@28..29 " "
+                      TK_ENDAPPLY@29..37 "endapply"
+                      TK_WHITESPACE@37..38 " "
+                      TK_PERCENT_CURLY@38..40 "%}"
+                  TK_LINE_BREAK@40..41 "\n"
+                error at 9..11: expected twig filter but found %}"#]],
         )
     }
 }
