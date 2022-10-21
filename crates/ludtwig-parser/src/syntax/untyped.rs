@@ -290,6 +290,22 @@ pub enum SyntaxKind {
     #[token("source")]
     TK_SOURCE,
 
+    /* shopware specific */
+    #[token("sw_extends")]
+    TK_SW_EXTENDS,
+    #[token("sw_silent_feature_call")]
+    TK_SW_SILENT_FEATURE_CALL,
+    #[token("endsw_silent_feature_call")]
+    TK_ENDSW_SILENT_FEATURE_CALL,
+    #[token("sw_include")]
+    TK_SW_INCLUDE,
+    #[token("return")]
+    TK_RETURN,
+    #[token("sw_icon")]
+    TK_SW_ICON,
+    #[token("sw_thumbnails")]
+    TK_SW_THUMBNAILS,
+
     /* special tokens */
     #[token("ludtwig-ignore-file", ignore(ascii_case))]
     TK_LUDTWIG_IGNORE_FILE,
@@ -410,6 +426,9 @@ pub enum SyntaxKind {
     TWIG_CACHE_TAGS,
     TWIG_CACHE_STARTING_BLOCK,
     TWIG_CACHE_ENDING_BLOCK,
+
+    // shopware specific
+    SHOPWARE_TWIG_SW_EXTENDS,
 
     // html
     HTML_DOCTYPE,
@@ -564,6 +583,13 @@ macro_rules! T {
     ["date"] => { $crate::syntax::untyped::SyntaxKind::TK_DATE };
     ["include"] => { $crate::syntax::untyped::SyntaxKind::TK_INCLUDE };
     ["source"] => { $crate::syntax::untyped::SyntaxKind::TK_SOURCE };
+    ["sw_extends"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_EXTENDS };
+    ["sw_silent_feature_call"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_SILENT_FEATURE_CALL };
+    ["endsw_silent_feature_call"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDSW_SILENT_FEATURE_CALL };
+    ["sw_include"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_INCLUDE };
+    ["return"] => { $crate::syntax::untyped::SyntaxKind::TK_RETURN };
+    ["sw_icon"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_ICON };
+    ["sw_thumbnails"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_THUMBNAILS };
     ["ludtwig-ignore-file"] => { $crate::syntax::untyped::SyntaxKind::TK_LUDTWIG_IGNORE_FILE };
     ["ludtwig-ignore"] => { $crate::syntax::untyped::SyntaxKind::TK_LUDTWIG_IGNORE };
 }
@@ -705,6 +731,13 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_DATE => "date",
             SyntaxKind::TK_INCLUDE => "include",
             SyntaxKind::TK_SOURCE => "source",
+            SyntaxKind::TK_SW_EXTENDS => "sw_extends",
+            SyntaxKind::TK_SW_SILENT_FEATURE_CALL => "sw_silent_feature_call",
+            SyntaxKind::TK_ENDSW_SILENT_FEATURE_CALL => "endsw_silent_feature_call",
+            SyntaxKind::TK_SW_INCLUDE => "sw_include",
+            SyntaxKind::TK_RETURN => "return",
+            SyntaxKind::TK_SW_ICON => "sw_icon",
+            SyntaxKind::TK_SW_THUMBNAILS => "sw_thumbnails",
             SyntaxKind::TK_LUDTWIG_IGNORE_FILE => "ludtwig-ignore-file",
             SyntaxKind::TK_LUDTWIG_IGNORE => "ludtwig-ignore",
             SyntaxKind::TK_UNKNOWN => "unknown",

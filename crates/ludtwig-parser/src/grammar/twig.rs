@@ -1,5 +1,6 @@
 mod expression;
 pub(crate) mod literal;
+mod shopware;
 mod tags;
 
 use crate::grammar::twig::expression::parse_twig_expression;

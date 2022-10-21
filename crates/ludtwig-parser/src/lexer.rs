@@ -273,6 +273,13 @@ mod tests {
         add("date", T!["date"]);
         add("include", T!["include"]);
         add("source", T!["source"]);
+        add("sw_extends", T!["sw_extends"]);
+        add("sw_silent_feature_call", T!["sw_silent_feature_call"]);
+        add("endsw_silent_feature_call", T!["endsw_silent_feature_call"]);
+        add("sw_include", T!["sw_include"]);
+        add("return", T!["return"]);
+        add("sw_icon", T!["sw_icon"]);
+        add("sw_thumbnails", T!["sw_thumbnails"]);
         add("ludtwig-ignore-file", T!["ludtwig-ignore-file"]);
         add("ludtwig-ignore", T!["ludtwig-ignore"]);
         add("€", T![unknown]);
@@ -958,6 +965,41 @@ mod tests {
     #[test]
     fn lex_source() {
         check_token("source", T!["source"]);
+    }
+
+    #[test]
+    fn lex_sw_extends() {
+        check_token("sw_extends", T!["sw_extends"]);
+    }
+
+    #[test]
+    fn lex_sw_silent_feature_call() {
+        check_token("sw_silent_feature_call", T!["sw_silent_feature_call"]);
+    }
+
+    #[test]
+    fn lex_endsw_silent_feature_call() {
+        check_token("endsw_silent_feature_call", T!["endsw_silent_feature_call"]);
+    }
+
+    #[test]
+    fn lex_sw_include() {
+        check_token("sw_include", T!["sw_include"]);
+    }
+
+    #[test]
+    fn lex_return() {
+        check_token("return", T!["return"]);
+    }
+
+    #[test]
+    fn lex_sw_icon() {
+        check_token("sw_icon", T!["sw_icon"]);
+    }
+
+    #[test]
+    fn lex_sw_thumbnails() {
+        check_token("sw_thumbnails", T!["sw_thumbnails"]);
     }
 
     #[test]

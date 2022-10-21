@@ -4,6 +4,7 @@ use crate::grammar::twig::expression::parse_twig_expression;
 use crate::grammar::twig::literal::{
     parse_twig_function_argument, parse_twig_name, parse_twig_pipe, parse_twig_string,
 };
+use crate::grammar::twig::shopware::{parse_shopware_twig_block_statement, BlockParseResult};
 use crate::grammar::{parse_many, ParseFunction};
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser};
@@ -59,13 +60,14 @@ pub(crate) fn parse_twig_block_statement(
     } else if parser.at(T!["cache"]) {
         Some(parse_twig_cache(parser, m, child_parser))
     } else {
-        // TODO: implement other twig block statements like if, for, and so on
-        parser.add_error(ParseErrorBuilder::new(
-            "'block', 'if', 'set' or 'for' (nothing else supported yet)".to_string(),
-        ));
-
-        parser.complete(m, SyntaxKind::ERROR);
-        None
+        match parse_shopware_twig_block_statement(parser, m, child_parser) {
+            BlockParseResult::NothingFound(m) => {
+                parser.add_error(ParseErrorBuilder::new("twig tag".to_string()));
+                parser.complete(m, SyntaxKind::ERROR);
+                None
+            }
+            BlockParseResult::Successful(completed_m) => Some(completed_m),
+        }
     }
 }
 
@@ -963,7 +965,7 @@ mod tests {
                   HTML_TEXT@2..7
                     TK_WHITESPACE@2..3 " "
                     TK_WORD@3..7 "asdf"
-                error at 3..7: expected 'block', 'if', 'set' or 'for' (nothing else supported yet) but found word"#]],
+                error at 3..7: expected twig tag but found word"#]],
         )
     }
 
@@ -3258,7 +3260,7 @@ mod tests {
                 error at 9..10: expected %} but found number
                 error at 11..13: expected {% but found %}
                 error at 11..13: expected endapply but found %}
-                error at 31..39: expected 'block', 'if', 'set' or 'for' (nothing else supported yet) but found endapply"#]],
+                error at 31..39: expected twig tag but found endapply"#]],
         )
     }
 
@@ -3489,7 +3491,7 @@ mod tests {
                 error at 14..20: expected %} but found word
                 error at 21..23: expected {% but found %}
                 error at 21..23: expected endautoescape but found %}
-                error at 121..134: expected 'block', 'if', 'set' or 'for' (nothing else supported yet) but found endautoescape"#]],
+                error at 121..134: expected twig tag but found endautoescape"#]],
         )
     }
 

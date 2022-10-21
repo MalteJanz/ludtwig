@@ -1403,7 +1403,7 @@ mod tests {
                 error at 29..30: expected %} but found <
                 error at 29..30: expected > but found <
                 error at 35..37: expected </div> ending tag but found {%
-                error at 38..46: expected 'block', 'if', 'set' or 'for' (nothing else supported yet) but found endblock"#]],
+                error at 38..46: expected twig tag but found endblock"#]],
         );
     }
 
@@ -1505,7 +1505,7 @@ mod tests {
                     BODY@8..8
                     HTML_ENDING_TAG@8..8
                 error at 5..7: expected html attribute value but found {%
-                error at 7..8: expected 'block', 'if', 'set' or 'for' (nothing else supported yet) but found %
+                error at 7..8: expected twig tag but found %
                 error at 7..8: expected > but found %
                 error at 7..8: expected </d> ending tag but reached end of file"#]],
         );
