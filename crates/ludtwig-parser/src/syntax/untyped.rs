@@ -396,6 +396,10 @@ pub enum SyntaxKind {
     TWIG_MACRO,
     TWIG_MACRO_STARTING_BLOCK,
     TWIG_MACRO_ENDING_BLOCK,
+    // twig with,
+    TWIG_WITH,
+    TWIG_WITH_STARTING_BLOCK,
+    TWIG_WITH_ENDING_BLOCK,
 
     // html
     HTML_DOCTYPE,
