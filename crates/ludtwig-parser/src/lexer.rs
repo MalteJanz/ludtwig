@@ -241,6 +241,8 @@ mod tests {
         add("ignore missing", T!["ignore missing"]);
         add("with", T!["with"]);
         add("endwith", T!["endwith"]);
+        add("ttl", T!["ttl"]);
+        add("tags", T!["tags"]);
         add("not", T!["not"]);
         add("or", T!["or"]);
         add("and", T!["and"]);
@@ -796,6 +798,16 @@ mod tests {
     #[test]
     fn lex_endwith() {
         check_token("endwith", T!["endwith"]);
+    }
+
+    #[test]
+    fn lex_ttl() {
+        check_token("ttl", T!["ttl"]);
+    }
+
+    #[test]
+    fn lex_tags() {
+        check_token("tags", T!["tags"]);
     }
 
     #[test]

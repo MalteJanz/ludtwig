@@ -56,6 +56,8 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_macro(parser, m, child_parser))
     } else if parser.at(T!["with"]) {
         Some(parse_twig_with(parser, m, child_parser))
+    } else if parser.at(T!["cache"]) {
+        Some(parse_twig_cache(parser, m, child_parser))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
         parser.add_error(ParseErrorBuilder::new(
@@ -65,6 +67,65 @@ pub(crate) fn parse_twig_block_statement(
         parser.complete(m, SyntaxKind::ERROR);
         None
     }
+}
+
+fn parse_twig_cache(
+    parser: &mut Parser,
+    outer: Marker,
+    child_parser: ParseFunction,
+) -> CompletedMarker {
+    debug_assert!(parser.at(T!["cache"]));
+    parser.bump();
+    if parse_twig_expression(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new("twig expression as cache key"))
+    }
+
+    if parser.at(T!["ttl"]) {
+        let ttl_m = parser.start();
+        parser.bump();
+        parser.expect(T!["("]);
+        if parse_twig_expression(parser).is_none() {
+            parser.add_error(ParseErrorBuilder::new(
+                "twig expression as cache time to live",
+            ))
+        }
+        parser.expect(T![")"]);
+        parser.complete(ttl_m, SyntaxKind::TWIG_CACHE_TTL);
+    }
+    if parser.at(T!["tags"]) {
+        let tags_m = parser.start();
+        parser.bump();
+        parser.expect(T!["("]);
+        if parse_twig_expression(parser).is_none() {
+            parser.add_error(ParseErrorBuilder::new("twig expression as cache tags"))
+        }
+        parser.expect(T![")"]);
+        parser.complete(tags_m, SyntaxKind::TWIG_CACHE_TAGS);
+    }
+    parser.expect(T!["%}"]);
+
+    let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_CACHE_STARTING_BLOCK);
+    let wrapper_m = parser.precede(wrapper_m);
+
+    // parse all the children except endcache
+    let body_m = parser.start();
+    parse_many(
+        parser,
+        |p| p.at_following(&[T!["{%"], T!["endcache"]]),
+        |p| {
+            child_parser(p);
+        },
+    );
+    parser.complete(body_m, SyntaxKind::BODY);
+
+    let end_block_m = parser.start();
+    parser.expect(T!["{%"]);
+    parser.expect(T!["endcache"]);
+    parser.expect(T!["%}"]);
+    parser.complete(end_block_m, SyntaxKind::TWIG_CACHE_ENDING_BLOCK);
+
+    // close overall twig with
+    parser.complete(wrapper_m, SyntaxKind::TWIG_CACHE)
 }
 
 fn parse_twig_with(
@@ -4638,6 +4699,360 @@ mod tests {
                       TK_ENDWITH@112..119 "endwith"
                       TK_WHITESPACE@119..120 " "
                       TK_PERCENT_CURLY@120..122 "%}""##]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_cache_key() {
+        check_parse(
+            r#"{% cache "cache key" %}
+    Cached forever (depending on the cache implementation)
+{% endcache %}"#,
+            expect![[r#"
+                ROOT@0..97
+                  TWIG_CACHE@0..97
+                    TWIG_CACHE_STARTING_BLOCK@0..23
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_CACHE@3..8 "cache"
+                      TWIG_EXPRESSION@8..20
+                        TWIG_LITERAL_STRING@8..20
+                          TK_WHITESPACE@8..9 " "
+                          TK_DOUBLE_QUOTES@9..10 "\""
+                          TWIG_LITERAL_STRING_INNER@10..19
+                            TK_CACHE@10..15 "cache"
+                            TK_WHITESPACE@15..16 " "
+                            TK_WORD@16..19 "key"
+                          TK_DOUBLE_QUOTES@19..20 "\""
+                      TK_WHITESPACE@20..21 " "
+                      TK_PERCENT_CURLY@21..23 "%}"
+                    BODY@23..82
+                      HTML_TEXT@23..82
+                        TK_LINE_BREAK@23..24 "\n"
+                        TK_WHITESPACE@24..28 "    "
+                        TK_WORD@28..34 "Cached"
+                        TK_WHITESPACE@34..35 " "
+                        TK_WORD@35..42 "forever"
+                        TK_WHITESPACE@42..43 " "
+                        TK_OPEN_PARENTHESIS@43..44 "("
+                        TK_WORD@44..53 "depending"
+                        TK_WHITESPACE@53..54 " "
+                        TK_WORD@54..56 "on"
+                        TK_WHITESPACE@56..57 " "
+                        TK_WORD@57..60 "the"
+                        TK_WHITESPACE@60..61 " "
+                        TK_CACHE@61..66 "cache"
+                        TK_WHITESPACE@66..67 " "
+                        TK_WORD@67..81 "implementation"
+                        TK_CLOSE_PARENTHESIS@81..82 ")"
+                    TWIG_CACHE_ENDING_BLOCK@82..97
+                      TK_LINE_BREAK@82..83 "\n"
+                      TK_CURLY_PERCENT@83..85 "{%"
+                      TK_WHITESPACE@85..86 " "
+                      TK_ENDCACHE@86..94 "endcache"
+                      TK_WHITESPACE@94..95 " "
+                      TK_PERCENT_CURLY@95..97 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_cache_key_ttl() {
+        check_parse(
+            r#"{% cache "cache key" ttl(300) %}
+    Cached for 300 seconds
+{% endcache %}"#,
+            expect![[r#"
+                ROOT@0..74
+                  TWIG_CACHE@0..74
+                    TWIG_CACHE_STARTING_BLOCK@0..32
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_CACHE@3..8 "cache"
+                      TWIG_EXPRESSION@8..20
+                        TWIG_LITERAL_STRING@8..20
+                          TK_WHITESPACE@8..9 " "
+                          TK_DOUBLE_QUOTES@9..10 "\""
+                          TWIG_LITERAL_STRING_INNER@10..19
+                            TK_CACHE@10..15 "cache"
+                            TK_WHITESPACE@15..16 " "
+                            TK_WORD@16..19 "key"
+                          TK_DOUBLE_QUOTES@19..20 "\""
+                      TWIG_CACHE_TTL@20..29
+                        TK_WHITESPACE@20..21 " "
+                        TK_TTL@21..24 "ttl"
+                        TK_OPEN_PARENTHESIS@24..25 "("
+                        TWIG_EXPRESSION@25..28
+                          TWIG_LITERAL_NUMBER@25..28
+                            TK_NUMBER@25..28 "300"
+                        TK_CLOSE_PARENTHESIS@28..29 ")"
+                      TK_WHITESPACE@29..30 " "
+                      TK_PERCENT_CURLY@30..32 "%}"
+                    BODY@32..59
+                      HTML_TEXT@32..59
+                        TK_LINE_BREAK@32..33 "\n"
+                        TK_WHITESPACE@33..37 "    "
+                        TK_WORD@37..43 "Cached"
+                        TK_WHITESPACE@43..44 " "
+                        TK_FOR@44..47 "for"
+                        TK_WHITESPACE@47..48 " "
+                        TK_NUMBER@48..51 "300"
+                        TK_WHITESPACE@51..52 " "
+                        TK_WORD@52..59 "seconds"
+                    TWIG_CACHE_ENDING_BLOCK@59..74
+                      TK_LINE_BREAK@59..60 "\n"
+                      TK_CURLY_PERCENT@60..62 "{%"
+                      TK_WHITESPACE@62..63 " "
+                      TK_ENDCACHE@63..71 "endcache"
+                      TK_WHITESPACE@71..72 " "
+                      TK_PERCENT_CURLY@72..74 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_cache_key_tags() {
+        check_parse(
+            r#"{% cache "cache key" tags(['cms', 'blog']) %}
+    Some code
+{% endcache %}"#,
+            expect![[r#"
+                ROOT@0..74
+                  TWIG_CACHE@0..74
+                    TWIG_CACHE_STARTING_BLOCK@0..45
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_CACHE@3..8 "cache"
+                      TWIG_EXPRESSION@8..20
+                        TWIG_LITERAL_STRING@8..20
+                          TK_WHITESPACE@8..9 " "
+                          TK_DOUBLE_QUOTES@9..10 "\""
+                          TWIG_LITERAL_STRING_INNER@10..19
+                            TK_CACHE@10..15 "cache"
+                            TK_WHITESPACE@15..16 " "
+                            TK_WORD@16..19 "key"
+                          TK_DOUBLE_QUOTES@19..20 "\""
+                      TWIG_CACHE_TAGS@20..42
+                        TK_WHITESPACE@20..21 " "
+                        TK_TAGS@21..25 "tags"
+                        TK_OPEN_PARENTHESIS@25..26 "("
+                        TWIG_EXPRESSION@26..41
+                          TWIG_LITERAL_ARRAY@26..41
+                            TK_OPEN_SQUARE@26..27 "["
+                            TWIG_EXPRESSION@27..32
+                              TWIG_LITERAL_STRING@27..32
+                                TK_SINGLE_QUOTES@27..28 "'"
+                                TWIG_LITERAL_STRING_INNER@28..31
+                                  TK_WORD@28..31 "cms"
+                                TK_SINGLE_QUOTES@31..32 "'"
+                            TK_COMMA@32..33 ","
+                            TWIG_EXPRESSION@33..40
+                              TWIG_LITERAL_STRING@33..40
+                                TK_WHITESPACE@33..34 " "
+                                TK_SINGLE_QUOTES@34..35 "'"
+                                TWIG_LITERAL_STRING_INNER@35..39
+                                  TK_WORD@35..39 "blog"
+                                TK_SINGLE_QUOTES@39..40 "'"
+                            TK_CLOSE_SQUARE@40..41 "]"
+                        TK_CLOSE_PARENTHESIS@41..42 ")"
+                      TK_WHITESPACE@42..43 " "
+                      TK_PERCENT_CURLY@43..45 "%}"
+                    BODY@45..59
+                      HTML_TEXT@45..59
+                        TK_LINE_BREAK@45..46 "\n"
+                        TK_WHITESPACE@46..50 "    "
+                        TK_WORD@50..54 "Some"
+                        TK_WHITESPACE@54..55 " "
+                        TK_WORD@55..59 "code"
+                    TWIG_CACHE_ENDING_BLOCK@59..74
+                      TK_LINE_BREAK@59..60 "\n"
+                      TK_CURLY_PERCENT@60..62 "{%"
+                      TK_WHITESPACE@62..63 " "
+                      TK_ENDCACHE@63..71 "endcache"
+                      TK_WHITESPACE@71..72 " "
+                      TK_PERCENT_CURLY@72..74 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_cache_key_ttl_tags() {
+        check_parse(
+            r#"{% cache "cache key" ttl(5) tags(['cms', 'blog']) %}
+    Some code
+{% endcache %}"#,
+            expect![[r#"
+                ROOT@0..81
+                  TWIG_CACHE@0..81
+                    TWIG_CACHE_STARTING_BLOCK@0..52
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_CACHE@3..8 "cache"
+                      TWIG_EXPRESSION@8..20
+                        TWIG_LITERAL_STRING@8..20
+                          TK_WHITESPACE@8..9 " "
+                          TK_DOUBLE_QUOTES@9..10 "\""
+                          TWIG_LITERAL_STRING_INNER@10..19
+                            TK_CACHE@10..15 "cache"
+                            TK_WHITESPACE@15..16 " "
+                            TK_WORD@16..19 "key"
+                          TK_DOUBLE_QUOTES@19..20 "\""
+                      TWIG_CACHE_TTL@20..27
+                        TK_WHITESPACE@20..21 " "
+                        TK_TTL@21..24 "ttl"
+                        TK_OPEN_PARENTHESIS@24..25 "("
+                        TWIG_EXPRESSION@25..26
+                          TWIG_LITERAL_NUMBER@25..26
+                            TK_NUMBER@25..26 "5"
+                        TK_CLOSE_PARENTHESIS@26..27 ")"
+                      TWIG_CACHE_TAGS@27..49
+                        TK_WHITESPACE@27..28 " "
+                        TK_TAGS@28..32 "tags"
+                        TK_OPEN_PARENTHESIS@32..33 "("
+                        TWIG_EXPRESSION@33..48
+                          TWIG_LITERAL_ARRAY@33..48
+                            TK_OPEN_SQUARE@33..34 "["
+                            TWIG_EXPRESSION@34..39
+                              TWIG_LITERAL_STRING@34..39
+                                TK_SINGLE_QUOTES@34..35 "'"
+                                TWIG_LITERAL_STRING_INNER@35..38
+                                  TK_WORD@35..38 "cms"
+                                TK_SINGLE_QUOTES@38..39 "'"
+                            TK_COMMA@39..40 ","
+                            TWIG_EXPRESSION@40..47
+                              TWIG_LITERAL_STRING@40..47
+                                TK_WHITESPACE@40..41 " "
+                                TK_SINGLE_QUOTES@41..42 "'"
+                                TWIG_LITERAL_STRING_INNER@42..46
+                                  TK_WORD@42..46 "blog"
+                                TK_SINGLE_QUOTES@46..47 "'"
+                            TK_CLOSE_SQUARE@47..48 "]"
+                        TK_CLOSE_PARENTHESIS@48..49 ")"
+                      TK_WHITESPACE@49..50 " "
+                      TK_PERCENT_CURLY@50..52 "%}"
+                    BODY@52..66
+                      HTML_TEXT@52..66
+                        TK_LINE_BREAK@52..53 "\n"
+                        TK_WHITESPACE@53..57 "    "
+                        TK_WORD@57..61 "Some"
+                        TK_WHITESPACE@61..62 " "
+                        TK_WORD@62..66 "code"
+                    TWIG_CACHE_ENDING_BLOCK@66..81
+                      TK_LINE_BREAK@66..67 "\n"
+                      TK_CURLY_PERCENT@67..69 "{%"
+                      TK_WHITESPACE@69..70 " "
+                      TK_ENDCACHE@70..78 "endcache"
+                      TK_WHITESPACE@78..79 " "
+                      TK_PERCENT_CURLY@79..81 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_cache_key_string_concatenation() {
+        check_parse(
+            r#"{% cache "blog_post;v1;" ~ post.id ~ ";" ~ post.updated_at %}
+    Some code
+{% endcache %}"#,
+            expect![[r#"
+                ROOT@0..90
+                  TWIG_CACHE@0..90
+                    TWIG_CACHE_STARTING_BLOCK@0..61
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_CACHE@3..8 "cache"
+                      TWIG_EXPRESSION@8..58
+                        TWIG_BINARY_EXPRESSION@8..58
+                          TWIG_BINARY_EXPRESSION@8..40
+                            TWIG_BINARY_EXPRESSION@8..34
+                              TWIG_EXPRESSION@8..24
+                                TWIG_LITERAL_STRING@8..24
+                                  TK_WHITESPACE@8..9 " "
+                                  TK_DOUBLE_QUOTES@9..10 "\""
+                                  TWIG_LITERAL_STRING_INNER@10..23
+                                    TK_WORD@10..19 "blog_post"
+                                    TK_SEMICOLON@19..20 ";"
+                                    TK_WORD@20..22 "v1"
+                                    TK_SEMICOLON@22..23 ";"
+                                  TK_DOUBLE_QUOTES@23..24 "\""
+                              TK_WHITESPACE@24..25 " "
+                              TK_TILDE@25..26 "~"
+                              TWIG_EXPRESSION@26..34
+                                TWIG_ACCESSOR@26..34
+                                  TWIG_OPERAND@26..31
+                                    TWIG_LITERAL_NAME@26..31
+                                      TK_WHITESPACE@26..27 " "
+                                      TK_WORD@27..31 "post"
+                                  TK_DOT@31..32 "."
+                                  TWIG_OPERAND@32..34
+                                    TWIG_LITERAL_NAME@32..34
+                                      TK_WORD@32..34 "id"
+                            TK_WHITESPACE@34..35 " "
+                            TK_TILDE@35..36 "~"
+                            TWIG_EXPRESSION@36..40
+                              TWIG_LITERAL_STRING@36..40
+                                TK_WHITESPACE@36..37 " "
+                                TK_DOUBLE_QUOTES@37..38 "\""
+                                TWIG_LITERAL_STRING_INNER@38..39
+                                  TK_SEMICOLON@38..39 ";"
+                                TK_DOUBLE_QUOTES@39..40 "\""
+                          TK_WHITESPACE@40..41 " "
+                          TK_TILDE@41..42 "~"
+                          TWIG_EXPRESSION@42..58
+                            TWIG_ACCESSOR@42..58
+                              TWIG_OPERAND@42..47
+                                TWIG_LITERAL_NAME@42..47
+                                  TK_WHITESPACE@42..43 " "
+                                  TK_WORD@43..47 "post"
+                              TK_DOT@47..48 "."
+                              TWIG_OPERAND@48..58
+                                TWIG_LITERAL_NAME@48..58
+                                  TK_WORD@48..58 "updated_at"
+                      TK_WHITESPACE@58..59 " "
+                      TK_PERCENT_CURLY@59..61 "%}"
+                    BODY@61..75
+                      HTML_TEXT@61..75
+                        TK_LINE_BREAK@61..62 "\n"
+                        TK_WHITESPACE@62..66 "    "
+                        TK_WORD@66..70 "Some"
+                        TK_WHITESPACE@70..71 " "
+                        TK_WORD@71..75 "code"
+                    TWIG_CACHE_ENDING_BLOCK@75..90
+                      TK_LINE_BREAK@75..76 "\n"
+                      TK_CURLY_PERCENT@76..78 "{%"
+                      TK_WHITESPACE@78..79 " "
+                      TK_ENDCACHE@79..87 "endcache"
+                      TK_WHITESPACE@87..88 " "
+                      TK_PERCENT_CURLY@88..90 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_cache_missing_key() {
+        check_parse(
+            r#"{% cache %}
+    Some code
+{% endcache %}"#,
+            expect![[r#"
+                ROOT@0..40
+                  TWIG_CACHE@0..40
+                    TWIG_CACHE_STARTING_BLOCK@0..11
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_CACHE@3..8 "cache"
+                      TK_WHITESPACE@8..9 " "
+                      TK_PERCENT_CURLY@9..11 "%}"
+                    BODY@11..25
+                      HTML_TEXT@11..25
+                        TK_LINE_BREAK@11..12 "\n"
+                        TK_WHITESPACE@12..16 "    "
+                        TK_WORD@16..20 "Some"
+                        TK_WHITESPACE@20..21 " "
+                        TK_WORD@21..25 "code"
+                    TWIG_CACHE_ENDING_BLOCK@25..40
+                      TK_LINE_BREAK@25..26 "\n"
+                      TK_CURLY_PERCENT@26..28 "{%"
+                      TK_WHITESPACE@28..29 " "
+                      TK_ENDCACHE@29..37 "endcache"
+                      TK_WHITESPACE@37..38 " "
+                      TK_PERCENT_CURLY@38..40 "%}"
+                error at 9..11: expected twig expression as cache key but found %}"#]],
         )
     }
 }

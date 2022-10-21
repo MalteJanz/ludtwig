@@ -222,6 +222,10 @@ pub enum SyntaxKind {
     TK_WITH,
     #[token("endwith")]
     TK_ENDWITH,
+    #[token("ttl")]
+    TK_TTL,
+    #[token("tags")]
+    TK_TAGS,
     /* twig operators */
     #[token("not")]
     TK_NOT,
@@ -392,14 +396,20 @@ pub enum SyntaxKind {
     TWIG_VERBATIM,
     TWIG_VERBATIM_STARTING_BLOCK,
     TWIG_VERBATIM_ENDING_BLOCK,
-    // twig macro,
+    // twig macro
     TWIG_MACRO,
     TWIG_MACRO_STARTING_BLOCK,
     TWIG_MACRO_ENDING_BLOCK,
-    // twig with,
+    // twig with
     TWIG_WITH,
     TWIG_WITH_STARTING_BLOCK,
     TWIG_WITH_ENDING_BLOCK,
+    // twig cache
+    TWIG_CACHE,
+    TWIG_CACHE_TTL,
+    TWIG_CACHE_TAGS,
+    TWIG_CACHE_STARTING_BLOCK,
+    TWIG_CACHE_ENDING_BLOCK,
 
     // html
     HTML_DOCTYPE,
@@ -522,6 +532,8 @@ macro_rules! T {
     ["ignore missing"] => { $crate::syntax::untyped::SyntaxKind::TK_IGNORE_MISSING };
     ["with"] => { $crate::syntax::untyped::SyntaxKind::TK_WITH };
     ["endwith"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDWITH };
+    ["ttl"] => { $crate::syntax::untyped::SyntaxKind::TK_TTL };
+    ["tags"] => { $crate::syntax::untyped::SyntaxKind::TK_TAGS };
     ["not"] => { $crate::syntax::untyped::SyntaxKind::TK_NOT };
     ["or"] => { $crate::syntax::untyped::SyntaxKind::TK_OR };
     ["and"] => { $crate::syntax::untyped::SyntaxKind::TK_AND };
@@ -661,6 +673,8 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_IGNORE_MISSING => "ignore missing",
             SyntaxKind::TK_WITH => "with",
             SyntaxKind::TK_ENDWITH => "endwith",
+            SyntaxKind::TK_TTL => "ttl",
+            SyntaxKind::TK_TAGS => "tags",
             SyntaxKind::TK_NOT => "not",
             SyntaxKind::TK_OR => "or",
             SyntaxKind::TK_AND => "and",
