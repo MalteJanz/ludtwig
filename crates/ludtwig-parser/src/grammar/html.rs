@@ -1483,6 +1483,16 @@ mod tests {
     }
 
     #[test]
+    fn parse_html_attribute_name_special_token() {
+        check_parse(
+            r#"<label class="form-label" for="personalMail">
+    hello
+</label>"#,
+            expect![[r#""#]],
+        );
+    }
+
+    #[test]
     fn parse_fuzzing_bump_error() {
         check_parse(
             "<d a={%%",

@@ -429,6 +429,7 @@ pub enum SyntaxKind {
 
     // shopware specific
     SHOPWARE_TWIG_SW_EXTENDS,
+    SHOPWARE_TWIG_SW_INCLUDE,
 
     // html
     HTML_DOCTYPE,
