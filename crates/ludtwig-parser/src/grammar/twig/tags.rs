@@ -52,6 +52,8 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_sandbox(parser, m, child_parser))
     } else if parser.at(T!["verbatim"]) {
         Some(parse_twig_verbatim(parser, m, child_parser))
+    } else if parser.at(T!["macro"]) {
+        Some(parse_twig_macro(parser, m, child_parser))
     } else {
         // TODO: implement other twig block statements like if, for, and so on
         parser.add_error(ParseErrorBuilder::new(
@@ -61,6 +63,71 @@ pub(crate) fn parse_twig_block_statement(
         parser.complete(m, SyntaxKind::ERROR);
         None
     }
+}
+
+fn parse_twig_macro(
+    parser: &mut Parser,
+    outer: Marker,
+    child_parser: ParseFunction,
+) -> CompletedMarker {
+    debug_assert!(parser.at(T!["macro"]));
+    parser.bump();
+    let macro_name = parser.expect(T![word]).map(|t| t.text.to_owned());
+
+    // macro must have parentheses (arguments can be zero)
+    parser.expect(T!["("]);
+    let arguments_m = parser.start();
+    parse_many(
+        parser,
+        |p| p.at_set(&[T!["%}"], T![")"]]),
+        |p| {
+            parse_twig_function_argument(p);
+            if p.at(T![","]) {
+                p.bump();
+            }
+        },
+    );
+    parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
+    parser.expect(T![")"]);
+    parser.expect(T!["%}"]);
+
+    let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_MACRO_STARTING_BLOCK);
+    let wrapper_m = parser.precede(wrapper_m);
+
+    // parse all the children except endblock
+    let body_m = parser.start();
+    parse_many(
+        parser,
+        |p| p.at_following(&[T!["{%"], T!["endmacro"]]),
+        |p| {
+            child_parser(p);
+        },
+    );
+    parser.complete(body_m, SyntaxKind::BODY);
+
+    let end_block_m = parser.start();
+    parser.expect(T!["{%"]);
+    parser.expect(T!["endmacro"]);
+    // check for optional name behind endmacro
+    if parser.at(T![word]) {
+        let end_macro_name_token = parser.bump();
+        if let Some(macro_name) = macro_name {
+            if end_macro_name_token.text != macro_name {
+                let parser_err = ParseErrorBuilder::new(format!(
+                    "nothing or same twig macro name as opening ({})",
+                    macro_name
+                ))
+                .at_token(end_macro_name_token);
+
+                parser.add_error(parser_err);
+            }
+        }
+    }
+    parser.expect(T!["%}"]);
+    parser.complete(end_block_m, SyntaxKind::TWIG_MACRO_ENDING_BLOCK);
+
+    // close overall twig macro
+    parser.complete(wrapper_m, SyntaxKind::TWIG_MACRO)
 }
 
 fn parse_twig_verbatim(
@@ -3985,6 +4052,260 @@ mod tests {
                       TK_ENDVERBATIM@108..119 "endverbatim"
                       TK_WHITESPACE@119..120 " "
                       TK_PERCENT_CURLY@120..122 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_macro() {
+        check_parse(
+            r#"{% macro input(name, value, type = "text", size = 20) %}
+    <input type="{{ type }}" name="{{ name }}" value="{{ value|e }}" size="{{ size }}"/>
+{% endmacro %}"#,
+            expect![[r#"
+                ROOT@0..160
+                  TWIG_MACRO@0..160
+                    TWIG_MACRO_STARTING_BLOCK@0..56
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_MACRO@3..8 "macro"
+                      TK_WHITESPACE@8..9 " "
+                      TK_WORD@9..14 "input"
+                      TK_OPEN_PARENTHESIS@14..15 "("
+                      TWIG_ARGUMENTS@15..52
+                        TWIG_EXPRESSION@15..19
+                          TWIG_LITERAL_NAME@15..19
+                            TK_WORD@15..19 "name"
+                        TK_COMMA@19..20 ","
+                        TWIG_EXPRESSION@20..26
+                          TWIG_LITERAL_NAME@20..26
+                            TK_WHITESPACE@20..21 " "
+                            TK_WORD@21..26 "value"
+                        TK_COMMA@26..27 ","
+                        TWIG_NAMED_ARGUMENT@27..41
+                          TK_WHITESPACE@27..28 " "
+                          TK_WORD@28..32 "type"
+                          TK_WHITESPACE@32..33 " "
+                          TK_EQUAL@33..34 "="
+                          TWIG_EXPRESSION@34..41
+                            TWIG_LITERAL_STRING@34..41
+                              TK_WHITESPACE@34..35 " "
+                              TK_DOUBLE_QUOTES@35..36 "\""
+                              TWIG_LITERAL_STRING_INNER@36..40
+                                TK_WORD@36..40 "text"
+                              TK_DOUBLE_QUOTES@40..41 "\""
+                        TK_COMMA@41..42 ","
+                        TWIG_NAMED_ARGUMENT@42..52
+                          TK_WHITESPACE@42..43 " "
+                          TK_WORD@43..47 "size"
+                          TK_WHITESPACE@47..48 " "
+                          TK_EQUAL@48..49 "="
+                          TWIG_EXPRESSION@49..52
+                            TWIG_LITERAL_NUMBER@49..52
+                              TK_WHITESPACE@49..50 " "
+                              TK_NUMBER@50..52 "20"
+                      TK_CLOSE_PARENTHESIS@52..53 ")"
+                      TK_WHITESPACE@53..54 " "
+                      TK_PERCENT_CURLY@54..56 "%}"
+                    BODY@56..145
+                      HTML_TAG@56..145
+                        HTML_STARTING_TAG@56..145
+                          TK_LINE_BREAK@56..57 "\n"
+                          TK_WHITESPACE@57..61 "    "
+                          TK_LESS_THAN@61..62 "<"
+                          TK_WORD@62..67 "input"
+                          HTML_ATTRIBUTE@67..85
+                            TK_WHITESPACE@67..68 " "
+                            TK_WORD@68..72 "type"
+                            TK_EQUAL@72..73 "="
+                            HTML_STRING@73..85
+                              TK_DOUBLE_QUOTES@73..74 "\""
+                              HTML_STRING_INNER@74..84
+                                TWIG_VAR@74..84
+                                  TK_OPEN_CURLY_CURLY@74..76 "{{"
+                                  TWIG_EXPRESSION@76..81
+                                    TWIG_LITERAL_NAME@76..81
+                                      TK_WHITESPACE@76..77 " "
+                                      TK_WORD@77..81 "type"
+                                  TK_WHITESPACE@81..82 " "
+                                  TK_CLOSE_CURLY_CURLY@82..84 "}}"
+                              TK_DOUBLE_QUOTES@84..85 "\""
+                          HTML_ATTRIBUTE@85..103
+                            TK_WHITESPACE@85..86 " "
+                            TK_WORD@86..90 "name"
+                            TK_EQUAL@90..91 "="
+                            HTML_STRING@91..103
+                              TK_DOUBLE_QUOTES@91..92 "\""
+                              HTML_STRING_INNER@92..102
+                                TWIG_VAR@92..102
+                                  TK_OPEN_CURLY_CURLY@92..94 "{{"
+                                  TWIG_EXPRESSION@94..99
+                                    TWIG_LITERAL_NAME@94..99
+                                      TK_WHITESPACE@94..95 " "
+                                      TK_WORD@95..99 "name"
+                                  TK_WHITESPACE@99..100 " "
+                                  TK_CLOSE_CURLY_CURLY@100..102 "}}"
+                              TK_DOUBLE_QUOTES@102..103 "\""
+                          HTML_ATTRIBUTE@103..125
+                            TK_WHITESPACE@103..104 " "
+                            TK_WORD@104..109 "value"
+                            TK_EQUAL@109..110 "="
+                            HTML_STRING@110..125
+                              TK_DOUBLE_QUOTES@110..111 "\""
+                              HTML_STRING_INNER@111..124
+                                TWIG_VAR@111..124
+                                  TK_OPEN_CURLY_CURLY@111..113 "{{"
+                                  TWIG_EXPRESSION@113..121
+                                    TWIG_PIPE@113..121
+                                      TWIG_OPERAND@113..119
+                                        TWIG_LITERAL_NAME@113..119
+                                          TK_WHITESPACE@113..114 " "
+                                          TK_WORD@114..119 "value"
+                                      TK_SINGLE_PIPE@119..120 "|"
+                                      TWIG_OPERAND@120..121
+                                        TWIG_LITERAL_NAME@120..121
+                                          TK_WORD@120..121 "e"
+                                  TK_WHITESPACE@121..122 " "
+                                  TK_CLOSE_CURLY_CURLY@122..124 "}}"
+                              TK_DOUBLE_QUOTES@124..125 "\""
+                          HTML_ATTRIBUTE@125..143
+                            TK_WHITESPACE@125..126 " "
+                            TK_WORD@126..130 "size"
+                            TK_EQUAL@130..131 "="
+                            HTML_STRING@131..143
+                              TK_DOUBLE_QUOTES@131..132 "\""
+                              HTML_STRING_INNER@132..142
+                                TWIG_VAR@132..142
+                                  TK_OPEN_CURLY_CURLY@132..134 "{{"
+                                  TWIG_EXPRESSION@134..139
+                                    TWIG_LITERAL_NAME@134..139
+                                      TK_WHITESPACE@134..135 " "
+                                      TK_WORD@135..139 "size"
+                                  TK_WHITESPACE@139..140 " "
+                                  TK_CLOSE_CURLY_CURLY@140..142 "}}"
+                              TK_DOUBLE_QUOTES@142..143 "\""
+                          TK_SLASH_GREATER_THAN@143..145 "/>"
+                    TWIG_MACRO_ENDING_BLOCK@145..160
+                      TK_LINE_BREAK@145..146 "\n"
+                      TK_CURLY_PERCENT@146..148 "{%"
+                      TK_WHITESPACE@148..149 " "
+                      TK_ENDMACRO@149..157 "endmacro"
+                      TK_WHITESPACE@157..158 " "
+                      TK_PERCENT_CURLY@158..160 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_macro_with_matching_end_tag() {
+        check_parse(
+            r#"{% macro input() %}
+    ...
+{% endmacro input %}"#,
+            expect![[r#"
+                ROOT@0..48
+                  TWIG_MACRO@0..48
+                    TWIG_MACRO_STARTING_BLOCK@0..19
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_MACRO@3..8 "macro"
+                      TK_WHITESPACE@8..9 " "
+                      TK_WORD@9..14 "input"
+                      TK_OPEN_PARENTHESIS@14..15 "("
+                      TWIG_ARGUMENTS@15..15
+                      TK_CLOSE_PARENTHESIS@15..16 ")"
+                      TK_WHITESPACE@16..17 " "
+                      TK_PERCENT_CURLY@17..19 "%}"
+                    BODY@19..27
+                      HTML_TEXT@19..27
+                        TK_LINE_BREAK@19..20 "\n"
+                        TK_WHITESPACE@20..24 "    "
+                        TK_DOUBLE_DOT@24..26 ".."
+                        TK_DOT@26..27 "."
+                    TWIG_MACRO_ENDING_BLOCK@27..48
+                      TK_LINE_BREAK@27..28 "\n"
+                      TK_CURLY_PERCENT@28..30 "{%"
+                      TK_WHITESPACE@30..31 " "
+                      TK_ENDMACRO@31..39 "endmacro"
+                      TK_WHITESPACE@39..40 " "
+                      TK_WORD@40..45 "input"
+                      TK_WHITESPACE@45..46 " "
+                      TK_PERCENT_CURLY@46..48 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_macro_with_non_matching_end_tag() {
+        check_parse(
+            r#"{% macro input() %}
+    ...
+{% endmacro inp %}"#,
+            expect![[r#"
+                ROOT@0..46
+                  TWIG_MACRO@0..46
+                    TWIG_MACRO_STARTING_BLOCK@0..19
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_MACRO@3..8 "macro"
+                      TK_WHITESPACE@8..9 " "
+                      TK_WORD@9..14 "input"
+                      TK_OPEN_PARENTHESIS@14..15 "("
+                      TWIG_ARGUMENTS@15..15
+                      TK_CLOSE_PARENTHESIS@15..16 ")"
+                      TK_WHITESPACE@16..17 " "
+                      TK_PERCENT_CURLY@17..19 "%}"
+                    BODY@19..27
+                      HTML_TEXT@19..27
+                        TK_LINE_BREAK@19..20 "\n"
+                        TK_WHITESPACE@20..24 "    "
+                        TK_DOUBLE_DOT@24..26 ".."
+                        TK_DOT@26..27 "."
+                    TWIG_MACRO_ENDING_BLOCK@27..46
+                      TK_LINE_BREAK@27..28 "\n"
+                      TK_CURLY_PERCENT@28..30 "{%"
+                      TK_WHITESPACE@30..31 " "
+                      TK_ENDMACRO@31..39 "endmacro"
+                      TK_WHITESPACE@39..40 " "
+                      TK_WORD@40..43 "inp"
+                      TK_WHITESPACE@43..44 " "
+                      TK_PERCENT_CURLY@44..46 "%}"
+                error at 40..43: expected nothing or same twig macro name as opening (input) but found word"#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_macro_missing_arguments() {
+        check_parse(
+            r#"{% macro input %}
+    ...
+{% endmacro input %}"#,
+            expect![[r#"
+                ROOT@0..46
+                  TWIG_MACRO@0..46
+                    TWIG_MACRO_STARTING_BLOCK@0..17
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_MACRO@3..8 "macro"
+                      TK_WHITESPACE@8..9 " "
+                      TK_WORD@9..14 "input"
+                      TWIG_ARGUMENTS@14..14
+                      TK_WHITESPACE@14..15 " "
+                      TK_PERCENT_CURLY@15..17 "%}"
+                    BODY@17..25
+                      HTML_TEXT@17..25
+                        TK_LINE_BREAK@17..18 "\n"
+                        TK_WHITESPACE@18..22 "    "
+                        TK_DOUBLE_DOT@22..24 ".."
+                        TK_DOT@24..25 "."
+                    TWIG_MACRO_ENDING_BLOCK@25..46
+                      TK_LINE_BREAK@25..26 "\n"
+                      TK_CURLY_PERCENT@26..28 "{%"
+                      TK_WHITESPACE@28..29 " "
+                      TK_ENDMACRO@29..37 "endmacro"
+                      TK_WHITESPACE@37..38 " "
+                      TK_WORD@38..43 "input"
+                      TK_WHITESPACE@43..44 " "
+                      TK_PERCENT_CURLY@44..46 "%}"
+                error at 15..17: expected ( but found %}
+                error at 15..17: expected ) but found %}"#]],
         )
     }
 }
