@@ -4,6 +4,17 @@ use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser, RECOVERY_SET};
 use crate::syntax::untyped::SyntaxKind;
 use crate::T;
+use once_cell::sync::Lazy;
+use regex::Regex;
+
+// Every token value that matches this regex is allowed for html attribute names
+static HTML_NAME_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"^([a-zA-Z]|([:@\#_\$][a-zA-Z]))[a-zA-Z0-9_\-]*$"#).unwrap());
+
+static HTML_VOID_ELEMENTS: &[&str] = &[
+    "area", "base", "br", "col", "command", "embed", "hr", "img", "input", "keygen", "link",
+    "meta", "param", "source", "track", "wbr",
+];
 
 pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
     if parser.at(T!["<"]) {
@@ -89,13 +100,17 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
         },
     );
     // parse end of starting tag
-    let is_self_closing = if parser.at(T!["/>"]) {
+    let mut is_self_closing = if parser.at(T!["/>"]) {
         parser.bump();
         true
     } else {
         parser.expect(T![">"]);
         false
     };
+
+    if HTML_VOID_ELEMENTS.contains(&&*tag_name) {
+        is_self_closing = true; // void elements never have children or an end tag
+    }
 
     parser.complete(starting_tag_m, SyntaxKind::HTML_STARTING_TAG);
 
@@ -153,13 +168,15 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
 }
 
 fn parse_html_attribute_or_twig(parser: &mut Parser) -> Option<CompletedMarker> {
-    if !parser.at(T![word]) {
+    let token_text = parser.peek_token()?.text;
+    if !HTML_NAME_REGEX.is_match(token_text) {
         // parse any twig syntax where its children can only be html attributes (this parser)
         return parse_any_twig(parser, parse_html_attribute_or_twig);
     }
 
+    // normal html attribute
     let m = parser.start();
-    parser.bump();
+    parser.bump_as(T![word]);
 
     if parser.at(T!["="]) {
         // attribute value
@@ -1488,6 +1505,58 @@ mod tests {
             r#"<label class="form-label" for="personalMail">
     hello
 </label>"#,
+            expect![[r#"
+                ROOT@0..64
+                  HTML_TAG@0..64
+                    HTML_STARTING_TAG@0..45
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..6 "label"
+                      HTML_ATTRIBUTE@6..25
+                        TK_WHITESPACE@6..7 " "
+                        TK_WORD@7..12 "class"
+                        TK_EQUAL@12..13 "="
+                        HTML_STRING@13..25
+                          TK_DOUBLE_QUOTES@13..14 "\""
+                          HTML_STRING_INNER@14..24
+                            TK_WORD@14..24 "form-label"
+                          TK_DOUBLE_QUOTES@24..25 "\""
+                      HTML_ATTRIBUTE@25..44
+                        TK_WHITESPACE@25..26 " "
+                        TK_WORD@26..29 "for"
+                        TK_EQUAL@29..30 "="
+                        HTML_STRING@30..44
+                          TK_DOUBLE_QUOTES@30..31 "\""
+                          HTML_STRING_INNER@31..43
+                            TK_WORD@31..43 "personalMail"
+                          TK_DOUBLE_QUOTES@43..44 "\""
+                      TK_GREATER_THAN@44..45 ">"
+                    BODY@45..55
+                      HTML_TEXT@45..55
+                        TK_LINE_BREAK@45..46 "\n"
+                        TK_WHITESPACE@46..50 "    "
+                        TK_WORD@50..55 "hello"
+                    HTML_ENDING_TAG@55..64
+                      TK_LINE_BREAK@55..56 "\n"
+                      TK_LESS_THAN_SLASH@56..58 "</"
+                      TK_WORD@58..63 "label"
+                      TK_GREATER_THAN@63..64 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_void_element() {
+        check_parse(r#"<input type="submit" value="Submit">"#, expect![[r#""#]]);
+    }
+
+    #[test]
+    fn parse_html_void_element_self_closing() {
+        check_parse(r#"<hr/>"#, expect![[r#""#]]);
+    }
+
+    #[test]
+    fn parse_html_void_element_wrong_used() {
+        check_parse(
+            r#"<input type="submit" value="Submit">hello</input>"#,
             expect![[r#""#]],
         );
     }
