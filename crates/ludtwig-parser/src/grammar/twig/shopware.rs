@@ -31,10 +31,35 @@ pub(crate) fn parse_shopware_twig_block_statement(
         BlockParseResult::Successful(parse_twig_sw_return(parser, outer))
     } else if parser.at(T!["sw_icon"]) {
         BlockParseResult::Successful(parse_twig_sw_icon(parser, outer))
+    } else if parser.at(T!["sw_thumbnails"]) {
+        BlockParseResult::Successful(parse_twig_sw_thumbnails(parser, outer))
     } else {
         // error will be thrown by calling function
         BlockParseResult::NothingFound(outer)
     }
+}
+
+fn parse_twig_sw_thumbnails(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["sw_thumbnails"]));
+    parser.bump();
+
+    if parse_twig_expression(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new("twig expression as thumbnail name"));
+    }
+
+    if parser.at(T!["with"]) {
+        let style_m = parser.start();
+        parser.bump();
+        if parse_twig_expression(parser).is_none() {
+            parser.add_error(ParseErrorBuilder::new(
+                "twig expression as thumbnail variables",
+            ));
+        }
+        parser.complete(style_m, SyntaxKind::SHOPWARE_THUMBNAILS_WITH);
+    }
+
+    parser.expect(T!["%}"]);
+    parser.complete(outer, SyntaxKind::SHOPWARE_THUMBNAILS)
 }
 
 fn parse_twig_sw_icon(parser: &mut Parser, outer: Marker) -> CompletedMarker {
@@ -510,6 +535,80 @@ mod tests {
                           TK_CLOSE_CURLY@40..41 "}"
                     TK_WHITESPACE@41..42 " "
                     TK_PERCENT_CURLY@42..44 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_shopware_thumbnails() {
+        check_parse(
+            r#"{% sw_thumbnails 'cart-item-img-thumbnails' %}"#,
+            expect![[r#"
+                ROOT@0..46
+                  SHOPWARE_THUMBNAILS@0..46
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_SW_THUMBNAILS@3..16 "sw_thumbnails"
+                    TWIG_EXPRESSION@16..43
+                      TWIG_LITERAL_STRING@16..43
+                        TK_WHITESPACE@16..17 " "
+                        TK_SINGLE_QUOTES@17..18 "'"
+                        TWIG_LITERAL_STRING_INNER@18..42
+                          TK_WORD@18..42 "cart-item-img-thumbnails"
+                        TK_SINGLE_QUOTES@42..43 "'"
+                    TK_WHITESPACE@43..44 " "
+                    TK_PERCENT_CURLY@44..46 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_shopware_thumbnails_with() {
+        check_parse(
+            r#"{% sw_thumbnails 'product-image-thumbnails' with { media: product.cover.media } %}"#,
+            expect![[r#"
+                ROOT@0..82
+                  SHOPWARE_THUMBNAILS@0..82
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_SW_THUMBNAILS@3..16 "sw_thumbnails"
+                    TWIG_EXPRESSION@16..43
+                      TWIG_LITERAL_STRING@16..43
+                        TK_WHITESPACE@16..17 " "
+                        TK_SINGLE_QUOTES@17..18 "'"
+                        TWIG_LITERAL_STRING_INNER@18..42
+                          TK_WORD@18..42 "product-image-thumbnails"
+                        TK_SINGLE_QUOTES@42..43 "'"
+                    SHOPWARE_THUMBNAILS_WITH@43..79
+                      TK_WHITESPACE@43..44 " "
+                      TK_WITH@44..48 "with"
+                      TWIG_EXPRESSION@48..79
+                        TWIG_LITERAL_HASH@48..79
+                          TK_WHITESPACE@48..49 " "
+                          TK_OPEN_CURLY@49..50 "{"
+                          TWIG_LITERAL_HASH_PAIR@50..77
+                            TWIG_LITERAL_HASH_KEY@50..56
+                              TK_WHITESPACE@50..51 " "
+                              TK_WORD@51..56 "media"
+                            TK_COLON@56..57 ":"
+                            TWIG_EXPRESSION@57..77
+                              TWIG_ACCESSOR@57..77
+                                TWIG_OPERAND@57..71
+                                  TWIG_ACCESSOR@57..71
+                                    TWIG_OPERAND@57..65
+                                      TWIG_LITERAL_NAME@57..65
+                                        TK_WHITESPACE@57..58 " "
+                                        TK_WORD@58..65 "product"
+                                    TK_DOT@65..66 "."
+                                    TWIG_OPERAND@66..71
+                                      TWIG_LITERAL_NAME@66..71
+                                        TK_WORD@66..71 "cover"
+                                TK_DOT@71..72 "."
+                                TWIG_OPERAND@72..77
+                                  TWIG_LITERAL_NAME@72..77
+                                    TK_WORD@72..77 "media"
+                          TK_WHITESPACE@77..78 " "
+                          TK_CLOSE_CURLY@78..79 "}"
+                    TK_WHITESPACE@79..80 " "
+                    TK_PERCENT_CURLY@80..82 "%}""#]],
         )
     }
 }
