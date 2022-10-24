@@ -280,6 +280,7 @@ mod tests {
         add("return", T!["return"]);
         add("sw_icon", T!["sw_icon"]);
         add("sw_thumbnails", T!["sw_thumbnails"]);
+        add("style", T!["style"]);
         add("ludtwig-ignore-file", T!["ludtwig-ignore-file"]);
         add("ludtwig-ignore", T!["ludtwig-ignore"]);
         add("€", T![unknown]);
@@ -1000,6 +1001,11 @@ mod tests {
     #[test]
     fn lex_sw_thumbnails() {
         check_token("sw_thumbnails", T!["sw_thumbnails"]);
+    }
+
+    #[test]
+    fn lex_style() {
+        check_token("style", T!["style"]);
     }
 
     #[test]

@@ -305,6 +305,8 @@ pub enum SyntaxKind {
     TK_SW_ICON,
     #[token("sw_thumbnails")]
     TK_SW_THUMBNAILS,
+    #[token("style")]
+    TK_STYLE,
 
     /* special tokens */
     #[token("ludtwig-ignore-file", ignore(ascii_case))]
@@ -434,6 +436,8 @@ pub enum SyntaxKind {
     SHOPWARE_SILENT_FEATURE_CALL_STARTING_BLOCK,
     SHOPWARE_SILENT_FEATURE_CALL_ENDING_BLOCK,
     SHOPWARE_RETURN,
+    SHOPWARE_ICON,
+    SHOPWARE_ICON_STYLE,
 
     // html
     HTML_DOCTYPE,
@@ -595,6 +599,7 @@ macro_rules! T {
     ["return"] => { $crate::syntax::untyped::SyntaxKind::TK_RETURN };
     ["sw_icon"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_ICON };
     ["sw_thumbnails"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_THUMBNAILS };
+    ["style"] => { $crate::syntax::untyped::SyntaxKind::TK_STYLE };
     ["ludtwig-ignore-file"] => { $crate::syntax::untyped::SyntaxKind::TK_LUDTWIG_IGNORE_FILE };
     ["ludtwig-ignore"] => { $crate::syntax::untyped::SyntaxKind::TK_LUDTWIG_IGNORE };
 }
@@ -743,6 +748,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_RETURN => "return",
             SyntaxKind::TK_SW_ICON => "sw_icon",
             SyntaxKind::TK_SW_THUMBNAILS => "sw_thumbnails",
+            SyntaxKind::TK_STYLE => "style",
             SyntaxKind::TK_LUDTWIG_IGNORE_FILE => "ludtwig-ignore-file",
             SyntaxKind::TK_LUDTWIG_IGNORE => "ludtwig-ignore",
             SyntaxKind::TK_UNKNOWN => "unknown",

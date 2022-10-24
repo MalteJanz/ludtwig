@@ -1028,4 +1028,9 @@ mod tests {
                 TK_CLOSE_CURLY_CURLY@40..42 "}}""#]],
         )
     }
+
+    #[test]
+    fn parse_twig_parenthesis_expression_filter() {
+        check_parse(r#"{{ ('a' ~ 'b')|trim }}"#, expect![[r#""#]])
+    }
 }

@@ -29,10 +29,35 @@ pub(crate) fn parse_shopware_twig_block_statement(
         ))
     } else if parser.at(T!["return"]) {
         BlockParseResult::Successful(parse_twig_sw_return(parser, outer))
+    } else if parser.at(T!["sw_icon"]) {
+        BlockParseResult::Successful(parse_twig_sw_icon(parser, outer))
     } else {
         // error will be thrown by calling function
         BlockParseResult::NothingFound(outer)
     }
+}
+
+fn parse_twig_sw_icon(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["sw_icon"]));
+    parser.bump();
+
+    if parse_twig_expression(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new("twig expression as icon name"));
+    }
+
+    if parser.at(T!["style"]) {
+        let style_m = parser.start();
+        parser.bump();
+        if parse_twig_expression(parser).is_none() {
+            parser.add_error(ParseErrorBuilder::new(
+                "twig expression as icon style variables",
+            ));
+        }
+        parser.complete(style_m, SyntaxKind::SHOPWARE_ICON_STYLE);
+    }
+
+    parser.expect(T!["%}"]);
+    parser.complete(outer, SyntaxKind::SHOPWARE_ICON)
 }
 
 fn parse_twig_sw_return(parser: &mut Parser, outer: Marker) -> CompletedMarker {
@@ -340,19 +365,24 @@ mod tests {
 
     #[test]
     fn parse_shopware_return() {
-        check_parse(r#"{% return %}"#, expect![[r#"
+        check_parse(
+            r#"{% return %}"#,
+            expect![[r#"
             ROOT@0..12
               SHOPWARE_RETURN@0..12
                 TK_CURLY_PERCENT@0..2 "{%"
                 TK_WHITESPACE@2..3 " "
                 TK_RETURN@3..9 "return"
                 TK_WHITESPACE@9..10 " "
-                TK_PERCENT_CURLY@10..12 "%}""#]])
+                TK_PERCENT_CURLY@10..12 "%}""#]],
+        )
     }
 
     #[test]
     fn parse_shopware_return_value() {
-        check_parse(r#"{% return 5 %}"#, expect![[r#"
+        check_parse(
+            r#"{% return 5 %}"#,
+            expect![[r#"
             ROOT@0..14
               SHOPWARE_RETURN@0..14
                 TK_CURLY_PERCENT@0..2 "{%"
@@ -363,7 +393,8 @@ mod tests {
                     TK_WHITESPACE@9..10 " "
                     TK_NUMBER@10..11 "5"
                 TK_WHITESPACE@11..12 " "
-                TK_PERCENT_CURLY@12..14 "%}""#]])
+                TK_PERCENT_CURLY@12..14 "%}""#]],
+        )
     }
 
     #[test]
@@ -410,6 +441,75 @@ mod tests {
                             TK_CLOSE_PARENTHESIS@38..39 ")"
                     TK_WHITESPACE@39..40 " "
                     TK_PERCENT_CURLY@40..42 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_shopware_icon() {
+        check_parse(
+            r#"{% sw_icon 'clock' %}"#,
+            expect![[r#"
+            ROOT@0..21
+              SHOPWARE_ICON@0..21
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_SW_ICON@3..10 "sw_icon"
+                TWIG_EXPRESSION@10..18
+                  TWIG_LITERAL_STRING@10..18
+                    TK_WHITESPACE@10..11 " "
+                    TK_SINGLE_QUOTES@11..12 "'"
+                    TWIG_LITERAL_STRING_INNER@12..17
+                      TK_WORD@12..17 "clock"
+                    TK_SINGLE_QUOTES@17..18 "'"
+                TK_WHITESPACE@18..19 " "
+                TK_PERCENT_CURLY@19..21 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_shopware_icon_with_style() {
+        check_parse(
+            r#"{% sw_icon 'minus' style { 'size': 'xs' } %}"#,
+            expect![[r#"
+                ROOT@0..44
+                  SHOPWARE_ICON@0..44
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_SW_ICON@3..10 "sw_icon"
+                    TWIG_EXPRESSION@10..18
+                      TWIG_LITERAL_STRING@10..18
+                        TK_WHITESPACE@10..11 " "
+                        TK_SINGLE_QUOTES@11..12 "'"
+                        TWIG_LITERAL_STRING_INNER@12..17
+                          TK_WORD@12..17 "minus"
+                        TK_SINGLE_QUOTES@17..18 "'"
+                    SHOPWARE_ICON_STYLE@18..41
+                      TK_WHITESPACE@18..19 " "
+                      TK_STYLE@19..24 "style"
+                      TWIG_EXPRESSION@24..41
+                        TWIG_LITERAL_HASH@24..41
+                          TK_WHITESPACE@24..25 " "
+                          TK_OPEN_CURLY@25..26 "{"
+                          TWIG_LITERAL_HASH_PAIR@26..39
+                            TWIG_LITERAL_HASH_KEY@26..33
+                              TWIG_LITERAL_STRING@26..33
+                                TK_WHITESPACE@26..27 " "
+                                TK_SINGLE_QUOTES@27..28 "'"
+                                TWIG_LITERAL_STRING_INNER@28..32
+                                  TK_WORD@28..32 "size"
+                                TK_SINGLE_QUOTES@32..33 "'"
+                            TK_COLON@33..34 ":"
+                            TWIG_EXPRESSION@34..39
+                              TWIG_LITERAL_STRING@34..39
+                                TK_WHITESPACE@34..35 " "
+                                TK_SINGLE_QUOTES@35..36 "'"
+                                TWIG_LITERAL_STRING_INNER@36..38
+                                  TK_WORD@36..38 "xs"
+                                TK_SINGLE_QUOTES@38..39 "'"
+                          TK_WHITESPACE@39..40 " "
+                          TK_CLOSE_CURLY@40..41 "}"
+                    TK_WHITESPACE@41..42 " "
+                    TK_PERCENT_CURLY@42..44 "%}""#]],
         )
     }
 }
