@@ -1420,7 +1420,11 @@ mod tests {
                 error at 29..30: expected %} but found <
                 error at 29..30: expected > but found <
                 error at 35..37: expected </div> ending tag but found {%
-                error at 38..46: expected twig tag but found endblock"#]],
+                error at 38..46: expected twig tag but found endblock
+                error at 47..49: expected html, text or twig element but found %}
+                error at 49..50: expected html, text or twig element but found >
+                error at 50..52: expected html, text or twig element but found </
+                error at 55..56: expected html, text or twig element but found >"#]],
         );
     }
 
@@ -1545,19 +1549,89 @@ mod tests {
 
     #[test]
     fn parse_html_void_element() {
-        check_parse(r#"<input type="submit" value="Submit">"#, expect![[r#""#]]);
+        check_parse(
+            r#"<input type="submit" value="Submit">"#,
+            expect![[r#"
+            ROOT@0..36
+              HTML_TAG@0..36
+                HTML_STARTING_TAG@0..36
+                  TK_LESS_THAN@0..1 "<"
+                  TK_WORD@1..6 "input"
+                  HTML_ATTRIBUTE@6..20
+                    TK_WHITESPACE@6..7 " "
+                    TK_WORD@7..11 "type"
+                    TK_EQUAL@11..12 "="
+                    HTML_STRING@12..20
+                      TK_DOUBLE_QUOTES@12..13 "\""
+                      HTML_STRING_INNER@13..19
+                        TK_WORD@13..19 "submit"
+                      TK_DOUBLE_QUOTES@19..20 "\""
+                  HTML_ATTRIBUTE@20..35
+                    TK_WHITESPACE@20..21 " "
+                    TK_WORD@21..26 "value"
+                    TK_EQUAL@26..27 "="
+                    HTML_STRING@27..35
+                      TK_DOUBLE_QUOTES@27..28 "\""
+                      HTML_STRING_INNER@28..34
+                        TK_WORD@28..34 "Submit"
+                      TK_DOUBLE_QUOTES@34..35 "\""
+                  TK_GREATER_THAN@35..36 ">""#]],
+        );
     }
 
     #[test]
     fn parse_html_void_element_self_closing() {
-        check_parse(r#"<hr/>"#, expect![[r#""#]]);
+        check_parse(
+            r#"<hr/>"#,
+            expect![[r#"
+            ROOT@0..5
+              HTML_TAG@0..5
+                HTML_STARTING_TAG@0..5
+                  TK_LESS_THAN@0..1 "<"
+                  TK_WORD@1..3 "hr"
+                  TK_SLASH_GREATER_THAN@3..5 "/>""#]],
+        );
     }
 
     #[test]
     fn parse_html_void_element_wrong_used() {
         check_parse(
             r#"<input type="submit" value="Submit">hello</input>"#,
-            expect![[r#""#]],
+            expect![[r#"
+                ROOT@0..49
+                  HTML_TAG@0..36
+                    HTML_STARTING_TAG@0..36
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..6 "input"
+                      HTML_ATTRIBUTE@6..20
+                        TK_WHITESPACE@6..7 " "
+                        TK_WORD@7..11 "type"
+                        TK_EQUAL@11..12 "="
+                        HTML_STRING@12..20
+                          TK_DOUBLE_QUOTES@12..13 "\""
+                          HTML_STRING_INNER@13..19
+                            TK_WORD@13..19 "submit"
+                          TK_DOUBLE_QUOTES@19..20 "\""
+                      HTML_ATTRIBUTE@20..35
+                        TK_WHITESPACE@20..21 " "
+                        TK_WORD@21..26 "value"
+                        TK_EQUAL@26..27 "="
+                        HTML_STRING@27..35
+                          TK_DOUBLE_QUOTES@27..28 "\""
+                          HTML_STRING_INNER@28..34
+                            TK_WORD@28..34 "Submit"
+                          TK_DOUBLE_QUOTES@34..35 "\""
+                      TK_GREATER_THAN@35..36 ">"
+                  HTML_TEXT@36..41
+                    TK_WORD@36..41 "hello"
+                  ERROR@41..43
+                    TK_LESS_THAN_SLASH@41..43 "</"
+                  HTML_TEXT@43..48
+                    TK_WORD@43..48 "input"
+                  ERROR@48..49
+                    TK_GREATER_THAN@48..49 ">"
+                error at 41..43: expected html, text or twig element but found </
+                error at 48..49: expected html, text or twig element but found >"#]],
         );
     }
 

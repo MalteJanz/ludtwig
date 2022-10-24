@@ -1,7 +1,7 @@
 use crate::grammar::html::parse_any_html;
 use crate::grammar::twig::parse_any_twig;
 use crate::parser::event::{CompletedMarker, Marker};
-use crate::parser::Parser;
+use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
 use crate::T;
 
@@ -22,7 +22,7 @@ pub(super) fn root(parser: &mut Parser) -> CompletedMarker {
                 // not parsable element encountered
 
                 // at least consume unparseable input TODO: maybe handle this in a better way?
-                // p.add_error(ParseErrorBuilder::new("a parseable token"));
+                p.add_error(ParseErrorBuilder::new("html, text or twig element"));
                 let error_m = p.start();
                 p.bump();
                 p.complete(error_m, SyntaxKind::ERROR);

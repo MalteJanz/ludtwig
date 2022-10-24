@@ -3260,7 +3260,8 @@ mod tests {
                 error at 9..10: expected %} but found number
                 error at 11..13: expected {% but found %}
                 error at 11..13: expected endapply but found %}
-                error at 31..39: expected twig tag but found endapply"#]],
+                error at 31..39: expected twig tag but found endapply
+                error at 40..42: expected html, text or twig element but found %}"#]],
         )
     }
 
@@ -3491,7 +3492,8 @@ mod tests {
                 error at 14..20: expected %} but found word
                 error at 21..23: expected {% but found %}
                 error at 21..23: expected endautoescape but found %}
-                error at 121..134: expected twig tag but found endautoescape"#]],
+                error at 121..134: expected twig tag but found endautoescape
+                error at 135..137: expected html, text or twig element but found %}"#]],
         )
     }
 
