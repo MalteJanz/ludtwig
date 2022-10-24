@@ -1,6 +1,6 @@
 use crate::grammar::twig::expression::parse_twig_expression;
 use crate::grammar::twig::literal::parse_twig_string;
-use crate::grammar::ParseFunction;
+use crate::grammar::{parse_many, ParseFunction};
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
@@ -14,17 +14,68 @@ pub(crate) enum BlockParseResult {
 pub(crate) fn parse_shopware_twig_block_statement(
     parser: &mut Parser,
     outer: Marker,
-    _child_parser: ParseFunction,
+    child_parser: ParseFunction,
 ) -> BlockParseResult {
     // {% already consumed
     if parser.at(T!["sw_extends"]) {
         BlockParseResult::Successful(parse_twig_sw_extends(parser, outer))
     } else if parser.at(T!["sw_include"]) {
         BlockParseResult::Successful(parse_twig_sw_include(parser, outer))
+    } else if parser.at(T!["sw_silent_feature_call"]) {
+        BlockParseResult::Successful(parse_twig_sw_silent_feature_call(
+            parser,
+            outer,
+            child_parser,
+        ))
     } else {
         // error will be thrown by calling function
         BlockParseResult::NothingFound(outer)
     }
+}
+
+fn parse_twig_sw_silent_feature_call(
+    parser: &mut Parser,
+    outer: Marker,
+    child_parser: ParseFunction,
+) -> CompletedMarker {
+    debug_assert!(parser.at(T!["sw_silent_feature_call"]));
+    parser.bump();
+    if parser.at_set(&[T!["\""], T!["'"]]) {
+        parse_twig_string(parser, false);
+    } else {
+        parser.add_error(ParseErrorBuilder::new(
+            "twig string as feature flag (shopware doesn't allow expressions here)",
+        ));
+    }
+    parser.expect(T!["%}"]);
+    let wrapper_m = parser.complete(
+        outer,
+        SyntaxKind::SHOPWARE_SILENT_FEATURE_CALL_STARTING_BLOCK,
+    );
+    let wrapper_m = parser.precede(wrapper_m);
+
+    // parse all the children except endsw_silent_feature_call
+    let body_m = parser.start();
+    parse_many(
+        parser,
+        |p| p.at_following(&[T!["{%"], T!["endsw_silent_feature_call"]]),
+        |p| {
+            child_parser(p);
+        },
+    );
+    parser.complete(body_m, SyntaxKind::BODY);
+
+    let end_block_m = parser.start();
+    parser.expect(T!["{%"]);
+    parser.expect(T!["endsw_silent_feature_call"]);
+    parser.expect(T!["%}"]);
+    parser.complete(
+        end_block_m,
+        SyntaxKind::SHOPWARE_SILENT_FEATURE_CALL_ENDING_BLOCK,
+    );
+
+    // close overall twig block
+    parser.complete(wrapper_m, SyntaxKind::SHOPWARE_SILENT_FEATURE_CALL)
 }
 
 fn parse_twig_sw_extends(parser: &mut Parser, outer: Marker) -> CompletedMarker {
@@ -215,6 +266,63 @@ mod tests {
                           TK_CLOSE_CURLY@117..118 "}"
                     TK_WHITESPACE@118..119 " "
                     TK_PERCENT_CURLY@119..121 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_sw_silent_feature_call() {
+        check_parse(
+            r#"{% sw_silent_feature_call "v6.5.0.0" %}
+            {{ counter.incrementPage() }}
+{% endsw_silent_feature_call %}"#,
+            expect![[r#"
+                ROOT@0..113
+                  SHOPWARE_SILENT_FEATURE_CALL@0..113
+                    SHOPWARE_SILENT_FEATURE_CALL_STARTING_BLOCK@0..39
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_SW_SILENT_FEATURE_CALL@3..25 "sw_silent_feature_call"
+                      TWIG_LITERAL_STRING@25..36
+                        TK_WHITESPACE@25..26 " "
+                        TK_DOUBLE_QUOTES@26..27 "\""
+                        TWIG_LITERAL_STRING_INNER@27..35
+                          TK_WORD@27..29 "v6"
+                          TK_DOT@29..30 "."
+                          TK_NUMBER@30..33 "5.0"
+                          TK_DOT@33..34 "."
+                          TK_NUMBER@34..35 "0"
+                        TK_DOUBLE_QUOTES@35..36 "\""
+                      TK_WHITESPACE@36..37 " "
+                      TK_PERCENT_CURLY@37..39 "%}"
+                    BODY@39..81
+                      TWIG_VAR@39..81
+                        TK_LINE_BREAK@39..40 "\n"
+                        TK_WHITESPACE@40..52 "            "
+                        TK_OPEN_CURLY_CURLY@52..54 "{{"
+                        TWIG_EXPRESSION@54..78
+                          TWIG_FUNCTION_CALL@54..78
+                            TWIG_OPERAND@54..76
+                              TWIG_ACCESSOR@54..76
+                                TWIG_OPERAND@54..62
+                                  TWIG_LITERAL_NAME@54..62
+                                    TK_WHITESPACE@54..55 " "
+                                    TK_WORD@55..62 "counter"
+                                TK_DOT@62..63 "."
+                                TWIG_OPERAND@63..76
+                                  TWIG_LITERAL_NAME@63..76
+                                    TK_WORD@63..76 "incrementPage"
+                            TK_OPEN_PARENTHESIS@76..77 "("
+                            TWIG_ARGUMENTS@77..77
+                            TK_CLOSE_PARENTHESIS@77..78 ")"
+                        TK_WHITESPACE@78..79 " "
+                        TK_CLOSE_CURLY_CURLY@79..81 "}}"
+                    SHOPWARE_SILENT_FEATURE_CALL_ENDING_BLOCK@81..113
+                      TK_LINE_BREAK@81..82 "\n"
+                      TK_CURLY_PERCENT@82..84 "{%"
+                      TK_WHITESPACE@84..85 " "
+                      TK_ENDSW_SILENT_FEATURE_CALL@85..110 "endsw_silent_feature_ ..."
+                      TK_WHITESPACE@110..111 " "
+                      TK_PERCENT_CURLY@111..113 "%}""#]],
         )
     }
 }
