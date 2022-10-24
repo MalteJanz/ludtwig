@@ -330,7 +330,7 @@ pub enum SyntaxKind {
 
     TWIG_OPERAND, // covers the operands in TWIG_ACCESSOR, TWIG_INDEX_LOOKUP, TWIG_PIPE and TWIG_FUNCTION_CALL
     TWIG_ACCESSOR, // accessor node like 'product.price'
-    TWIG_PIPE,    // pipe node like 'name|title'
+    TWIG_FILTER,  // filter node like 'name|title'
 
     TWIG_INDEX_LOOKUP, // indexer node like 'products[0]'
     TWIG_INDEX,        // covers a array index '5' inside []

@@ -2,7 +2,7 @@
 
 use crate::grammar::twig::expression::parse_twig_expression;
 use crate::grammar::twig::literal::{
-    parse_twig_function_argument, parse_twig_name, parse_twig_pipe, parse_twig_string,
+    parse_twig_filter, parse_twig_function_argument, parse_twig_name, parse_twig_string,
 };
 use crate::grammar::twig::shopware::{parse_shopware_twig_block_statement, BlockParseResult};
 use crate::grammar::{parse_many, ParseFunction};
@@ -411,7 +411,7 @@ fn parse_twig_apply(
             |p| p.at(T!["%}"]),
             |p| {
                 if p.at(T!["|"]) {
-                    node = parse_twig_pipe(p, node.clone());
+                    node = parse_twig_filter(p, node.clone());
                 }
             },
         );
@@ -1560,26 +1560,26 @@ mod tests {
         check_parse(
             "{% block title page_title|title %}",
             expect![[r#"
-        ROOT@0..34
-          TWIG_BLOCK@0..34
-            TWIG_STARTING_BLOCK@0..34
-              TK_CURLY_PERCENT@0..2 "{%"
-              TK_WHITESPACE@2..3 " "
-              TK_BLOCK@3..8 "block"
-              TK_WHITESPACE@8..9 " "
-              TK_WORD@9..14 "title"
-              TWIG_EXPRESSION@14..31
-                TWIG_PIPE@14..31
-                  TWIG_OPERAND@14..25
-                    TWIG_LITERAL_NAME@14..25
-                      TK_WHITESPACE@14..15 " "
-                      TK_WORD@15..25 "page_title"
-                  TK_SINGLE_PIPE@25..26 "|"
-                  TWIG_OPERAND@26..31
-                    TWIG_LITERAL_NAME@26..31
-                      TK_WORD@26..31 "title"
-              TK_WHITESPACE@31..32 " "
-              TK_PERCENT_CURLY@32..34 "%}""#]],
+                ROOT@0..34
+                  TWIG_BLOCK@0..34
+                    TWIG_STARTING_BLOCK@0..34
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_BLOCK@3..8 "block"
+                      TK_WHITESPACE@8..9 " "
+                      TK_WORD@9..14 "title"
+                      TWIG_EXPRESSION@14..31
+                        TWIG_FILTER@14..31
+                          TWIG_OPERAND@14..25
+                            TWIG_LITERAL_NAME@14..25
+                              TK_WHITESPACE@14..15 " "
+                              TK_WORD@15..25 "page_title"
+                          TK_SINGLE_PIPE@25..26 "|"
+                          TWIG_OPERAND@26..31
+                            TWIG_LITERAL_NAME@26..31
+                              TK_WORD@26..31 "title"
+                      TK_WHITESPACE@31..32 " "
+                      TK_PERCENT_CURLY@32..34 "%}""#]],
         )
     }
 
@@ -1999,68 +1999,68 @@ mod tests {
     * {{ letter }}
 {% endfor %}"#,
             expect![[r#"
-            ROOT@0..72
-              TWIG_FOR@0..72
-                TWIG_FOR_BLOCK@0..40
-                  TK_CURLY_PERCENT@0..2 "{%"
-                  TK_WHITESPACE@2..3 " "
-                  TK_FOR@3..6 "for"
-                  TWIG_LITERAL_NAME@6..13
-                    TK_WHITESPACE@6..7 " "
-                    TK_WORD@7..13 "letter"
-                  TK_WHITESPACE@13..14 " "
-                  TK_IN@14..16 "in"
-                  TWIG_EXPRESSION@16..37
-                    TWIG_BINARY_EXPRESSION@16..37
-                      TWIG_EXPRESSION@16..26
-                        TWIG_PIPE@16..26
-                          TWIG_OPERAND@16..20
-                            TWIG_LITERAL_STRING@16..20
-                              TK_WHITESPACE@16..17 " "
-                              TK_SINGLE_QUOTES@17..18 "'"
-                              TWIG_LITERAL_STRING_INNER@18..19
-                                TK_WORD@18..19 "a"
-                              TK_SINGLE_QUOTES@19..20 "'"
-                          TK_SINGLE_PIPE@20..21 "|"
-                          TWIG_OPERAND@21..26
-                            TWIG_LITERAL_NAME@21..26
-                              TK_WORD@21..26 "upper"
-                      TK_DOUBLE_DOT@26..28 ".."
-                      TWIG_EXPRESSION@28..37
-                        TWIG_PIPE@28..37
-                          TWIG_OPERAND@28..31
-                            TWIG_LITERAL_STRING@28..31
-                              TK_SINGLE_QUOTES@28..29 "'"
-                              TWIG_LITERAL_STRING_INNER@29..30
-                                TK_WORD@29..30 "z"
-                              TK_SINGLE_QUOTES@30..31 "'"
-                          TK_SINGLE_PIPE@31..32 "|"
-                          TWIG_OPERAND@32..37
-                            TWIG_LITERAL_NAME@32..37
-                              TK_WORD@32..37 "upper"
-                  TK_WHITESPACE@37..38 " "
-                  TK_PERCENT_CURLY@38..40 "%}"
-                BODY@40..59
-                  HTML_TEXT@40..46
-                    TK_LINE_BREAK@40..41 "\n"
-                    TK_WHITESPACE@41..45 "    "
-                    TK_STAR@45..46 "*"
-                  TWIG_VAR@46..59
-                    TK_WHITESPACE@46..47 " "
-                    TK_OPEN_CURLY_CURLY@47..49 "{{"
-                    TWIG_EXPRESSION@49..56
-                      TWIG_LITERAL_NAME@49..56
-                        TK_WHITESPACE@49..50 " "
-                        TK_WORD@50..56 "letter"
-                    TK_WHITESPACE@56..57 " "
-                    TK_CLOSE_CURLY_CURLY@57..59 "}}"
-                TWIG_ENDFOR_BLOCK@59..72
-                  TK_LINE_BREAK@59..60 "\n"
-                  TK_CURLY_PERCENT@60..62 "{%"
-                  TK_WHITESPACE@62..63 " "
-                  TK_ENDFOR@63..69 "endfor"
-                  TK_WHITESPACE@69..70 " "
-                  TK_PERCENT_CURLY@70..72 "%}""#]],
+                ROOT@0..72
+                  TWIG_FOR@0..72
+                    TWIG_FOR_BLOCK@0..40
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_FOR@3..6 "for"
+                      TWIG_LITERAL_NAME@6..13
+                        TK_WHITESPACE@6..7 " "
+                        TK_WORD@7..13 "letter"
+                      TK_WHITESPACE@13..14 " "
+                      TK_IN@14..16 "in"
+                      TWIG_EXPRESSION@16..37
+                        TWIG_BINARY_EXPRESSION@16..37
+                          TWIG_EXPRESSION@16..26
+                            TWIG_FILTER@16..26
+                              TWIG_OPERAND@16..20
+                                TWIG_LITERAL_STRING@16..20
+                                  TK_WHITESPACE@16..17 " "
+                                  TK_SINGLE_QUOTES@17..18 "'"
+                                  TWIG_LITERAL_STRING_INNER@18..19
+                                    TK_WORD@18..19 "a"
+                                  TK_SINGLE_QUOTES@19..20 "'"
+                              TK_SINGLE_PIPE@20..21 "|"
+                              TWIG_OPERAND@21..26
+                                TWIG_LITERAL_NAME@21..26
+                                  TK_WORD@21..26 "upper"
+                          TK_DOUBLE_DOT@26..28 ".."
+                          TWIG_EXPRESSION@28..37
+                            TWIG_FILTER@28..37
+                              TWIG_OPERAND@28..31
+                                TWIG_LITERAL_STRING@28..31
+                                  TK_SINGLE_QUOTES@28..29 "'"
+                                  TWIG_LITERAL_STRING_INNER@29..30
+                                    TK_WORD@29..30 "z"
+                                  TK_SINGLE_QUOTES@30..31 "'"
+                              TK_SINGLE_PIPE@31..32 "|"
+                              TWIG_OPERAND@32..37
+                                TWIG_LITERAL_NAME@32..37
+                                  TK_WORD@32..37 "upper"
+                      TK_WHITESPACE@37..38 " "
+                      TK_PERCENT_CURLY@38..40 "%}"
+                    BODY@40..59
+                      HTML_TEXT@40..46
+                        TK_LINE_BREAK@40..41 "\n"
+                        TK_WHITESPACE@41..45 "    "
+                        TK_STAR@45..46 "*"
+                      TWIG_VAR@46..59
+                        TK_WHITESPACE@46..47 " "
+                        TK_OPEN_CURLY_CURLY@47..49 "{{"
+                        TWIG_EXPRESSION@49..56
+                          TWIG_LITERAL_NAME@49..56
+                            TK_WHITESPACE@49..50 " "
+                            TK_WORD@50..56 "letter"
+                        TK_WHITESPACE@56..57 " "
+                        TK_CLOSE_CURLY_CURLY@57..59 "}}"
+                    TWIG_ENDFOR_BLOCK@59..72
+                      TK_LINE_BREAK@59..60 "\n"
+                      TK_CURLY_PERCENT@60..62 "{%"
+                      TK_WHITESPACE@62..63 " "
+                      TK_ENDFOR@63..69 "endfor"
+                      TK_WHITESPACE@69..70 " "
+                      TK_PERCENT_CURLY@70..72 "%}""#]],
         )
     }
 
@@ -2115,7 +2115,7 @@ mod tests {
                             TK_WHITESPACE@47..48 " "
                             TK_OPEN_CURLY_CURLY@48..50 "{{"
                             TWIG_EXPRESSION@50..66
-                              TWIG_PIPE@50..66
+                              TWIG_FILTER@50..66
                                 TWIG_OPERAND@50..64
                                   TWIG_ACCESSOR@50..64
                                     TWIG_OPERAND@50..55
@@ -3115,9 +3115,9 @@ mod tests {
                       TK_CURLY_PERCENT@0..2 "{%"
                       TK_WHITESPACE@2..3 " "
                       TK_APPLY@3..8 "apply"
-                      TWIG_PIPE@8..52
+                      TWIG_FILTER@8..52
                         TWIG_OPERAND@8..29
-                          TWIG_PIPE@8..29
+                          TWIG_FILTER@8..29
                             TWIG_OPERAND@8..14
                               TWIG_LITERAL_NAME@8..14
                                 TK_WHITESPACE@8..9 " "
@@ -3831,7 +3831,7 @@ mod tests {
                     TK_WHITESPACE@2..3 " "
                     TK_FROM@3..7 "from"
                     TWIG_EXPRESSION@7..19
-                      TWIG_PIPE@7..19
+                      TWIG_FILTER@7..19
                         TWIG_OPERAND@7..14
                           TWIG_LITERAL_NAME@7..14
                             TK_WHITESPACE@7..8 " "
@@ -3948,28 +3948,28 @@ mod tests {
         check_parse(
             r#"{% import my_var|trim as forms %}"#,
             expect![[r#"
-            ROOT@0..33
-              TWIG_IMPORT@0..33
-                TK_CURLY_PERCENT@0..2 "{%"
-                TK_WHITESPACE@2..3 " "
-                TK_IMPORT@3..9 "import"
-                TWIG_EXPRESSION@9..21
-                  TWIG_PIPE@9..21
-                    TWIG_OPERAND@9..16
-                      TWIG_LITERAL_NAME@9..16
-                        TK_WHITESPACE@9..10 " "
-                        TK_WORD@10..16 "my_var"
-                    TK_SINGLE_PIPE@16..17 "|"
-                    TWIG_OPERAND@17..21
-                      TWIG_LITERAL_NAME@17..21
-                        TK_WORD@17..21 "trim"
-                TK_WHITESPACE@21..22 " "
-                TK_AS@22..24 "as"
-                TWIG_LITERAL_NAME@24..30
-                  TK_WHITESPACE@24..25 " "
-                  TK_WORD@25..30 "forms"
-                TK_WHITESPACE@30..31 " "
-                TK_PERCENT_CURLY@31..33 "%}""#]],
+                ROOT@0..33
+                  TWIG_IMPORT@0..33
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_IMPORT@3..9 "import"
+                    TWIG_EXPRESSION@9..21
+                      TWIG_FILTER@9..21
+                        TWIG_OPERAND@9..16
+                          TWIG_LITERAL_NAME@9..16
+                            TK_WHITESPACE@9..10 " "
+                            TK_WORD@10..16 "my_var"
+                        TK_SINGLE_PIPE@16..17 "|"
+                        TWIG_OPERAND@17..21
+                          TWIG_LITERAL_NAME@17..21
+                            TK_WORD@17..21 "trim"
+                    TK_WHITESPACE@21..22 " "
+                    TK_AS@22..24 "as"
+                    TWIG_LITERAL_NAME@24..30
+                      TK_WHITESPACE@24..25 " "
+                      TK_WORD@25..30 "forms"
+                    TK_WHITESPACE@30..31 " "
+                    TK_PERCENT_CURLY@31..33 "%}""#]],
         )
     }
 
@@ -4260,7 +4260,7 @@ mod tests {
                                 TWIG_VAR@111..124
                                   TK_OPEN_CURLY_CURLY@111..113 "{{"
                                   TWIG_EXPRESSION@113..121
-                                    TWIG_PIPE@113..121
+                                    TWIG_FILTER@113..121
                                       TWIG_OPERAND@113..119
                                         TWIG_LITERAL_NAME@113..119
                                           TK_WHITESPACE@113..114 " "

@@ -1,4 +1,5 @@
-use crate::grammar::twig::literal::parse_twig_literal;
+use crate::grammar::parse_many;
+use crate::grammar::twig::literal::{parse_twig_filter, parse_twig_literal};
 use crate::parser::event::CompletedMarker;
 use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
@@ -173,7 +174,20 @@ fn parse_paren_expression(parser: &mut Parser) -> CompletedMarker {
     parse_twig_expression_binding_power(parser, 0);
     parser.expect(T![")"]);
 
-    parser.complete(m, SyntaxKind::TWIG_PARENTHESES_EXPRESSION)
+    let mut node = parser.complete(m, SyntaxKind::TWIG_PARENTHESES_EXPRESSION);
+
+    // parse any amount of filters
+    parse_many(
+        parser,
+        |_| false,
+        |p| {
+            if p.at(T!["|"]) {
+                node = parse_twig_filter(p, node.clone());
+            }
+        },
+    );
+
+    node
 }
 
 fn parse_unary_expression(parser: &mut Parser) -> CompletedMarker {
@@ -1030,7 +1044,148 @@ mod tests {
     }
 
     #[test]
+    fn parse_twig_unary_filter() {
+        // The abs filter should apply to '5' and is then negated
+        check_parse(
+            r#"{{ -5|abs }}"#,
+            expect![[r#"
+                ROOT@0..12
+                  TWIG_VAR@0..12
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..9
+                      TWIG_UNARY_EXPRESSION@2..9
+                        TK_WHITESPACE@2..3 " "
+                        TK_MINUS@3..4 "-"
+                        TWIG_EXPRESSION@4..9
+                          TWIG_FILTER@4..9
+                            TWIG_OPERAND@4..5
+                              TWIG_LITERAL_NUMBER@4..5
+                                TK_NUMBER@4..5 "5"
+                            TK_SINGLE_PIPE@5..6 "|"
+                            TWIG_OPERAND@6..9
+                              TWIG_LITERAL_NAME@6..9
+                                TK_WORD@6..9 "abs"
+                    TK_WHITESPACE@9..10 " "
+                    TK_CLOSE_CURLY_CURLY@10..12 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_unary_parentheses_filter() {
+        // The abs filter should apply to '-5'
+        check_parse(
+            r#"{{ (-5)|abs }}"#,
+            expect![[r#"
+                ROOT@0..14
+                  TWIG_VAR@0..14
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..11
+                      TWIG_FILTER@2..11
+                        TWIG_OPERAND@2..7
+                          TWIG_PARENTHESES_EXPRESSION@2..7
+                            TK_WHITESPACE@2..3 " "
+                            TK_OPEN_PARENTHESIS@3..4 "("
+                            TWIG_EXPRESSION@4..6
+                              TWIG_UNARY_EXPRESSION@4..6
+                                TK_MINUS@4..5 "-"
+                                TWIG_EXPRESSION@5..6
+                                  TWIG_LITERAL_NUMBER@5..6
+                                    TK_NUMBER@5..6 "5"
+                            TK_CLOSE_PARENTHESIS@6..7 ")"
+                        TK_SINGLE_PIPE@7..8 "|"
+                        TWIG_OPERAND@8..11
+                          TWIG_LITERAL_NAME@8..11
+                            TK_WORD@8..11 "abs"
+                    TK_WHITESPACE@11..12 " "
+                    TK_CLOSE_CURLY_CURLY@12..14 "}}""#]],
+        )
+    }
+
+    #[test]
     fn parse_twig_parenthesis_expression_filter() {
-        check_parse(r#"{{ ('a' ~ 'b')|trim }}"#, expect![[r#""#]])
+        check_parse(
+            r#"{{ ('a' ~ 'b')|trim }}"#,
+            expect![[r#"
+                ROOT@0..22
+                  TWIG_VAR@0..22
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..19
+                      TWIG_FILTER@2..19
+                        TWIG_OPERAND@2..14
+                          TWIG_PARENTHESES_EXPRESSION@2..14
+                            TK_WHITESPACE@2..3 " "
+                            TK_OPEN_PARENTHESIS@3..4 "("
+                            TWIG_EXPRESSION@4..13
+                              TWIG_BINARY_EXPRESSION@4..13
+                                TWIG_EXPRESSION@4..7
+                                  TWIG_LITERAL_STRING@4..7
+                                    TK_SINGLE_QUOTES@4..5 "'"
+                                    TWIG_LITERAL_STRING_INNER@5..6
+                                      TK_WORD@5..6 "a"
+                                    TK_SINGLE_QUOTES@6..7 "'"
+                                TK_WHITESPACE@7..8 " "
+                                TK_TILDE@8..9 "~"
+                                TWIG_EXPRESSION@9..13
+                                  TWIG_LITERAL_STRING@9..13
+                                    TK_WHITESPACE@9..10 " "
+                                    TK_SINGLE_QUOTES@10..11 "'"
+                                    TWIG_LITERAL_STRING_INNER@11..12
+                                      TK_WORD@11..12 "b"
+                                    TK_SINGLE_QUOTES@12..13 "'"
+                            TK_CLOSE_PARENTHESIS@13..14 ")"
+                        TK_SINGLE_PIPE@14..15 "|"
+                        TWIG_OPERAND@15..19
+                          TWIG_LITERAL_NAME@15..19
+                            TK_WORD@15..19 "trim"
+                    TK_WHITESPACE@19..20 " "
+                    TK_CLOSE_CURLY_CURLY@20..22 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_parenthesis_expression_multiple_filters() {
+        check_parse(
+            r#"{{ ('a' ~ 'b')|trim|escape }}"#,
+            expect![[r#"
+                ROOT@0..29
+                  TWIG_VAR@0..29
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..26
+                      TWIG_FILTER@2..26
+                        TWIG_OPERAND@2..19
+                          TWIG_FILTER@2..19
+                            TWIG_OPERAND@2..14
+                              TWIG_PARENTHESES_EXPRESSION@2..14
+                                TK_WHITESPACE@2..3 " "
+                                TK_OPEN_PARENTHESIS@3..4 "("
+                                TWIG_EXPRESSION@4..13
+                                  TWIG_BINARY_EXPRESSION@4..13
+                                    TWIG_EXPRESSION@4..7
+                                      TWIG_LITERAL_STRING@4..7
+                                        TK_SINGLE_QUOTES@4..5 "'"
+                                        TWIG_LITERAL_STRING_INNER@5..6
+                                          TK_WORD@5..6 "a"
+                                        TK_SINGLE_QUOTES@6..7 "'"
+                                    TK_WHITESPACE@7..8 " "
+                                    TK_TILDE@8..9 "~"
+                                    TWIG_EXPRESSION@9..13
+                                      TWIG_LITERAL_STRING@9..13
+                                        TK_WHITESPACE@9..10 " "
+                                        TK_SINGLE_QUOTES@10..11 "'"
+                                        TWIG_LITERAL_STRING_INNER@11..12
+                                          TK_WORD@11..12 "b"
+                                        TK_SINGLE_QUOTES@12..13 "'"
+                                TK_CLOSE_PARENTHESIS@13..14 ")"
+                            TK_SINGLE_PIPE@14..15 "|"
+                            TWIG_OPERAND@15..19
+                              TWIG_LITERAL_NAME@15..19
+                                TK_WORD@15..19 "trim"
+                        TK_SINGLE_PIPE@19..20 "|"
+                        TWIG_OPERAND@20..26
+                          TWIG_LITERAL_NAME@20..26
+                            TK_WORD@20..26 "escape"
+                    TK_WHITESPACE@26..27 " "
+                    TK_CLOSE_CURLY_CURLY@27..29 "}}""#]],
+        )
     }
 }

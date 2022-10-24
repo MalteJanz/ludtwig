@@ -39,7 +39,7 @@ pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker>
         |_| false,
         |p| {
             if p.at(T!["|"]) {
-                node = parse_twig_pipe(p, node.clone());
+                node = parse_twig_filter(p, node.clone());
             }
         },
     );
@@ -233,7 +233,7 @@ fn parse_twig_name_postfix(parser: &mut Parser) -> Option<CompletedMarker> {
     Some(node)
 }
 
-pub(crate) fn parse_twig_pipe(
+pub(crate) fn parse_twig_filter(
     parser: &mut Parser,
     mut last_node: CompletedMarker,
 ) -> CompletedMarker {
@@ -271,7 +271,7 @@ pub(crate) fn parse_twig_pipe(
     parser.complete(m, SyntaxKind::TWIG_OPERAND);
 
     // complete the outer marker
-    parser.complete(outer, SyntaxKind::TWIG_PIPE)
+    parser.complete(outer, SyntaxKind::TWIG_FILTER)
 }
 
 fn parse_twig_indexer(parser: &mut Parser, mut last_node: CompletedMarker) -> CompletedMarker {
@@ -1183,9 +1183,9 @@ mod tests {
                   TWIG_VAR@0..35
                     TK_OPEN_CURLY_CURLY@0..2 "{{"
                     TWIG_EXPRESSION@2..32
-                      TWIG_PIPE@2..32
+                      TWIG_FILTER@2..32
                         TWIG_OPERAND@2..26
-                          TWIG_PIPE@2..26
+                          TWIG_FILTER@2..26
                             TWIG_OPERAND@2..16
                               TWIG_ACCESSOR@2..16
                                 TWIG_OPERAND@2..10
@@ -1376,7 +1376,7 @@ mod tests {
                   TWIG_VAR@0..36
                     TK_OPEN_CURLY_CURLY@0..2 "{{"
                     TWIG_EXPRESSION@2..33
-                      TWIG_PIPE@2..33
+                      TWIG_FILTER@2..33
                         TWIG_OPERAND@2..27
                           TWIG_INDEX_LOOKUP@2..27
                             TWIG_OPERAND@2..24
@@ -1669,7 +1669,7 @@ mod tests {
                   TWIG_VAR@0..21
                     TK_OPEN_CURLY_CURLY@0..2 "{{"
                     TWIG_EXPRESSION@2..18
-                      TWIG_PIPE@2..18
+                      TWIG_FILTER@2..18
                         TWIG_OPERAND@2..7
                           TWIG_LITERAL_NAME@2..7
                             TK_WHITESPACE@2..3 " "
@@ -1702,9 +1702,9 @@ mod tests {
                   TWIG_VAR@0..26
                     TK_OPEN_CURLY_CURLY@0..2 "{{"
                     TWIG_EXPRESSION@2..23
-                      TWIG_PIPE@2..23
+                      TWIG_FILTER@2..23
                         TWIG_OPERAND@2..18
-                          TWIG_PIPE@2..18
+                          TWIG_FILTER@2..18
                             TWIG_OPERAND@2..7
                               TWIG_LITERAL_NAME@2..7
                                 TK_WHITESPACE@2..3 " "
@@ -1741,7 +1741,7 @@ mod tests {
                   TWIG_VAR@0..54
                     TK_OPEN_CURLY_CURLY@0..2 "{{"
                     TWIG_EXPRESSION@2..51
-                      TWIG_PIPE@2..51
+                      TWIG_FILTER@2..51
                         TWIG_OPERAND@2..8
                           TWIG_LITERAL_STRING@2..8
                             TK_WHITESPACE@2..3 " "
@@ -1792,29 +1792,29 @@ mod tests {
         check_parse(
             r#"{{ users|length > 0 }}"#,
             expect![[r#"
-            ROOT@0..22
-              TWIG_VAR@0..22
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..19
-                  TWIG_BINARY_EXPRESSION@2..19
-                    TWIG_EXPRESSION@2..15
-                      TWIG_PIPE@2..15
-                        TWIG_OPERAND@2..8
-                          TWIG_LITERAL_NAME@2..8
-                            TK_WHITESPACE@2..3 " "
-                            TK_WORD@3..8 "users"
-                        TK_SINGLE_PIPE@8..9 "|"
-                        TWIG_OPERAND@9..15
-                          TWIG_LITERAL_NAME@9..15
-                            TK_WORD@9..15 "length"
-                    TK_WHITESPACE@15..16 " "
-                    TK_GREATER_THAN@16..17 ">"
-                    TWIG_EXPRESSION@17..19
-                      TWIG_LITERAL_NUMBER@17..19
-                        TK_WHITESPACE@17..18 " "
-                        TK_NUMBER@18..19 "0"
-                TK_WHITESPACE@19..20 " "
-                TK_CLOSE_CURLY_CURLY@20..22 "}}""#]],
+                ROOT@0..22
+                  TWIG_VAR@0..22
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..19
+                      TWIG_BINARY_EXPRESSION@2..19
+                        TWIG_EXPRESSION@2..15
+                          TWIG_FILTER@2..15
+                            TWIG_OPERAND@2..8
+                              TWIG_LITERAL_NAME@2..8
+                                TK_WHITESPACE@2..3 " "
+                                TK_WORD@3..8 "users"
+                            TK_SINGLE_PIPE@8..9 "|"
+                            TWIG_OPERAND@9..15
+                              TWIG_LITERAL_NAME@9..15
+                                TK_WORD@9..15 "length"
+                        TK_WHITESPACE@15..16 " "
+                        TK_GREATER_THAN@16..17 ">"
+                        TWIG_EXPRESSION@17..19
+                          TWIG_LITERAL_NUMBER@17..19
+                            TK_WHITESPACE@17..18 " "
+                            TK_NUMBER@18..19 "0"
+                    TK_WHITESPACE@19..20 " "
+                    TK_CLOSE_CURLY_CURLY@20..22 "}}""#]],
         );
     }
 
