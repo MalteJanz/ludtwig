@@ -27,10 +27,22 @@ pub(crate) fn parse_shopware_twig_block_statement(
             outer,
             child_parser,
         ))
+    } else if parser.at(T!["return"]) {
+        BlockParseResult::Successful(parse_twig_sw_return(parser, outer))
     } else {
         // error will be thrown by calling function
         BlockParseResult::NothingFound(outer)
     }
+}
+
+fn parse_twig_sw_return(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["return"]));
+    parser.bump();
+
+    parse_twig_expression(parser);
+
+    parser.expect(T!["%}"]);
+    parser.complete(outer, SyntaxKind::SHOPWARE_RETURN)
 }
 
 fn parse_twig_sw_silent_feature_call(
@@ -323,6 +335,81 @@ mod tests {
                       TK_ENDSW_SILENT_FEATURE_CALL@85..110 "endsw_silent_feature_ ..."
                       TK_WHITESPACE@110..111 " "
                       TK_PERCENT_CURLY@111..113 "%}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_shopware_return() {
+        check_parse(r#"{% return %}"#, expect![[r#"
+            ROOT@0..12
+              SHOPWARE_RETURN@0..12
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_RETURN@3..9 "return"
+                TK_WHITESPACE@9..10 " "
+                TK_PERCENT_CURLY@10..12 "%}""#]])
+    }
+
+    #[test]
+    fn parse_shopware_return_value() {
+        check_parse(r#"{% return 5 %}"#, expect![[r#"
+            ROOT@0..14
+              SHOPWARE_RETURN@0..14
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_RETURN@3..9 "return"
+                TWIG_EXPRESSION@9..11
+                  TWIG_LITERAL_NUMBER@9..11
+                    TK_WHITESPACE@9..10 " "
+                    TK_NUMBER@10..11 "5"
+                TK_WHITESPACE@11..12 " "
+                TK_PERCENT_CURLY@12..14 "%}""#]])
+    }
+
+    #[test]
+    fn parse_shopware_return_expression() {
+        check_parse(
+            r#"{% return not compare('=', 'foo', test) %}"#,
+            expect![[r#"
+                ROOT@0..42
+                  SHOPWARE_RETURN@0..42
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_RETURN@3..9 "return"
+                    TWIG_EXPRESSION@9..39
+                      TWIG_UNARY_EXPRESSION@9..39
+                        TK_WHITESPACE@9..10 " "
+                        TK_NOT@10..13 "not"
+                        TWIG_EXPRESSION@13..39
+                          TWIG_FUNCTION_CALL@13..39
+                            TWIG_OPERAND@13..21
+                              TWIG_LITERAL_NAME@13..21
+                                TK_WHITESPACE@13..14 " "
+                                TK_WORD@14..21 "compare"
+                            TK_OPEN_PARENTHESIS@21..22 "("
+                            TWIG_ARGUMENTS@22..38
+                              TWIG_EXPRESSION@22..25
+                                TWIG_LITERAL_STRING@22..25
+                                  TK_SINGLE_QUOTES@22..23 "'"
+                                  TWIG_LITERAL_STRING_INNER@23..24
+                                    TK_EQUAL@23..24 "="
+                                  TK_SINGLE_QUOTES@24..25 "'"
+                              TK_COMMA@25..26 ","
+                              TWIG_EXPRESSION@26..32
+                                TWIG_LITERAL_STRING@26..32
+                                  TK_WHITESPACE@26..27 " "
+                                  TK_SINGLE_QUOTES@27..28 "'"
+                                  TWIG_LITERAL_STRING_INNER@28..31
+                                    TK_WORD@28..31 "foo"
+                                  TK_SINGLE_QUOTES@31..32 "'"
+                              TK_COMMA@32..33 ","
+                              TWIG_EXPRESSION@33..38
+                                TWIG_LITERAL_NAME@33..38
+                                  TK_WHITESPACE@33..34 " "
+                                  TK_WORD@34..38 "test"
+                            TK_CLOSE_PARENTHESIS@38..39 ")"
+                    TK_WHITESPACE@39..40 " "
+                    TK_PERCENT_CURLY@40..42 "%}""#]],
         )
     }
 }
