@@ -12,7 +12,7 @@ static TWIG_NAME_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$"#).unwrap());
 
 pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker> {
-    let last_node = if parser.at(T![number]) {
+    if parser.at(T![number]) {
         Some(parse_twig_number(parser))
     } else if parser.at_set(&[T!["\""], T!["'"]]) {
         Some(parse_twig_string(parser, true))
@@ -25,26 +25,37 @@ pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker>
     } else if parser.at(T!["{"]) {
         Some(parse_twig_hash(parser))
     } else {
-        parse_twig_name_postfix(parser)
-    };
+        let mut node = parse_twig_name(parser)?;
 
-    let mut node = match last_node {
-        None => return None,
-        Some(last_node) => last_node,
-    };
+        // check for optional function call
+        if parser.at(T!["("]) {
+            node = parse_twig_function(parser, node);
+        }
 
-    // parse any amount of filters
+        Some(node)
+    }
+}
+
+/// Parses any amount of postfix operators like accessors (.), indexer ([]), function calls() or filters(|)
+pub(crate) fn parse_postfix_operators(
+    parser: &mut Parser,
+    mut node: CompletedMarker,
+) -> CompletedMarker {
     parse_many(
         parser,
         |_| false,
         |p| {
-            if p.at(T!["|"]) {
+            if p.at(T!["."]) {
+                node = parse_twig_accessor(p, node.clone());
+            } else if p.at(T!["["]) {
+                node = parse_twig_indexer(p, node.clone());
+            } else if p.at(T!["|"]) {
                 node = parse_twig_filter(p, node.clone());
             }
         },
     );
 
-    Some(node)
+    node
 }
 
 fn parse_twig_number(parser: &mut Parser) -> CompletedMarker {
@@ -127,6 +138,8 @@ fn parse_twig_array(parser: &mut Parser) -> CompletedMarker {
             if p.at(T![","]) {
                 // consume separator
                 p.bump();
+            } else if !p.at(T!["]"]) {
+                p.add_error(ParseErrorBuilder::new(","))
             }
         },
     );
@@ -165,6 +178,8 @@ fn parse_twig_hash(parser: &mut Parser) -> CompletedMarker {
             if p.at(T![","]) {
                 // consume separator
                 p.bump();
+            } else if !p.at(T!["}"]) {
+                p.add_error(ParseErrorBuilder::new(","))
             }
         },
     );
@@ -213,26 +228,6 @@ fn parse_twig_hash_pair(parser: &mut Parser) -> Option<CompletedMarker> {
     Some(parser.complete(preceded, SyntaxKind::TWIG_LITERAL_HASH_PAIR))
 }
 
-fn parse_twig_name_postfix(parser: &mut Parser) -> Option<CompletedMarker> {
-    let mut node = parse_twig_name(parser)?;
-
-    parse_many(
-        parser,
-        |_| false,
-        |p| {
-            if p.at(T!["."]) {
-                node = parse_twig_accessor(p, node.clone());
-            } else if p.at(T!["["]) {
-                node = parse_twig_indexer(p, node.clone());
-            } else if p.at(T!["("]) {
-                node = parse_twig_function(p, node.clone());
-            }
-        },
-    );
-
-    Some(node)
-}
-
 pub(crate) fn parse_twig_filter(
     parser: &mut Parser,
     mut last_node: CompletedMarker,
@@ -262,6 +257,8 @@ pub(crate) fn parse_twig_filter(
                 parse_twig_function_argument(p);
                 if p.at(T![","]) {
                     p.bump();
+                } else if !p.at(T![")"]) {
+                    p.add_error(ParseErrorBuilder::new(","))
                 }
             },
         );
@@ -339,7 +336,14 @@ fn parse_twig_accessor(parser: &mut Parser, mut last_node: CompletedMarker) -> C
     parser.complete(m, SyntaxKind::TWIG_OPERAND);
 
     // complete the outer marker
-    parser.complete(outer, SyntaxKind::TWIG_ACCESSOR)
+    let mut node = parser.complete(outer, SyntaxKind::TWIG_ACCESSOR);
+
+    // check for optional function call
+    if parser.at(T!["("]) {
+        node = parse_twig_function(parser, node);
+    }
+
+    node
 }
 
 fn parse_twig_function(parser: &mut Parser, mut last_node: CompletedMarker) -> CompletedMarker {
@@ -362,6 +366,8 @@ fn parse_twig_function(parser: &mut Parser, mut last_node: CompletedMarker) -> C
             parse_twig_function_argument(p);
             if p.at(T![","]) {
                 p.bump();
+            } else if !p.at(T![")"]) {
+                p.add_error(ParseErrorBuilder::new(","))
             }
         },
     );
@@ -633,6 +639,37 @@ mod tests {
     }
 
     #[test]
+    fn parse_twig_number_array_missing_comma() {
+        check_parse(
+            "{{ [1, 2 3] }}",
+            expect![[r#"
+                ROOT@0..14
+                  TWIG_VAR@0..14
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..11
+                      TWIG_LITERAL_ARRAY@2..11
+                        TK_WHITESPACE@2..3 " "
+                        TK_OPEN_SQUARE@3..4 "["
+                        TWIG_EXPRESSION@4..5
+                          TWIG_LITERAL_NUMBER@4..5
+                            TK_NUMBER@4..5 "1"
+                        TK_COMMA@5..6 ","
+                        TWIG_EXPRESSION@6..8
+                          TWIG_LITERAL_NUMBER@6..8
+                            TK_WHITESPACE@6..7 " "
+                            TK_NUMBER@7..8 "2"
+                        TWIG_EXPRESSION@8..10
+                          TWIG_LITERAL_NUMBER@8..10
+                            TK_WHITESPACE@8..9 " "
+                            TK_NUMBER@9..10 "3"
+                        TK_CLOSE_SQUARE@10..11 "]"
+                    TK_WHITESPACE@11..12 " "
+                    TK_CLOSE_CURLY_CURLY@12..14 "}}"
+                error at 9..10: expected , but found number"#]],
+        );
+    }
+
+    #[test]
     fn parse_twig_string_array() {
         check_parse(
             r#"{{ ["hello", "trailing", "comma",] }}"#,
@@ -727,172 +764,176 @@ mod tests {
     #[test]
     fn parse_twig_number_hash() {
         check_parse(
-            "{{ { 1: 'hello' 2: 'world' } }}",
+            "{{ { 1: 'hello', 2: 'world' } }}",
             expect![[r#"
-            ROOT@0..31
-              TWIG_VAR@0..31
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..28
-                  TWIG_LITERAL_HASH@2..28
-                    TK_WHITESPACE@2..3 " "
-                    TK_OPEN_CURLY@3..4 "{"
-                    TWIG_LITERAL_HASH_PAIR@4..15
-                      TWIG_LITERAL_HASH_KEY@4..6
-                        TWIG_LITERAL_NUMBER@4..6
-                          TK_WHITESPACE@4..5 " "
-                          TK_NUMBER@5..6 "1"
-                      TK_COLON@6..7 ":"
-                      TWIG_EXPRESSION@7..15
-                        TWIG_LITERAL_STRING@7..15
-                          TK_WHITESPACE@7..8 " "
-                          TK_SINGLE_QUOTES@8..9 "'"
-                          TWIG_LITERAL_STRING_INNER@9..14
-                            TK_WORD@9..14 "hello"
-                          TK_SINGLE_QUOTES@14..15 "'"
-                    TWIG_LITERAL_HASH_PAIR@15..26
-                      TWIG_LITERAL_HASH_KEY@15..17
-                        TWIG_LITERAL_NUMBER@15..17
-                          TK_WHITESPACE@15..16 " "
-                          TK_NUMBER@16..17 "2"
-                      TK_COLON@17..18 ":"
-                      TWIG_EXPRESSION@18..26
-                        TWIG_LITERAL_STRING@18..26
-                          TK_WHITESPACE@18..19 " "
-                          TK_SINGLE_QUOTES@19..20 "'"
-                          TWIG_LITERAL_STRING_INNER@20..25
-                            TK_WORD@20..25 "world"
-                          TK_SINGLE_QUOTES@25..26 "'"
-                    TK_WHITESPACE@26..27 " "
-                    TK_CLOSE_CURLY@27..28 "}"
-                TK_WHITESPACE@28..29 " "
-                TK_CLOSE_CURLY_CURLY@29..31 "}}""#]],
+                ROOT@0..32
+                  TWIG_VAR@0..32
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..29
+                      TWIG_LITERAL_HASH@2..29
+                        TK_WHITESPACE@2..3 " "
+                        TK_OPEN_CURLY@3..4 "{"
+                        TWIG_LITERAL_HASH_PAIR@4..15
+                          TWIG_LITERAL_HASH_KEY@4..6
+                            TWIG_LITERAL_NUMBER@4..6
+                              TK_WHITESPACE@4..5 " "
+                              TK_NUMBER@5..6 "1"
+                          TK_COLON@6..7 ":"
+                          TWIG_EXPRESSION@7..15
+                            TWIG_LITERAL_STRING@7..15
+                              TK_WHITESPACE@7..8 " "
+                              TK_SINGLE_QUOTES@8..9 "'"
+                              TWIG_LITERAL_STRING_INNER@9..14
+                                TK_WORD@9..14 "hello"
+                              TK_SINGLE_QUOTES@14..15 "'"
+                        TK_COMMA@15..16 ","
+                        TWIG_LITERAL_HASH_PAIR@16..27
+                          TWIG_LITERAL_HASH_KEY@16..18
+                            TWIG_LITERAL_NUMBER@16..18
+                              TK_WHITESPACE@16..17 " "
+                              TK_NUMBER@17..18 "2"
+                          TK_COLON@18..19 ":"
+                          TWIG_EXPRESSION@19..27
+                            TWIG_LITERAL_STRING@19..27
+                              TK_WHITESPACE@19..20 " "
+                              TK_SINGLE_QUOTES@20..21 "'"
+                              TWIG_LITERAL_STRING_INNER@21..26
+                                TK_WORD@21..26 "world"
+                              TK_SINGLE_QUOTES@26..27 "'"
+                        TK_WHITESPACE@27..28 " "
+                        TK_CLOSE_CURLY@28..29 "}"
+                    TK_WHITESPACE@29..30 " "
+                    TK_CLOSE_CURLY_CURLY@30..32 "}}""#]],
         );
     }
 
     #[test]
     fn parse_twig_string_hash() {
         check_parse(
-            "{{ { 'hello': 42 'world': 33 } }}",
+            "{{ { 'hello': 42, 'world': 33 } }}",
             expect![[r#"
-            ROOT@0..33
-              TWIG_VAR@0..33
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..30
-                  TWIG_LITERAL_HASH@2..30
-                    TK_WHITESPACE@2..3 " "
-                    TK_OPEN_CURLY@3..4 "{"
-                    TWIG_LITERAL_HASH_PAIR@4..16
-                      TWIG_LITERAL_HASH_KEY@4..12
-                        TWIG_LITERAL_STRING@4..12
-                          TK_WHITESPACE@4..5 " "
-                          TK_SINGLE_QUOTES@5..6 "'"
-                          TWIG_LITERAL_STRING_INNER@6..11
-                            TK_WORD@6..11 "hello"
-                          TK_SINGLE_QUOTES@11..12 "'"
-                      TK_COLON@12..13 ":"
-                      TWIG_EXPRESSION@13..16
-                        TWIG_LITERAL_NUMBER@13..16
-                          TK_WHITESPACE@13..14 " "
-                          TK_NUMBER@14..16 "42"
-                    TWIG_LITERAL_HASH_PAIR@16..28
-                      TWIG_LITERAL_HASH_KEY@16..24
-                        TWIG_LITERAL_STRING@16..24
-                          TK_WHITESPACE@16..17 " "
-                          TK_SINGLE_QUOTES@17..18 "'"
-                          TWIG_LITERAL_STRING_INNER@18..23
-                            TK_WORD@18..23 "world"
-                          TK_SINGLE_QUOTES@23..24 "'"
-                      TK_COLON@24..25 ":"
-                      TWIG_EXPRESSION@25..28
-                        TWIG_LITERAL_NUMBER@25..28
-                          TK_WHITESPACE@25..26 " "
-                          TK_NUMBER@26..28 "33"
-                    TK_WHITESPACE@28..29 " "
-                    TK_CLOSE_CURLY@29..30 "}"
-                TK_WHITESPACE@30..31 " "
-                TK_CLOSE_CURLY_CURLY@31..33 "}}""#]],
+                ROOT@0..34
+                  TWIG_VAR@0..34
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..31
+                      TWIG_LITERAL_HASH@2..31
+                        TK_WHITESPACE@2..3 " "
+                        TK_OPEN_CURLY@3..4 "{"
+                        TWIG_LITERAL_HASH_PAIR@4..16
+                          TWIG_LITERAL_HASH_KEY@4..12
+                            TWIG_LITERAL_STRING@4..12
+                              TK_WHITESPACE@4..5 " "
+                              TK_SINGLE_QUOTES@5..6 "'"
+                              TWIG_LITERAL_STRING_INNER@6..11
+                                TK_WORD@6..11 "hello"
+                              TK_SINGLE_QUOTES@11..12 "'"
+                          TK_COLON@12..13 ":"
+                          TWIG_EXPRESSION@13..16
+                            TWIG_LITERAL_NUMBER@13..16
+                              TK_WHITESPACE@13..14 " "
+                              TK_NUMBER@14..16 "42"
+                        TK_COMMA@16..17 ","
+                        TWIG_LITERAL_HASH_PAIR@17..29
+                          TWIG_LITERAL_HASH_KEY@17..25
+                            TWIG_LITERAL_STRING@17..25
+                              TK_WHITESPACE@17..18 " "
+                              TK_SINGLE_QUOTES@18..19 "'"
+                              TWIG_LITERAL_STRING_INNER@19..24
+                                TK_WORD@19..24 "world"
+                              TK_SINGLE_QUOTES@24..25 "'"
+                          TK_COLON@25..26 ":"
+                          TWIG_EXPRESSION@26..29
+                            TWIG_LITERAL_NUMBER@26..29
+                              TK_WHITESPACE@26..27 " "
+                              TK_NUMBER@27..29 "33"
+                        TK_WHITESPACE@29..30 " "
+                        TK_CLOSE_CURLY@30..31 "}"
+                    TK_WHITESPACE@31..32 " "
+                    TK_CLOSE_CURLY_CURLY@32..34 "}}""#]],
         );
     }
 
     #[test]
     fn parse_twig_named_hash() {
         check_parse(
-            "{{ { hello: 42 world: 33 } }}",
+            "{{ { hello: 42, world: 33 } }}",
             expect![[r#"
-            ROOT@0..29
-              TWIG_VAR@0..29
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..26
-                  TWIG_LITERAL_HASH@2..26
-                    TK_WHITESPACE@2..3 " "
-                    TK_OPEN_CURLY@3..4 "{"
-                    TWIG_LITERAL_HASH_PAIR@4..14
-                      TWIG_LITERAL_HASH_KEY@4..10
-                        TK_WHITESPACE@4..5 " "
-                        TK_WORD@5..10 "hello"
-                      TK_COLON@10..11 ":"
-                      TWIG_EXPRESSION@11..14
-                        TWIG_LITERAL_NUMBER@11..14
-                          TK_WHITESPACE@11..12 " "
-                          TK_NUMBER@12..14 "42"
-                    TWIG_LITERAL_HASH_PAIR@14..24
-                      TWIG_LITERAL_HASH_KEY@14..20
-                        TK_WHITESPACE@14..15 " "
-                        TK_WORD@15..20 "world"
-                      TK_COLON@20..21 ":"
-                      TWIG_EXPRESSION@21..24
-                        TWIG_LITERAL_NUMBER@21..24
-                          TK_WHITESPACE@21..22 " "
-                          TK_NUMBER@22..24 "33"
-                    TK_WHITESPACE@24..25 " "
-                    TK_CLOSE_CURLY@25..26 "}"
-                TK_WHITESPACE@26..27 " "
-                TK_CLOSE_CURLY_CURLY@27..29 "}}""#]],
+                ROOT@0..30
+                  TWIG_VAR@0..30
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..27
+                      TWIG_LITERAL_HASH@2..27
+                        TK_WHITESPACE@2..3 " "
+                        TK_OPEN_CURLY@3..4 "{"
+                        TWIG_LITERAL_HASH_PAIR@4..14
+                          TWIG_LITERAL_HASH_KEY@4..10
+                            TK_WHITESPACE@4..5 " "
+                            TK_WORD@5..10 "hello"
+                          TK_COLON@10..11 ":"
+                          TWIG_EXPRESSION@11..14
+                            TWIG_LITERAL_NUMBER@11..14
+                              TK_WHITESPACE@11..12 " "
+                              TK_NUMBER@12..14 "42"
+                        TK_COMMA@14..15 ","
+                        TWIG_LITERAL_HASH_PAIR@15..25
+                          TWIG_LITERAL_HASH_KEY@15..21
+                            TK_WHITESPACE@15..16 " "
+                            TK_WORD@16..21 "world"
+                          TK_COLON@21..22 ":"
+                          TWIG_EXPRESSION@22..25
+                            TWIG_LITERAL_NUMBER@22..25
+                              TK_WHITESPACE@22..23 " "
+                              TK_NUMBER@23..25 "33"
+                        TK_WHITESPACE@25..26 " "
+                        TK_CLOSE_CURLY@26..27 "}"
+                    TK_WHITESPACE@27..28 " "
+                    TK_CLOSE_CURLY_CURLY@28..30 "}}""#]],
         );
     }
 
     #[test]
-    fn parse_twig_expression_hash() {
+    fn parse_twig_expression_hash_missing_comma() {
         check_parse(
             "{{ { (15): 42 (60): 33 } }}",
             expect![[r#"
-            ROOT@0..27
-              TWIG_VAR@0..27
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..24
-                  TWIG_LITERAL_HASH@2..24
-                    TK_WHITESPACE@2..3 " "
-                    TK_OPEN_CURLY@3..4 "{"
-                    TWIG_LITERAL_HASH_PAIR@4..13
-                      TWIG_LITERAL_HASH_KEY@4..9
-                        TK_WHITESPACE@4..5 " "
-                        TK_OPEN_PARENTHESIS@5..6 "("
-                        TWIG_EXPRESSION@6..8
-                          TWIG_LITERAL_NUMBER@6..8
-                            TK_NUMBER@6..8 "15"
-                        TK_CLOSE_PARENTHESIS@8..9 ")"
-                      TK_COLON@9..10 ":"
-                      TWIG_EXPRESSION@10..13
-                        TWIG_LITERAL_NUMBER@10..13
-                          TK_WHITESPACE@10..11 " "
-                          TK_NUMBER@11..13 "42"
-                    TWIG_LITERAL_HASH_PAIR@13..22
-                      TWIG_LITERAL_HASH_KEY@13..18
-                        TK_WHITESPACE@13..14 " "
-                        TK_OPEN_PARENTHESIS@14..15 "("
-                        TWIG_EXPRESSION@15..17
-                          TWIG_LITERAL_NUMBER@15..17
-                            TK_NUMBER@15..17 "60"
-                        TK_CLOSE_PARENTHESIS@17..18 ")"
-                      TK_COLON@18..19 ":"
-                      TWIG_EXPRESSION@19..22
-                        TWIG_LITERAL_NUMBER@19..22
-                          TK_WHITESPACE@19..20 " "
-                          TK_NUMBER@20..22 "33"
-                    TK_WHITESPACE@22..23 " "
-                    TK_CLOSE_CURLY@23..24 "}"
-                TK_WHITESPACE@24..25 " "
-                TK_CLOSE_CURLY_CURLY@25..27 "}}""#]],
+                ROOT@0..27
+                  TWIG_VAR@0..27
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..24
+                      TWIG_LITERAL_HASH@2..24
+                        TK_WHITESPACE@2..3 " "
+                        TK_OPEN_CURLY@3..4 "{"
+                        TWIG_LITERAL_HASH_PAIR@4..13
+                          TWIG_LITERAL_HASH_KEY@4..9
+                            TK_WHITESPACE@4..5 " "
+                            TK_OPEN_PARENTHESIS@5..6 "("
+                            TWIG_EXPRESSION@6..8
+                              TWIG_LITERAL_NUMBER@6..8
+                                TK_NUMBER@6..8 "15"
+                            TK_CLOSE_PARENTHESIS@8..9 ")"
+                          TK_COLON@9..10 ":"
+                          TWIG_EXPRESSION@10..13
+                            TWIG_LITERAL_NUMBER@10..13
+                              TK_WHITESPACE@10..11 " "
+                              TK_NUMBER@11..13 "42"
+                        TWIG_LITERAL_HASH_PAIR@13..22
+                          TWIG_LITERAL_HASH_KEY@13..18
+                            TK_WHITESPACE@13..14 " "
+                            TK_OPEN_PARENTHESIS@14..15 "("
+                            TWIG_EXPRESSION@15..17
+                              TWIG_LITERAL_NUMBER@15..17
+                                TK_NUMBER@15..17 "60"
+                            TK_CLOSE_PARENTHESIS@17..18 ")"
+                          TK_COLON@18..19 ":"
+                          TWIG_EXPRESSION@19..22
+                            TWIG_LITERAL_NUMBER@19..22
+                              TK_WHITESPACE@19..20 " "
+                              TK_NUMBER@20..22 "33"
+                        TK_WHITESPACE@22..23 " "
+                        TK_CLOSE_CURLY@23..24 "}"
+                    TK_WHITESPACE@24..25 " "
+                    TK_CLOSE_CURLY_CURLY@25..27 "}}"
+                error at 14..15: expected , but found ("#]],
         );
     }
 

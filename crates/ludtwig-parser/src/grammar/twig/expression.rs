@@ -1,5 +1,4 @@
-use crate::grammar::parse_many;
-use crate::grammar::twig::literal::{parse_twig_filter, parse_twig_literal};
+use crate::grammar::twig::literal::{parse_postfix_operators, parse_twig_literal};
 use crate::parser::event::CompletedMarker;
 use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
@@ -158,11 +157,14 @@ fn parse_conditional_expression(
 
 fn parse_twig_expression_lhs(parser: &mut Parser) -> Option<CompletedMarker> {
     if parser.at(T!["("]) {
-        Some(parse_paren_expression(parser))
+        let node = parse_paren_expression(parser);
+        // including postfix operators
+        Some(parse_postfix_operators(parser, node))
     } else if parser.at_set(&[T!["-"], T!["+"], T!["not"]]) {
         Some(parse_unary_expression(parser))
     } else {
-        parse_twig_literal(parser)
+        // including postfix operators
+        parse_twig_literal(parser).map(|node| parse_postfix_operators(parser, node))
     }
 }
 
@@ -175,17 +177,6 @@ fn parse_paren_expression(parser: &mut Parser) -> CompletedMarker {
     parser.expect(T![")"]);
 
     let mut node = parser.complete(m, SyntaxKind::TWIG_PARENTHESES_EXPRESSION);
-
-    // parse any amount of filters
-    parse_many(
-        parser,
-        |_| false,
-        |p| {
-            if p.at(T!["|"]) {
-                node = parse_twig_filter(p, node.clone());
-            }
-        },
-    );
 
     node
 }
@@ -1186,6 +1177,77 @@ mod tests {
                             TK_WORD@20..26 "escape"
                     TK_WHITESPACE@26..27 " "
                     TK_CLOSE_CURLY_CURLY@27..29 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_filter_accessor_plus_one() {
+        check_parse(
+            r#"{{ thumbnails|first.width + 1 }}"#,
+            expect![[r#"
+            ROOT@0..32
+              TWIG_VAR@0..32
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..29
+                  TWIG_BINARY_EXPRESSION@2..29
+                    TWIG_EXPRESSION@2..25
+                      TWIG_ACCESSOR@2..25
+                        TWIG_OPERAND@2..19
+                          TWIG_FILTER@2..19
+                            TWIG_OPERAND@2..13
+                              TWIG_LITERAL_NAME@2..13
+                                TK_WHITESPACE@2..3 " "
+                                TK_WORD@3..13 "thumbnails"
+                            TK_SINGLE_PIPE@13..14 "|"
+                            TWIG_OPERAND@14..19
+                              TWIG_LITERAL_NAME@14..19
+                                TK_WORD@14..19 "first"
+                        TK_DOT@19..20 "."
+                        TWIG_OPERAND@20..25
+                          TWIG_LITERAL_NAME@20..25
+                            TK_WORD@20..25 "width"
+                    TK_WHITESPACE@25..26 " "
+                    TK_PLUS@26..27 "+"
+                    TWIG_EXPRESSION@27..29
+                      TWIG_LITERAL_NUMBER@27..29
+                        TK_WHITESPACE@27..28 " "
+                        TK_NUMBER@28..29 "1"
+                TK_WHITESPACE@29..30 " "
+                TK_CLOSE_CURLY_CURLY@30..32 "}}""#]],
+        )
+    }
+
+    #[test]
+    fn parse_twig_array_declartion_and_index() {
+        check_parse(
+            r#"{{ [0, 1][0] }}"#,
+            expect![[r#"
+            ROOT@0..15
+              TWIG_VAR@0..15
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..12
+                  TWIG_INDEX_LOOKUP@2..12
+                    TWIG_OPERAND@2..9
+                      TWIG_LITERAL_ARRAY@2..9
+                        TK_WHITESPACE@2..3 " "
+                        TK_OPEN_SQUARE@3..4 "["
+                        TWIG_EXPRESSION@4..5
+                          TWIG_LITERAL_NUMBER@4..5
+                            TK_NUMBER@4..5 "0"
+                        TK_COMMA@5..6 ","
+                        TWIG_EXPRESSION@6..8
+                          TWIG_LITERAL_NUMBER@6..8
+                            TK_WHITESPACE@6..7 " "
+                            TK_NUMBER@7..8 "1"
+                        TK_CLOSE_SQUARE@8..9 "]"
+                    TK_OPEN_SQUARE@9..10 "["
+                    TWIG_INDEX@10..11
+                      TWIG_EXPRESSION@10..11
+                        TWIG_LITERAL_NUMBER@10..11
+                          TK_NUMBER@10..11 "0"
+                    TK_CLOSE_SQUARE@11..12 "]"
+                TK_WHITESPACE@12..13 " "
+                TK_CLOSE_CURLY_CURLY@13..15 "}}""#]],
         )
     }
 }

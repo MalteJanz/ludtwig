@@ -187,6 +187,8 @@ fn parse_twig_macro(
             parse_twig_function_argument(p);
             if p.at(T![","]) {
                 p.bump();
+            } else if !p.at_set(&[T!["%}"], T![")"]]) {
+                p.add_error(ParseErrorBuilder::new(","))
             }
         },
     );
@@ -398,6 +400,8 @@ fn parse_twig_apply(
                     parse_twig_function_argument(p);
                     if p.at(T![","]) {
                         p.bump();
+                    } else if !p.at_set(&[T!["%}"], T![")"]]) {
+                        p.add_error(ParseErrorBuilder::new(","))
                     }
                 },
             );
@@ -484,6 +488,8 @@ fn parse_twig_from(parser: &mut Parser, outer: Marker) -> CompletedMarker {
             if p.at(T![","]) {
                 // consume optional comma
                 p.bump();
+            } else if !p.at(T!["%}"]) {
+                p.add_error(ParseErrorBuilder::new(","))
             }
         },
     );
@@ -536,6 +542,8 @@ fn parse_twig_use(parser: &mut Parser, outer: Marker) -> CompletedMarker {
                 if p.at(T![","]) {
                     // consume optional comma
                     p.bump();
+                } else if !p.at(T!["%}"]) {
+                    p.add_error(ParseErrorBuilder::new(","))
                 }
             },
         );
@@ -747,6 +755,8 @@ fn parse_twig_set(
 
             if p.at(T![","]) {
                 p.bump();
+            } else if !p.at_set(&[T!["="], T!["%}"]]) {
+                p.add_error(ParseErrorBuilder::new(","))
             }
         },
     );
@@ -773,6 +783,8 @@ fn parse_twig_set(
 
                 if p.at(T![","]) {
                     p.bump();
+                } else if !p.at(T!["%}"]) {
+                    p.add_error(ParseErrorBuilder::new(","))
                 }
             },
         );
