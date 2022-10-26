@@ -5,7 +5,7 @@ use rowan::NodeOrToken;
 
 use crate::T;
 
-use super::untyped::{SyntaxKind, SyntaxNode, SyntaxToken, TemplateLanguage};
+use super::untyped::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken, TemplateLanguage};
 
 /// So far, we've been working with a homogeneous untyped tree.
 /// It's nice to provide generic tree operations, like traversals,
@@ -63,6 +63,7 @@ ast_node!(HtmlString, SyntaxKind::HTML_STRING);
 ast_node!(HtmlTag, SyntaxKind::HTML_TAG);
 ast_node!(HtmlStartingTag, SyntaxKind::HTML_STARTING_TAG);
 ast_node!(HtmlEndingTag, SyntaxKind::HTML_ENDING_TAG);
+ast_node!(TwigBinaryExpression, SyntaxKind::TWIG_BINARY_EXPRESSION);
 ast_node!(
     LudtwigDirectiveFileIgnore,
     SyntaxKind::LUDTWIG_DIRECTIVE_FILE_IGNORE
@@ -200,6 +201,17 @@ impl HtmlEndingTag {
             Some(p) => HtmlTag::cast(p),
             None => None,
         }
+    }
+}
+
+impl TwigBinaryExpression {
+    pub fn operator(&self) -> Option<SyntaxToken> {
+        self.syntax
+            .children_with_tokens()
+            .find_map(|element| match element {
+                SyntaxElement::Token(t) if !t.kind().is_trivia() => Some(t),
+                _ => None,
+            })
     }
 }
 

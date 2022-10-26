@@ -5,6 +5,8 @@ use crate::check::rules::line_ending::RuleLineEnding;
 use crate::check::rules::ludtwig_ignore_file_not_on_top::RuleLudtwigIgnoreFileNotOnTop;
 use crate::check::rules::twig_block_line_breaks::RuleTwigBlockLineBreaks;
 use crate::check::rules::twig_block_name_snake_case::RuleTwigBlockNameSnakeCase;
+use crate::check::rules::twig_logic_and::RuleTwigLogicAnd;
+use crate::check::rules::twig_logic_or::RuleTwigLogicOr;
 use crate::check::rules::unknown_token::RuleUnknownToken;
 use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
 use crate::error::ConfigurationError;
@@ -18,6 +20,8 @@ mod line_ending;
 mod ludtwig_ignore_file_not_on_top;
 mod twig_block_line_breaks;
 mod twig_block_name_snake_case;
+mod twig_logic_and;
+mod twig_logic_or;
 mod unknown_token;
 mod whitespace_between_line_breaks;
 
@@ -31,6 +35,8 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleTwigBlockLineBreaks,
     &RuleTwigBlockNameSnakeCase,
     &RuleHtmlAttributeNameKebabCase,
+    &RuleTwigLogicAnd,
+    &RuleTwigLogicOr,
 ];
 
 /// Get active rule definitions based on config
