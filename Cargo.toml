@@ -5,6 +5,7 @@ members = [
 ]
 
 [profile.release]
+strip = true # make the binary smaller
 lto = "thin" # does increase runtime performance for longer build times
 # benchmark between "thin" and "fat"/true and pick better performing one (thin compile faster)
 # debug = true # for profiling
