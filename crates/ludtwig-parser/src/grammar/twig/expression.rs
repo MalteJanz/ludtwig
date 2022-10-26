@@ -176,9 +176,7 @@ fn parse_paren_expression(parser: &mut Parser) -> CompletedMarker {
     parse_twig_expression_binding_power(parser, 0);
     parser.expect(T![")"]);
 
-    let mut node = parser.complete(m, SyntaxKind::TWIG_PARENTHESES_EXPRESSION);
-
-    node
+    parser.complete(m, SyntaxKind::TWIG_PARENTHESES_EXPRESSION)
 }
 
 fn parse_unary_expression(parser: &mut Parser) -> CompletedMarker {

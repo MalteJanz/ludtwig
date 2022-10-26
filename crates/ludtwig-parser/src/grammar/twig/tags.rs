@@ -2893,27 +2893,28 @@ mod tests {
         check_parse(
             r#"{% use "blocks#{1+1}.html" %}"#,
             expect![[r##"
-        ROOT@0..29
-          TWIG_USE@0..29
-            TK_CURLY_PERCENT@0..2 "{%"
-            TK_WHITESPACE@2..3 " "
-            TK_USE@3..6 "use"
-            TWIG_LITERAL_STRING@6..26
-              TK_WHITESPACE@6..7 " "
-              TK_DOUBLE_QUOTES@7..8 "\""
-              TWIG_LITERAL_STRING_INNER@8..25
-                TK_WORD@8..14 "blocks"
-                TK_HASHTAG_OPEN_CURLY@14..16 "#{"
-                TK_NUMBER@16..17 "1"
-                TK_PLUS@17..18 "+"
-                TK_NUMBER@18..19 "1"
-                TK_CLOSE_CURLY@19..20 "}"
-                TK_DOT@20..21 "."
-                TK_WORD@21..25 "html"
-              TK_DOUBLE_QUOTES@25..26 "\""
-            TK_WHITESPACE@26..27 " "
-            TK_PERCENT_CURLY@27..29 "%}"
-        error at 14..16: expected no string interpolation, because it isn't allowed here but found #{"##]],
+                ROOT@0..29
+                  TWIG_USE@0..29
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_USE@3..6 "use"
+                    TWIG_LITERAL_STRING@6..26
+                      TK_WHITESPACE@6..7 " "
+                      TK_DOUBLE_QUOTES@7..8 "\""
+                      TWIG_LITERAL_STRING_INNER@8..25
+                        TK_WORD@8..14 "blocks"
+                        TK_HASHTAG@14..15 "#"
+                        TK_OPEN_CURLY@15..16 "{"
+                        TK_NUMBER@16..17 "1"
+                        TK_PLUS@17..18 "+"
+                        TK_NUMBER@18..19 "1"
+                        TK_CLOSE_CURLY@19..20 "}"
+                        TK_DOT@20..21 "."
+                        TK_WORD@21..25 "html"
+                      TK_DOUBLE_QUOTES@25..26 "\""
+                    TK_WHITESPACE@26..27 " "
+                    TK_PERCENT_CURLY@27..29 "%}"
+                error at 14..15: expected no string interpolation, because it isn't allowed here but found #"##]],
         )
     }
 

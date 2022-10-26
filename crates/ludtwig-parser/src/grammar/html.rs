@@ -1,4 +1,4 @@
-use crate::grammar::twig::parse_any_twig;
+use crate::grammar::twig::{parse_any_twig, parse_twig_var_statement};
 use crate::grammar::{parse_any_element, parse_ludtwig_directive, parse_many, ParseFunction};
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser, RECOVERY_SET};
@@ -169,25 +169,38 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
 
 fn parse_html_attribute_or_twig(parser: &mut Parser) -> Option<CompletedMarker> {
     let token_text = parser.peek_token()?.text;
-    if !HTML_NAME_REGEX.is_match(token_text) {
-        // parse any twig syntax where its children can only be html attributes (this parser)
-        return parse_any_twig(parser, parse_html_attribute_or_twig);
-    }
-
-    // normal html attribute
-    let m = parser.start();
-    parser.bump_as(T![word]);
+    let attribute_m = if HTML_NAME_REGEX.is_match(token_text) {
+        // normal html attribute name
+        let attribute_m = parser.start();
+        parser.bump_as(T![word]);
+        attribute_m
+    } else {
+        // is the attribute name a twig var expression?
+        if parser.at(T!["{{"]) {
+            let twig_name_attribute_m = parser.start();
+            parse_twig_var_statement(parser);
+            twig_name_attribute_m
+        } else {
+            // parse any twig block / comment syntax where its children can only be html attributes (this parser)
+            // this structure itself doesn't count as an HTML_ATTRIBUTE node
+            return parse_any_twig(parser, parse_html_attribute_or_twig);
+        }
+    };
 
     if parser.at(T!["="]) {
         // attribute value
         parser.bump();
-        parse_html_string_including_twig(parser);
+        parse_html_attribute_value_string(parser);
     }
 
-    Some(parser.complete(m, SyntaxKind::HTML_ATTRIBUTE))
+    Some(parser.complete(attribute_m, SyntaxKind::HTML_ATTRIBUTE))
 }
 
-fn parse_html_string_including_twig(parser: &mut Parser) -> CompletedMarker {
+/// html attribute value can be either a single word or twig var expression or
+/// a single / double quoted string (which can contain arbitrary twig syntax)
+/// In either case it will be wrapped into an HTML_STRING node which may or may
+/// not contain quotes
+fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
     let quote_kind = if parser.at_set(&[T!["\""], T!["'"]]) {
         let starting_quote_token = parser.bump();
@@ -231,6 +244,9 @@ fn parse_html_string_including_twig(parser: &mut Parser) -> CompletedMarker {
     fn inner_no_quote_parser(parser: &mut Parser) -> Option<CompletedMarker> {
         if parser.at(T![word]) {
             parser.bump();
+        } else if parser.at(T!["{{"]) {
+            // a single twig var expression with missing quotes should also count as an html attribute value
+            parse_twig_var_statement(parser);
         } else {
             parser.add_error(ParseErrorBuilder::new("html attribute value"))
         }
@@ -1147,50 +1163,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_html_attribute_with_no_quotes_and_twig_var() {
-        check_parse(
-            "<div claSs={{ my_class }}>
-        hello world
-    </div>",
-            expect![[r#"
-                ROOT@0..57
-                  HTML_TAG@0..57
-                    HTML_STARTING_TAG@0..26
-                      TK_LESS_THAN@0..1 "<"
-                      TK_WORD@1..4 "div"
-                      HTML_ATTRIBUTE@4..11
-                        TK_WHITESPACE@4..5 " "
-                        TK_WORD@5..10 "claSs"
-                        TK_EQUAL@10..11 "="
-                        HTML_STRING@11..11
-                          HTML_STRING_INNER@11..11
-                      TWIG_VAR@11..25
-                        TK_OPEN_CURLY_CURLY@11..13 "{{"
-                        TWIG_EXPRESSION@13..22
-                          TWIG_LITERAL_NAME@13..22
-                            TK_WHITESPACE@13..14 " "
-                            TK_WORD@14..22 "my_class"
-                        TK_WHITESPACE@22..23 " "
-                        TK_CLOSE_CURLY_CURLY@23..25 "}}"
-                      TK_GREATER_THAN@25..26 ">"
-                    BODY@26..46
-                      HTML_TEXT@26..46
-                        TK_LINE_BREAK@26..27 "\n"
-                        TK_WHITESPACE@27..35 "        "
-                        TK_WORD@35..40 "hello"
-                        TK_WHITESPACE@40..41 " "
-                        TK_WORD@41..46 "world"
-                    HTML_ENDING_TAG@46..57
-                      TK_LINE_BREAK@46..47 "\n"
-                      TK_WHITESPACE@47..51 "    "
-                      TK_LESS_THAN_SLASH@51..53 "</"
-                      TK_WORD@53..56 "div"
-                      TK_GREATER_THAN@56..57 ">"
-                error at 11..13: expected html attribute value but found {{"#]],
-        );
-    }
-
-    #[test]
     fn parse_html_comment() {
         check_parse(
             "<!-- this is a comment --> this not <!-- but this again -->",
@@ -1274,15 +1246,16 @@ mod tests {
                           HTML_STRING_INNER@12..17
                             TK_WORD@12..17 "hello"
                           TK_DOUBLE_QUOTES@17..18 "\""
-                      TWIG_VAR@18..29
-                        TK_WHITESPACE@18..19 " "
-                        TK_OPEN_CURLY_CURLY@19..21 "{{"
-                        TWIG_EXPRESSION@21..26
-                          TWIG_LITERAL_NAME@21..26
-                            TK_WHITESPACE@21..22 " "
-                            TK_WORD@22..26 "twig"
-                        TK_WHITESPACE@26..27 " "
-                        TK_CLOSE_CURLY_CURLY@27..29 "}}"
+                      HTML_ATTRIBUTE@18..29
+                        TWIG_VAR@18..29
+                          TK_WHITESPACE@18..19 " "
+                          TK_OPEN_CURLY_CURLY@19..21 "{{"
+                          TWIG_EXPRESSION@21..26
+                            TWIG_LITERAL_NAME@21..26
+                              TK_WHITESPACE@21..22 " "
+                              TK_WORD@22..26 "twig"
+                          TK_WHITESPACE@26..27 " "
+                          TK_CLOSE_CURLY_CURLY@27..29 "}}"
                       TK_GREATER_THAN@29..30 ">"
                     BODY@30..30
                     HTML_ENDING_TAG@30..36
@@ -1544,6 +1517,132 @@ mod tests {
                       TK_LESS_THAN_SLASH@56..58 "</"
                       TK_WORD@58..63 "label"
                       TK_GREATER_THAN@63..64 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_name_as_twig_var_expression() {
+        check_parse(
+            r#"<div {{ dataBsDismissAttr }}="modal">hello</div>"#,
+            expect![[r#"
+                ROOT@0..48
+                  HTML_TAG@0..48
+                    HTML_STARTING_TAG@0..37
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE@4..36
+                        TWIG_VAR@4..28
+                          TK_WHITESPACE@4..5 " "
+                          TK_OPEN_CURLY_CURLY@5..7 "{{"
+                          TWIG_EXPRESSION@7..25
+                            TWIG_LITERAL_NAME@7..25
+                              TK_WHITESPACE@7..8 " "
+                              TK_WORD@8..25 "dataBsDismissAttr"
+                          TK_WHITESPACE@25..26 " "
+                          TK_CLOSE_CURLY_CURLY@26..28 "}}"
+                        TK_EQUAL@28..29 "="
+                        HTML_STRING@29..36
+                          TK_DOUBLE_QUOTES@29..30 "\""
+                          HTML_STRING_INNER@30..35
+                            TK_WORD@30..35 "modal"
+                          TK_DOUBLE_QUOTES@35..36 "\""
+                      TK_GREATER_THAN@36..37 ">"
+                    BODY@37..42
+                      HTML_TEXT@37..42
+                        TK_WORD@37..42 "hello"
+                    HTML_ENDING_TAG@42..48
+                      TK_LESS_THAN_SLASH@42..44 "</"
+                      TK_WORD@44..47 "div"
+                      TK_GREATER_THAN@47..48 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_name_as_twig_var_expression_and_value_as_string_with_twig_var_expression(
+    ) {
+        check_parse(
+            r##"<div {{ dataBsTargetAttr }}="#{{ filterItemId }}">hello</div>"##,
+            expect![[r##"
+                ROOT@0..61
+                  HTML_TAG@0..61
+                    HTML_STARTING_TAG@0..50
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE@4..49
+                        TWIG_VAR@4..27
+                          TK_WHITESPACE@4..5 " "
+                          TK_OPEN_CURLY_CURLY@5..7 "{{"
+                          TWIG_EXPRESSION@7..24
+                            TWIG_LITERAL_NAME@7..24
+                              TK_WHITESPACE@7..8 " "
+                              TK_WORD@8..24 "dataBsTargetAttr"
+                          TK_WHITESPACE@24..25 " "
+                          TK_CLOSE_CURLY_CURLY@25..27 "}}"
+                        TK_EQUAL@27..28 "="
+                        HTML_STRING@28..49
+                          TK_DOUBLE_QUOTES@28..29 "\""
+                          HTML_STRING_INNER@29..48
+                            TK_HASHTAG@29..30 "#"
+                            TWIG_VAR@30..48
+                              TK_OPEN_CURLY_CURLY@30..32 "{{"
+                              TWIG_EXPRESSION@32..45
+                                TWIG_LITERAL_NAME@32..45
+                                  TK_WHITESPACE@32..33 " "
+                                  TK_WORD@33..45 "filterItemId"
+                              TK_WHITESPACE@45..46 " "
+                              TK_CLOSE_CURLY_CURLY@46..48 "}}"
+                          TK_DOUBLE_QUOTES@48..49 "\""
+                      TK_GREATER_THAN@49..50 ">"
+                    BODY@50..55
+                      HTML_TEXT@50..55
+                        TK_WORD@50..55 "hello"
+                    HTML_ENDING_TAG@55..61
+                      TK_LESS_THAN_SLASH@55..57 "</"
+                      TK_WORD@57..60 "div"
+                      TK_GREATER_THAN@60..61 ">""##]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_with_no_quotes_and_twig_var_expression() {
+        check_parse(
+            "<div claSs={{ my_class }}>
+        hello world
+    </div>",
+            expect![[r#"
+                ROOT@0..57
+                  HTML_TAG@0..57
+                    HTML_STARTING_TAG@0..26
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE@4..25
+                        TK_WHITESPACE@4..5 " "
+                        TK_WORD@5..10 "claSs"
+                        TK_EQUAL@10..11 "="
+                        HTML_STRING@11..25
+                          HTML_STRING_INNER@11..25
+                            TWIG_VAR@11..25
+                              TK_OPEN_CURLY_CURLY@11..13 "{{"
+                              TWIG_EXPRESSION@13..22
+                                TWIG_LITERAL_NAME@13..22
+                                  TK_WHITESPACE@13..14 " "
+                                  TK_WORD@14..22 "my_class"
+                              TK_WHITESPACE@22..23 " "
+                              TK_CLOSE_CURLY_CURLY@23..25 "}}"
+                      TK_GREATER_THAN@25..26 ">"
+                    BODY@26..46
+                      HTML_TEXT@26..46
+                        TK_LINE_BREAK@26..27 "\n"
+                        TK_WHITESPACE@27..35 "        "
+                        TK_WORD@35..40 "hello"
+                        TK_WHITESPACE@40..41 " "
+                        TK_WORD@41..46 "world"
+                    HTML_ENDING_TAG@46..57
+                      TK_LINE_BREAK@46..47 "\n"
+                      TK_WHITESPACE@47..51 "    "
+                      TK_LESS_THAN_SLASH@51..53 "</"
+                      TK_WORD@53..56 "div"
+                      TK_GREATER_THAN@56..57 ">""#]],
         );
     }
 

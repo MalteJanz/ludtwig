@@ -50,7 +50,7 @@ fn parse_twig_plain_comment(parser: &mut Parser, outer: Marker) -> CompletedMark
     parser.complete(outer, SyntaxKind::TWIG_COMMENT)
 }
 
-fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {
+pub(crate) fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {
     debug_assert!(parser.at(T!["{{"]));
     let m = parser.start();
     parser.bump();

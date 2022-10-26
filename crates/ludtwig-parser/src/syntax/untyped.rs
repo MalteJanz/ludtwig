@@ -143,8 +143,8 @@ pub enum SyntaxKind {
     TK_OPEN_CURLY_HASHTAG,
     #[token("#}")]
     TK_HASHTAG_CLOSE_CURLY,
-    #[token("#{")]
-    TK_HASHTAG_OPEN_CURLY,
+    #[token("#")]
+    TK_HASHTAG,
 
     #[token("true", ignore(ascii_case))]
     TK_TRUE,
@@ -524,7 +524,7 @@ macro_rules! T {
     ["}}"] => { $crate::syntax::untyped::SyntaxKind::TK_CLOSE_CURLY_CURLY };
     ["{#"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY_HASHTAG };
     ["#}"] => { $crate::syntax::untyped::SyntaxKind::TK_HASHTAG_CLOSE_CURLY };
-    ["#{"] => { $crate::syntax::untyped::SyntaxKind::TK_HASHTAG_OPEN_CURLY };
+    ["#"] => { $crate::syntax::untyped::SyntaxKind::TK_HASHTAG };
     ["true"] => { $crate::syntax::untyped::SyntaxKind::TK_TRUE };
     ["false"] => { $crate::syntax::untyped::SyntaxKind::TK_FALSE };
     ["block"] => { $crate::syntax::untyped::SyntaxKind::TK_BLOCK };
@@ -673,7 +673,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_CLOSE_CURLY_CURLY => "}}",
             SyntaxKind::TK_OPEN_CURLY_HASHTAG => "{#",
             SyntaxKind::TK_HASHTAG_CLOSE_CURLY => "#}",
-            SyntaxKind::TK_HASHTAG_OPEN_CURLY => "#{",
+            SyntaxKind::TK_HASHTAG => "#",
             SyntaxKind::TK_TRUE => "true",
             SyntaxKind::TK_FALSE => "false",
             SyntaxKind::TK_BLOCK => "block",

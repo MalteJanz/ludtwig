@@ -135,6 +135,14 @@ mod tests {
     }
 
     #[test]
+    fn lex_hashtag_curly_curly() {
+        let results = lex("#{{");
+        let syntax_kinds: Vec<SyntaxKind> = results.into_iter().map(|t| t.kind).collect();
+
+        assert_eq!(syntax_kinds, vec![T!["#"], T!["{{"],])
+    }
+
+    #[test]
     fn lex_all_tokens_chained_together() {
         use std::fmt::Write;
 
@@ -202,8 +210,8 @@ mod tests {
         add("{{", T!["{{"]);
         add("}}", T!["}}"]);
         add("{#", T!["{#"]);
+        add("#", T!["#"]);
         add("#}", T!["#}"]);
-        add("#{", T!["#{"]);
         add("true", T!["true"]);
         add("false", T!["false"]);
         add("block", T!["block"]);
@@ -619,8 +627,8 @@ mod tests {
     }
 
     #[test]
-    fn lex_hashtag_open_curly() {
-        check_token("#{", T!["#{"]);
+    fn lex_hashtag() {
+        check_token("#", T!["#"]);
     }
 
     #[test]
