@@ -7,6 +7,7 @@ use crate::check::rules::twig_block_line_breaks::RuleTwigBlockLineBreaks;
 use crate::check::rules::twig_block_name_snake_case::RuleTwigBlockNameSnakeCase;
 use crate::check::rules::twig_logic_and::RuleTwigLogicAnd;
 use crate::check::rules::twig_logic_or::RuleTwigLogicOr;
+use crate::check::rules::twig_string_quotation::RuleTwigStringQuotation;
 use crate::check::rules::unknown_token::RuleUnknownToken;
 use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
 use crate::error::ConfigurationError;
@@ -22,6 +23,7 @@ mod twig_block_line_breaks;
 mod twig_block_name_snake_case;
 mod twig_logic_and;
 mod twig_logic_or;
+mod twig_string_quotation;
 mod unknown_token;
 mod whitespace_between_line_breaks;
 
@@ -37,6 +39,7 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleHtmlAttributeNameKebabCase,
     &RuleTwigLogicAnd,
     &RuleTwigLogicOr,
+    &RuleTwigStringQuotation,
 ];
 
 /// Get active rule definitions based on config
@@ -185,6 +188,21 @@ pub mod test {
             iteration, 1,
             "fixing a single rule should happen in one iteration!"
         );
+        drop(rx);
+    }
+
+    pub fn test_rule_does_not_fix(
+        rule_name: &str,
+        source_code: &str,
+        expected_source_code: expect_test::Expect,
+    ) {
+        let (file_context, rule_result_context, rx) = debug_rule(rule_name, source_code);
+        let (file_context, _, dirty, iteration) =
+            iteratively_apply_suggestions(file_context, rule_result_context).unwrap();
+
+        expected_source_code.assert_eq(&file_context.source_code);
+        assert!(!dirty);
+        assert_eq!(iteration, 0, "No fixing should have no extra iterations!");
         drop(rx);
     }
 }

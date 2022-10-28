@@ -17,7 +17,7 @@ impl Rule for RuleHtmlAttributeNameKebabCase {
             let mut result = ctx
                 .create_result(
                     self.name(),
-                    Severity::Warning,
+                    Severity::Help,
                     "Attribute name is not written in kebab-case",
                 )
                 .primary_note(
@@ -192,7 +192,7 @@ mod tests {
             "html-attribute-name-kebab-case",
             "<custom aBc/>",
             expect![[r#"
-                warning[html-attribute-name-kebab-case]: Attribute name is not written in kebab-case
+                help[html-attribute-name-kebab-case]: Attribute name is not written in kebab-case
                   ┌─ ./debug-rule.html.twig:1:9
                   │
                 1 │ <custom aBc/>

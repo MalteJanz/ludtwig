@@ -28,7 +28,7 @@ impl Rule for RuleWhitespaceBetweenLineBreaks {
         let result = ctx
             .create_result(
                 self.name(),
-                Severity::Warning,
+                Severity::Help,
                 "Whitespace between line breaks",
             )
             .primary_note(
@@ -57,7 +57,7 @@ mod tests {
             <hr/>
 {% endblock %}",
             expect![[r#"
-                warning[whitespace-between-line-breaks]: Whitespace between line breaks
+                help[whitespace-between-line-breaks]: Whitespace between line breaks
                   ┌─ ./debug-rule.html.twig:2:1
                   │
                 2 │     

@@ -17,7 +17,7 @@ impl Rule for RuleTwigBlockNameSnakeCase {
             let mut result = ctx
                 .create_result(
                     self.name(),
-                    Severity::Warning,
+                    Severity::Help,
                     "Block name is not written in snake_case",
                 )
                 .primary_note(
@@ -172,7 +172,7 @@ mod tests {
             "twig-block-name-snake-case",
             "{% block a-b %}hello{% endblock %}",
             expect![[r#"
-                warning[twig-block-name-snake-case]: Block name is not written in snake_case
+                help[twig-block-name-snake-case]: Block name is not written in snake_case
                   ┌─ ./debug-rule.html.twig:1:10
                   │
                 1 │ {% block a-b %}hello{% endblock %}

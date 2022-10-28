@@ -148,7 +148,12 @@ pub struct CheckSuggestion {
 
 #[derive(Debug, Clone)]
 pub enum Severity {
+    /// Errors which must be fixed for the template to work correctly
     Error,
+    /// Potential errors which should be fixed before using the template in production
     Warning,
+    /// Stylistic errors which should be fixed for readability
+    Help,
+    /// Just information
     Info,
 }

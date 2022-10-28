@@ -13,7 +13,6 @@ impl Rule for RuleTwigLogicOr {
 
     fn check_node(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
         let binary = TwigBinaryExpression::cast(node)?;
-        println!("found binary {:?}", binary.syntax());
         let binary_expr_op = binary.operator()?;
 
         if binary_expr_op.kind() == T!["||"] {

@@ -163,6 +163,7 @@ pub fn produce_diagnostics(
         let diagnostic = match result.severity {
             Severity::Error => Diagnostic::error(),
             Severity::Warning => Diagnostic::warning(),
+            Severity::Help => Diagnostic::help(),
             Severity::Info => Diagnostic::note(),
         };
 

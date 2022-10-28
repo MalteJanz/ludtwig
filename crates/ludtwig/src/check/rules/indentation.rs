@@ -115,7 +115,7 @@ impl RuleIndentation {
                 if token.text() != expected_str {
                     // report wrong indentation
                     let result = ctx
-                        .create_result(self.name(), Severity::Warning, "Wrong indentation")
+                        .create_result(self.name(), Severity::Help, "Wrong indentation")
                         .primary_note(
                             token.text_range(),
                             format!(
@@ -141,7 +141,7 @@ impl RuleIndentation {
                     // report missing whitespace token
                     let range = TextRange::at(token.text_range().start(), TextSize::from(0));
                     let result = ctx
-                        .create_result(self.name(), Severity::Warning, "Missing indentation")
+                        .create_result(self.name(), Severity::Help, "Missing indentation")
                         .primary_note(
                             range,
                             format!(
@@ -182,7 +182,7 @@ mod tests {
                       </div>
                   {% endblock %}"#,
             expect![[r#"
-                warning[indentation]: Wrong indentation
+                help[indentation]: Wrong indentation
                   ┌─ ./debug-rule.html.twig:2:1
                   │
                 2 │                 <div>
@@ -191,7 +191,7 @@ mod tests {
                   │ Expected indentation of 4 spaces here
                   │ Change indentation to 4 spaces:     
 
-                warning[indentation]: Wrong indentation
+                help[indentation]: Wrong indentation
                   ┌─ ./debug-rule.html.twig:4:1
                   │
                 4 │                       </div>
@@ -200,7 +200,7 @@ mod tests {
                   │ Expected indentation of 4 spaces here
                   │ Change indentation to 4 spaces:     
 
-                warning[indentation]: Wrong indentation
+                help[indentation]: Wrong indentation
                   ┌─ ./debug-rule.html.twig:5:1
                   │
                 5 │                   {% endblock %}

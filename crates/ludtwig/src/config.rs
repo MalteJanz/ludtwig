@@ -28,6 +28,7 @@ pub struct Format {
     pub indentation_count: u8,
     pub indent_children_of_blocks: bool,
     pub linebreaks_around_blocks: bool,
+    pub twig_quotation: Quotation,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
@@ -85,6 +86,36 @@ impl LineEnding {
         match self {
             LineEnding::UnixLF => "\n",
             LineEnding::WindowsCRLF => "\r\n",
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+pub enum Quotation {
+    #[serde(rename = "single")]
+    Single,
+    #[serde(rename = "double")]
+    Double,
+}
+
+impl Display for Quotation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Quotation::Single => {
+                write!(f, "single quotes (')")
+            }
+            Quotation::Double => {
+                write!(f, "double quotes (\")")
+            }
+        }
+    }
+}
+
+impl Quotation {
+    pub fn corresponding_char(&self) -> char {
+        match self {
+            Quotation::Single => '\'',
+            Quotation::Double => '"',
         }
     }
 }

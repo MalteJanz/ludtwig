@@ -36,6 +36,7 @@ active-rules = [
     "html-attribute-name-kebab-case",
     "twig-logic-and",
     "twig-logic-or",
+    "twig-string-quotation",
 ]
 
 [format]
@@ -58,3 +59,7 @@ indent-children-of-blocks = true
 # Should twig blocks have empty lines around them? [true, false]
 # checked by the 'twig-block-line-breaks' rule
 linebreaks-around-blocks = true
+
+# How twig strings should be quotated? ["single", "double"]
+# checked by the 'twig-string-quotation' rule
+twig-quotation = "single"

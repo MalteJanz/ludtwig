@@ -1,6 +1,3 @@
-use std::fmt;
-use std::fmt::Formatter;
-
 use logos::Logos;
 pub use rowan::Direction;
 /// GreenNode is an immutable tree, which is cheap to change,
@@ -16,6 +13,8 @@ pub use rowan::TextLen;
 pub use rowan::TextRange;
 pub use rowan::TextSize;
 pub use rowan::WalkEvent;
+use std::fmt;
+use std::fmt::Formatter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Logos)]
 #[allow(non_camel_case_types)]
@@ -804,6 +803,31 @@ pub fn debug_tree(syntax_node: &SyntaxNode) -> String {
     let formatted = format!("{:#?}", syntax_node);
     // We cut off the last byte because formatting the SyntaxNode adds on a newline at the end.
     formatted[0..formatted.len() - 1].to_string()
+}
+
+pub trait SyntaxNodeExt {
+    fn text_range_trimmed_trivia(&self) -> TextRange;
+}
+
+impl SyntaxNodeExt for SyntaxNode {
+    /// Trims leading trivia from the original text_range
+    fn text_range_trimmed_trivia(&self) -> TextRange {
+        let mut range = self.text_range();
+
+        for element in self.children_with_tokens() {
+            match element {
+                SyntaxElement::Token(t) if t.kind().is_trivia() => {
+                    let new_start = range.start() + t.text_range().len();
+                    if new_start < range.end() {
+                        range = TextRange::new(new_start, range.end());
+                    }
+                }
+                _ => return range,
+            }
+        }
+
+        range
+    }
 }
 
 // TODO: remove me when parser is implemented

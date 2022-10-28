@@ -95,7 +95,7 @@ impl Rule for RuleTwigBlockLineBreaks {
                         let result = ctx
                             .create_result(
                                 self.name(),
-                                Severity::Warning,
+                                Severity::Help,
                                 "Wrong line break around block",
                             )
                             .primary_note(
@@ -117,7 +117,7 @@ impl Rule for RuleTwigBlockLineBreaks {
                     let result = ctx
                         .create_result(
                             self.name(),
-                            Severity::Warning,
+                            Severity::Help,
                             "Missing line break around block",
                         )
                         .primary_note(
@@ -165,7 +165,7 @@ mod tests {
     </div>
 {% endblock %}",
             expect![[r#"
-                warning[twig-block-line-breaks]: Wrong line break around block
+                help[twig-block-line-breaks]: Wrong line break around block
                   ┌─ ./debug-rule.html.twig:5:23
                   │    
                 5 │             {% endblock %}
@@ -177,7 +177,7 @@ mod tests {
 
 
 
-                warning[twig-block-line-breaks]: Wrong line break around block
+                help[twig-block-line-breaks]: Wrong line break around block
                   ┌─ ./debug-rule.html.twig:8:23
                   │    
                 8 │             {% endblock %}
@@ -189,7 +189,7 @@ mod tests {
 
 
 
-                warning[twig-block-line-breaks]: Wrong line break around block
+                help[twig-block-line-breaks]: Wrong line break around block
                    ┌─ ./debug-rule.html.twig:9:14
                    │    
                  9 │             <hr/>

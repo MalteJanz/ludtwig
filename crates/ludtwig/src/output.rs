@@ -17,6 +17,7 @@ pub fn handle_processing_output(rx: Receiver<ProcessingEvent>) -> i32 {
     let mut file_count = 0;
     let mut error_count = 0;
     let mut warning_count = 0;
+    let mut help_count = 0;
     let mut info_count = 0;
 
     let stderr_writer = BufferWriter::stderr(ColorChoice::Always);
@@ -34,6 +35,9 @@ pub fn handle_processing_output(rx: Receiver<ProcessingEvent>) -> i32 {
                 Severity::Warning => {
                     warning_count += 1;
                 }
+                Severity::Help => {
+                    help_count += 1;
+                }
                 Severity::Info => {
                     info_count += 1;
                 }
@@ -47,17 +51,18 @@ pub fn handle_processing_output(rx: Receiver<ProcessingEvent>) -> i32 {
     drop(stderr_writer); // finish writing to stderr
 
     let conclusion_msg = format!(
-        "\nFiles scanned: {}, Errors: {}, Warnings: {}, Info: {}, Total: {}\n",
+        "\nFiles scanned: {}, Errors: {}, Warnings: {}, Helps: {}, Info: {}, Total: {}\n",
         file_count,
         error_count,
         warning_count,
+        help_count,
         info_count,
-        (error_count + warning_count + info_count)
+        (error_count + warning_count + help_count + info_count)
     );
 
-    if file_count > 0 && (error_count > 0 || warning_count > 0) {
+    if file_count > 0 && (error_count > 0 || warning_count > 0 || help_count > 0) {
         io::stderr().write_all(conclusion_msg.as_bytes()).unwrap();
-        1 // return exit code 1 if there were errors or warnings.
+        1 // return exit code 1 if there were errors, warnings or help.
     } else {
         print!("{}", conclusion_msg);
         0
