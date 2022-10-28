@@ -6,6 +6,7 @@ use crate::check::rules::line_ending::RuleLineEnding;
 use crate::check::rules::ludtwig_ignore_file_not_on_top::RuleLudtwigIgnoreFileNotOnTop;
 use crate::check::rules::twig_block_line_breaks::RuleTwigBlockLineBreaks;
 use crate::check::rules::twig_block_name_snake_case::RuleTwigBlockNameSnakeCase;
+use crate::check::rules::twig_hash_key_no_quotes::RuleTwigHashKeyNoQuotes;
 use crate::check::rules::twig_logic_and::RuleTwigLogicAnd;
 use crate::check::rules::twig_logic_or::RuleTwigLogicOr;
 use crate::check::rules::twig_string_quotation::RuleTwigStringQuotation;
@@ -23,6 +24,7 @@ mod line_ending;
 mod ludtwig_ignore_file_not_on_top;
 mod twig_block_line_breaks;
 mod twig_block_name_snake_case;
+mod twig_hash_key_no_quotes;
 mod twig_logic_and;
 mod twig_logic_or;
 mod twig_string_quotation;
@@ -43,6 +45,7 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleTwigLogicOr,
     &RuleTwigStringQuotation,
     &RuleHtmlStringQuotation,
+    &RuleTwigHashKeyNoQuotes,
 ];
 
 /// Get active rule definitions based on config

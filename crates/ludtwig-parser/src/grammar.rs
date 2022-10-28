@@ -8,6 +8,8 @@ use crate::T;
 mod html;
 mod twig;
 
+pub use twig::TWIG_NAME_REGEX;
+
 /// Type used to pass concrete fn (function pointers) around that are parsing functions
 type ParseFunction = fn(&mut Parser) -> Option<CompletedMarker>;
 

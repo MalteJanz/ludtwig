@@ -38,6 +38,7 @@ active-rules = [
     "twig-logic-or",
     "twig-string-quotation",
     "html-string-quotation",
+    "twig-hash-key-no-quotes",
 ]
 
 [format]

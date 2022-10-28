@@ -10,6 +10,8 @@ use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
 use crate::T;
 
+pub use literal::TWIG_NAME_REGEX;
+
 pub(super) fn parse_any_twig(
     parser: &mut Parser,
     child_parser: ParseFunction,

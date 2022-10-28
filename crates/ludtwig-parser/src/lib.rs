@@ -11,6 +11,8 @@ mod lexer;
 mod parser;
 pub mod syntax;
 
+pub use grammar::TWIG_NAME_REGEX;
+
 #[cfg(test)]
 mod tests {
     use super::*;

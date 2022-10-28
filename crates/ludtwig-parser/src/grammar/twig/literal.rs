@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 
 // TODO: maybe allow more here to partly support twig.js. Needs testing on real world templates
-static TWIG_NAME_REGEX: Lazy<Regex> =
+pub static TWIG_NAME_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$"#).unwrap());
 
 pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker> {
