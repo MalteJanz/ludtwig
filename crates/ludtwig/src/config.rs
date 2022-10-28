@@ -29,6 +29,7 @@ pub struct Format {
     pub indent_children_of_blocks: bool,
     pub linebreaks_around_blocks: bool,
     pub twig_quotation: Quotation,
+    pub html_quotation: Quotation,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]

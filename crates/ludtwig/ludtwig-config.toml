@@ -37,6 +37,7 @@ active-rules = [
     "twig-logic-and",
     "twig-logic-or",
     "twig-string-quotation",
+    "html-string-quotation",
 ]
 
 [format]
@@ -63,3 +64,7 @@ linebreaks-around-blocks = true
 # How twig strings should be quotated? ["single", "double"]
 # checked by the 'twig-string-quotation' rule
 twig-quotation = "single"
+
+# How html attribute strings should be quotated? ["single", "double"]
+# checked by the 'html-string-quotation' rule
+html-quotation = "double"

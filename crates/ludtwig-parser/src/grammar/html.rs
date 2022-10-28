@@ -291,7 +291,13 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
         }
         Some(_) => unreachable!(),
     }
-    parser.explicitly_consume_trivia(); // consume any trailing trivia to be inside the inner string
+
+    if quote_kind.is_some() {
+        // consume any trailing trivia to be inside the inner string
+        // but only when quotation exists (otherwise only the single word should be inside the HTML_STRING_INNER node)
+        parser.explicitly_consume_trivia();
+    }
+
     parser.complete(inner_m, SyntaxKind::HTML_STRING_INNER);
 
     // expect the same closing quote if a starting quote existed
@@ -1135,15 +1141,15 @@ mod tests {
                     HTML_STARTING_TAG@0..27
                       TK_LESS_THAN@0..1 "<"
                       TK_WORD@1..4 "div"
-                      HTML_ATTRIBUTE@4..18
+                      HTML_ATTRIBUTE@4..17
                         TK_WHITESPACE@4..5 " "
                         TK_WORD@5..10 "claSs"
                         TK_EQUAL@10..11 "="
-                        HTML_STRING@11..18
-                          HTML_STRING_INNER@11..18
+                        HTML_STRING@11..17
+                          HTML_STRING_INNER@11..17
                             TK_WORD@11..17 "my-div"
-                            TK_WHITESPACE@17..18 " "
-                      HTML_ATTRIBUTE@18..26
+                      HTML_ATTRIBUTE@17..26
+                        TK_WHITESPACE@17..18 " "
                         TK_WORD@18..26 "required"
                       TK_GREATER_THAN@26..27 ">"
                     BODY@27..47
