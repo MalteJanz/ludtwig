@@ -11,6 +11,32 @@ use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
 use crate::T;
 
+/// Checks if the parser is at an twig ending / delimiter tag like
+/// `endblock` or `elseif` which should be caught by html body parsers to stop parsing early
+/// (this is helpful to spot for example missing closing html tags)
+///
+/// Important:
+/// Every ending twig tag or delimiter tag must be added to this function for now!
+pub(crate) fn at_twig_termination_tag(p: &mut Parser) -> bool {
+    p.at_following(&[T!["{%"], T!["endblock"]])
+        || p.at_following(&[T!["{%"], T!["endif"]])
+        || p.at_following(&[T!["{%"], T!["elseif"]])
+        || p.at_following(&[T!["{%"], T!["else"]])
+        || p.at_following(&[T!["{%"], T!["endset"]])
+        || p.at_following(&[T!["{%"], T!["endfor"]])
+        || p.at_following(&[T!["{%"], T!["endembed"]])
+        || p.at_following(&[T!["{%"], T!["endapply"]])
+        || p.at_following(&[T!["{%"], T!["endautoescape"]])
+        || p.at_following(&[T!["{%"], T!["endsandbox"]])
+        || p.at_following(&[T!["{%"], T!["endverbatim"]])
+        || p.at_following(&[T!["{%"], T!["endmacro"]])
+        || p.at_following(&[T!["{%"], T!["endwith"]])
+        || p.at_following(&[T!["{%"], T!["endcache"]])
+        || p.at_following(&[T!["{%"], T!["endsw_silent_feature_call"]])
+        || p.at_following(&[T!["{%"], T!["else"]])
+        || p.at_following(&[T!["{%"], T!["else"]])
+}
+
 pub(crate) fn parse_twig_block_statement(
     parser: &mut Parser,
     child_parser: ParseFunction,

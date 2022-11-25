@@ -1,4 +1,4 @@
-use crate::grammar::twig::{parse_any_twig, parse_twig_var_statement};
+use crate::grammar::twig::{at_twig_termination_tag, parse_any_twig, parse_twig_var_statement};
 use crate::grammar::{parse_any_element, parse_ludtwig_directive, parse_many, ParseFunction};
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser, RECOVERY_SET};
@@ -131,12 +131,7 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
                 return true; // found matching closing tag
             }
 
-            // TODO: needs special care for future endfor, endif, ...
-            if p.at_following(&[T!["{%"], T!["endblock"]])
-                || p.at_following(&[T!["{%"], T!["endif"]])
-                || p.at_following(&[T!["{%"], T!["elseif"]])
-                || p.at_following(&[T!["{%"], T!["else"]])
-            {
+            if at_twig_termination_tag(p) {
                 return true; // endblock in the wild may mean this tag has a missing closing tag
             }
 
@@ -255,12 +250,7 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
     }
 
     fn child_early_return(p: &mut Parser) -> bool {
-        // TODO: needs special care for future endfor, endif, ...
-        if p.at_following(&[T!["{%"], T!["endblock"]])
-            || p.at_following(&[T!["{%"], T!["elseif"]])
-            || p.at_following(&[T!["{%"], T!["else"]])
-            || p.at_following(&[T!["{%"], T!["endif"]])
-        {
+        if at_twig_termination_tag(p) {
             return true;
         }
 

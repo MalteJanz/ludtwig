@@ -3,6 +3,8 @@ pub(crate) mod literal;
 mod shopware;
 mod tags;
 
+pub(crate) use tags::at_twig_termination_tag;
+
 use crate::grammar::twig::expression::parse_twig_expression;
 use crate::grammar::{parse_ludtwig_directive, parse_many, ParseFunction};
 use crate::parser::event::{CompletedMarker, Marker};
