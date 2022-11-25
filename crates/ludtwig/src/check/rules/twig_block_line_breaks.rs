@@ -11,6 +11,10 @@ impl Rule for RuleTwigBlockLineBreaks {
     }
 
     fn check_node(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
+        if ctx.traversal_ctx().inside_trivia_sensitive_node {
+            return None; // no trivia modification allowed here
+        }
+
         let block = TwigBlock::cast(node)?;
 
         // early return if parent is the root
@@ -245,6 +249,75 @@ mod tests {
                         {% endblock %}
                     </div>
                 {% endblock %}"#]],
+        );
+    }
+
+    #[test]
+    fn rule_does_not_report_trivia_sensitive() {
+        test_rule(
+            "twig-block-line-breaks",
+            r#"<pre>
+    {% block inner_a %}
+        hello
+    {% endblock %}
+    {% block inner_b %}
+        world
+        
+    {% endblock %}
+            </pre>
+            <pre>
+                <code>
+    {% block inner_a %}
+        hello
+    {% endblock %}
+    {% block inner_b %}
+        world
+        
+    {% endblock %}
+                </code>
+            </pre>
+            <textarea>
+    {% block inner_a %}
+        hello
+    {% endblock %}
+    {% block inner_b %}
+        world
+        
+    {% endblock %}
+            </textarea>
+            <textarea>
+                <p>
+    {% block inner_a %}
+        hello
+    {% endblock %}
+    {% block inner_b %}
+        world
+        
+    {% endblock %}
+                </p>
+            </textarea>
+<div>
+    {% block inner_a %}
+        hello
+    {% endblock %}
+    {% block inner_b %}
+        world
+    {% endblock %}
+</div>"#,
+            expect![[r#"
+                help[twig-block-line-breaks]: Wrong line break around block
+                   ┌─ ./debug-rule.html.twig:44:19
+                   │    
+                44 │         {% endblock %}
+                   │ ╭────────────────────^
+                   │ │ ╭──────────────────'
+                45 │ │ │     {% block inner_b %}
+                   │ ╰─│^ Expected 2 line breaks here
+                   │   ╰' Change to 2 line breaks: 
+
+
+
+            "#]],
         );
     }
 }

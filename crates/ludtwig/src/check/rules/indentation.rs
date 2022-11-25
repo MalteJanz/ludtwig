@@ -1,4 +1,4 @@
-use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveIgnore};
+use ludtwig_parser::syntax::typed::{AstNode, HtmlTag, LudtwigDirectiveIgnore};
 use ludtwig_parser::syntax::untyped::{
     SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken, TextRange, TextSize, WalkEvent,
 };
@@ -16,6 +16,7 @@ impl Rule for RuleIndentation {
         let mut line_break_encountered = true;
         let mut indentation = 0;
         let indent_block_children = ctx.config().format.indent_children_of_blocks;
+        let mut inside_trivia_sensitive_node = false;
 
         let mut is_ignored = false;
         let mut tree_iter = node.preorder_with_tokens();
@@ -30,7 +31,9 @@ impl Rule for RuleIndentation {
                             line_break_encountered = true;
                         }
                         SyntaxElement::Token(t) if !is_ignored && line_break_encountered => {
-                            self.handle_first_token_in_line(t, indentation, ctx);
+                            if !inside_trivia_sensitive_node {
+                                self.handle_first_token_in_line(t, indentation, ctx);
+                            }
                             line_break_encountered = false;
                         }
                         SyntaxElement::Token(_) => {
@@ -55,6 +58,16 @@ impl Rule for RuleIndentation {
                                 }
                             }
 
+                            // check for special nodes
+                            if let Some(t) = HtmlTag::cast(n.clone()) {
+                                if let Some("pre" | "textarea") =
+                                    t.name().as_ref().map(|t| t.text())
+                                {
+                                    inside_trivia_sensitive_node = true;
+                                }
+                            }
+
+                            // change indentation level
                             if n.kind() == SyntaxKind::BODY
                                 && (indent_block_children
                                     || !n
@@ -80,6 +93,14 @@ impl Rule for RuleIndentation {
                             }
                         }
 
+                        // check for special nodes
+                        if let Some(t) = HtmlTag::cast(n.clone()) {
+                            if let Some("pre" | "textarea") = t.name().as_ref().map(|t| t.text()) {
+                                inside_trivia_sensitive_node = false;
+                            }
+                        }
+
+                        // change indentation level
                         if n.kind() == SyntaxKind::BODY
                             && (indent_block_children
                                 || !n
@@ -208,6 +229,64 @@ mod tests {
                   │ │
                   │ Expected indentation of 0 spaces here
                   │ Change indentation to 0 spaces: 
+
+            "#]],
+        );
+    }
+
+    #[test]
+    fn rule_does_not_report_trivia_sensitive() {
+        test_rule(
+            "indentation",
+            r#"<pre>
+        hello
+        
+        
+        world
+            </pre>
+            <pre>
+                <code>
+        hello
+        
+        
+        world
+                </code>
+            </pre>
+            <textarea>
+    hello
+    
+    
+    world
+            </textarea>
+            <textarea>
+                <p>
+    hello
+    
+    
+    world
+                </p>
+            </textarea>
+    <div>
+        wrong
+</div>"#,
+            expect![[r#"
+                help[indentation]: Wrong indentation
+                   ┌─ ./debug-rule.html.twig:29:1
+                   │
+                29 │     <div>
+                   │ ^^^^
+                   │ │
+                   │ Expected indentation of 0 spaces here
+                   │ Change indentation to 0 spaces: 
+
+                help[indentation]: Wrong indentation
+                   ┌─ ./debug-rule.html.twig:30:1
+                   │
+                30 │         wrong
+                   │ ^^^^^^^^
+                   │ │
+                   │ Expected indentation of 4 spaces here
+                   │ Change indentation to 4 spaces:     
 
             "#]],
         );

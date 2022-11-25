@@ -6,10 +6,10 @@ use codespan_reporting::term;
 use codespan_reporting::term::termcolor::Buffer;
 
 use ludtwig_parser::syntax::typed;
-use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveIgnore};
+use ludtwig_parser::syntax::typed::{AstNode, HtmlTag, LudtwigDirectiveIgnore};
 use ludtwig_parser::syntax::untyped::{debug_tree, SyntaxElement, WalkEvent};
 
-use crate::check::rule::{CheckSuggestion, RuleContext, Severity};
+use crate::check::rule::{CheckSuggestion, RuleContext, Severity, TreeTraversalContext};
 use crate::process::FileContext;
 use crate::ProcessingEvent;
 
@@ -20,6 +20,9 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
     let mut ctx = RuleContext {
         check_results: vec![],
         cli_context: file_context.cli_context.clone(),
+        traversal_ctx: TreeTraversalContext {
+            inside_trivia_sensitive_node: false,
+        },
     };
 
     // TODO: disable rules for files with parsing errors for now (because the syntax tree may not be correct)
@@ -69,6 +72,13 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
                                       // TODO: maybe also pass errors to specific rules to generate CLI output?
                         }
 
+                        // adjust traversal context when entering special nodes
+                        if let Some(t) = HtmlTag::cast(n.clone()) {
+                            if let Some("pre" | "textarea") = t.name().as_ref().map(|t| t.text()) {
+                                ctx.traversal_ctx.inside_trivia_sensitive_node = true;
+                            }
+                        }
+
                         // run node checks for every rule
                         for rule in &file_context.file_rule_definitions {
                             if !ignored_rules.iter().any(|ignored| ignored == rule.name()) {
@@ -98,6 +108,15 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
 
                 for rule in found_ignored_rules {
                     ignored_rules.remove(ignored_rules.iter().position(|r| r == &rule).unwrap());
+                }
+
+                // adjust traversal context when exiting special nodes
+                if let SyntaxElement::Node(n) = element {
+                    if let Some(t) = HtmlTag::cast(n) {
+                        if let Some("pre" | "textarea") = t.name().as_ref().map(|t| t.text()) {
+                            ctx.traversal_ctx.inside_trivia_sensitive_node = false;
+                        }
+                    }
                 }
             }
         }

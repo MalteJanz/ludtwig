@@ -54,11 +54,17 @@ impl Debug for dyn Rule {
 }
 
 #[derive(Debug)]
+pub struct TreeTraversalContext {
+    pub inside_trivia_sensitive_node: bool,
+}
+
+#[derive(Debug)]
 pub struct RuleContext {
     // file_id
     // source_text
     pub(super) check_results: Vec<CheckResult>,
     pub(super) cli_context: CliContext,
+    pub(super) traversal_ctx: TreeTraversalContext,
 }
 
 impl RuleContext {
@@ -83,6 +89,10 @@ impl RuleContext {
 
     pub fn config(&self) -> &Config {
         &self.cli_context.data.config
+    }
+
+    pub fn traversal_ctx(&self) -> &TreeTraversalContext {
+        &self.traversal_ctx
     }
 }
 
