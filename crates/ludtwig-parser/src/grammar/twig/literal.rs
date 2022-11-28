@@ -1,5 +1,5 @@
 use crate::grammar::parse_many;
-use crate::grammar::twig::expression::parse_twig_expression;
+use crate::grammar::twig::expression::{parse_twig_expression, TWIG_EXPRESSION_RECOVERY_SET};
 use crate::parser::event::CompletedMarker;
 use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
@@ -107,7 +107,7 @@ pub(crate) fn parse_twig_string(
                 if parse_twig_expression(p).is_none() {
                     p.add_error(ParseErrorBuilder::new("twig expression"));
                 }
-                p.expect(T!["}"]);
+                p.expect(T!["}"], TWIG_EXPRESSION_RECOVERY_SET);
                 p.complete(
                     interpolation_m,
                     SyntaxKind::TWIG_LITERAL_STRING_INTERPOLATION,
@@ -121,7 +121,7 @@ pub(crate) fn parse_twig_string(
     parser.explicitly_consume_trivia(); // consume any trailing trivia inside the string
     parser.complete(m_inner, SyntaxKind::TWIG_LITERAL_STRING_INNER);
 
-    parser.expect(quote_kind);
+    parser.expect(quote_kind, TWIG_EXPRESSION_RECOVERY_SET);
     parser.complete(m, SyntaxKind::TWIG_LITERAL_STRING)
 }
 
@@ -145,7 +145,7 @@ fn parse_twig_array(parser: &mut Parser) -> CompletedMarker {
         },
     );
 
-    parser.expect(T!["]"]);
+    parser.expect(T!["]"], TWIG_EXPRESSION_RECOVERY_SET);
     parser.complete(m, SyntaxKind::TWIG_LITERAL_ARRAY)
 }
 
@@ -185,7 +185,7 @@ fn parse_twig_hash(parser: &mut Parser) -> CompletedMarker {
         },
     );
 
-    parser.expect(T!["}"]);
+    parser.expect(T!["}"], TWIG_EXPRESSION_RECOVERY_SET);
     parser.complete(m, SyntaxKind::TWIG_LITERAL_HASH)
 }
 
@@ -204,7 +204,7 @@ fn parse_twig_hash_pair(parser: &mut Parser) -> Option<CompletedMarker> {
         if parse_twig_expression(parser).is_none() {
             parser.add_error(ParseErrorBuilder::new("twig expression"))
         }
-        parser.expect(T![")"]);
+        parser.expect(T![")"], TWIG_EXPRESSION_RECOVERY_SET);
         parser.complete(m, SyntaxKind::TWIG_LITERAL_HASH_KEY)
     } else {
         let token_text = parser.peek_token()?.text;
@@ -264,7 +264,7 @@ pub(crate) fn parse_twig_filter(
             },
         );
         parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
-        parser.expect(T![")"]);
+        parser.expect(T![")"], TWIG_EXPRESSION_RECOVERY_SET);
     }
     parser.complete(m, SyntaxKind::TWIG_OPERAND);
 
@@ -310,7 +310,7 @@ fn parse_twig_indexer(parser: &mut Parser, mut last_node: CompletedMarker) -> Co
         },
     );
 
-    parser.expect(T!["]"]);
+    parser.expect(T!["]"], TWIG_EXPRESSION_RECOVERY_SET);
 
     // complete the outer marker
     parser.complete(outer, SyntaxKind::TWIG_INDEX_LOOKUP)
@@ -374,7 +374,7 @@ fn parse_twig_function(parser: &mut Parser, mut last_node: CompletedMarker) -> C
     );
     parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
 
-    parser.expect(T![")"]);
+    parser.expect(T![")"], TWIG_EXPRESSION_RECOVERY_SET);
 
     // complete the outer marker
     parser.complete(outer, SyntaxKind::TWIG_FUNCTION_CALL)
@@ -386,7 +386,7 @@ pub(crate) fn parse_twig_function_argument(parser: &mut Parser) -> Option<Comple
     if parser.at_following(&[T![word], T!["="]]) {
         let named_arg_m = parser.start();
         parser.bump();
-        parser.expect(T!["="]);
+        parser.expect(T!["="], TWIG_EXPRESSION_RECOVERY_SET);
         parse_twig_expression(parser);
         Some(parser.complete(named_arg_m, SyntaxKind::TWIG_NAMED_ARGUMENT))
     } else {

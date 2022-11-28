@@ -4,6 +4,63 @@ use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
 use crate::T;
 
+pub(crate) static TWIG_EXPRESSION_RECOVERY_SET: &[SyntaxKind] = &[
+    T!["|"],
+    T![")"],
+    T!["}"],
+    T!["]"],
+    T![":"],
+    T!["}}"],
+    T!["%}"],
+    // expressions
+    T!["("],
+    T!["-"],
+    T!["+"],
+    T!["not"],
+    // literals
+    T![number],
+    T!["\""],
+    T!["'"],
+    T!["["],
+    T!["null"],
+    T!["true"],
+    T!["false"],
+    T!["{"],
+    // operators
+    T!["or"],
+    T!["||"],
+    T!["and"],
+    T!["&&"],
+    T!["b-or"],
+    T!["b-xor"],
+    T!["b-and"],
+    T!["=="],
+    T!["!="],
+    T!["<=>"],
+    T!["<"],
+    T![">"],
+    T![">="],
+    T!["<="],
+    T!["not"],
+    T!["in"],
+    T!["matches"],
+    T!["starts with"],
+    T!["ends with"],
+    T!["==="],
+    T!["!=="],
+    T![".."],
+    T!["+"],
+    T!["-"],
+    T!["~"],
+    T!["*"],
+    T!["/"],
+    T!["//"],
+    T!["%"],
+    T!["is"],
+    T!["**"],
+    T!["??"],
+];
+
 pub(super) fn parse_twig_expression(parser: &mut Parser) -> Option<CompletedMarker> {
     parse_twig_expression_binding_power(parser, 0)
 }
@@ -174,7 +231,7 @@ fn parse_paren_expression(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
     parser.bump();
     parse_twig_expression_binding_power(parser, 0);
-    parser.expect(T![")"]);
+    parser.expect(T![")"], TWIG_EXPRESSION_RECOVERY_SET);
 
     parser.complete(m, SyntaxKind::TWIG_PARENTHESES_EXPRESSION)
 }

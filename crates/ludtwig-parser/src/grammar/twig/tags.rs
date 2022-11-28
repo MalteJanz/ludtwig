@@ -111,26 +111,29 @@ fn parse_twig_cache(
     if parser.at(T!["ttl"]) {
         let ttl_m = parser.start();
         parser.bump();
-        parser.expect(T!["("]);
+        parser.expect(
+            T!["("],
+            &[T![")"], T!["tags"], T!["endcache"], T!["%}"], T!["</"]],
+        );
         if parse_twig_expression(parser).is_none() {
             parser.add_error(ParseErrorBuilder::new(
                 "twig expression as cache time to live",
             ))
         }
-        parser.expect(T![")"]);
+        parser.expect(T![")"], &[T!["tags"], T!["endcache"], T!["%}"], T!["</"]]);
         parser.complete(ttl_m, SyntaxKind::TWIG_CACHE_TTL);
     }
     if parser.at(T!["tags"]) {
         let tags_m = parser.start();
         parser.bump();
-        parser.expect(T!["("]);
+        parser.expect(T!["("], &[T![")"], T!["endcache"], T!["%}"], T!["</"]]);
         if parse_twig_expression(parser).is_none() {
             parser.add_error(ParseErrorBuilder::new("twig expression as cache tags"))
         }
-        parser.expect(T![")"]);
+        parser.expect(T![")"], &[T!["endcache"], T!["%}"], T!["</"]]);
         parser.complete(tags_m, SyntaxKind::TWIG_CACHE_TAGS);
     }
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["endcache"], T!["%}"], T!["</"]]);
 
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_CACHE_STARTING_BLOCK);
     let wrapper_m = parser.precede(wrapper_m);
@@ -147,9 +150,9 @@ fn parse_twig_cache(
     parser.complete(body_m, SyntaxKind::BODY);
 
     let end_block_m = parser.start();
-    parser.expect(T!["{%"]);
-    parser.expect(T!["endcache"]);
-    parser.expect(T!["%}"]);
+    parser.expect(T!["{%"], &[T!["endcache"], T!["%}"], T!["</"]]);
+    parser.expect(T!["endcache"], &[T!["%}"], T!["</"]]);
+    parser.expect(T!["%}"], &[T!["</"]]);
     parser.complete(end_block_m, SyntaxKind::TWIG_CACHE_ENDING_BLOCK);
 
     // close overall twig with
@@ -168,7 +171,7 @@ fn parse_twig_with(
     if parser.at(T!["only"]) {
         parser.bump();
     }
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["endwith"], T!["%}"], T!["</"]]);
 
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_WITH_STARTING_BLOCK);
     let wrapper_m = parser.precede(wrapper_m);
@@ -185,9 +188,9 @@ fn parse_twig_with(
     parser.complete(body_m, SyntaxKind::BODY);
 
     let end_block_m = parser.start();
-    parser.expect(T!["{%"]);
-    parser.expect(T!["endwith"]);
-    parser.expect(T!["%}"]);
+    parser.expect(T!["{%"], &[T!["endwith"], T!["%}"], T!["</"]]);
+    parser.expect(T!["endwith"], &[T!["%}"], T!["</"]]);
+    parser.expect(T!["%}"], &[T!["</"]]);
     parser.complete(end_block_m, SyntaxKind::TWIG_WITH_ENDING_BLOCK);
 
     // close overall twig with
@@ -201,10 +204,15 @@ fn parse_twig_macro(
 ) -> CompletedMarker {
     debug_assert!(parser.at(T!["macro"]));
     parser.bump();
-    let macro_name = parser.expect(T![word]).map(|t| t.text.to_owned());
+    let macro_name = parser
+        .expect(
+            T![word],
+            &[T!["("], T![")"], T!["endmacro"], T!["%}"], T!["</"]],
+        )
+        .map(|t| t.text.to_owned());
 
     // macro must have parentheses (arguments can be zero)
-    parser.expect(T!["("]);
+    parser.expect(T!["("], &[T![")"], T!["endmacro"], T!["%}"], T!["</"]]);
     let arguments_m = parser.start();
     parse_many(
         parser,
@@ -219,8 +227,8 @@ fn parse_twig_macro(
         },
     );
     parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
-    parser.expect(T![")"]);
-    parser.expect(T!["%}"]);
+    parser.expect(T![")"], &[T!["endmacro"], T!["%}"], T!["</"]]);
+    parser.expect(T!["%}"], &[T!["endmacro"], T!["%}"], T!["</"]]);
 
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_MACRO_STARTING_BLOCK);
     let wrapper_m = parser.precede(wrapper_m);
@@ -237,8 +245,8 @@ fn parse_twig_macro(
     parser.complete(body_m, SyntaxKind::BODY);
 
     let end_block_m = parser.start();
-    parser.expect(T!["{%"]);
-    parser.expect(T!["endmacro"]);
+    parser.expect(T!["{%"], &[T!["endmacro"], T!["%}"], T!["</"]]);
+    parser.expect(T!["endmacro"], &[T!["%}"], T!["</"]]);
     // check for optional name behind endmacro
     if parser.at(T![word]) {
         let end_macro_name_token = parser.bump();
@@ -254,7 +262,7 @@ fn parse_twig_macro(
             }
         }
     }
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["</"]]);
     parser.complete(end_block_m, SyntaxKind::TWIG_MACRO_ENDING_BLOCK);
 
     // close overall twig macro
@@ -268,7 +276,7 @@ fn parse_twig_verbatim(
 ) -> CompletedMarker {
     debug_assert!(parser.at(T!["verbatim"]));
     parser.bump();
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["endverbatim"], T!["%}"], T!["</"]]);
 
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_VERBATIM_STARTING_BLOCK);
     let wrapper_m = parser.precede(wrapper_m);
@@ -285,9 +293,9 @@ fn parse_twig_verbatim(
     parser.complete(body_m, SyntaxKind::BODY);
 
     let end_block_m = parser.start();
-    parser.expect(T!["{%"]);
-    parser.expect(T!["endverbatim"]);
-    parser.expect(T!["%}"]);
+    parser.expect(T!["{%"], &[T!["endverbatim"], T!["%}"], T!["</"]]);
+    parser.expect(T!["endverbatim"], &[T!["%}"], T!["</"]]);
+    parser.expect(T!["%}"], &[T!["</"]]);
     parser.complete(end_block_m, SyntaxKind::TWIG_VERBATIM_ENDING_BLOCK);
 
     // close overall twig sandbox
@@ -301,7 +309,7 @@ fn parse_twig_sandbox(
 ) -> CompletedMarker {
     debug_assert!(parser.at(T!["sandbox"]));
     parser.bump();
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["endsandbox"], T!["%}"], T!["</"]]);
 
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_SANDBOX_STARTING_BLOCK);
     let wrapper_m = parser.precede(wrapper_m);
@@ -318,9 +326,9 @@ fn parse_twig_sandbox(
     parser.complete(body_m, SyntaxKind::BODY);
 
     let end_block_m = parser.start();
-    parser.expect(T!["{%"]);
-    parser.expect(T!["endsandbox"]);
-    parser.expect(T!["%}"]);
+    parser.expect(T!["{%"], &[T!["endsandbox"], T!["%}"], T!["</"]]);
+    parser.expect(T!["endsandbox"], &[T!["%}"], T!["</"]]);
+    parser.expect(T!["%}"], &[T!["</"]]);
     parser.complete(end_block_m, SyntaxKind::TWIG_SANDBOX_ENDING_BLOCK);
 
     // close overall twig sandbox
@@ -330,7 +338,7 @@ fn parse_twig_sandbox(
 fn parse_twig_flush(parser: &mut Parser, outer: Marker) -> CompletedMarker {
     debug_assert!(parser.at(T!["flush"]));
     parser.bump();
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["</"]]);
     parser.complete(outer, SyntaxKind::TWIG_FLUSH)
 }
 
@@ -342,7 +350,7 @@ fn parse_twig_do(parser: &mut Parser, outer: Marker) -> CompletedMarker {
         parser.add_error(ParseErrorBuilder::new("twig expression"));
     }
 
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["</"]]);
     parser.complete(outer, SyntaxKind::TWIG_DO)
 }
 
@@ -356,7 +364,7 @@ fn parse_twig_deprecated(parser: &mut Parser, outer: Marker) -> CompletedMarker 
         parser.add_error(ParseErrorBuilder::new("twig deprecation message as string"));
     }
 
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["</"]]);
     parser.complete(outer, SyntaxKind::TWIG_DEPRECATED)
 }
 
@@ -378,7 +386,7 @@ fn parse_twig_autoescape(
         ));
     }
 
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["endautoescape"], T!["</"]]);
 
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_AUTOESCAPE_STARTING_BLOCK);
     let wrapper_m = parser.precede(wrapper_m);
@@ -395,9 +403,9 @@ fn parse_twig_autoescape(
     parser.complete(body_m, SyntaxKind::BODY);
 
     let end_block_m = parser.start();
-    parser.expect(T!["{%"]);
-    parser.expect(T!["endautoescape"]);
-    parser.expect(T!["%}"]);
+    parser.expect(T!["{%"], &[T!["endautoescape"], T!["%}"], T!["</"]]);
+    parser.expect(T!["endautoescape"], &[T!["%}"], T!["</"]]);
+    parser.expect(T!["%}"], &[T!["</"]]);
     parser.complete(end_block_m, SyntaxKind::TWIG_AUTOESCAPE_ENDING_BLOCK);
 
     // close overall twig autoescape
@@ -432,7 +440,7 @@ fn parse_twig_apply(
                 },
             );
             parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
-            parser.expect(T![")"]);
+            parser.expect(T![")"], &[T!["endapply"], T!["%}"], T!["</"]]);
         }
 
         // parse any amount of piped filters
@@ -449,7 +457,7 @@ fn parse_twig_apply(
         parser.add_error(ParseErrorBuilder::new("twig filter"));
     }
 
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["endapply"], T!["</"]]);
 
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_APPLY_STARTING_BLOCK);
     let wrapper_m = parser.precede(wrapper_m);
@@ -466,9 +474,9 @@ fn parse_twig_apply(
     parser.complete(body_m, SyntaxKind::BODY);
 
     let end_block_m = parser.start();
-    parser.expect(T!["{%"]);
-    parser.expect(T!["endapply"]);
-    parser.expect(T!["%}"]);
+    parser.expect(T!["{%"], &[T!["endapply"], T!["%}"], T!["</"]]);
+    parser.expect(T!["endapply"], &[T!["%}"], T!["</"]]);
+    parser.expect(T!["%}"], &[T!["</"]]);
     parser.complete(end_block_m, SyntaxKind::TWIG_APPLY_ENDING_BLOCK);
 
     // close overall twig apply
@@ -483,13 +491,13 @@ fn parse_twig_import(parser: &mut Parser, outer: Marker) -> CompletedMarker {
         parser.add_error(ParseErrorBuilder::new("twig expression as template"));
     }
 
-    parser.expect(T!["as"]);
+    parser.expect(T!["as"], &[T!["%}"], T![word], T!["</"]]);
 
     if parse_twig_name(parser).is_none() {
         parser.add_error(ParseErrorBuilder::new("name for twig macro"));
     }
 
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["</"]]);
 
     parser.complete(outer, SyntaxKind::TWIG_IMPORT)
 }
@@ -502,7 +510,7 @@ fn parse_twig_from(parser: &mut Parser, outer: Marker) -> CompletedMarker {
         parser.add_error(ParseErrorBuilder::new("twig expression as template"));
     }
 
-    parser.expect(T!["import"]);
+    parser.expect(T!["import"], &[T!["%}"], T!["</"]]);
 
     let mut override_count = 0;
     parse_many(
@@ -526,7 +534,7 @@ fn parse_twig_from(parser: &mut Parser, outer: Marker) -> CompletedMarker {
         ));
     }
 
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["</"]]);
 
     parser.complete(outer, SyntaxKind::TWIG_FROM)
 }
@@ -581,7 +589,7 @@ fn parse_twig_use(parser: &mut Parser, outer: Marker) -> CompletedMarker {
         }
     }
 
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["</"]]);
 
     parser.complete(outer, SyntaxKind::TWIG_USE)
 }
@@ -616,7 +624,7 @@ fn parse_twig_embed(
         parser.bump();
     }
 
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["endembed"], T!["%}"], T!["</"]]);
 
     // but embed has a body
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_EMBED_STARTING_BLOCK);
@@ -634,9 +642,9 @@ fn parse_twig_embed(
     parser.complete(body_m, SyntaxKind::BODY);
 
     let end_block_m = parser.start();
-    parser.expect(T!["{%"]);
-    parser.expect(T!["endembed"]);
-    parser.expect(T!["%}"]);
+    parser.expect(T!["{%"], &[T!["endembed"], T!["%}"], T!["</"]]);
+    parser.expect(T!["endembed"], &[T!["%}"], T!["</"]]);
+    parser.expect(T!["%}"], &[T!["</"]]);
     parser.complete(end_block_m, SyntaxKind::TWIG_EMBED_ENDING_BLOCK);
 
     // close overall twig embed
@@ -668,7 +676,7 @@ fn parse_twig_include(parser: &mut Parser, outer: Marker) -> CompletedMarker {
         parser.bump();
     }
 
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["</"]]);
 
     parser.complete(outer, SyntaxKind::TWIG_INCLUDE)
 }
@@ -681,7 +689,7 @@ fn parse_twig_extends(parser: &mut Parser, outer: Marker) -> CompletedMarker {
         parser.add_error(ParseErrorBuilder::new("twig expression"));
     }
 
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["</"]]);
 
     parser.complete(outer, SyntaxKind::TWIG_EXTENDS)
 }
@@ -705,14 +713,14 @@ fn parse_twig_for(
         }
     }
 
-    parser.expect(T!["in"]);
+    parser.expect(T!["in"], &[T!["else"], T!["endfor"], T!["%}"], T!["</"]]);
 
     // parse expression after in
     if parse_twig_expression(parser).is_none() {
         parser.add_error(ParseErrorBuilder::new("twig expression"));
     }
 
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["else"], T!["endfor"], T!["%}"], T!["</"]]);
 
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_FOR_BLOCK);
     let wrapper_m = parser.precede(wrapper_m);
@@ -733,7 +741,7 @@ fn parse_twig_for(
         let else_m = parser.start();
         parser.bump();
         parser.bump();
-        parser.expect(T!["%}"]);
+        parser.expect(T!["%}"], &[T!["endfor"], T!["%}"], T!["</"]]);
         parser.complete(else_m, SyntaxKind::TWIG_FOR_ELSE_BLOCK);
 
         // parse all the children except endfor
@@ -749,9 +757,9 @@ fn parse_twig_for(
     }
 
     let end_block_m = parser.start();
-    parser.expect(T!["{%"]);
-    parser.expect(T!["endfor"]);
-    parser.expect(T!["%}"]);
+    parser.expect(T!["{%"], &[T!["endfor"], T!["%}"], T!["</"]]);
+    parser.expect(T!["endfor"], &[T!["%}"], T!["</"]]);
+    parser.expect(T!["%}"], &[T!["</"]]);
     parser.complete(end_block_m, SyntaxKind::TWIG_ENDFOR_BLOCK);
 
     // close overall twig block
@@ -829,7 +837,7 @@ fn parse_twig_set(
     }
 
     parser.complete(assignment_m, SyntaxKind::TWIG_ASSIGNMENT);
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["endset"], T!["%}"], T!["</"]]);
 
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_SET_BLOCK);
     let wrapper_m = parser.precede(wrapper_m);
@@ -849,9 +857,9 @@ fn parse_twig_set(
         parser.complete(body_m, SyntaxKind::BODY);
 
         let end_block_m = parser.start();
-        parser.expect(T!["{%"]);
-        parser.expect(T!["endset"]);
-        parser.expect(T!["%}"]);
+        parser.expect(T!["{%"], &[T!["endset"], T!["%}"], T!["</"]]);
+        parser.expect(T!["endset"], &[T!["%}"], T!["</"]]);
+        parser.expect(T!["%}"], &[T!["</"]]);
         parser.complete(end_block_m, SyntaxKind::TWIG_ENDSET_BLOCK);
     }
 
@@ -866,7 +874,9 @@ fn parse_twig_block(
 ) -> CompletedMarker {
     debug_assert!(parser.at(T!["block"]));
     parser.bump();
-    let block_name = parser.expect(T![word]).map(|t| t.text.to_owned());
+    let block_name = parser
+        .expect(T![word], &[T!["</"], T!["%}"], T!["endblock"]])
+        .map(|t| t.text.to_owned());
     // look for optional shortcut
     let mut found_shortcut = false;
     if !parser.at(T!["%}"]) {
@@ -876,7 +886,7 @@ fn parse_twig_block(
             found_shortcut = true;
         }
     }
-    parser.expect(T!["%}"]);
+    parser.expect(T!["%}"], &[T!["</"], T!["endblock"], T!["%}"]]);
 
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_STARTING_BLOCK);
     let wrapper_m = parser.precede(wrapper_m);
@@ -894,8 +904,8 @@ fn parse_twig_block(
         parser.complete(body_m, SyntaxKind::BODY);
 
         let end_block_m = parser.start();
-        parser.expect(T!["{%"]);
-        parser.expect(T!["endblock"]);
+        parser.expect(T!["{%"], &[T!["</"], T!["endblock"], T!["%}"]]);
+        parser.expect(T!["endblock"], &[T!["</"], T!["%}"]]);
         // check for optional name behind endblock
         if parser.at(T![word]) {
             let end_block_name_token = parser.bump();
@@ -911,7 +921,7 @@ fn parse_twig_block(
                 }
             }
         }
-        parser.expect(T!["%}"]);
+        parser.expect(T!["%}"], &[T!["</"]]);
         parser.complete(end_block_m, SyntaxKind::TWIG_ENDING_BLOCK);
     }
 
@@ -930,7 +940,10 @@ fn parse_twig_if(
     if parse_twig_expression(parser).is_none() {
         parser.add_error(ParseErrorBuilder::new("twig expression"))
     }
-    parser.expect(T!["%}"]);
+    parser.expect(
+        T!["%}"],
+        &[T!["else"], T!["elseif"], T!["endif"], T!["%}"], T!["</"]],
+    );
 
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_IF_BLOCK);
     let wrapper_m = parser.precede(wrapper_m);
@@ -964,13 +977,13 @@ fn parse_twig_if(
             if parse_twig_expression(parser).is_none() {
                 parser.add_error(ParseErrorBuilder::new("twig expression"))
             }
-            parser.expect(T!["%}"]);
+            parser.expect(T!["%}"], &[T!["endif"], T!["%}"], T!["</"]]);
             parser.complete(branch_m, SyntaxKind::TWIG_ELSE_IF_BLOCK);
         } else if parser.at_following(&[T!["{%"], T!["else"]]) {
             let branch_m = parser.start();
             parser.bump();
             parser.bump();
-            parser.expect(T!["%}"]);
+            parser.expect(T!["%}"], &[T!["endif"], T!["%}"], T!["</"]]);
             parser.complete(branch_m, SyntaxKind::TWIG_ELSE_BLOCK);
         } else {
             // not an actual branch found, the child parser has ended
@@ -979,9 +992,9 @@ fn parse_twig_if(
     }
 
     let end_block_m = parser.start();
-    parser.expect(T!["{%"]);
-    parser.expect(T!["endif"]);
-    parser.expect(T!["%}"]);
+    parser.expect(T!["{%"], &[T!["endif"], T!["%}"], T!["</"]]);
+    parser.expect(T!["endif"], &[T!["%}"], T!["</"]]);
+    parser.expect(T!["%}"], &[T!["</"]]);
     parser.complete(end_block_m, SyntaxKind::TWIG_ENDIF_BLOCK);
 
     parser.complete(wrapper_m, SyntaxKind::TWIG_IF)
@@ -3268,39 +3281,32 @@ mod tests {
 {% endapply %}"#,
             expect![[r#"
                 ROOT@0..42
-                  TWIG_APPLY@0..13
-                    TWIG_APPLY_STARTING_BLOCK@0..10
+                  TWIG_APPLY@0..42
+                    TWIG_APPLY_STARTING_BLOCK@0..13
                       TK_CURLY_PERCENT@0..2 "{%"
                       TK_WHITESPACE@2..3 " "
                       TK_APPLY@3..8 "apply"
                       ERROR@8..10
                         TK_WHITESPACE@8..9 " "
                         TK_NUMBER@9..10 "5"
-                    BODY@10..10
-                    TWIG_APPLY_ENDING_BLOCK@10..13
                       TK_WHITESPACE@10..11 " "
                       TK_PERCENT_CURLY@11..13 "%}"
-                  HTML_TEXT@13..27
-                    TK_LINE_BREAK@13..14 "\n"
-                    TK_WHITESPACE@14..18 "    "
-                    TK_WORD@18..22 "SOME"
-                    TK_WHITESPACE@22..23 " "
-                    TK_WORD@23..27 "TEXT"
-                  ERROR@27..30
-                    TK_LINE_BREAK@27..28 "\n"
-                    TK_CURLY_PERCENT@28..30 "{%"
-                  HTML_TEXT@30..39
-                    TK_WHITESPACE@30..31 " "
-                    TK_ENDAPPLY@31..39 "endapply"
-                  ERROR@39..42
-                    TK_WHITESPACE@39..40 " "
-                    TK_PERCENT_CURLY@40..42 "%}"
+                    BODY@13..27
+                      HTML_TEXT@13..27
+                        TK_LINE_BREAK@13..14 "\n"
+                        TK_WHITESPACE@14..18 "    "
+                        TK_WORD@18..22 "SOME"
+                        TK_WHITESPACE@22..23 " "
+                        TK_WORD@23..27 "TEXT"
+                    TWIG_APPLY_ENDING_BLOCK@27..42
+                      TK_LINE_BREAK@27..28 "\n"
+                      TK_CURLY_PERCENT@28..30 "{%"
+                      TK_WHITESPACE@30..31 " "
+                      TK_ENDAPPLY@31..39 "endapply"
+                      TK_WHITESPACE@39..40 " "
+                      TK_PERCENT_CURLY@40..42 "%}"
                 error at 9..10: expected twig filter but found number
-                error at 9..10: expected %} but found number
-                error at 11..13: expected {% but found %}
-                error at 11..13: expected endapply but found %}
-                error at 31..39: expected twig tag but found endapply
-                error at 40..42: expected html, text or twig element but found %}"#]],
+                error at 9..10: expected %} but found number"#]],
         )
     }
 
@@ -3477,62 +3483,55 @@ mod tests {
 {% endautoescape %}"#,
             expect![[r#"
                 ROOT@0..137
-                  TWIG_AUTOESCAPE@0..23
-                    TWIG_AUTOESCAPE_STARTING_BLOCK@0..20
+                  TWIG_AUTOESCAPE@0..137
+                    TWIG_AUTOESCAPE_STARTING_BLOCK@0..23
                       TK_CURLY_PERCENT@0..2 "{%"
                       TK_WHITESPACE@2..3 " "
                       TK_AUTOESCAPE@3..13 "autoescape"
                       ERROR@13..20
                         TK_WHITESPACE@13..14 " "
                         TK_WORD@14..20 "my_var"
-                    BODY@20..20
-                    TWIG_AUTOESCAPE_ENDING_BLOCK@20..23
                       TK_WHITESPACE@20..21 " "
                       TK_PERCENT_CURLY@21..23 "%}"
-                  HTML_TEXT@23..117
-                    TK_LINE_BREAK@23..24 "\n"
-                    TK_WHITESPACE@24..28 "    "
-                    TK_WORD@28..38 "Everything"
-                    TK_WHITESPACE@38..39 " "
-                    TK_WORD@39..43 "will"
-                    TK_WHITESPACE@43..44 " "
-                    TK_WORD@44..46 "be"
-                    TK_WHITESPACE@46..47 " "
-                    TK_WORD@47..60 "automatically"
-                    TK_WHITESPACE@60..61 " "
-                    TK_WORD@61..68 "escaped"
-                    TK_WHITESPACE@68..69 " "
-                    TK_IN@69..71 "in"
-                    TK_WHITESPACE@71..72 " "
-                    TK_WORD@72..76 "this"
-                    TK_WHITESPACE@76..77 " "
-                    TK_BLOCK@77..82 "block"
-                    TK_LINE_BREAK@82..83 "\n"
-                    TK_WHITESPACE@83..87 "    "
-                    TK_WORD@87..92 "using"
-                    TK_WHITESPACE@92..93 " "
-                    TK_WORD@93..96 "the"
-                    TK_WHITESPACE@96..97 " "
-                    TK_WORD@97..99 "js"
-                    TK_WHITESPACE@99..100 " "
-                    TK_WORD@100..108 "escaping"
-                    TK_WHITESPACE@108..109 " "
-                    TK_WORD@109..117 "strategy"
-                  ERROR@117..120
-                    TK_LINE_BREAK@117..118 "\n"
-                    TK_CURLY_PERCENT@118..120 "{%"
-                  HTML_TEXT@120..134
-                    TK_WHITESPACE@120..121 " "
-                    TK_ENDAUTOESCAPE@121..134 "endautoescape"
-                  ERROR@134..137
-                    TK_WHITESPACE@134..135 " "
-                    TK_PERCENT_CURLY@135..137 "%}"
+                    BODY@23..117
+                      HTML_TEXT@23..117
+                        TK_LINE_BREAK@23..24 "\n"
+                        TK_WHITESPACE@24..28 "    "
+                        TK_WORD@28..38 "Everything"
+                        TK_WHITESPACE@38..39 " "
+                        TK_WORD@39..43 "will"
+                        TK_WHITESPACE@43..44 " "
+                        TK_WORD@44..46 "be"
+                        TK_WHITESPACE@46..47 " "
+                        TK_WORD@47..60 "automatically"
+                        TK_WHITESPACE@60..61 " "
+                        TK_WORD@61..68 "escaped"
+                        TK_WHITESPACE@68..69 " "
+                        TK_IN@69..71 "in"
+                        TK_WHITESPACE@71..72 " "
+                        TK_WORD@72..76 "this"
+                        TK_WHITESPACE@76..77 " "
+                        TK_BLOCK@77..82 "block"
+                        TK_LINE_BREAK@82..83 "\n"
+                        TK_WHITESPACE@83..87 "    "
+                        TK_WORD@87..92 "using"
+                        TK_WHITESPACE@92..93 " "
+                        TK_WORD@93..96 "the"
+                        TK_WHITESPACE@96..97 " "
+                        TK_WORD@97..99 "js"
+                        TK_WHITESPACE@99..100 " "
+                        TK_WORD@100..108 "escaping"
+                        TK_WHITESPACE@108..109 " "
+                        TK_WORD@109..117 "strategy"
+                    TWIG_AUTOESCAPE_ENDING_BLOCK@117..137
+                      TK_LINE_BREAK@117..118 "\n"
+                      TK_CURLY_PERCENT@118..120 "{%"
+                      TK_WHITESPACE@120..121 " "
+                      TK_ENDAUTOESCAPE@121..134 "endautoescape"
+                      TK_WHITESPACE@134..135 " "
+                      TK_PERCENT_CURLY@135..137 "%}"
                 error at 14..20: expected twig escape strategy as string or 'false' but found word
-                error at 14..20: expected %} but found word
-                error at 21..23: expected {% but found %}
-                error at 21..23: expected endautoescape but found %}
-                error at 121..134: expected twig tag but found endautoescape
-                error at 135..137: expected html, text or twig element but found %}"#]],
+                error at 14..20: expected %} but found word"#]],
         )
     }
 

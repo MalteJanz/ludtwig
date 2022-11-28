@@ -81,7 +81,7 @@ fn parse_ludtwig_directive(
         parser,
         |p| p.at(closing_kind),
         |p| {
-            p.expect(T![word]);
+            p.expect(T![word], &[T![","], closing_kind]);
             if p.at(T![","]) {
                 p.bump();
             }
@@ -89,7 +89,7 @@ fn parse_ludtwig_directive(
     );
     parser.complete(rule_list_m, SyntaxKind::LUDTWIG_DIRECTIVE_RULE_LIST);
 
-    parser.expect(closing_kind);
+    parser.expect(closing_kind, &[]);
     parser.complete(outer, ignore_kind)
 }
 

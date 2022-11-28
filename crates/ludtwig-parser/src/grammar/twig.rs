@@ -50,7 +50,7 @@ fn parse_twig_plain_comment(parser: &mut Parser, outer: Marker) -> CompletedMark
         },
     );
 
-    parser.expect(T!["#}"]);
+    parser.expect(T!["#}"], &[]);
     parser.complete(outer, SyntaxKind::TWIG_COMMENT)
 }
 
@@ -63,7 +63,7 @@ pub(crate) fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {
         parser.add_error(ParseErrorBuilder::new("twig expression"))
     }
 
-    parser.expect(T!["}}"]);
+    parser.expect(T!["}}"], &[]);
     parser.complete(m, SyntaxKind::TWIG_VAR)
 }
 

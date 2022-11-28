@@ -18,20 +18,10 @@ mod parse_error;
 mod sink;
 mod source;
 
-pub(crate) static RECOVERY_SET: &[SyntaxKind] = &[
-    T!["{%"],
-    T!["%}"],
-    T!["<"],
-    T!["<!--"],
-    T!["</"],
-    T![">"],
-    T!["/>"],
-    T!["-->"],
-    T!["{{"],
-    T!["}}"],
-    T!["{#"],
-    T!["#}"],
-];
+/// Tokens which can lead to parsing of another element
+/// (top level parsers under [crate::grammar::parse_any_element])
+pub(crate) static GENERAL_RECOVERY_SET: &[SyntaxKind] =
+    &[T!["{%"], T!["{{"], T!["{#"], T!["<"], T!["<!--"], T!["<!"]];
 
 pub fn parse(input_text: &str) -> Parse {
     let lex_result = lex(input_text);
@@ -152,22 +142,54 @@ impl<'source> Parser<'source> {
         }
     }
 
-    pub(crate) fn expect(&mut self, kind: SyntaxKind) -> Option<&Token> {
+    pub(crate) fn expect(
+        &mut self,
+        kind: SyntaxKind,
+        recovery_set: &[SyntaxKind],
+    ) -> Option<&Token> {
         if self.at(kind) {
             Some(self.bump())
         } else {
             self.add_error(ParseErrorBuilder::new(format!("{}", kind)));
-
-            if !self.at_set(RECOVERY_SET) && !self.at_end() {
-                let m = self.start();
-                self.bump();
-                self.complete(m, SyntaxKind::ERROR);
-            }
-
-            None
+            self.recover_expect(Some(kind), recovery_set)
         }
     }
 
+    /// Recovers the parser after an error was found.
+    /// It looks for either any token in the GENERAL_RECOVERY_SET or the
+    /// provided recovery_set and wraps any tokens in between inside an error node.
+    pub(crate) fn recover(&mut self, recovery_set: &[SyntaxKind]) {
+        self.recover_expect(None, recovery_set);
+    }
+
+    fn recover_expect(
+        &mut self,
+        expected_kind: Option<SyntaxKind>,
+        recovery_set: &[SyntaxKind],
+    ) -> Option<&Token> {
+        if self.at_end() || self.at_set(GENERAL_RECOVERY_SET) || self.at_set(recovery_set) {
+            return None;
+        }
+
+        let error_m = self.start();
+        loop {
+            self.bump();
+
+            if let Some(expected_kind) = expected_kind {
+                if self.at(expected_kind) {
+                    self.complete(error_m, SyntaxKind::ERROR);
+                    return Some(self.bump());
+                }
+            }
+
+            if self.at_end() || self.at_set(GENERAL_RECOVERY_SET) || self.at_set(recovery_set) {
+                self.complete(error_m, SyntaxKind::ERROR);
+                return None;
+            }
+        }
+    }
+
+    /// Adds a parser error but does not bump any tokens into the tree.
     pub(crate) fn add_error(&mut self, mut error_builder: ParseErrorBuilder) {
         // add missing information to builder
         if error_builder.range.is_none() || error_builder.found.is_none() {
