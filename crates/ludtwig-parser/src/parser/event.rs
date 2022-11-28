@@ -16,7 +16,7 @@ pub(super) enum Event {
     Placeholder,
 }
 
-/// A collection of parsing events which are ensured to be valid (right order, FinishNode for every StartNode, ...)
+/// A collection of parsing events which are ensured to be valid (right order, `FinishNode` for every `StartNode`, ...)
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct EventCollection {
     events: Vec<Event>,
@@ -38,7 +38,7 @@ impl EventCollection {
     }
 
     pub(super) fn explicitly_consume_trivia(&mut self) {
-        self.events.push(Event::ExplicitlyConsumeTrivia)
+        self.events.push(Event::ExplicitlyConsumeTrivia);
     }
 
     pub(super) fn into_event_list(self) -> Vec<Event> {
@@ -91,7 +91,7 @@ impl EventCollection {
             ..
         } = self.events[completed_marker.pos]
         {
-            *forward_parent = Some(new_m.pos - completed_marker.pos)
+            *forward_parent = Some(new_m.pos - completed_marker.pos);
         } else {
             unreachable!();
         }

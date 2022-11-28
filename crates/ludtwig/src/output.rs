@@ -11,9 +11,9 @@ pub enum ProcessingEvent {
     OutputStderrMessage(Buffer),
 }
 
-/// This function receives all the [CliOutputMessage] instances from the receiver channel and
+/// This function receives all the [`CliOutputMessage`] instances from the receiver channel and
 /// prints information to the command line interface.
-pub fn handle_processing_output(rx: Receiver<ProcessingEvent>) -> i32 {
+pub fn handle_processing_output(rx: &Receiver<ProcessingEvent>) -> i32 {
     let mut file_count = 0;
     let mut error_count = 0;
     let mut warning_count = 0;

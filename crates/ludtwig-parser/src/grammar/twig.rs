@@ -60,7 +60,7 @@ pub(crate) fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {
     parser.bump();
 
     if parse_twig_expression(parser).is_none() {
-        parser.add_error(ParseErrorBuilder::new("twig expression"))
+        parser.add_error(ParseErrorBuilder::new("twig expression"));
     }
 
     parser.expect(T!["}}"], &[]);

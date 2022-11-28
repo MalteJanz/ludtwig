@@ -144,7 +144,7 @@ pub fn iteratively_apply_suggestions(
             if sug_a.syntax_range.ordering(sug_b.syntax_range).is_eq() {
                 if rule_a == rule_b {
                     return Err(FileProcessingError::OverlappingSuggestionInSingleRule {
-                        rule_name: rule_a.to_string(),
+                        rule_name: (*rule_a).to_string(),
                     });
                 }
 

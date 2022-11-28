@@ -56,6 +56,7 @@ macro_rules! ast_node {
 ast_node!(TwigBlock, SyntaxKind::TWIG_BLOCK);
 impl TwigBlock {
     /// Name of the twig block
+    #[must_use]
     pub fn name(&self) -> Option<SyntaxToken> {
         match self.starting_block() {
             None => None,
@@ -63,14 +64,17 @@ impl TwigBlock {
         }
     }
 
+    #[must_use]
     pub fn starting_block(&self) -> Option<TwigStartingBlock> {
         support::child(&self.syntax)
     }
 
+    #[must_use]
     pub fn body(&self) -> Option<Body> {
         support::child(&self.syntax)
     }
 
+    #[must_use]
     pub fn ending_block(&self) -> Option<TwigEndingBlock> {
         support::child(&self.syntax)
     }
@@ -79,11 +83,13 @@ impl TwigBlock {
 ast_node!(TwigStartingBlock, SyntaxKind::TWIG_STARTING_BLOCK);
 impl TwigStartingBlock {
     /// Name of the twig block
+    #[must_use]
     pub fn name(&self) -> Option<SyntaxToken> {
         support::token(&self.syntax, T![word])
     }
 
     /// Parent complete twig block
+    #[must_use]
     pub fn twig_block(&self) -> Option<TwigBlock> {
         match self.syntax.parent() {
             Some(p) => TwigBlock::cast(p),
@@ -95,6 +101,7 @@ impl TwigStartingBlock {
 ast_node!(TwigEndingBlock, SyntaxKind::TWIG_ENDING_BLOCK);
 impl TwigEndingBlock {
     /// Parent complete twig block
+    #[must_use]
     pub fn twig_block(&self) -> Option<TwigBlock> {
         match self.syntax.parent() {
             Some(p) => TwigBlock::cast(p),
@@ -106,6 +113,7 @@ impl TwigEndingBlock {
 ast_node!(HtmlTag, SyntaxKind::HTML_TAG);
 impl HtmlTag {
     /// Name of the tag
+    #[must_use]
     pub fn name(&self) -> Option<SyntaxToken> {
         match self.starting_tag() {
             None => None,
@@ -114,6 +122,7 @@ impl HtmlTag {
     }
 
     /// Attributes of the tag
+    #[must_use]
     pub fn attributes(&self) -> AstChildren<HtmlAttribute> {
         match self.starting_tag() {
             Some(n) => n.attributes(),
@@ -122,14 +131,17 @@ impl HtmlTag {
         }
     }
 
+    #[must_use]
     pub fn starting_tag(&self) -> Option<HtmlStartingTag> {
         support::child(&self.syntax)
     }
 
+    #[must_use]
     pub fn body(&self) -> Option<Body> {
         support::child(&self.syntax)
     }
 
+    #[must_use]
     pub fn ending_tag(&self) -> Option<HtmlEndingTag> {
         support::child(&self.syntax)
     }
@@ -138,16 +150,19 @@ impl HtmlTag {
 ast_node!(HtmlStartingTag, SyntaxKind::HTML_STARTING_TAG);
 impl HtmlStartingTag {
     /// Name of the tag
+    #[must_use]
     pub fn name(&self) -> Option<SyntaxToken> {
         support::token(&self.syntax, T![word])
     }
 
     /// Attributes of the tag
+    #[must_use]
     pub fn attributes(&self) -> AstChildren<HtmlAttribute> {
         support::children(&self.syntax)
     }
 
     /// Parent complete html tag
+    #[must_use]
     pub fn html_tag(&self) -> Option<HtmlTag> {
         match self.syntax.parent() {
             Some(p) => HtmlTag::cast(p),
@@ -159,16 +174,19 @@ impl HtmlStartingTag {
 ast_node!(HtmlAttribute, SyntaxKind::HTML_ATTRIBUTE);
 impl HtmlAttribute {
     /// Name of the attribute (left side of the equal sign)
+    #[must_use]
     pub fn name(&self) -> Option<SyntaxToken> {
         support::token(&self.syntax, T![word])
     }
 
     /// Value of the attribute
+    #[must_use]
     pub fn value(&self) -> Option<HtmlString> {
         support::child(&self.syntax)
     }
 
     /// Parent starting html tag
+    #[must_use]
     pub fn html_tag(&self) -> Option<HtmlStartingTag> {
         match self.syntax.parent() {
             Some(p) => HtmlStartingTag::cast(p),
@@ -180,6 +198,7 @@ impl HtmlAttribute {
 ast_node!(HtmlEndingTag, SyntaxKind::HTML_ENDING_TAG);
 impl HtmlEndingTag {
     /// Parent complete html tag
+    #[must_use]
     pub fn html_tag(&self) -> Option<HtmlTag> {
         match self.syntax.parent() {
             Some(p) => HtmlTag::cast(p),
@@ -190,6 +209,7 @@ impl HtmlEndingTag {
 
 ast_node!(TwigBinaryExpression, SyntaxKind::TWIG_BINARY_EXPRESSION);
 impl TwigBinaryExpression {
+    #[must_use]
     pub fn operator(&self) -> Option<SyntaxToken> {
         self.syntax
             .children_with_tokens()
@@ -205,6 +225,7 @@ ast_node!(
     SyntaxKind::LUDTWIG_DIRECTIVE_RULE_LIST
 );
 impl LudtwigDirectiveRuleList {
+    #[must_use]
     pub fn get_rule_names(&self) -> Vec<String> {
         self.syntax
             .children_with_tokens()
@@ -223,6 +244,7 @@ ast_node!(
     SyntaxKind::LUDTWIG_DIRECTIVE_FILE_IGNORE
 );
 impl LudtwigDirectiveFileIgnore {
+    #[must_use]
     pub fn get_rules(&self) -> Vec<String> {
         match support::child::<LudtwigDirectiveRuleList>(&self.syntax) {
             Some(rule_list) => rule_list.get_rule_names(),
@@ -233,6 +255,7 @@ impl LudtwigDirectiveFileIgnore {
 
 ast_node!(LudtwigDirectiveIgnore, SyntaxKind::LUDTWIG_DIRECTIVE_IGNORE);
 impl LudtwigDirectiveIgnore {
+    #[must_use]
     pub fn get_rules(&self) -> Vec<String> {
         match support::child::<LudtwigDirectiveRuleList>(&self.syntax) {
             Some(rule_list) => rule_list.get_rule_names(),
@@ -243,10 +266,12 @@ impl LudtwigDirectiveIgnore {
 
 ast_node!(TwigLiteralString, SyntaxKind::TWIG_LITERAL_STRING);
 impl TwigLiteralString {
+    #[must_use]
     pub fn get_inner(&self) -> Option<TwigLiteralStringInner> {
         support::child(&self.syntax)
     }
 
+    #[must_use]
     pub fn get_opening_quote(&self) -> Option<SyntaxToken> {
         self.syntax
             .children_with_tokens()
@@ -257,14 +282,14 @@ impl TwigLiteralString {
 
                 true
             })
-            .filter_map(|element| match element {
+            .find_map(|element| match element {
                 // first non trivia token should be a quote
                 NodeOrToken::Token(t) if !t.kind().is_trivia() => Some(t),
                 _ => None,
             })
-            .next()
     }
 
+    #[must_use]
     pub fn get_closing_quote(&self) -> Option<SyntaxToken> {
         self.syntax
             .children_with_tokens()
@@ -275,12 +300,11 @@ impl TwigLiteralString {
 
                 true
             })
-            .filter_map(|element| match element {
+            .find_map(|element| match element {
                 // first non trivia token should be a quote
                 NodeOrToken::Token(t) if !t.kind().is_trivia() => Some(t),
                 _ => None,
             })
-            .next()
     }
 }
 
@@ -289,6 +313,7 @@ ast_node!(
     SyntaxKind::TWIG_LITERAL_STRING_INNER
 );
 impl TwigLiteralStringInner {
+    #[must_use]
     pub fn get_interpolations(&self) -> AstChildren<TwigLiteralStringInterpolation> {
         support::children(&self.syntax)
     }
@@ -296,10 +321,12 @@ impl TwigLiteralStringInner {
 
 ast_node!(HtmlString, SyntaxKind::HTML_STRING);
 impl HtmlString {
+    #[must_use]
     pub fn get_inner(&self) -> Option<HtmlStringInner> {
         support::child(&self.syntax)
     }
 
+    #[must_use]
     pub fn get_opening_quote(&self) -> Option<SyntaxToken> {
         self.syntax
             .children_with_tokens()
@@ -310,14 +337,14 @@ impl HtmlString {
 
                 true
             })
-            .filter_map(|element| match element {
+            .find_map(|element| match element {
                 // first non trivia token should be a quote
                 NodeOrToken::Token(t) if !t.kind().is_trivia() => Some(t),
                 _ => None,
             })
-            .next()
     }
 
+    #[must_use]
     pub fn get_closing_quote(&self) -> Option<SyntaxToken> {
         self.syntax
             .children_with_tokens()
@@ -328,12 +355,11 @@ impl HtmlString {
 
                 true
             })
-            .filter_map(|element| match element {
+            .find_map(|element| match element {
                 // first non trivia token should be a quote
                 NodeOrToken::Token(t) if !t.kind().is_trivia() => Some(t),
                 _ => None,
             })
-            .next()
     }
 }
 
@@ -474,32 +500,3 @@ ast_node!(HtmlText, SyntaxKind::HTML_TEXT);
 ast_node!(HtmlComment, SyntaxKind::HTML_COMMENT);
 ast_node!(Error, SyntaxKind::ERROR);
 ast_node!(Root, SyntaxKind::ROOT);
-
-#[cfg(test)]
-mod tests {
-    use super::super::untyped::build_example_tree;
-    use super::*;
-
-    #[test]
-    fn test_twig_block_getters() {
-        let tree = build_example_tree();
-
-        let typed: TwigBlock = support::child(&tree).unwrap();
-        assert!(typed.name().is_some());
-        assert_eq!(typed.name().unwrap().text(), "my-block");
-    }
-
-    #[test]
-    fn test_html_tag_getters() {
-        let tree = build_example_tree();
-
-        let typed = tree.descendants().find_map(HtmlTag::cast).unwrap();
-        assert!(typed.name().is_some());
-        assert_eq!(typed.name().unwrap().text(), "div");
-
-        assert!(typed.starting_tag().is_some());
-        let first_attribute = typed.attributes().next().unwrap();
-        assert_eq!(first_attribute.name().unwrap().text(), "claSs");
-        assert_eq!(first_attribute.value().unwrap().syntax().text(), "my-div");
-    }
-}

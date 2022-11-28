@@ -105,7 +105,7 @@ fn parse_twig_cache(
     debug_assert!(parser.at(T!["cache"]));
     parser.bump();
     if parse_twig_expression(parser).is_none() {
-        parser.add_error(ParseErrorBuilder::new("twig expression as cache key"))
+        parser.add_error(ParseErrorBuilder::new("twig expression as cache key"));
     }
 
     if parser.at(T!["ttl"]) {
@@ -118,7 +118,7 @@ fn parse_twig_cache(
         if parse_twig_expression(parser).is_none() {
             parser.add_error(ParseErrorBuilder::new(
                 "twig expression as cache time to live",
-            ))
+            ));
         }
         parser.expect(T![")"], &[T!["tags"], T!["endcache"], T!["%}"], T!["</"]]);
         parser.complete(ttl_m, SyntaxKind::TWIG_CACHE_TTL);
@@ -128,7 +128,7 @@ fn parse_twig_cache(
         parser.bump();
         parser.expect(T!["("], &[T![")"], T!["endcache"], T!["%}"], T!["</"]]);
         if parse_twig_expression(parser).is_none() {
-            parser.add_error(ParseErrorBuilder::new("twig expression as cache tags"))
+            parser.add_error(ParseErrorBuilder::new("twig expression as cache tags"));
         }
         parser.expect(T![")"], &[T!["endcache"], T!["%}"], T!["</"]]);
         parser.complete(tags_m, SyntaxKind::TWIG_CACHE_TAGS);
@@ -222,7 +222,7 @@ fn parse_twig_macro(
             if p.at(T![","]) {
                 p.bump();
             } else if !p.at_set(&[T!["%}"], T![")"]]) {
-                p.add_error(ParseErrorBuilder::new(","))
+                p.add_error(ParseErrorBuilder::new(","));
             }
         },
     );
@@ -435,7 +435,7 @@ fn parse_twig_apply(
                     if p.at(T![","]) {
                         p.bump();
                     } else if !p.at_set(&[T!["%}"], T![")"]]) {
-                        p.add_error(ParseErrorBuilder::new(","))
+                        p.add_error(ParseErrorBuilder::new(","));
                     }
                 },
             );
@@ -523,7 +523,7 @@ fn parse_twig_from(parser: &mut Parser, outer: Marker) -> CompletedMarker {
                 // consume optional comma
                 p.bump();
             } else if !p.at(T!["%}"]) {
-                p.add_error(ParseErrorBuilder::new(","))
+                p.add_error(ParseErrorBuilder::new(","));
             }
         },
     );
@@ -577,7 +577,7 @@ fn parse_twig_use(parser: &mut Parser, outer: Marker) -> CompletedMarker {
                     // consume optional comma
                     p.bump();
                 } else if !p.at(T!["%}"]) {
-                    p.add_error(ParseErrorBuilder::new(","))
+                    p.add_error(ParseErrorBuilder::new(","));
                 }
             },
         );
@@ -790,7 +790,7 @@ fn parse_twig_set(
             if p.at(T![","]) {
                 p.bump();
             } else if !p.at_set(&[T!["="], T!["%}"]]) {
-                p.add_error(ParseErrorBuilder::new(","))
+                p.add_error(ParseErrorBuilder::new(","));
             }
         },
     );
@@ -818,7 +818,7 @@ fn parse_twig_set(
                 if p.at(T![","]) {
                     p.bump();
                 } else if !p.at(T!["%}"]) {
-                    p.add_error(ParseErrorBuilder::new(","))
+                    p.add_error(ParseErrorBuilder::new(","));
                 }
             },
         );
@@ -938,7 +938,7 @@ fn parse_twig_if(
     parser.bump();
 
     if parse_twig_expression(parser).is_none() {
-        parser.add_error(ParseErrorBuilder::new("twig expression"))
+        parser.add_error(ParseErrorBuilder::new("twig expression"));
     }
     parser.expect(
         T!["%}"],
@@ -975,7 +975,7 @@ fn parse_twig_if(
             parser.bump();
             parser.bump();
             if parse_twig_expression(parser).is_none() {
-                parser.add_error(ParseErrorBuilder::new("twig expression"))
+                parser.add_error(ParseErrorBuilder::new("twig expression"));
             }
             parser.expect(T!["%}"], &[T!["endif"], T!["%}"], T!["</"]]);
             parser.complete(branch_m, SyntaxKind::TWIG_ELSE_IF_BLOCK);

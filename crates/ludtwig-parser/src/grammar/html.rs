@@ -197,7 +197,7 @@ fn parse_html_attribute_or_twig(parser: &mut Parser) -> Option<CompletedMarker> 
 
 /// html attribute value can be either a single word or twig var expression or
 /// a single / double quoted string (which can contain arbitrary twig syntax)
-/// In either case it will be wrapped into an HTML_STRING node which may or may
+/// In either case it will be wrapped into an `HTML_STRING` node which may or may
 /// not contain quotes
 fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();

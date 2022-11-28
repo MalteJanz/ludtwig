@@ -1,9 +1,9 @@
 use logos::Logos;
 pub use rowan::Direction;
-/// GreenNode is an immutable tree, which is cheap to change,
+/// `GreenNode` is an immutable tree, which is cheap to change,
 /// but doesn't contain offsets and parent pointers.
 pub use rowan::GreenNode;
-/// You can construct GreenNodes by hand, but a builder
+/// You can construct `GreenNodes` by hand, but a builder
 /// is helpful for top-down parsers: it maintains a stack
 /// of currently in-progress nodes
 pub use rowan::GreenNodeBuilder;
@@ -606,6 +606,7 @@ macro_rules! T {
 }
 
 impl SyntaxKind {
+    #[must_use]
     pub fn is_trivia(self) -> bool {
         // Add comments and other non interesting things for the parser here in the future
         matches!(self, T![ws] | T![lb])
@@ -771,7 +772,7 @@ impl From<SyntaxKind> for rowan::SyntaxKind {
 }
 
 /// Second, implementing the `Language` trait teaches rowan to convert between
-/// these two SyntaxKind types, allowing for a nicer SyntaxNode API where
+/// these two `SyntaxKind` types, allowing for a nicer `SyntaxNode` API where
 /// "kinds" are values from our `enum SyntaxKind`, instead of plain u16 values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TemplateLanguage {}
@@ -788,7 +789,7 @@ impl Language for TemplateLanguage {
 
 /// To work with the parse results we need a view into the
 /// green tree - the Syntax tree.
-/// It is also immutable, like a GreenNode,
+/// It is also immutable, like a `GreenNode`,
 /// but it contains parent pointers, offsets, and
 /// has identity semantics.
 
@@ -799,6 +800,7 @@ pub type SyntaxNodeChildren = rowan::SyntaxNodeChildren<TemplateLanguage>;
 pub type SyntaxElementChildren = rowan::SyntaxElementChildren<TemplateLanguage>;
 pub type PreorderWithTokens = rowan::api::PreorderWithTokens<TemplateLanguage>;
 
+#[must_use]
 pub fn debug_tree(syntax_node: &SyntaxNode) -> String {
     let formatted = format!("{:#?}", syntax_node);
     // We cut off the last byte because formatting the SyntaxNode adds on a newline at the end.
@@ -810,7 +812,7 @@ pub trait SyntaxNodeExt {
 }
 
 impl SyntaxNodeExt for SyntaxNode {
-    /// Trims leading trivia from the original text_range
+    /// Trims leading trivia from the original `text_range`
     fn text_range_trimmed_trivia(&self) -> TextRange {
         let mut range = self.text_range();
 
@@ -827,110 +829,5 @@ impl SyntaxNodeExt for SyntaxNode {
         }
 
         range
-    }
-}
-
-// TODO: remove me when parser is implemented
-pub fn build_example_tree() -> SyntaxNode {
-    let mut builder = GreenNodeBuilder::new();
-    // Make sure that the root node covers all source
-    builder.start_node(SyntaxKind::ROOT.into());
-
-    // Outer twig block
-    builder.start_node(SyntaxKind::TWIG_BLOCK.into());
-    builder.start_node(SyntaxKind::TWIG_STARTING_BLOCK.into());
-    builder.token(T!["{%"].into(), "{%");
-    builder.token(T![ws].into(), " ");
-    builder.token(T!["block"].into(), "block");
-    builder.token(T![ws].into(), " ");
-    builder.token(T![word].into(), "my-block"); // temporary issue for rule test
-    builder.token(T![ws].into(), " ");
-    builder.token(T!["%}"].into(), "%}");
-    builder.finish_node(); // close TWIG_STARTING_BLOCK
-    builder.start_node(SyntaxKind::BODY.into());
-    builder.token(T![lb].into(), "\n");
-    builder.token(T![ws].into(), "    ");
-
-    // Inner div
-    builder.start_node(SyntaxKind::HTML_TAG.into());
-    builder.start_node(SyntaxKind::HTML_STARTING_TAG.into());
-    builder.token(T!["<"].into(), "<");
-    builder.token(T![word].into(), "div");
-    builder.token(T![ws].into(), " ");
-
-    // Inner div attribute
-    builder.start_node(SyntaxKind::HTML_ATTRIBUTE.into());
-    builder.token(T![word].into(), "claSs");
-    builder.token(T!["="].into(), "=");
-    builder.token(T!["\""].into(), "\"");
-    builder.start_node(SyntaxKind::HTML_STRING.into());
-    builder.token(T![word].into(), "my-div");
-    builder.finish_node(); // Close HTML_STRING
-    builder.token(T!["\""].into(), "\"");
-
-    // Close inner div attribute
-    builder.finish_node();
-
-    builder.token(T![">"].into(), ">");
-    builder.finish_node(); // close HTML_STARTING_TAG
-    builder.start_node(SyntaxKind::BODY.into());
-    builder.token(T![lb].into(), "\n");
-    builder.token(T![ws].into(), "        ");
-    builder.token(T![word].into(), "world");
-    builder.token(T![lb].into(), "\n");
-    builder.token(T![ws].into(), "    ");
-    builder.finish_node(); // close BODY
-    builder.start_node(SyntaxKind::HTML_ENDING_TAG.into());
-    builder.token(T!["</"].into(), "</");
-    builder.token(T![word].into(), "div");
-    builder.token(T![">"].into(), ">");
-    builder.finish_node(); // close HTML_ENDING_TAG
-    builder.token(T![lb].into(), "\n");
-
-    // Close inner div
-    builder.finish_node();
-
-    builder.finish_node(); // close BODY
-    builder.start_node(SyntaxKind::TWIG_ENDING_BLOCK.into());
-    builder.token(T!["{%"].into(), "{%");
-    builder.token(T![ws].into(), " ");
-    builder.token(T!["endblock"].into(), "endblock");
-    builder.token(T![ws].into(), " ");
-    builder.start_node(SyntaxKind::ERROR.into());
-    builder.token(T![word].into(), "SomeInvalidSyntax");
-    builder.token(T![ws].into(), " ");
-    builder.finish_node(); // close ERROR
-    builder.token(T!["%}"].into(), "%}");
-    builder.finish_node(); // close TWIG_ENDING_BLOCK
-    builder.token(T![lb].into(), "\n");
-
-    // Close outer twig block
-    builder.finish_node();
-
-    // Close the root node.
-    builder.finish_node();
-    SyntaxNode::new_root(builder.finish())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let tree = build_example_tree();
-        println!("syntax tree underlying text:");
-        println!("{}", tree.text());
-
-        println!("syntax tree:\n{}", debug_tree(&tree));
-    }
-
-    #[test]
-    fn it_should_print_the_original_text() {
-        let tree = build_example_tree();
-        assert_eq!(
-            tree.text(),
-            "{% block my-block %}\n    <div claSs=\"my-div\">\n        world\n    </div>\n{% endblock SomeInvalidSyntax %}\n"
-        );
     }
 }

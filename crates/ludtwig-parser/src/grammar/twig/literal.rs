@@ -140,7 +140,7 @@ fn parse_twig_array(parser: &mut Parser) -> CompletedMarker {
                 // consume separator
                 p.bump();
             } else if !p.at(T!["]"]) {
-                p.add_error(ParseErrorBuilder::new(","))
+                p.add_error(ParseErrorBuilder::new(","));
             }
         },
     );
@@ -180,7 +180,7 @@ fn parse_twig_hash(parser: &mut Parser) -> CompletedMarker {
                 // consume separator
                 p.bump();
             } else if !p.at(T!["}"]) {
-                p.add_error(ParseErrorBuilder::new(","))
+                p.add_error(ParseErrorBuilder::new(","));
             }
         },
     );
@@ -202,7 +202,7 @@ fn parse_twig_hash_pair(parser: &mut Parser) -> Option<CompletedMarker> {
         let m = parser.start();
         parser.bump();
         if parse_twig_expression(parser).is_none() {
-            parser.add_error(ParseErrorBuilder::new("twig expression"))
+            parser.add_error(ParseErrorBuilder::new("twig expression"));
         }
         parser.expect(T![")"], TWIG_EXPRESSION_RECOVERY_SET);
         parser.complete(m, SyntaxKind::TWIG_LITERAL_HASH_KEY)
@@ -221,7 +221,7 @@ fn parse_twig_hash_pair(parser: &mut Parser) -> Option<CompletedMarker> {
     if parser.at(T![":"]) {
         parser.bump();
         if parse_twig_expression(parser).is_none() {
-            parser.add_error(ParseErrorBuilder::new("value as twig expression"))
+            parser.add_error(ParseErrorBuilder::new("value as twig expression"));
         }
     }
 
@@ -259,7 +259,7 @@ pub(crate) fn parse_twig_filter(
                 if p.at(T![","]) {
                     p.bump();
                 } else if !p.at(T![")"]) {
-                    p.add_error(ParseErrorBuilder::new(","))
+                    p.add_error(ParseErrorBuilder::new(","));
                 }
             },
         );
@@ -368,7 +368,7 @@ fn parse_twig_function(parser: &mut Parser, mut last_node: CompletedMarker) -> C
             if p.at(T![","]) {
                 p.bump();
             } else if !p.at(T![")"]) {
-                p.add_error(ParseErrorBuilder::new(","))
+                p.add_error(ParseErrorBuilder::new(","));
             }
         },
     );

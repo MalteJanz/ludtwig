@@ -52,7 +52,6 @@ impl Rule for RuleTwigBlockLineBreaks {
             .last_token()
             .and_then(|t| t.next_token())
             .filter(|t| match t.parent() {
-                None => true,
                 // return no token if the parent is also another twig block
                 Some(p) if p.kind() == SyntaxKind::TWIG_STARTING_BLOCK => false,
                 _ => true,
@@ -92,49 +91,42 @@ impl Rule for RuleTwigBlockLineBreaks {
         });
 
         for (token, expected_str, line_break_amount) in validate_iter {
-            match token.kind() {
-                SyntaxKind::TK_LINE_BREAK => {
-                    // validate existing line break
-                    if token.text() != expected_str {
-                        let result = ctx
-                            .create_result(
-                                self.name(),
-                                Severity::Help,
-                                "Wrong line break around block",
-                            )
-                            .primary_note(
-                                token.text_range(),
-                                format!("Expected {} line breaks here", line_break_amount),
-                            )
-                            .suggestion(
-                                token.text_range(),
-                                expected_str.clone(),
-                                format!("Change to {} line breaks", line_break_amount),
-                            );
-                        ctx.add_result(result);
-                    }
-                }
-                _ => {
-                    let range = TextRange::at(token.text_range().start(), TextSize::from(0));
-
-                    // missing line break
+            if token.kind() == SyntaxKind::TK_LINE_BREAK {
+                // validate existing line break
+                if token.text() != expected_str {
                     let result = ctx
-                        .create_result(
-                            self.name(),
-                            Severity::Help,
-                            "Missing line break around block",
-                        )
+                        .create_result(self.name(), Severity::Help, "Wrong line break around block")
                         .primary_note(
-                            range,
-                            format!("Expected {} line breaks before this", line_break_amount),
+                            token.text_range(),
+                            format!("Expected {} line breaks here", line_break_amount),
                         )
                         .suggestion(
-                            range,
+                            token.text_range(),
                             expected_str.clone(),
-                            format!("Add {} line breaks before this", line_break_amount),
+                            format!("Change to {} line breaks", line_break_amount),
                         );
                     ctx.add_result(result);
                 }
+            } else {
+                let range = TextRange::at(token.text_range().start(), TextSize::from(0));
+
+                // missing line break
+                let result = ctx
+                    .create_result(
+                        self.name(),
+                        Severity::Help,
+                        "Missing line break around block",
+                    )
+                    .primary_note(
+                        range,
+                        format!("Expected {} line breaks before this", line_break_amount),
+                    )
+                    .suggestion(
+                        range,
+                        expected_str.clone(),
+                        format!("Add {} line breaks before this", line_break_amount),
+                    );
+                ctx.add_result(result);
             }
         }
 

@@ -7,7 +7,7 @@ use codespan_reporting::term::termcolor::Buffer;
 
 use ludtwig_parser::syntax::typed;
 use ludtwig_parser::syntax::typed::{AstNode, HtmlTag, LudtwigDirectiveIgnore};
-use ludtwig_parser::syntax::untyped::{debug_tree, SyntaxElement, WalkEvent};
+use ludtwig_parser::syntax::untyped::{debug_tree, SyntaxElement, SyntaxToken, WalkEvent};
 
 use crate::check::rule::{CheckSuggestion, RuleContext, Severity, TreeTraversalContext};
 use crate::process::FileContext;
@@ -74,7 +74,9 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
 
                         // adjust traversal context when entering special nodes
                         if let Some(t) = HtmlTag::cast(n.clone()) {
-                            if let Some("pre" | "textarea") = t.name().as_ref().map(|t| t.text()) {
+                            if let Some("pre" | "textarea") =
+                                t.name().as_ref().map(SyntaxToken::text)
+                            {
                                 ctx.traversal_ctx.inside_trivia_sensitive_node = true;
                             }
                         }
@@ -113,7 +115,7 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
                 // adjust traversal context when exiting special nodes
                 if let SyntaxElement::Node(n) = element {
                     if let Some(t) = HtmlTag::cast(n) {
-                        if let Some("pre" | "textarea") = t.name().as_ref().map(|t| t.text()) {
+                        if let Some("pre" | "textarea") = t.name().as_ref().map(SyntaxToken::text) {
                             ctx.traversal_ctx.inside_trivia_sensitive_node = false;
                         }
                     }
@@ -201,7 +203,7 @@ pub fn produce_diagnostics(
                     "{}: {}",
                     suggestion.message, suggestion.replace_with
                 )),
-            )
+            );
         }
 
         let diagnostic = diagnostic

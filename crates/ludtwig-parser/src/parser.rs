@@ -19,10 +19,11 @@ mod sink;
 mod source;
 
 /// Tokens which can lead to parsing of another element
-/// (top level parsers under [crate::grammar::parse_any_element])
+/// (top level parsers under [`crate::grammar::parse_any_element`])
 pub(crate) static GENERAL_RECOVERY_SET: &[SyntaxKind] =
     &[T!["{%"], T!["{{"], T!["{#"], T!["<"], T!["<!--"], T!["<!"]];
 
+#[must_use]
 pub fn parse(input_text: &str) -> Parse {
     let lex_result = lex(input_text);
     let parser = Parser::new(&lex_result);
@@ -38,6 +39,7 @@ pub struct Parse {
 }
 
 impl Parse {
+    #[must_use]
     pub fn debug_parse(&self) -> String {
         let syntax_node = SyntaxNode::new_root(self.green_node.clone());
         let mut s = debug_tree(&syntax_node);
@@ -123,7 +125,7 @@ impl<'source> Parser<'source> {
     /// This does exactly that and can be used to consume trailing trivia in a string parser
     /// (where trivia should be inside as part of the string). Just call this before a call to parser.complete(...).
     pub(crate) fn explicitly_consume_trivia(&mut self) {
-        self.event_collection.explicitly_consume_trivia()
+        self.event_collection.explicitly_consume_trivia();
     }
 
     #[track_caller]
@@ -156,8 +158,8 @@ impl<'source> Parser<'source> {
     }
 
     /// Recovers the parser after an error was found.
-    /// It looks for either any token in the GENERAL_RECOVERY_SET or the
-    /// provided recovery_set and wraps any tokens in between inside an error node.
+    /// It looks for either any token in the `GENERAL_RECOVERY_SET` or the
+    /// provided `recovery_set` and wraps any tokens in between inside an error node.
     pub(crate) fn recover(&mut self, recovery_set: &[SyntaxKind]) {
         self.recover_expect(None, recovery_set);
     }

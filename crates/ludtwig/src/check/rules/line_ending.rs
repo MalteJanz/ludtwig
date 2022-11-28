@@ -14,6 +14,8 @@ impl Rule for RuleLineEnding {
     }
 
     fn check_token(&self, token: SyntaxToken, ctx: &mut RuleContext) -> Option<()> {
+        static INVALID_REGEX: OnceCell<Regex> = OnceCell::new();
+
         if token.kind() != SyntaxKind::TK_LINE_BREAK {
             return None;
         }
@@ -23,7 +25,6 @@ impl Rule for RuleLineEnding {
 
         // compile regex only once and store it in a static
         // because this function is called in a hot loop this does improve it's performance significantly
-        static INVALID_REGEX: OnceCell<Regex> = OnceCell::new();
         let invalid_regex = INVALID_REGEX.get_or_init(|| {
             Regex::new(&format!(
                 r#"({})"#,

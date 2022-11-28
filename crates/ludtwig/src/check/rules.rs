@@ -81,7 +81,7 @@ pub fn get_config_active_rule_definitions(
 
         if !found {
             return Err(ConfigurationError::RuleNotFound {
-                name: config_rule.to_string(),
+                name: (*config_rule).to_string(),
             });
         }
     }
@@ -106,15 +106,15 @@ pub fn get_file_active_rule_definitions(
         if rules.is_empty() {
             // no rule to disable specified, so ignore all rules on this file (run nothing)
             return vec![];
-        } else {
-            disabled_rules.append(&mut rules);
         }
+
+        disabled_rules.append(&mut rules);
     }
 
     definitions
         .iter()
         .filter(|d| !disabled_rules.iter().any(|rule_name| rule_name == d.name()))
-        .cloned()
+        .copied()
         .collect()
 }
 

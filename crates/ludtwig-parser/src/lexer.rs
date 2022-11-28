@@ -22,7 +22,7 @@ pub(crate) fn lex(source: &str) -> Vec<Token> {
             kind,
             text: lexer.slice(),
             range,
-        })
+        });
     }
 
     result

@@ -40,10 +40,10 @@ impl Display for FileProcessingError {
 impl Error for FileProcessingError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            FileProcessingError::FileRead { io_error, .. } => Some(io_error),
-            FileProcessingError::FileWrite { io_error, .. } => Some(io_error),
-            FileProcessingError::MaxApplyIteration => None,
-            FileProcessingError::OverlappingSuggestionInSingleRule { .. } => None,
+            FileProcessingError::FileRead { io_error, .. }
+            | FileProcessingError::FileWrite { io_error, .. } => Some(io_error),
+            FileProcessingError::MaxApplyIteration
+            | FileProcessingError::OverlappingSuggestionInSingleRule { .. } => None,
         }
     }
 }

@@ -23,7 +23,7 @@ mod tests {
 
     #[test]
     fn it_should_not_panic_on_simple_parse_call() {
-        parse("asdf");
+        let _ = parse("asdf");
     }
 
     #[test]

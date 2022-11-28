@@ -32,7 +32,7 @@ impl Rule for RuleIndentation {
                         }
                         SyntaxElement::Token(t) if !is_ignored && line_break_encountered => {
                             if !inside_trivia_sensitive_node {
-                                self.handle_first_token_in_line(t, indentation, ctx);
+                                self.handle_first_token_in_line(&t, indentation, ctx);
                             }
                             line_break_encountered = false;
                         }
@@ -61,7 +61,7 @@ impl Rule for RuleIndentation {
                             // check for special nodes
                             if let Some(t) = HtmlTag::cast(n.clone()) {
                                 if let Some("pre" | "textarea") =
-                                    t.name().as_ref().map(|t| t.text())
+                                    t.name().as_ref().map(SyntaxToken::text)
                                 {
                                     inside_trivia_sensitive_node = true;
                                 }
@@ -95,7 +95,9 @@ impl Rule for RuleIndentation {
 
                         // check for special nodes
                         if let Some(t) = HtmlTag::cast(n.clone()) {
-                            if let Some("pre" | "textarea") = t.name().as_ref().map(|t| t.text()) {
+                            if let Some("pre" | "textarea") =
+                                t.name().as_ref().map(SyntaxToken::text)
+                            {
                                 inside_trivia_sensitive_node = false;
                             }
                         }
@@ -121,7 +123,7 @@ impl Rule for RuleIndentation {
 impl RuleIndentation {
     fn handle_first_token_in_line(
         &self,
-        token: SyntaxToken,
+        token: &SyntaxToken,
         indentation: usize,
         ctx: &mut RuleContext,
     ) {

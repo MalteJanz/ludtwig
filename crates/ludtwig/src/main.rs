@@ -121,7 +121,7 @@ fn app(opts: Opts, config: Config) -> i32 {
         }),
     };
 
-    let output_handler = thread::spawn(|| output::handle_processing_output(rx));
+    let output_handler = thread::spawn(move || output::handle_processing_output(&rx));
 
     // work on each user specified file / directory path concurrently
     opts.files.into_iter().for_each(|path| {
@@ -181,7 +181,7 @@ fn handle_input_path(path: PathBuf, cli_context: CliContext) {
                         tx_clone
                             .send(ProcessingEvent::Report(Severity::Error))
                             .expect("output should still receive ProcessingEvents");
-                        println!("Error: {}", e)
+                        println!("Error: {}", e);
                     }
                 },
             );

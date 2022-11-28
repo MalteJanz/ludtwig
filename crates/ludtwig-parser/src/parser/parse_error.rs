@@ -48,6 +48,7 @@ pub struct ParseError {
 }
 
 impl ParseError {
+    #[must_use]
     pub fn expected_message(&self) -> String {
         match self.found {
             Some(found) => format!("expected {} but found {}", self.expected, found),

@@ -49,8 +49,7 @@ impl<'source> Source<'source> {
         loop {
             match (tokens_iter.next(), set_iter.next()) {
                 (Some(token), Some(set)) if token == *set => continue,
-                (None, None) => return true,
-                (Some(_), None) => return true,
+                (None | Some(_), None) => return true,
                 _ => return false,
             }
         }
@@ -75,8 +74,7 @@ impl<'source> Source<'source> {
                 {
                     continue
                 }
-                (None, None) => return true,
-                (Some(_), None) => return true,
+                (None | Some(_), None) => return true,
                 _ => return false,
             }
         }
