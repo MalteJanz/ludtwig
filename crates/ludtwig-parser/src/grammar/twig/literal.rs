@@ -106,6 +106,7 @@ pub(crate) fn parse_twig_string(
                 p.bump();
                 if parse_twig_expression(p).is_none() {
                     p.add_error(ParseErrorBuilder::new("twig expression"));
+                    p.recover(TWIG_EXPRESSION_RECOVERY_SET);
                 }
                 p.expect(T!["}"], TWIG_EXPRESSION_RECOVERY_SET);
                 p.complete(
@@ -141,6 +142,7 @@ fn parse_twig_array(parser: &mut Parser) -> CompletedMarker {
                 p.bump();
             } else if !p.at(T!["]"]) {
                 p.add_error(ParseErrorBuilder::new(","));
+                p.recover(TWIG_EXPRESSION_RECOVERY_SET);
             }
         },
     );
@@ -181,6 +183,7 @@ fn parse_twig_hash(parser: &mut Parser) -> CompletedMarker {
                 p.bump();
             } else if !p.at(T!["}"]) {
                 p.add_error(ParseErrorBuilder::new(","));
+                p.recover(TWIG_EXPRESSION_RECOVERY_SET);
             }
         },
     );
@@ -203,6 +206,7 @@ fn parse_twig_hash_pair(parser: &mut Parser) -> Option<CompletedMarker> {
         parser.bump();
         if parse_twig_expression(parser).is_none() {
             parser.add_error(ParseErrorBuilder::new("twig expression"));
+            parser.recover(TWIG_EXPRESSION_RECOVERY_SET);
         }
         parser.expect(T![")"], TWIG_EXPRESSION_RECOVERY_SET);
         parser.complete(m, SyntaxKind::TWIG_LITERAL_HASH_KEY)
@@ -222,6 +226,7 @@ fn parse_twig_hash_pair(parser: &mut Parser) -> Option<CompletedMarker> {
         parser.bump();
         if parse_twig_expression(parser).is_none() {
             parser.add_error(ParseErrorBuilder::new("value as twig expression"));
+            parser.recover(TWIG_EXPRESSION_RECOVERY_SET);
         }
     }
 
@@ -247,6 +252,7 @@ pub(crate) fn parse_twig_filter(
     let m = parser.start();
     if parse_twig_name(parser).is_none() {
         parser.add_error(ParseErrorBuilder::new("twig filter"));
+        parser.recover(TWIG_EXPRESSION_RECOVERY_SET);
     } else if parser.at(T!["("]) {
         parser.bump();
         // parse any amount of arguments
@@ -260,6 +266,7 @@ pub(crate) fn parse_twig_filter(
                     p.bump();
                 } else if !p.at(T![")"]) {
                     p.add_error(ParseErrorBuilder::new(","));
+                    p.recover(TWIG_EXPRESSION_RECOVERY_SET);
                 }
             },
         );
@@ -293,6 +300,7 @@ fn parse_twig_indexer(parser: &mut Parser, mut last_node: CompletedMarker) -> Co
     // parse the index expression
     if parse_twig_expression(parser).is_none() && !parser.at(T![":"]) {
         parser.add_error(ParseErrorBuilder::new("twig expression"));
+        parser.recover(TWIG_EXPRESSION_RECOVERY_SET);
     }
 
     if parser.at(T![":"]) {
@@ -300,6 +308,7 @@ fn parse_twig_indexer(parser: &mut Parser, mut last_node: CompletedMarker) -> Co
         is_slice = true;
         if parse_twig_expression(parser).is_none() {
             parser.add_error(ParseErrorBuilder::new("twig expression"));
+            parser.recover(TWIG_EXPRESSION_RECOVERY_SET);
         }
     }
     parser.complete(
@@ -333,6 +342,7 @@ fn parse_twig_accessor(parser: &mut Parser, mut last_node: CompletedMarker) -> C
         parser.add_error(ParseErrorBuilder::new(
             "twig variable property, key or method",
         ));
+        parser.recover(TWIG_EXPRESSION_RECOVERY_SET);
     }
     parser.complete(m, SyntaxKind::TWIG_OPERAND);
 
@@ -369,6 +379,7 @@ fn parse_twig_function(parser: &mut Parser, mut last_node: CompletedMarker) -> C
                 p.bump();
             } else if !p.at(T![")"]) {
                 p.add_error(ParseErrorBuilder::new(","));
+                p.recover(TWIG_EXPRESSION_RECOVERY_SET);
             }
         },
     );

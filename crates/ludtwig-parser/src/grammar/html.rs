@@ -248,6 +248,7 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
             parse_twig_var_statement(parser);
         } else {
             parser.add_error(ParseErrorBuilder::new("html attribute value"));
+            parser.recover(&[T![word], T![">"], T!["/>"]]);
         }
 
         None
@@ -1467,9 +1468,8 @@ mod tests {
                     TK_WHITESPACE@46..47 " "
                     TK_PERCENT_CURLY@47..49 "%}"
                     TK_GREATER_THAN@49..50 ">"
-                  ERROR@50..52
+                  ERROR@50..56
                     TK_LESS_THAN_SLASH@50..52 "</"
-                  HTML_TEXT@52..56
                     TK_WORD@52..55 "div"
                     TK_GREATER_THAN@55..56 ">"
                 error at 29..30: expected {% but found <
@@ -1804,9 +1804,8 @@ mod tests {
                       TK_GREATER_THAN@35..36 ">"
                   HTML_TEXT@36..41
                     TK_WORD@36..41 "hello"
-                  ERROR@41..43
+                  ERROR@41..49
                     TK_LESS_THAN_SLASH@41..43 "</"
-                  HTML_TEXT@43..49
                     TK_WORD@43..48 "input"
                     TK_GREATER_THAN@48..49 ">"
                 error at 41..43: expected html, text or twig element but found </"#]],

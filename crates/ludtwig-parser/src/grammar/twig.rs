@@ -5,7 +5,7 @@ mod tags;
 
 pub(crate) use tags::at_twig_termination_tag;
 
-use crate::grammar::twig::expression::parse_twig_expression;
+use crate::grammar::twig::expression::{parse_twig_expression, TWIG_EXPRESSION_RECOVERY_SET};
 use crate::grammar::{parse_ludtwig_directive, parse_many, ParseFunction};
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser};
@@ -61,6 +61,7 @@ pub(crate) fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {
 
     if parse_twig_expression(parser).is_none() {
         parser.add_error(ParseErrorBuilder::new("twig expression"));
+        parser.recover(TWIG_EXPRESSION_RECOVERY_SET);
     }
 
     parser.expect(T!["}}"], &[]);

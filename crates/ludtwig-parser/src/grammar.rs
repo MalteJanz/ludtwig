@@ -25,9 +25,7 @@ pub(super) fn root(parser: &mut Parser) -> CompletedMarker {
 
                 // at least consume unparseable input TODO: maybe handle this in a better way?
                 p.add_error(ParseErrorBuilder::new("html, text or twig element"));
-                let error_m = p.start();
-                p.bump();
-                p.complete(error_m, SyntaxKind::ERROR);
+                p.recover(&[]);
             }
         },
     );

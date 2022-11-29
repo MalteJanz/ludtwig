@@ -45,6 +45,7 @@ fn parse_twig_sw_thumbnails(parser: &mut Parser, outer: Marker) -> CompletedMark
 
     if parse_twig_expression(parser).is_none() {
         parser.add_error(ParseErrorBuilder::new("twig expression as thumbnail name"));
+        parser.recover(&[T!["with"], T!["%}"]]);
     }
 
     if parser.at(T!["with"]) {
@@ -54,6 +55,7 @@ fn parse_twig_sw_thumbnails(parser: &mut Parser, outer: Marker) -> CompletedMark
             parser.add_error(ParseErrorBuilder::new(
                 "twig expression as thumbnail variables",
             ));
+            parser.recover(&[T!["with"], T!["%}"]]);
         }
         parser.complete(style_m, SyntaxKind::SHOPWARE_THUMBNAILS_WITH);
     }
@@ -68,6 +70,7 @@ fn parse_twig_sw_icon(parser: &mut Parser, outer: Marker) -> CompletedMarker {
 
     if parse_twig_expression(parser).is_none() {
         parser.add_error(ParseErrorBuilder::new("twig expression as icon name"));
+        parser.recover(&[T!["style"], T!["%}"]]);
     }
 
     if parser.at(T!["style"]) {
@@ -77,6 +80,7 @@ fn parse_twig_sw_icon(parser: &mut Parser, outer: Marker) -> CompletedMarker {
             parser.add_error(ParseErrorBuilder::new(
                 "twig expression as icon style variables",
             ));
+            parser.recover(&[T!["%}"]]);
         }
         parser.complete(style_m, SyntaxKind::SHOPWARE_ICON_STYLE);
     }
@@ -108,6 +112,7 @@ fn parse_twig_sw_silent_feature_call(
         parser.add_error(ParseErrorBuilder::new(
             "twig string as feature flag (shopware doesn't allow expressions here)",
         ));
+        parser.recover(&[T!["endsw_silent_feature_call"], T!["%}"]]);
     }
     parser.expect(T!["%}"], &[T!["endsw_silent_feature_call"], T!["%}"]]);
     let wrapper_m = parser.complete(
@@ -150,6 +155,7 @@ fn parse_twig_sw_extends(parser: &mut Parser, outer: Marker) -> CompletedMarker 
         parser.add_error(ParseErrorBuilder::new(
             "twig string as template (shopware doesn't allow expressions here)",
         ));
+        parser.recover(&[T!["%}"]]);
     }
 
     parser.expect(T!["%}"], &[]);
@@ -162,6 +168,7 @@ fn parse_twig_sw_include(parser: &mut Parser, outer: Marker) -> CompletedMarker 
 
     if parse_twig_expression(parser).is_none() {
         parser.add_error(ParseErrorBuilder::new("twig expression as template name"));
+        parser.recover(&[T!["ignore missing"], T!["with"], T!["only"], T!["%}"]]);
     }
 
     if parser.at(T!["ignore missing"]) {
@@ -173,6 +180,7 @@ fn parse_twig_sw_include(parser: &mut Parser, outer: Marker) -> CompletedMarker 
         parser.bump();
         if parse_twig_expression(parser).is_none() {
             parser.add_error(ParseErrorBuilder::new("twig expression as with value"));
+            parser.recover(&[T!["only"], T!["%}"]]);
         }
         parser.complete(with_value_m, SyntaxKind::TWIG_INCLUDE_WITH);
     }
