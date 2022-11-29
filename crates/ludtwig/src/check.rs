@@ -25,9 +25,7 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
         },
     };
 
-    // TODO: disable rules for files with parsing errors for now (because the syntax tree may not be correct)
-    // TODO: maybe consider re-enabling in the future
-    if file_context.file_rule_definitions.is_empty() || !file_context.parse_errors.is_empty() {
+    if file_context.file_rule_definitions.is_empty() {
         // no rules to run for this file
         return ctx;
     }

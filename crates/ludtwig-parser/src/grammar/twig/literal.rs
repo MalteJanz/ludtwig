@@ -106,7 +106,6 @@ pub(crate) fn parse_twig_string(
                 p.bump();
                 if parse_twig_expression(p).is_none() {
                     p.add_error(ParseErrorBuilder::new("twig expression"));
-                    p.recover(TWIG_EXPRESSION_RECOVERY_SET);
                 }
                 p.expect(T!["}"], TWIG_EXPRESSION_RECOVERY_SET);
                 p.complete(
@@ -142,7 +141,6 @@ fn parse_twig_array(parser: &mut Parser) -> CompletedMarker {
                 p.bump();
             } else if !p.at(T!["]"]) {
                 p.add_error(ParseErrorBuilder::new(","));
-                p.recover(TWIG_EXPRESSION_RECOVERY_SET);
             }
         },
     );
@@ -183,7 +181,6 @@ fn parse_twig_hash(parser: &mut Parser) -> CompletedMarker {
                 p.bump();
             } else if !p.at(T!["}"]) {
                 p.add_error(ParseErrorBuilder::new(","));
-                p.recover(TWIG_EXPRESSION_RECOVERY_SET);
             }
         },
     );
@@ -266,7 +263,6 @@ pub(crate) fn parse_twig_filter(
                     p.bump();
                 } else if !p.at(T![")"]) {
                     p.add_error(ParseErrorBuilder::new(","));
-                    p.recover(TWIG_EXPRESSION_RECOVERY_SET);
                 }
             },
         );
@@ -380,7 +376,6 @@ fn parse_twig_function(parser: &mut Parser, mut last_node: CompletedMarker) -> C
                 p.bump();
             } else if !p.at(T![")"]) {
                 p.add_error(ParseErrorBuilder::new(","));
-                p.recover(TWIG_EXPRESSION_RECOVERY_SET);
             }
         },
     );

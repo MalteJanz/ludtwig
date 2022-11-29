@@ -160,6 +160,9 @@ impl<'source> Parser<'source> {
     /// Recovers the parser after an error was found.
     /// It looks for either any token in the `GENERAL_RECOVERY_SET` or the
     /// provided `recovery_set` and wraps any tokens in between inside an error node.
+    ///
+    /// Important: in most cases this should not be called inside `parse_many`because it may
+    /// consume future children.
     pub(crate) fn recover(&mut self, recovery_set: &[SyntaxKind]) {
         self.recover_expect(None, recovery_set);
     }

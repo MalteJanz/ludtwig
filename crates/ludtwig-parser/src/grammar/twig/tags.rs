@@ -1,6 +1,6 @@
 //! Twig Tag parsing (anything between {% ... %})
 
-use crate::grammar::twig::expression::{parse_twig_expression, TWIG_EXPRESSION_RECOVERY_SET};
+use crate::grammar::twig::expression::parse_twig_expression;
 use crate::grammar::twig::literal::{
     parse_twig_filter, parse_twig_function_argument, parse_twig_name, parse_twig_string,
 };
@@ -234,7 +234,6 @@ fn parse_twig_macro(
                 p.bump();
             } else if !p.at_set(&[T!["%}"], T![")"]]) {
                 p.add_error(ParseErrorBuilder::new(","));
-                p.recover(&[T![")"], T!["%}"], T!["endmacro"], T!["</"]]);
             }
         },
     );
@@ -452,7 +451,6 @@ fn parse_twig_apply(
                         p.bump();
                     } else if !p.at_set(&[T!["%}"], T![")"]]) {
                         p.add_error(ParseErrorBuilder::new(","));
-                        p.recover(&[T![")"], T!["endapply"], T!["%}"], T!["</"]]);
                     }
                 },
             );
@@ -545,7 +543,6 @@ fn parse_twig_from(parser: &mut Parser, outer: Marker) -> CompletedMarker {
                 p.bump();
             } else if !p.at(T!["%}"]) {
                 p.add_error(ParseErrorBuilder::new(","));
-                p.recover(&[T![word], T!["%}"], T!["</"]]);
             }
         },
     );
@@ -603,7 +600,6 @@ fn parse_twig_use(parser: &mut Parser, outer: Marker) -> CompletedMarker {
                     p.bump();
                 } else if !p.at(T!["%}"]) {
                     p.add_error(ParseErrorBuilder::new(","));
-                    p.recover(&[T![word], T!["%}"], T!["</"]]);
                 }
             },
         );
@@ -839,14 +835,12 @@ fn parse_twig_set(
                 declaration_count += 1;
             } else {
                 p.add_error(ParseErrorBuilder::new("twig variable name"));
-                p.recover(&[T![word], T![","], T!["="], T!["endset"], T!["%}"], T!["</"]]);
             }
 
             if p.at(T![","]) {
                 p.bump();
             } else if !p.at_set(&[T!["="], T!["%}"]]) {
                 p.add_error(ParseErrorBuilder::new(","));
-                p.recover(&[T![word], T!["="], T!["endset"], T!["%}"], T!["</"]]);
             }
         },
     );
@@ -869,14 +863,12 @@ fn parse_twig_set(
                     assignment_count += 1;
                 } else {
                     p.add_error(ParseErrorBuilder::new("twig expression"));
-                    p.recover(TWIG_EXPRESSION_RECOVERY_SET);
                 }
 
                 if p.at(T![","]) {
                     p.bump();
                 } else if !p.at(T!["%}"]) {
                     p.add_error(ParseErrorBuilder::new(","));
-                    p.recover(TWIG_EXPRESSION_RECOVERY_SET);
                 }
             },
         );
