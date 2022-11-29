@@ -37,6 +37,7 @@ impl Rule for RuleLineEnding {
         });
 
         for invalid in invalid_regex.find_iter(token.text()) {
+            #[allow(clippy::cast_possible_truncation)]
             let range = TextRange::new(
                 token.text_range().start() + TextSize::from(invalid.start() as u32),
                 token.text_range().start() + TextSize::from(invalid.end() as u32),

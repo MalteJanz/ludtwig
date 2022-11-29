@@ -83,6 +83,7 @@ impl EventCollection {
         CompletedMarker { pos: marker.pos }
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub(super) fn precede(&mut self, completed_marker: CompletedMarker) -> Marker {
         let new_m = self.start();
 
@@ -118,9 +119,10 @@ impl Marker {
 
 impl Drop for Marker {
     fn drop(&mut self) {
-        if !self.completed && !std::thread::panicking() {
-            panic!("Markers need to be completed!");
-        }
+        assert!(
+            self.completed || std::thread::panicking(),
+            "Markers need to be completed!"
+        );
     }
 }
 

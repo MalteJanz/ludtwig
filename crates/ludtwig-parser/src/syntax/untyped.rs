@@ -613,6 +613,7 @@ impl SyntaxKind {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 impl fmt::Display for SyntaxKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(match self {

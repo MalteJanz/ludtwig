@@ -313,9 +313,10 @@ fn parse_twig_indexer(parser: &mut Parser, mut last_node: CompletedMarker) -> Co
     }
     parser.complete(
         index_m,
-        match is_slice {
-            true => SyntaxKind::TWIG_INDEX_RANGE,
-            false => SyntaxKind::TWIG_INDEX,
+        if is_slice {
+            SyntaxKind::TWIG_INDEX_RANGE
+        } else {
+            SyntaxKind::TWIG_INDEX
         },
     );
 

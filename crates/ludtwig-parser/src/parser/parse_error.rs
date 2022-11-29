@@ -50,9 +50,10 @@ pub struct ParseError {
 impl ParseError {
     #[must_use]
     pub fn expected_message(&self) -> String {
-        match self.found {
-            Some(found) => format!("expected {} but found {}", self.expected, found),
-            None => format!("expected {} but reached end of file", self.expected),
+        if let Some(found) = self.found {
+            format!("expected {} but found {}", self.expected, found)
+        } else {
+            format!("expected {} but reached end of file", self.expected)
         }
     }
 }

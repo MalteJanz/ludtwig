@@ -1,4 +1,5 @@
-extern crate core;
+#![warn(clippy::pedantic)]
+#![allow(clippy::module_name_repetitions)]
 
 pub use parser::parse;
 pub use parser::Parse;

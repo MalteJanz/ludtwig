@@ -1,4 +1,5 @@
-extern crate core;
+#![warn(clippy::pedantic)]
+#![allow(clippy::module_name_repetitions)]
 
 use crate::check::rule::{Rule, Severity};
 use crate::check::rules::get_config_active_rule_definitions;

@@ -10,6 +10,7 @@ impl Rule for RuleTwigBlockLineBreaks {
         "twig-block-line-breaks"
     }
 
+    #[allow(clippy::too_many_lines)]
     fn check_node(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
         if ctx.traversal_ctx().inside_trivia_sensitive_node {
             return None; // no trivia modification allowed here
@@ -58,9 +59,10 @@ impl Rule for RuleTwigBlockLineBreaks {
             });
 
         let expected_line_break = ctx.config().format.line_ending.corresponding_string();
-        let config_line_break_amount = match ctx.config().format.linebreaks_around_blocks {
-            true => 2,
-            false => 1,
+        let config_line_break_amount = if ctx.config().format.linebreaks_around_blocks {
+            2
+        } else {
+            1
         };
         let before_line_break_amount = match prev_sibling {
             Some(_) => config_line_break_amount,

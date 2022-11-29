@@ -200,16 +200,6 @@ fn parse_html_attribute_or_twig(parser: &mut Parser) -> Option<CompletedMarker> 
 /// In either case it will be wrapped into an `HTML_STRING` node which may or may
 /// not contain quotes
 fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
-    let m = parser.start();
-    let quote_kind = if parser.at_set(&[T!["\""], T!["'"]]) {
-        let starting_quote_token = parser.bump();
-        Some(starting_quote_token.kind)
-    } else {
-        // the HTML specification also allows no quotes but then
-        // the value must only be a single word
-        None
-    };
-
     fn inner_double_quote_parser(parser: &mut Parser) -> Option<CompletedMarker> {
         parse_many(
             parser,
@@ -271,6 +261,16 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
             p.bump();
         }
     }
+
+    let m = parser.start();
+    let quote_kind = if parser.at_set(&[T!["\""], T!["'"]]) {
+        let starting_quote_token = parser.bump();
+        Some(starting_quote_token.kind)
+    } else {
+        // the HTML specification also allows no quotes but then
+        // the value must only be a single word
+        None
+    };
 
     let inner_m = parser.start();
     // run the appropriate inner parser

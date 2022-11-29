@@ -68,6 +68,7 @@ pub struct RuleContext {
 }
 
 impl RuleContext {
+    #[allow(clippy::unused_self)]
     pub fn create_result<S: Into<String>>(
         &self,
         rule_name: S,
