@@ -1,5 +1,8 @@
 # NEXT-VERSION
 
+# v0.4.0
+- WIP: rewrite
+
 # v0.3.3
 - Hotfix: fixed another panic (attempt to subtract with overflow) for the parsing error line and column numbers reconstruction.
 
