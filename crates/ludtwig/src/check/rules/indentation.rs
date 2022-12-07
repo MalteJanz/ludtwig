@@ -1,4 +1,4 @@
-use ludtwig_parser::syntax::typed::{AstNode, HtmlTag, LudtwigDirectiveIgnore};
+use ludtwig_parser::syntax::typed::{AstNode, HtmlStartingTag, HtmlTag, LudtwigDirectiveIgnore};
 use ludtwig_parser::syntax::untyped::{
     SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken, TextRange, TextSize, WalkEvent,
 };
@@ -14,7 +14,8 @@ impl Rule for RuleIndentation {
 
     fn check_root(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
         let mut line_break_encountered = true;
-        let mut indentation = 0;
+        let mut indentation_level = 0; // whole indentation levels like nested elements
+        let mut indentation_substeps = 0; // additional spaces for alignment (like attributes)
         let indent_block_children = ctx.config().format.indent_children_of_blocks;
         let mut inside_trivia_sensitive_node = false;
 
@@ -32,7 +33,12 @@ impl Rule for RuleIndentation {
                         }
                         SyntaxElement::Token(t) if !is_ignored && line_break_encountered => {
                             if !inside_trivia_sensitive_node {
-                                self.handle_first_token_in_line(&t, indentation, ctx);
+                                self.handle_first_token_in_line(
+                                    &t,
+                                    indentation_level,
+                                    indentation_substeps,
+                                    ctx,
+                                );
                             }
                             line_break_encountered = false;
                         }
@@ -68,13 +74,26 @@ impl Rule for RuleIndentation {
                             }
 
                             // change indentation level
-                            if n.kind() == SyntaxKind::BODY
-                                && (indent_block_children
-                                    || !n
-                                        .parent()
-                                        .map_or(false, |p| p.kind() == SyntaxKind::TWIG_BLOCK))
+                            if matches!(
+                                n.kind(),
+                                SyntaxKind::BODY
+                                    | SyntaxKind::TWIG_ARGUMENTS
+                                    | SyntaxKind::TWIG_LITERAL_ARRAY_INNER
+                                    | SyntaxKind::TWIG_LITERAL_HASH_ITEMS
+                            ) && (indent_block_children
+                                || !n
+                                    .parent()
+                                    .map_or(false, |p| p.kind() == SyntaxKind::TWIG_BLOCK))
                             {
-                                indentation += 1;
+                                indentation_level += 1;
+                            }
+
+                            if n.kind() == SyntaxKind::HTML_ATTRIBUTE_LIST {
+                                if let Some(t) = n.parent().and_then(HtmlStartingTag::cast) {
+                                    if let Some(name) = t.name() {
+                                        indentation_substeps += 1 + name.text().chars().count() + 1;
+                                    }
+                                }
                             }
                         }
                     }
@@ -103,13 +122,26 @@ impl Rule for RuleIndentation {
                         }
 
                         // change indentation level
-                        if n.kind() == SyntaxKind::BODY
-                            && (indent_block_children
-                                || !n
-                                    .parent()
-                                    .map_or(false, |p| p.kind() == SyntaxKind::TWIG_BLOCK))
+                        if matches!(
+                            n.kind(),
+                            SyntaxKind::BODY
+                                | SyntaxKind::TWIG_ARGUMENTS
+                                | SyntaxKind::TWIG_LITERAL_ARRAY_INNER
+                                | SyntaxKind::TWIG_LITERAL_HASH_ITEMS
+                        ) && (indent_block_children
+                            || !n
+                                .parent()
+                                .map_or(false, |p| p.kind() == SyntaxKind::TWIG_BLOCK))
                         {
-                            indentation -= 1;
+                            indentation_level -= 1;
+                        }
+
+                        if n.kind() == SyntaxKind::HTML_ATTRIBUTE_LIST {
+                            if let Some(t) = n.parent().and_then(HtmlStartingTag::cast) {
+                                if let Some(name) = t.name() {
+                                    indentation_substeps -= 1 + name.text().chars().count() + 1;
+                                }
+                            }
                         }
                     }
                 }
@@ -124,43 +156,70 @@ impl RuleIndentation {
     fn handle_first_token_in_line(
         &self,
         token: &SyntaxToken,
-        indentation: usize,
+        indentation_level: usize,
+        indentation_substeps: usize,
         ctx: &mut RuleContext,
     ) {
         let indent_char = ctx.config().format.indentation_mode.corresponding_char();
         let indent_char_count = ctx.config().format.indentation_count;
         let expected_str = std::iter::repeat(indent_char)
-            .take(indentation * indent_char_count as usize)
+            .take(indentation_level * indent_char_count as usize)
+            .chain(" ".repeat(indentation_substeps).chars())
             .collect::<String>();
+
+        let substeps_expectation_notice = if indentation_substeps > 0 {
+            format!(" (+{} spaces)", indentation_substeps)
+        } else {
+            String::new()
+        };
 
         match token.kind() {
             SyntaxKind::TK_WHITESPACE => {
                 if token.text() != expected_str {
+                    // get information about actual indentation
+                    let (found_spaces, found_tabs) =
+                        token
+                            .text()
+                            .chars()
+                            .fold((0, 0), |(mut spaces, mut tabs), c| {
+                                match c {
+                                    ' ' => spaces += 1,
+                                    '\t' => tabs += 1,
+                                    _ => {}
+                                }
+
+                                (spaces, tabs)
+                            });
+
                     // report wrong indentation
                     let result = ctx
                         .create_result(self.name(), Severity::Help, "Wrong indentation")
                         .primary_note(
                             token.text_range(),
                             format!(
-                                "Expected indentation of {} {} here",
-                                indentation * indent_char_count as usize,
-                                ctx.config().format.indentation_mode
+                                "Found {} spaces and {} tabs but expected indentation of {} {}{} here",
+                                found_spaces,
+                                found_tabs,
+                                indentation_level * indent_char_count as usize,
+                                ctx.config().format.indentation_mode,
+                                substeps_expectation_notice,
                             ),
                         )
                         .suggestion(
                             token.text_range(),
                             expected_str,
                             format!(
-                                "Change indentation to {} {}",
-                                indentation * indent_char_count as usize,
-                                ctx.config().format.indentation_mode
+                                "Change indentation to {} {}{}",
+                                indentation_level * indent_char_count as usize,
+                                ctx.config().format.indentation_mode,
+                                substeps_expectation_notice,
                             ),
                         );
                     ctx.add_result(result);
                 }
             }
             _ => {
-                if indentation > 0 {
+                if indentation_level > 0 || indentation_substeps > 0 {
                     // report missing whitespace token
                     let range = TextRange::at(token.text_range().start(), TextSize::from(0));
                     let result = ctx
@@ -168,18 +227,20 @@ impl RuleIndentation {
                         .primary_note(
                             range,
                             format!(
-                                "Expected indentation of {} {} before this",
-                                indentation * indent_char_count as usize,
-                                ctx.config().format.indentation_mode
+                                "Expected indentation of {} {}{} before this",
+                                indentation_level * indent_char_count as usize,
+                                ctx.config().format.indentation_mode,
+                                substeps_expectation_notice,
                             ),
                         )
                         .suggestion(
                             range,
                             expected_str,
                             format!(
-                                "Add {} {} indentation",
-                                indentation * indent_char_count as usize,
-                                ctx.config().format.indentation_mode
+                                "Add {} {}{} indentation",
+                                indentation_level * indent_char_count as usize,
+                                ctx.config().format.indentation_mode,
+                                substeps_expectation_notice,
                             ),
                         );
                     ctx.add_result(result);
@@ -211,7 +272,7 @@ mod tests {
                 2 │                 <div>
                   │ ^^^^^^^^^^^^^^^^
                   │ │
-                  │ Expected indentation of 4 spaces here
+                  │ Found 16 spaces and 0 tabs but expected indentation of 4 spaces here
                   │ Change indentation to 4 spaces:     
 
                 help[indentation]: Wrong indentation
@@ -220,7 +281,7 @@ mod tests {
                 4 │                       </div>
                   │ ^^^^^^^^^^^^^^^^^^^^^^
                   │ │
-                  │ Expected indentation of 4 spaces here
+                  │ Found 22 spaces and 0 tabs but expected indentation of 4 spaces here
                   │ Change indentation to 4 spaces:     
 
                 help[indentation]: Wrong indentation
@@ -229,7 +290,7 @@ mod tests {
                 5 │                   {% endblock %}
                   │ ^^^^^^^^^^^^^^^^^^
                   │ │
-                  │ Expected indentation of 0 spaces here
+                  │ Found 18 spaces and 0 tabs but expected indentation of 0 spaces here
                   │ Change indentation to 0 spaces: 
 
             "#]],
@@ -278,7 +339,7 @@ mod tests {
                 29 │     <div>
                    │ ^^^^
                    │ │
-                   │ Expected indentation of 0 spaces here
+                   │ Found 4 spaces and 0 tabs but expected indentation of 0 spaces here
                    │ Change indentation to 0 spaces: 
 
                 help[indentation]: Wrong indentation
@@ -287,7 +348,7 @@ mod tests {
                 30 │         wrong
                    │ ^^^^^^^^
                    │ │
-                   │ Expected indentation of 4 spaces here
+                   │ Found 8 spaces and 0 tabs but expected indentation of 4 spaces here
                    │ Change indentation to 4 spaces:     
 
             "#]],
@@ -309,6 +370,26 @@ mod tests {
                         inner
                     </div>
                 {% endblock %}"#]],
+        );
+    }
+
+    #[test]
+    fn rule_fixes_attribute_indentation() {
+        test_rule_fix(
+            "indentation",
+            r#"<div id="my-div"
+            class="some-class"
+            style="background-color: red">
+                hello world
+            </div>
+            "#,
+            expect![[r#"
+                <div id="my-div"
+                     class="some-class"
+                     style="background-color: red">
+                    hello world
+                </div>
+            "#]],
         );
     }
 

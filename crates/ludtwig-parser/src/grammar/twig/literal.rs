@@ -130,6 +130,8 @@ fn parse_twig_array(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
     parser.bump();
 
+    // parse any amount of array values
+    let list_m = parser.start();
     parse_many(
         parser,
         |p| p.at(T!["]"]),
@@ -144,6 +146,7 @@ fn parse_twig_array(parser: &mut Parser) -> CompletedMarker {
             }
         },
     );
+    parser.complete(list_m, SyntaxKind::TWIG_LITERAL_ARRAY_INNER);
 
     parser.expect(T!["]"], TWIG_EXPRESSION_RECOVERY_SET);
     parser.complete(m, SyntaxKind::TWIG_LITERAL_ARRAY)
@@ -170,6 +173,8 @@ fn parse_twig_hash(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
     parser.bump();
 
+    // parse any amount of hash pairs
+    let list_m = parser.start();
     parse_many(
         parser,
         |p| p.at(T!["}"]),
@@ -184,6 +189,7 @@ fn parse_twig_hash(parser: &mut Parser) -> CompletedMarker {
             }
         },
     );
+    parser.complete(list_m, SyntaxKind::TWIG_LITERAL_HASH_ITEMS);
 
     parser.expect(T!["}"], TWIG_EXPRESSION_RECOVERY_SET);
     parser.complete(m, SyntaxKind::TWIG_LITERAL_HASH)
@@ -622,29 +628,30 @@ mod tests {
         check_parse(
             "{{ [1, 2, 3] }}",
             expect![[r#"
-            ROOT@0..15
-              TWIG_VAR@0..15
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..12
-                  TWIG_LITERAL_ARRAY@2..12
-                    TK_WHITESPACE@2..3 " "
-                    TK_OPEN_SQUARE@3..4 "["
-                    TWIG_EXPRESSION@4..5
-                      TWIG_LITERAL_NUMBER@4..5
-                        TK_NUMBER@4..5 "1"
-                    TK_COMMA@5..6 ","
-                    TWIG_EXPRESSION@6..8
-                      TWIG_LITERAL_NUMBER@6..8
-                        TK_WHITESPACE@6..7 " "
-                        TK_NUMBER@7..8 "2"
-                    TK_COMMA@8..9 ","
-                    TWIG_EXPRESSION@9..11
-                      TWIG_LITERAL_NUMBER@9..11
-                        TK_WHITESPACE@9..10 " "
-                        TK_NUMBER@10..11 "3"
-                    TK_CLOSE_SQUARE@11..12 "]"
-                TK_WHITESPACE@12..13 " "
-                TK_CLOSE_CURLY_CURLY@13..15 "}}""#]],
+                ROOT@0..15
+                  TWIG_VAR@0..15
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..12
+                      TWIG_LITERAL_ARRAY@2..12
+                        TK_WHITESPACE@2..3 " "
+                        TK_OPEN_SQUARE@3..4 "["
+                        TWIG_LITERAL_ARRAY_INNER@4..11
+                          TWIG_EXPRESSION@4..5
+                            TWIG_LITERAL_NUMBER@4..5
+                              TK_NUMBER@4..5 "1"
+                          TK_COMMA@5..6 ","
+                          TWIG_EXPRESSION@6..8
+                            TWIG_LITERAL_NUMBER@6..8
+                              TK_WHITESPACE@6..7 " "
+                              TK_NUMBER@7..8 "2"
+                          TK_COMMA@8..9 ","
+                          TWIG_EXPRESSION@9..11
+                            TWIG_LITERAL_NUMBER@9..11
+                              TK_WHITESPACE@9..10 " "
+                              TK_NUMBER@10..11 "3"
+                        TK_CLOSE_SQUARE@11..12 "]"
+                    TK_WHITESPACE@12..13 " "
+                    TK_CLOSE_CURLY_CURLY@13..15 "}}""#]],
         );
     }
 
@@ -660,18 +667,19 @@ mod tests {
                       TWIG_LITERAL_ARRAY@2..11
                         TK_WHITESPACE@2..3 " "
                         TK_OPEN_SQUARE@3..4 "["
-                        TWIG_EXPRESSION@4..5
-                          TWIG_LITERAL_NUMBER@4..5
-                            TK_NUMBER@4..5 "1"
-                        TK_COMMA@5..6 ","
-                        TWIG_EXPRESSION@6..8
-                          TWIG_LITERAL_NUMBER@6..8
-                            TK_WHITESPACE@6..7 " "
-                            TK_NUMBER@7..8 "2"
-                        TWIG_EXPRESSION@8..10
-                          TWIG_LITERAL_NUMBER@8..10
-                            TK_WHITESPACE@8..9 " "
-                            TK_NUMBER@9..10 "3"
+                        TWIG_LITERAL_ARRAY_INNER@4..10
+                          TWIG_EXPRESSION@4..5
+                            TWIG_LITERAL_NUMBER@4..5
+                              TK_NUMBER@4..5 "1"
+                          TK_COMMA@5..6 ","
+                          TWIG_EXPRESSION@6..8
+                            TWIG_LITERAL_NUMBER@6..8
+                              TK_WHITESPACE@6..7 " "
+                              TK_NUMBER@7..8 "2"
+                          TWIG_EXPRESSION@8..10
+                            TWIG_LITERAL_NUMBER@8..10
+                              TK_WHITESPACE@8..9 " "
+                              TK_NUMBER@9..10 "3"
                         TK_CLOSE_SQUARE@10..11 "]"
                     TK_WHITESPACE@11..12 " "
                     TK_CLOSE_CURLY_CURLY@12..14 "}}"
@@ -684,39 +692,40 @@ mod tests {
         check_parse(
             r#"{{ ["hello", "trailing", "comma",] }}"#,
             expect![[r#"
-            ROOT@0..37
-              TWIG_VAR@0..37
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..34
-                  TWIG_LITERAL_ARRAY@2..34
-                    TK_WHITESPACE@2..3 " "
-                    TK_OPEN_SQUARE@3..4 "["
-                    TWIG_EXPRESSION@4..11
-                      TWIG_LITERAL_STRING@4..11
-                        TK_DOUBLE_QUOTES@4..5 "\""
-                        TWIG_LITERAL_STRING_INNER@5..10
-                          TK_WORD@5..10 "hello"
-                        TK_DOUBLE_QUOTES@10..11 "\""
-                    TK_COMMA@11..12 ","
-                    TWIG_EXPRESSION@12..23
-                      TWIG_LITERAL_STRING@12..23
-                        TK_WHITESPACE@12..13 " "
-                        TK_DOUBLE_QUOTES@13..14 "\""
-                        TWIG_LITERAL_STRING_INNER@14..22
-                          TK_WORD@14..22 "trailing"
-                        TK_DOUBLE_QUOTES@22..23 "\""
-                    TK_COMMA@23..24 ","
-                    TWIG_EXPRESSION@24..32
-                      TWIG_LITERAL_STRING@24..32
-                        TK_WHITESPACE@24..25 " "
-                        TK_DOUBLE_QUOTES@25..26 "\""
-                        TWIG_LITERAL_STRING_INNER@26..31
-                          TK_WORD@26..31 "comma"
-                        TK_DOUBLE_QUOTES@31..32 "\""
-                    TK_COMMA@32..33 ","
-                    TK_CLOSE_SQUARE@33..34 "]"
-                TK_WHITESPACE@34..35 " "
-                TK_CLOSE_CURLY_CURLY@35..37 "}}""#]],
+                ROOT@0..37
+                  TWIG_VAR@0..37
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..34
+                      TWIG_LITERAL_ARRAY@2..34
+                        TK_WHITESPACE@2..3 " "
+                        TK_OPEN_SQUARE@3..4 "["
+                        TWIG_LITERAL_ARRAY_INNER@4..33
+                          TWIG_EXPRESSION@4..11
+                            TWIG_LITERAL_STRING@4..11
+                              TK_DOUBLE_QUOTES@4..5 "\""
+                              TWIG_LITERAL_STRING_INNER@5..10
+                                TK_WORD@5..10 "hello"
+                              TK_DOUBLE_QUOTES@10..11 "\""
+                          TK_COMMA@11..12 ","
+                          TWIG_EXPRESSION@12..23
+                            TWIG_LITERAL_STRING@12..23
+                              TK_WHITESPACE@12..13 " "
+                              TK_DOUBLE_QUOTES@13..14 "\""
+                              TWIG_LITERAL_STRING_INNER@14..22
+                                TK_WORD@14..22 "trailing"
+                              TK_DOUBLE_QUOTES@22..23 "\""
+                          TK_COMMA@23..24 ","
+                          TWIG_EXPRESSION@24..32
+                            TWIG_LITERAL_STRING@24..32
+                              TK_WHITESPACE@24..25 " "
+                              TK_DOUBLE_QUOTES@25..26 "\""
+                              TWIG_LITERAL_STRING_INNER@26..31
+                                TK_WORD@26..31 "comma"
+                              TK_DOUBLE_QUOTES@31..32 "\""
+                          TK_COMMA@32..33 ","
+                        TK_CLOSE_SQUARE@33..34 "]"
+                    TK_WHITESPACE@34..35 " "
+                    TK_CLOSE_CURLY_CURLY@35..37 "}}""#]],
         );
     }
 
@@ -783,33 +792,34 @@ mod tests {
                       TWIG_LITERAL_HASH@2..29
                         TK_WHITESPACE@2..3 " "
                         TK_OPEN_CURLY@3..4 "{"
-                        TWIG_LITERAL_HASH_PAIR@4..15
-                          TWIG_LITERAL_HASH_KEY@4..6
-                            TWIG_LITERAL_NUMBER@4..6
-                              TK_WHITESPACE@4..5 " "
-                              TK_NUMBER@5..6 "1"
-                          TK_COLON@6..7 ":"
-                          TWIG_EXPRESSION@7..15
-                            TWIG_LITERAL_STRING@7..15
-                              TK_WHITESPACE@7..8 " "
-                              TK_SINGLE_QUOTES@8..9 "'"
-                              TWIG_LITERAL_STRING_INNER@9..14
-                                TK_WORD@9..14 "hello"
-                              TK_SINGLE_QUOTES@14..15 "'"
-                        TK_COMMA@15..16 ","
-                        TWIG_LITERAL_HASH_PAIR@16..27
-                          TWIG_LITERAL_HASH_KEY@16..18
-                            TWIG_LITERAL_NUMBER@16..18
-                              TK_WHITESPACE@16..17 " "
-                              TK_NUMBER@17..18 "2"
-                          TK_COLON@18..19 ":"
-                          TWIG_EXPRESSION@19..27
-                            TWIG_LITERAL_STRING@19..27
-                              TK_WHITESPACE@19..20 " "
-                              TK_SINGLE_QUOTES@20..21 "'"
-                              TWIG_LITERAL_STRING_INNER@21..26
-                                TK_WORD@21..26 "world"
-                              TK_SINGLE_QUOTES@26..27 "'"
+                        TWIG_LITERAL_HASH_ITEMS@4..27
+                          TWIG_LITERAL_HASH_PAIR@4..15
+                            TWIG_LITERAL_HASH_KEY@4..6
+                              TWIG_LITERAL_NUMBER@4..6
+                                TK_WHITESPACE@4..5 " "
+                                TK_NUMBER@5..6 "1"
+                            TK_COLON@6..7 ":"
+                            TWIG_EXPRESSION@7..15
+                              TWIG_LITERAL_STRING@7..15
+                                TK_WHITESPACE@7..8 " "
+                                TK_SINGLE_QUOTES@8..9 "'"
+                                TWIG_LITERAL_STRING_INNER@9..14
+                                  TK_WORD@9..14 "hello"
+                                TK_SINGLE_QUOTES@14..15 "'"
+                          TK_COMMA@15..16 ","
+                          TWIG_LITERAL_HASH_PAIR@16..27
+                            TWIG_LITERAL_HASH_KEY@16..18
+                              TWIG_LITERAL_NUMBER@16..18
+                                TK_WHITESPACE@16..17 " "
+                                TK_NUMBER@17..18 "2"
+                            TK_COLON@18..19 ":"
+                            TWIG_EXPRESSION@19..27
+                              TWIG_LITERAL_STRING@19..27
+                                TK_WHITESPACE@19..20 " "
+                                TK_SINGLE_QUOTES@20..21 "'"
+                                TWIG_LITERAL_STRING_INNER@21..26
+                                  TK_WORD@21..26 "world"
+                                TK_SINGLE_QUOTES@26..27 "'"
                         TK_WHITESPACE@27..28 " "
                         TK_CLOSE_CURLY@28..29 "}"
                     TK_WHITESPACE@29..30 " "
@@ -829,33 +839,34 @@ mod tests {
                       TWIG_LITERAL_HASH@2..31
                         TK_WHITESPACE@2..3 " "
                         TK_OPEN_CURLY@3..4 "{"
-                        TWIG_LITERAL_HASH_PAIR@4..16
-                          TWIG_LITERAL_HASH_KEY@4..12
-                            TWIG_LITERAL_STRING@4..12
-                              TK_WHITESPACE@4..5 " "
-                              TK_SINGLE_QUOTES@5..6 "'"
-                              TWIG_LITERAL_STRING_INNER@6..11
-                                TK_WORD@6..11 "hello"
-                              TK_SINGLE_QUOTES@11..12 "'"
-                          TK_COLON@12..13 ":"
-                          TWIG_EXPRESSION@13..16
-                            TWIG_LITERAL_NUMBER@13..16
-                              TK_WHITESPACE@13..14 " "
-                              TK_NUMBER@14..16 "42"
-                        TK_COMMA@16..17 ","
-                        TWIG_LITERAL_HASH_PAIR@17..29
-                          TWIG_LITERAL_HASH_KEY@17..25
-                            TWIG_LITERAL_STRING@17..25
-                              TK_WHITESPACE@17..18 " "
-                              TK_SINGLE_QUOTES@18..19 "'"
-                              TWIG_LITERAL_STRING_INNER@19..24
-                                TK_WORD@19..24 "world"
-                              TK_SINGLE_QUOTES@24..25 "'"
-                          TK_COLON@25..26 ":"
-                          TWIG_EXPRESSION@26..29
-                            TWIG_LITERAL_NUMBER@26..29
-                              TK_WHITESPACE@26..27 " "
-                              TK_NUMBER@27..29 "33"
+                        TWIG_LITERAL_HASH_ITEMS@4..29
+                          TWIG_LITERAL_HASH_PAIR@4..16
+                            TWIG_LITERAL_HASH_KEY@4..12
+                              TWIG_LITERAL_STRING@4..12
+                                TK_WHITESPACE@4..5 " "
+                                TK_SINGLE_QUOTES@5..6 "'"
+                                TWIG_LITERAL_STRING_INNER@6..11
+                                  TK_WORD@6..11 "hello"
+                                TK_SINGLE_QUOTES@11..12 "'"
+                            TK_COLON@12..13 ":"
+                            TWIG_EXPRESSION@13..16
+                              TWIG_LITERAL_NUMBER@13..16
+                                TK_WHITESPACE@13..14 " "
+                                TK_NUMBER@14..16 "42"
+                          TK_COMMA@16..17 ","
+                          TWIG_LITERAL_HASH_PAIR@17..29
+                            TWIG_LITERAL_HASH_KEY@17..25
+                              TWIG_LITERAL_STRING@17..25
+                                TK_WHITESPACE@17..18 " "
+                                TK_SINGLE_QUOTES@18..19 "'"
+                                TWIG_LITERAL_STRING_INNER@19..24
+                                  TK_WORD@19..24 "world"
+                                TK_SINGLE_QUOTES@24..25 "'"
+                            TK_COLON@25..26 ":"
+                            TWIG_EXPRESSION@26..29
+                              TWIG_LITERAL_NUMBER@26..29
+                                TK_WHITESPACE@26..27 " "
+                                TK_NUMBER@27..29 "33"
                         TK_WHITESPACE@29..30 " "
                         TK_CLOSE_CURLY@30..31 "}"
                     TK_WHITESPACE@31..32 " "
@@ -875,25 +886,26 @@ mod tests {
                       TWIG_LITERAL_HASH@2..27
                         TK_WHITESPACE@2..3 " "
                         TK_OPEN_CURLY@3..4 "{"
-                        TWIG_LITERAL_HASH_PAIR@4..14
-                          TWIG_LITERAL_HASH_KEY@4..10
-                            TK_WHITESPACE@4..5 " "
-                            TK_WORD@5..10 "hello"
-                          TK_COLON@10..11 ":"
-                          TWIG_EXPRESSION@11..14
-                            TWIG_LITERAL_NUMBER@11..14
-                              TK_WHITESPACE@11..12 " "
-                              TK_NUMBER@12..14 "42"
-                        TK_COMMA@14..15 ","
-                        TWIG_LITERAL_HASH_PAIR@15..25
-                          TWIG_LITERAL_HASH_KEY@15..21
-                            TK_WHITESPACE@15..16 " "
-                            TK_WORD@16..21 "world"
-                          TK_COLON@21..22 ":"
-                          TWIG_EXPRESSION@22..25
-                            TWIG_LITERAL_NUMBER@22..25
-                              TK_WHITESPACE@22..23 " "
-                              TK_NUMBER@23..25 "33"
+                        TWIG_LITERAL_HASH_ITEMS@4..25
+                          TWIG_LITERAL_HASH_PAIR@4..14
+                            TWIG_LITERAL_HASH_KEY@4..10
+                              TK_WHITESPACE@4..5 " "
+                              TK_WORD@5..10 "hello"
+                            TK_COLON@10..11 ":"
+                            TWIG_EXPRESSION@11..14
+                              TWIG_LITERAL_NUMBER@11..14
+                                TK_WHITESPACE@11..12 " "
+                                TK_NUMBER@12..14 "42"
+                          TK_COMMA@14..15 ","
+                          TWIG_LITERAL_HASH_PAIR@15..25
+                            TWIG_LITERAL_HASH_KEY@15..21
+                              TK_WHITESPACE@15..16 " "
+                              TK_WORD@16..21 "world"
+                            TK_COLON@21..22 ":"
+                            TWIG_EXPRESSION@22..25
+                              TWIG_LITERAL_NUMBER@22..25
+                                TK_WHITESPACE@22..23 " "
+                                TK_NUMBER@23..25 "33"
                         TK_WHITESPACE@25..26 " "
                         TK_CLOSE_CURLY@26..27 "}"
                     TK_WHITESPACE@27..28 " "
@@ -913,32 +925,33 @@ mod tests {
                       TWIG_LITERAL_HASH@2..24
                         TK_WHITESPACE@2..3 " "
                         TK_OPEN_CURLY@3..4 "{"
-                        TWIG_LITERAL_HASH_PAIR@4..13
-                          TWIG_LITERAL_HASH_KEY@4..9
-                            TK_WHITESPACE@4..5 " "
-                            TK_OPEN_PARENTHESIS@5..6 "("
-                            TWIG_EXPRESSION@6..8
-                              TWIG_LITERAL_NUMBER@6..8
-                                TK_NUMBER@6..8 "15"
-                            TK_CLOSE_PARENTHESIS@8..9 ")"
-                          TK_COLON@9..10 ":"
-                          TWIG_EXPRESSION@10..13
-                            TWIG_LITERAL_NUMBER@10..13
-                              TK_WHITESPACE@10..11 " "
-                              TK_NUMBER@11..13 "42"
-                        TWIG_LITERAL_HASH_PAIR@13..22
-                          TWIG_LITERAL_HASH_KEY@13..18
-                            TK_WHITESPACE@13..14 " "
-                            TK_OPEN_PARENTHESIS@14..15 "("
-                            TWIG_EXPRESSION@15..17
-                              TWIG_LITERAL_NUMBER@15..17
-                                TK_NUMBER@15..17 "60"
-                            TK_CLOSE_PARENTHESIS@17..18 ")"
-                          TK_COLON@18..19 ":"
-                          TWIG_EXPRESSION@19..22
-                            TWIG_LITERAL_NUMBER@19..22
-                              TK_WHITESPACE@19..20 " "
-                              TK_NUMBER@20..22 "33"
+                        TWIG_LITERAL_HASH_ITEMS@4..22
+                          TWIG_LITERAL_HASH_PAIR@4..13
+                            TWIG_LITERAL_HASH_KEY@4..9
+                              TK_WHITESPACE@4..5 " "
+                              TK_OPEN_PARENTHESIS@5..6 "("
+                              TWIG_EXPRESSION@6..8
+                                TWIG_LITERAL_NUMBER@6..8
+                                  TK_NUMBER@6..8 "15"
+                              TK_CLOSE_PARENTHESIS@8..9 ")"
+                            TK_COLON@9..10 ":"
+                            TWIG_EXPRESSION@10..13
+                              TWIG_LITERAL_NUMBER@10..13
+                                TK_WHITESPACE@10..11 " "
+                                TK_NUMBER@11..13 "42"
+                          TWIG_LITERAL_HASH_PAIR@13..22
+                            TWIG_LITERAL_HASH_KEY@13..18
+                              TK_WHITESPACE@13..14 " "
+                              TK_OPEN_PARENTHESIS@14..15 "("
+                              TWIG_EXPRESSION@15..17
+                                TWIG_LITERAL_NUMBER@15..17
+                                  TK_NUMBER@15..17 "60"
+                              TK_CLOSE_PARENTHESIS@17..18 ")"
+                            TK_COLON@18..19 ":"
+                            TWIG_EXPRESSION@19..22
+                              TWIG_LITERAL_NUMBER@19..22
+                                TK_WHITESPACE@19..20 " "
+                                TK_NUMBER@20..22 "33"
                         TK_WHITESPACE@22..23 " "
                         TK_CLOSE_CURLY@23..24 "}"
                     TK_WHITESPACE@24..25 " "
@@ -959,75 +972,76 @@ mod tests {
                       TWIG_LITERAL_HASH@2..55
                         TK_WHITESPACE@2..3 " "
                         TK_OPEN_CURLY@3..4 "{"
-                        TWIG_LITERAL_HASH_PAIR@4..17
-                          TWIG_LITERAL_HASH_KEY@4..10
-                            TK_WHITESPACE@4..5 " "
-                            TK_OPEN_PARENTHESIS@5..6 "("
-                            TWIG_EXPRESSION@6..9
-                              TWIG_LITERAL_NAME@6..9
-                                TK_WORD@6..9 "foo"
-                            TK_CLOSE_PARENTHESIS@9..10 ")"
-                          TK_COLON@10..11 ":"
-                          TWIG_EXPRESSION@11..17
-                            TWIG_LITERAL_STRING@11..17
-                              TK_WHITESPACE@11..12 " "
-                              TK_SINGLE_QUOTES@12..13 "'"
-                              TWIG_LITERAL_STRING_INNER@13..16
-                                TK_WORD@13..16 "foo"
-                              TK_SINGLE_QUOTES@16..17 "'"
-                        TK_COMMA@17..18 ","
-                        TWIG_LITERAL_HASH_PAIR@18..33
-                          TWIG_LITERAL_HASH_KEY@18..26
-                            TK_WHITESPACE@18..19 " "
-                            TK_OPEN_PARENTHESIS@19..20 "("
-                            TWIG_EXPRESSION@20..25
-                              TWIG_BINARY_EXPRESSION@20..25
-                                TWIG_EXPRESSION@20..21
-                                  TWIG_LITERAL_NUMBER@20..21
-                                    TK_NUMBER@20..21 "1"
-                                TK_WHITESPACE@21..22 " "
-                                TK_PLUS@22..23 "+"
-                                TWIG_EXPRESSION@23..25
-                                  TWIG_LITERAL_NUMBER@23..25
-                                    TK_WHITESPACE@23..24 " "
-                                    TK_NUMBER@24..25 "1"
-                            TK_CLOSE_PARENTHESIS@25..26 ")"
-                          TK_COLON@26..27 ":"
-                          TWIG_EXPRESSION@27..33
-                            TWIG_LITERAL_STRING@27..33
-                              TK_WHITESPACE@27..28 " "
-                              TK_SINGLE_QUOTES@28..29 "'"
-                              TWIG_LITERAL_STRING_INNER@29..32
-                                TK_WORD@29..32 "bar"
-                              TK_SINGLE_QUOTES@32..33 "'"
-                        TK_COMMA@33..34 ","
-                        TWIG_LITERAL_HASH_PAIR@34..53
-                          TWIG_LITERAL_HASH_KEY@34..46
-                            TK_WHITESPACE@34..35 " "
-                            TK_OPEN_PARENTHESIS@35..36 "("
-                            TWIG_EXPRESSION@36..45
-                              TWIG_BINARY_EXPRESSION@36..45
-                                TWIG_EXPRESSION@36..39
-                                  TWIG_LITERAL_NAME@36..39
-                                    TK_WORD@36..39 "foo"
-                                TK_WHITESPACE@39..40 " "
-                                TK_TILDE@40..41 "~"
-                                TWIG_EXPRESSION@41..45
-                                  TWIG_LITERAL_STRING@41..45
-                                    TK_WHITESPACE@41..42 " "
-                                    TK_SINGLE_QUOTES@42..43 "'"
-                                    TWIG_LITERAL_STRING_INNER@43..44
-                                      TK_WORD@43..44 "b"
-                                    TK_SINGLE_QUOTES@44..45 "'"
-                            TK_CLOSE_PARENTHESIS@45..46 ")"
-                          TK_COLON@46..47 ":"
-                          TWIG_EXPRESSION@47..53
-                            TWIG_LITERAL_STRING@47..53
-                              TK_WHITESPACE@47..48 " "
-                              TK_SINGLE_QUOTES@48..49 "'"
-                              TWIG_LITERAL_STRING_INNER@49..52
-                                TK_WORD@49..52 "baz"
-                              TK_SINGLE_QUOTES@52..53 "'"
+                        TWIG_LITERAL_HASH_ITEMS@4..53
+                          TWIG_LITERAL_HASH_PAIR@4..17
+                            TWIG_LITERAL_HASH_KEY@4..10
+                              TK_WHITESPACE@4..5 " "
+                              TK_OPEN_PARENTHESIS@5..6 "("
+                              TWIG_EXPRESSION@6..9
+                                TWIG_LITERAL_NAME@6..9
+                                  TK_WORD@6..9 "foo"
+                              TK_CLOSE_PARENTHESIS@9..10 ")"
+                            TK_COLON@10..11 ":"
+                            TWIG_EXPRESSION@11..17
+                              TWIG_LITERAL_STRING@11..17
+                                TK_WHITESPACE@11..12 " "
+                                TK_SINGLE_QUOTES@12..13 "'"
+                                TWIG_LITERAL_STRING_INNER@13..16
+                                  TK_WORD@13..16 "foo"
+                                TK_SINGLE_QUOTES@16..17 "'"
+                          TK_COMMA@17..18 ","
+                          TWIG_LITERAL_HASH_PAIR@18..33
+                            TWIG_LITERAL_HASH_KEY@18..26
+                              TK_WHITESPACE@18..19 " "
+                              TK_OPEN_PARENTHESIS@19..20 "("
+                              TWIG_EXPRESSION@20..25
+                                TWIG_BINARY_EXPRESSION@20..25
+                                  TWIG_EXPRESSION@20..21
+                                    TWIG_LITERAL_NUMBER@20..21
+                                      TK_NUMBER@20..21 "1"
+                                  TK_WHITESPACE@21..22 " "
+                                  TK_PLUS@22..23 "+"
+                                  TWIG_EXPRESSION@23..25
+                                    TWIG_LITERAL_NUMBER@23..25
+                                      TK_WHITESPACE@23..24 " "
+                                      TK_NUMBER@24..25 "1"
+                              TK_CLOSE_PARENTHESIS@25..26 ")"
+                            TK_COLON@26..27 ":"
+                            TWIG_EXPRESSION@27..33
+                              TWIG_LITERAL_STRING@27..33
+                                TK_WHITESPACE@27..28 " "
+                                TK_SINGLE_QUOTES@28..29 "'"
+                                TWIG_LITERAL_STRING_INNER@29..32
+                                  TK_WORD@29..32 "bar"
+                                TK_SINGLE_QUOTES@32..33 "'"
+                          TK_COMMA@33..34 ","
+                          TWIG_LITERAL_HASH_PAIR@34..53
+                            TWIG_LITERAL_HASH_KEY@34..46
+                              TK_WHITESPACE@34..35 " "
+                              TK_OPEN_PARENTHESIS@35..36 "("
+                              TWIG_EXPRESSION@36..45
+                                TWIG_BINARY_EXPRESSION@36..45
+                                  TWIG_EXPRESSION@36..39
+                                    TWIG_LITERAL_NAME@36..39
+                                      TK_WORD@36..39 "foo"
+                                  TK_WHITESPACE@39..40 " "
+                                  TK_TILDE@40..41 "~"
+                                  TWIG_EXPRESSION@41..45
+                                    TWIG_LITERAL_STRING@41..45
+                                      TK_WHITESPACE@41..42 " "
+                                      TK_SINGLE_QUOTES@42..43 "'"
+                                      TWIG_LITERAL_STRING_INNER@43..44
+                                        TK_WORD@43..44 "b"
+                                      TK_SINGLE_QUOTES@44..45 "'"
+                              TK_CLOSE_PARENTHESIS@45..46 ")"
+                            TK_COLON@46..47 ":"
+                            TWIG_EXPRESSION@47..53
+                              TWIG_LITERAL_STRING@47..53
+                                TK_WHITESPACE@47..48 " "
+                                TK_SINGLE_QUOTES@48..49 "'"
+                                TWIG_LITERAL_STRING_INNER@49..52
+                                  TK_WORD@49..52 "baz"
+                                TK_SINGLE_QUOTES@52..53 "'"
                         TK_WHITESPACE@53..54 " "
                         TK_CLOSE_CURLY@54..55 "}"
                     TK_WHITESPACE@55..56 " "
@@ -1040,40 +1054,42 @@ mod tests {
         check_parse(
             "{{ { outer: { inner: 'hello' } } }}",
             expect![[r#"
-            ROOT@0..35
-              TWIG_VAR@0..35
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..32
-                  TWIG_LITERAL_HASH@2..32
-                    TK_WHITESPACE@2..3 " "
-                    TK_OPEN_CURLY@3..4 "{"
-                    TWIG_LITERAL_HASH_PAIR@4..30
-                      TWIG_LITERAL_HASH_KEY@4..10
-                        TK_WHITESPACE@4..5 " "
-                        TK_WORD@5..10 "outer"
-                      TK_COLON@10..11 ":"
-                      TWIG_EXPRESSION@11..30
-                        TWIG_LITERAL_HASH@11..30
-                          TK_WHITESPACE@11..12 " "
-                          TK_OPEN_CURLY@12..13 "{"
-                          TWIG_LITERAL_HASH_PAIR@13..28
-                            TWIG_LITERAL_HASH_KEY@13..19
-                              TK_WHITESPACE@13..14 " "
-                              TK_WORD@14..19 "inner"
-                            TK_COLON@19..20 ":"
-                            TWIG_EXPRESSION@20..28
-                              TWIG_LITERAL_STRING@20..28
-                                TK_WHITESPACE@20..21 " "
-                                TK_SINGLE_QUOTES@21..22 "'"
-                                TWIG_LITERAL_STRING_INNER@22..27
-                                  TK_WORD@22..27 "hello"
-                                TK_SINGLE_QUOTES@27..28 "'"
-                          TK_WHITESPACE@28..29 " "
-                          TK_CLOSE_CURLY@29..30 "}"
-                    TK_WHITESPACE@30..31 " "
-                    TK_CLOSE_CURLY@31..32 "}"
-                TK_WHITESPACE@32..33 " "
-                TK_CLOSE_CURLY_CURLY@33..35 "}}""#]],
+                ROOT@0..35
+                  TWIG_VAR@0..35
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..32
+                      TWIG_LITERAL_HASH@2..32
+                        TK_WHITESPACE@2..3 " "
+                        TK_OPEN_CURLY@3..4 "{"
+                        TWIG_LITERAL_HASH_ITEMS@4..30
+                          TWIG_LITERAL_HASH_PAIR@4..30
+                            TWIG_LITERAL_HASH_KEY@4..10
+                              TK_WHITESPACE@4..5 " "
+                              TK_WORD@5..10 "outer"
+                            TK_COLON@10..11 ":"
+                            TWIG_EXPRESSION@11..30
+                              TWIG_LITERAL_HASH@11..30
+                                TK_WHITESPACE@11..12 " "
+                                TK_OPEN_CURLY@12..13 "{"
+                                TWIG_LITERAL_HASH_ITEMS@13..28
+                                  TWIG_LITERAL_HASH_PAIR@13..28
+                                    TWIG_LITERAL_HASH_KEY@13..19
+                                      TK_WHITESPACE@13..14 " "
+                                      TK_WORD@14..19 "inner"
+                                    TK_COLON@19..20 ":"
+                                    TWIG_EXPRESSION@20..28
+                                      TWIG_LITERAL_STRING@20..28
+                                        TK_WHITESPACE@20..21 " "
+                                        TK_SINGLE_QUOTES@21..22 "'"
+                                        TWIG_LITERAL_STRING_INNER@22..27
+                                          TK_WORD@22..27 "hello"
+                                        TK_SINGLE_QUOTES@27..28 "'"
+                                TK_WHITESPACE@28..29 " "
+                                TK_CLOSE_CURLY@29..30 "}"
+                        TK_WHITESPACE@30..31 " "
+                        TK_CLOSE_CURLY@31..32 "}"
+                    TK_WHITESPACE@32..33 " "
+                    TK_CLOSE_CURLY_CURLY@33..35 "}}""#]],
         );
     }
 
@@ -1089,30 +1105,31 @@ mod tests {
                       TWIG_LITERAL_HASH@2..31
                         TK_WHITESPACE@2..3 " "
                         TK_OPEN_CURLY@3..4 "{"
-                        TWIG_LITERAL_HASH_PAIR@4..10
-                          TWIG_LITERAL_HASH_KEY@4..10
-                            TK_WHITESPACE@4..5 " "
-                            TK_WORD@5..10 "value"
-                        TK_COMMA@10..11 ","
-                        TWIG_LITERAL_HASH_PAIR@11..14
-                          TWIG_LITERAL_HASH_KEY@11..14
-                            TK_WHITESPACE@11..12 " "
-                            TK_WORD@12..14 "is"
-                        TK_COMMA@14..15 ","
-                        TWIG_LITERAL_HASH_PAIR@15..20
-                          TWIG_LITERAL_HASH_KEY@15..20
-                            TK_WHITESPACE@15..16 " "
-                            TK_WORD@16..20 "same"
-                        TK_COMMA@20..21 ","
-                        TWIG_LITERAL_HASH_PAIR@21..24
-                          TWIG_LITERAL_HASH_KEY@21..24
-                            TK_WHITESPACE@21..22 " "
-                            TK_WORD@22..24 "as"
-                        TK_COMMA@24..25 ","
-                        TWIG_LITERAL_HASH_PAIR@25..29
-                          TWIG_LITERAL_HASH_KEY@25..29
-                            TK_WHITESPACE@25..26 " "
-                            TK_WORD@26..29 "key"
+                        TWIG_LITERAL_HASH_ITEMS@4..29
+                          TWIG_LITERAL_HASH_PAIR@4..10
+                            TWIG_LITERAL_HASH_KEY@4..10
+                              TK_WHITESPACE@4..5 " "
+                              TK_WORD@5..10 "value"
+                          TK_COMMA@10..11 ","
+                          TWIG_LITERAL_HASH_PAIR@11..14
+                            TWIG_LITERAL_HASH_KEY@11..14
+                              TK_WHITESPACE@11..12 " "
+                              TK_WORD@12..14 "is"
+                          TK_COMMA@14..15 ","
+                          TWIG_LITERAL_HASH_PAIR@15..20
+                            TWIG_LITERAL_HASH_KEY@15..20
+                              TK_WHITESPACE@15..16 " "
+                              TK_WORD@16..20 "same"
+                          TK_COMMA@20..21 ","
+                          TWIG_LITERAL_HASH_PAIR@21..24
+                            TWIG_LITERAL_HASH_KEY@21..24
+                              TK_WHITESPACE@21..22 " "
+                              TK_WORD@22..24 "as"
+                          TK_COMMA@24..25 ","
+                          TWIG_LITERAL_HASH_PAIR@25..29
+                            TWIG_LITERAL_HASH_KEY@25..29
+                              TK_WHITESPACE@25..26 " "
+                              TK_WORD@26..29 "key"
                         TK_WHITESPACE@29..30 " "
                         TK_CLOSE_CURLY@30..31 "}"
                     TK_WHITESPACE@31..32 " "
@@ -1125,40 +1142,42 @@ mod tests {
         check_parse(
             r#"{{ [1, {"foo": "bar"}] }}"#,
             expect![[r#"
-            ROOT@0..25
-              TWIG_VAR@0..25
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..22
-                  TWIG_LITERAL_ARRAY@2..22
-                    TK_WHITESPACE@2..3 " "
-                    TK_OPEN_SQUARE@3..4 "["
-                    TWIG_EXPRESSION@4..5
-                      TWIG_LITERAL_NUMBER@4..5
-                        TK_NUMBER@4..5 "1"
-                    TK_COMMA@5..6 ","
-                    TWIG_EXPRESSION@6..21
-                      TWIG_LITERAL_HASH@6..21
-                        TK_WHITESPACE@6..7 " "
-                        TK_OPEN_CURLY@7..8 "{"
-                        TWIG_LITERAL_HASH_PAIR@8..20
-                          TWIG_LITERAL_HASH_KEY@8..13
-                            TWIG_LITERAL_STRING@8..13
-                              TK_DOUBLE_QUOTES@8..9 "\""
-                              TWIG_LITERAL_STRING_INNER@9..12
-                                TK_WORD@9..12 "foo"
-                              TK_DOUBLE_QUOTES@12..13 "\""
-                          TK_COLON@13..14 ":"
-                          TWIG_EXPRESSION@14..20
-                            TWIG_LITERAL_STRING@14..20
-                              TK_WHITESPACE@14..15 " "
-                              TK_DOUBLE_QUOTES@15..16 "\""
-                              TWIG_LITERAL_STRING_INNER@16..19
-                                TK_WORD@16..19 "bar"
-                              TK_DOUBLE_QUOTES@19..20 "\""
-                        TK_CLOSE_CURLY@20..21 "}"
-                    TK_CLOSE_SQUARE@21..22 "]"
-                TK_WHITESPACE@22..23 " "
-                TK_CLOSE_CURLY_CURLY@23..25 "}}""#]],
+                ROOT@0..25
+                  TWIG_VAR@0..25
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..22
+                      TWIG_LITERAL_ARRAY@2..22
+                        TK_WHITESPACE@2..3 " "
+                        TK_OPEN_SQUARE@3..4 "["
+                        TWIG_LITERAL_ARRAY_INNER@4..21
+                          TWIG_EXPRESSION@4..5
+                            TWIG_LITERAL_NUMBER@4..5
+                              TK_NUMBER@4..5 "1"
+                          TK_COMMA@5..6 ","
+                          TWIG_EXPRESSION@6..21
+                            TWIG_LITERAL_HASH@6..21
+                              TK_WHITESPACE@6..7 " "
+                              TK_OPEN_CURLY@7..8 "{"
+                              TWIG_LITERAL_HASH_ITEMS@8..20
+                                TWIG_LITERAL_HASH_PAIR@8..20
+                                  TWIG_LITERAL_HASH_KEY@8..13
+                                    TWIG_LITERAL_STRING@8..13
+                                      TK_DOUBLE_QUOTES@8..9 "\""
+                                      TWIG_LITERAL_STRING_INNER@9..12
+                                        TK_WORD@9..12 "foo"
+                                      TK_DOUBLE_QUOTES@12..13 "\""
+                                  TK_COLON@13..14 ":"
+                                  TWIG_EXPRESSION@14..20
+                                    TWIG_LITERAL_STRING@14..20
+                                      TK_WHITESPACE@14..15 " "
+                                      TK_DOUBLE_QUOTES@15..16 "\""
+                                      TWIG_LITERAL_STRING_INNER@16..19
+                                        TK_WORD@16..19 "bar"
+                                      TK_DOUBLE_QUOTES@19..20 "\""
+                              TK_CLOSE_CURLY@20..21 "}"
+                        TK_CLOSE_SQUARE@21..22 "]"
+                    TK_WHITESPACE@22..23 " "
+                    TK_CLOSE_CURLY_CURLY@23..25 "}}""#]],
         );
     }
 

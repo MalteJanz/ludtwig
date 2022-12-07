@@ -158,7 +158,11 @@ impl HtmlStartingTag {
     /// Attributes of the tag
     #[must_use]
     pub fn attributes(&self) -> AstChildren<HtmlAttribute> {
-        support::children(&self.syntax)
+        match support::child::<HtmlAttributeList>(&self.syntax) {
+            Some(list) => support::children(&list.syntax),
+            // create an iterator for HtmlAttribute over the startingTag itself, which should yield no results
+            None => support::children(&self.syntax),
+        }
     }
 
     /// Parent complete html tag
@@ -391,9 +395,11 @@ ast_node!(
 );
 ast_node!(TwigLiteralNumber, SyntaxKind::TWIG_LITERAL_NUMBER);
 ast_node!(TwigLiteralArray, SyntaxKind::TWIG_LITERAL_ARRAY);
+ast_node!(TwigLiteralArrayInner, SyntaxKind::TWIG_LITERAL_ARRAY_INNER);
 ast_node!(TwigLiteralNull, SyntaxKind::TWIG_LITERAL_NULL);
 ast_node!(TwigLiteralBoolean, SyntaxKind::TWIG_LITERAL_BOOLEAN);
 ast_node!(TwigLiteralHash, SyntaxKind::TWIG_LITERAL_HASH);
+ast_node!(TwigLiteralHashItems, SyntaxKind::TWIG_LITERAL_HASH_ITEMS);
 ast_node!(TwigLiteralHashPair, SyntaxKind::TWIG_LITERAL_HASH_PAIR);
 ast_node!(TwigLiteralHashKey, SyntaxKind::TWIG_LITERAL_HASH_KEY);
 ast_node!(TwigLiteralHashValue, SyntaxKind::TWIG_LITERAL_HASH_VALUE);
@@ -495,6 +501,7 @@ ast_node!(ShopwareIconStyle, SyntaxKind::SHOPWARE_ICON_STYLE);
 ast_node!(ShopwareThumbnails, SyntaxKind::SHOPWARE_THUMBNAILS);
 ast_node!(ShopwareThumbnailsWith, SyntaxKind::SHOPWARE_THUMBNAILS_WITH);
 ast_node!(HtmlDoctype, SyntaxKind::HTML_DOCTYPE);
+ast_node!(HtmlAttributeList, SyntaxKind::HTML_ATTRIBUTE_LIST);
 ast_node!(HtmlStringInner, SyntaxKind::HTML_STRING_INNER);
 ast_node!(HtmlText, SyntaxKind::HTML_TEXT);
 ast_node!(HtmlComment, SyntaxKind::HTML_COMMENT);

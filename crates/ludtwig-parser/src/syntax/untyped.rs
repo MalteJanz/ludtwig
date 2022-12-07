@@ -345,9 +345,11 @@ pub enum SyntaxKind {
     TWIG_LITERAL_STRING_INTERPOLATION,
     TWIG_LITERAL_NUMBER,
     TWIG_LITERAL_ARRAY,
+    TWIG_LITERAL_ARRAY_INNER,
     TWIG_LITERAL_NULL,
     TWIG_LITERAL_BOOLEAN,
     TWIG_LITERAL_HASH,
+    TWIG_LITERAL_HASH_ITEMS,
     TWIG_LITERAL_HASH_PAIR,
     TWIG_LITERAL_HASH_KEY,
     TWIG_LITERAL_HASH_VALUE,
@@ -442,6 +444,7 @@ pub enum SyntaxKind {
 
     // html
     HTML_DOCTYPE,
+    HTML_ATTRIBUTE_LIST,
     HTML_ATTRIBUTE,
     HTML_STRING,       // used as attribute values
     HTML_STRING_INNER, // content inside the quotes of html attribute values

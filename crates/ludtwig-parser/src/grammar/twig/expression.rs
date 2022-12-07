@@ -576,9 +576,10 @@ mod tests {
                           TWIG_LITERAL_ARRAY@15..23
                             TK_WHITESPACE@15..16 " "
                             TK_OPEN_SQUARE@16..17 "["
-                            TWIG_EXPRESSION@17..22
-                              TWIG_LITERAL_BOOLEAN@17..22
-                                TK_FALSE@17..22 "false"
+                            TWIG_LITERAL_ARRAY_INNER@17..22
+                              TWIG_EXPRESSION@17..22
+                                TWIG_LITERAL_BOOLEAN@17..22
+                                  TK_FALSE@17..22 "false"
                             TK_CLOSE_SQUARE@22..23 "]"
                     TK_WHITESPACE@23..24 " "
                     TK_CLOSE_CURLY_CURLY@24..26 "}}""#]],
@@ -607,9 +608,10 @@ mod tests {
                           TWIG_LITERAL_ARRAY@11..15
                             TK_WHITESPACE@11..12 " "
                             TK_OPEN_SQUARE@12..13 "["
-                            TWIG_EXPRESSION@13..14
-                              TWIG_LITERAL_NUMBER@13..14
-                                TK_NUMBER@13..14 "1"
+                            TWIG_LITERAL_ARRAY_INNER@13..14
+                              TWIG_EXPRESSION@13..14
+                                TWIG_LITERAL_NUMBER@13..14
+                                  TK_NUMBER@13..14 "1"
                             TK_CLOSE_SQUARE@14..15 "]"
                     TK_WHITESPACE@15..16 " "
                     TK_CLOSE_CURLY_CURLY@16..18 "}}""#]],
@@ -641,9 +643,10 @@ mod tests {
                           TWIG_LITERAL_ARRAY@12..16
                             TK_WHITESPACE@12..13 " "
                             TK_OPEN_SQUARE@13..14 "["
-                            TWIG_EXPRESSION@14..15
-                              TWIG_LITERAL_NUMBER@14..15
-                                TK_NUMBER@14..15 "1"
+                            TWIG_LITERAL_ARRAY_INNER@14..15
+                              TWIG_EXPRESSION@14..15
+                                TWIG_LITERAL_NUMBER@14..15
+                                  TK_NUMBER@14..15 "1"
                             TK_CLOSE_SQUARE@15..16 "]"
                     TK_WHITESPACE@16..17 " "
                     TK_CLOSE_CURLY_CURLY@17..19 "}}""#]],
@@ -1279,32 +1282,33 @@ mod tests {
         check_parse(
             r#"{{ [0, 1][0] }}"#,
             expect![[r#"
-            ROOT@0..15
-              TWIG_VAR@0..15
-                TK_OPEN_CURLY_CURLY@0..2 "{{"
-                TWIG_EXPRESSION@2..12
-                  TWIG_INDEX_LOOKUP@2..12
-                    TWIG_OPERAND@2..9
-                      TWIG_LITERAL_ARRAY@2..9
-                        TK_WHITESPACE@2..3 " "
-                        TK_OPEN_SQUARE@3..4 "["
-                        TWIG_EXPRESSION@4..5
-                          TWIG_LITERAL_NUMBER@4..5
-                            TK_NUMBER@4..5 "0"
-                        TK_COMMA@5..6 ","
-                        TWIG_EXPRESSION@6..8
-                          TWIG_LITERAL_NUMBER@6..8
-                            TK_WHITESPACE@6..7 " "
-                            TK_NUMBER@7..8 "1"
-                        TK_CLOSE_SQUARE@8..9 "]"
-                    TK_OPEN_SQUARE@9..10 "["
-                    TWIG_INDEX@10..11
-                      TWIG_EXPRESSION@10..11
-                        TWIG_LITERAL_NUMBER@10..11
-                          TK_NUMBER@10..11 "0"
-                    TK_CLOSE_SQUARE@11..12 "]"
-                TK_WHITESPACE@12..13 " "
-                TK_CLOSE_CURLY_CURLY@13..15 "}}""#]],
+                ROOT@0..15
+                  TWIG_VAR@0..15
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..12
+                      TWIG_INDEX_LOOKUP@2..12
+                        TWIG_OPERAND@2..9
+                          TWIG_LITERAL_ARRAY@2..9
+                            TK_WHITESPACE@2..3 " "
+                            TK_OPEN_SQUARE@3..4 "["
+                            TWIG_LITERAL_ARRAY_INNER@4..8
+                              TWIG_EXPRESSION@4..5
+                                TWIG_LITERAL_NUMBER@4..5
+                                  TK_NUMBER@4..5 "0"
+                              TK_COMMA@5..6 ","
+                              TWIG_EXPRESSION@6..8
+                                TWIG_LITERAL_NUMBER@6..8
+                                  TK_WHITESPACE@6..7 " "
+                                  TK_NUMBER@7..8 "1"
+                            TK_CLOSE_SQUARE@8..9 "]"
+                        TK_OPEN_SQUARE@9..10 "["
+                        TWIG_INDEX@10..11
+                          TWIG_EXPRESSION@10..11
+                            TWIG_LITERAL_NUMBER@10..11
+                              TK_NUMBER@10..11 "0"
+                        TK_CLOSE_SQUARE@11..12 "]"
+                    TK_WHITESPACE@12..13 " "
+                    TK_CLOSE_CURLY_CURLY@13..15 "}}""#]],
         )
     }
 }

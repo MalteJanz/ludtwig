@@ -126,15 +126,16 @@ mod tests {
                           TK_WHITESPACE@21..25 "    "
                           TK_LESS_THAN@25..26 "<"
                           TK_WORD@26..29 "div"
-                          HTML_ATTRIBUTE@29..44
-                            TK_WHITESPACE@29..30 " "
-                            TK_WORD@30..35 "claSs"
-                            TK_EQUAL@35..36 "="
-                            HTML_STRING@36..44
-                              TK_DOUBLE_QUOTES@36..37 "\""
-                              HTML_STRING_INNER@37..43
-                                TK_WORD@37..43 "my-div"
-                              TK_DOUBLE_QUOTES@43..44 "\""
+                          HTML_ATTRIBUTE_LIST@29..44
+                            HTML_ATTRIBUTE@29..44
+                              TK_WHITESPACE@29..30 " "
+                              TK_WORD@30..35 "claSs"
+                              TK_EQUAL@35..36 "="
+                              HTML_STRING@36..44
+                                TK_DOUBLE_QUOTES@36..37 "\""
+                                HTML_STRING_INNER@37..43
+                                  TK_WORD@37..43 "my-div"
+                                TK_DOUBLE_QUOTES@43..44 "\""
                           TK_GREATER_THAN@44..45 ">"
                         BODY@45..59
                           HTML_TEXT@45..59

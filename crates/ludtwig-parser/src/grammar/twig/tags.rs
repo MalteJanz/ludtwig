@@ -2013,6 +2013,7 @@ mod tests {
                           TK_WHITESPACE@24..28 "    "
                           TK_LESS_THAN@28..29 "<"
                           TK_WORD@29..31 "li"
+                          HTML_ATTRIBUTE_LIST@31..31
                           TK_GREATER_THAN@31..32 ">"
                         BODY@32..51
                           TWIG_VAR@32..51
@@ -2204,6 +2205,7 @@ mod tests {
                           TK_WHITESPACE@29..33 "    "
                           TK_LESS_THAN@33..34 "<"
                           TK_WORD@34..36 "li"
+                          HTML_ATTRIBUTE_LIST@36..36
                           TK_GREATER_THAN@36..37 ">"
                         BODY@37..69
                           TWIG_VAR@37..46
@@ -2284,6 +2286,7 @@ mod tests {
                           TK_WHITESPACE@24..28 "    "
                           TK_LESS_THAN@28..29 "<"
                           TK_WORD@29..31 "li"
+                          HTML_ATTRIBUTE_LIST@31..31
                           TK_GREATER_THAN@31..32 ">"
                         BODY@32..51
                           TWIG_VAR@32..51
@@ -2318,12 +2321,14 @@ mod tests {
                           TK_WHITESPACE@68..72 "    "
                           TK_LESS_THAN@72..73 "<"
                           TK_WORD@73..75 "li"
+                          HTML_ATTRIBUTE_LIST@75..75
                           TK_GREATER_THAN@75..76 ">"
                         BODY@76..98
                           HTML_TAG@76..98
                             HTML_STARTING_TAG@76..80
                               TK_LESS_THAN@76..77 "<"
                               TK_WORD@77..79 "em"
+                              HTML_ATTRIBUTE_LIST@79..79
                               TK_GREATER_THAN@79..80 ">"
                             BODY@80..93
                               HTML_TEXT@80..93
@@ -2378,6 +2383,7 @@ mod tests {
                           TK_WHITESPACE@19..23 "    "
                           TK_LESS_THAN@23..24 "<"
                           TK_WORD@24..26 "li"
+                          HTML_ATTRIBUTE_LIST@26..26
                           TK_GREATER_THAN@26..27 ">"
                         BODY@27..46
                           TWIG_VAR@27..46
@@ -2437,6 +2443,7 @@ mod tests {
                           TK_WHITESPACE@18..22 "    "
                           TK_LESS_THAN@22..23 "<"
                           TK_WORD@23..25 "li"
+                          HTML_ATTRIBUTE_LIST@25..25
                           TK_GREATER_THAN@25..26 ">"
                         BODY@26..45
                           TWIG_VAR@26..45
@@ -2516,36 +2523,37 @@ mod tests {
         check_parse(
             r#"{% extends ['layout.html', 'base_layout.html'] %}"#,
             expect![[r#"
-            ROOT@0..49
-              TWIG_EXTENDS@0..49
-                TK_CURLY_PERCENT@0..2 "{%"
-                TK_WHITESPACE@2..3 " "
-                TK_EXTENDS@3..10 "extends"
-                TWIG_EXPRESSION@10..46
-                  TWIG_LITERAL_ARRAY@10..46
-                    TK_WHITESPACE@10..11 " "
-                    TK_OPEN_SQUARE@11..12 "["
-                    TWIG_EXPRESSION@12..25
-                      TWIG_LITERAL_STRING@12..25
-                        TK_SINGLE_QUOTES@12..13 "'"
-                        TWIG_LITERAL_STRING_INNER@13..24
-                          TK_WORD@13..19 "layout"
-                          TK_DOT@19..20 "."
-                          TK_WORD@20..24 "html"
-                        TK_SINGLE_QUOTES@24..25 "'"
-                    TK_COMMA@25..26 ","
-                    TWIG_EXPRESSION@26..45
-                      TWIG_LITERAL_STRING@26..45
-                        TK_WHITESPACE@26..27 " "
-                        TK_SINGLE_QUOTES@27..28 "'"
-                        TWIG_LITERAL_STRING_INNER@28..44
-                          TK_WORD@28..39 "base_layout"
-                          TK_DOT@39..40 "."
-                          TK_WORD@40..44 "html"
-                        TK_SINGLE_QUOTES@44..45 "'"
-                    TK_CLOSE_SQUARE@45..46 "]"
-                TK_WHITESPACE@46..47 " "
-                TK_PERCENT_CURLY@47..49 "%}""#]],
+                ROOT@0..49
+                  TWIG_EXTENDS@0..49
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_EXTENDS@3..10 "extends"
+                    TWIG_EXPRESSION@10..46
+                      TWIG_LITERAL_ARRAY@10..46
+                        TK_WHITESPACE@10..11 " "
+                        TK_OPEN_SQUARE@11..12 "["
+                        TWIG_LITERAL_ARRAY_INNER@12..45
+                          TWIG_EXPRESSION@12..25
+                            TWIG_LITERAL_STRING@12..25
+                              TK_SINGLE_QUOTES@12..13 "'"
+                              TWIG_LITERAL_STRING_INNER@13..24
+                                TK_WORD@13..19 "layout"
+                                TK_DOT@19..20 "."
+                                TK_WORD@20..24 "html"
+                              TK_SINGLE_QUOTES@24..25 "'"
+                          TK_COMMA@25..26 ","
+                          TWIG_EXPRESSION@26..45
+                            TWIG_LITERAL_STRING@26..45
+                              TK_WHITESPACE@26..27 " "
+                              TK_SINGLE_QUOTES@27..28 "'"
+                              TWIG_LITERAL_STRING_INNER@28..44
+                                TK_WORD@28..39 "base_layout"
+                                TK_DOT@39..40 "."
+                                TK_WORD@40..44 "html"
+                              TK_SINGLE_QUOTES@44..45 "'"
+                        TK_CLOSE_SQUARE@45..46 "]"
+                    TK_WHITESPACE@46..47 " "
+                    TK_PERCENT_CURLY@47..49 "%}""#]],
         )
     }
 
@@ -2668,45 +2676,46 @@ mod tests {
         check_parse(
             r#"{% include 'template.html' with {'foo': 'bar'} %}"#,
             expect![[r#"
-            ROOT@0..49
-              TWIG_INCLUDE@0..49
-                TK_CURLY_PERCENT@0..2 "{%"
-                TK_WHITESPACE@2..3 " "
-                TK_INCLUDE@3..10 "include"
-                TWIG_EXPRESSION@10..26
-                  TWIG_LITERAL_STRING@10..26
-                    TK_WHITESPACE@10..11 " "
-                    TK_SINGLE_QUOTES@11..12 "'"
-                    TWIG_LITERAL_STRING_INNER@12..25
-                      TK_WORD@12..20 "template"
-                      TK_DOT@20..21 "."
-                      TK_WORD@21..25 "html"
-                    TK_SINGLE_QUOTES@25..26 "'"
-                TWIG_INCLUDE_WITH@26..46
-                  TK_WHITESPACE@26..27 " "
-                  TK_WITH@27..31 "with"
-                  TWIG_EXPRESSION@31..46
-                    TWIG_LITERAL_HASH@31..46
-                      TK_WHITESPACE@31..32 " "
-                      TK_OPEN_CURLY@32..33 "{"
-                      TWIG_LITERAL_HASH_PAIR@33..45
-                        TWIG_LITERAL_HASH_KEY@33..38
-                          TWIG_LITERAL_STRING@33..38
-                            TK_SINGLE_QUOTES@33..34 "'"
-                            TWIG_LITERAL_STRING_INNER@34..37
-                              TK_WORD@34..37 "foo"
-                            TK_SINGLE_QUOTES@37..38 "'"
-                        TK_COLON@38..39 ":"
-                        TWIG_EXPRESSION@39..45
-                          TWIG_LITERAL_STRING@39..45
-                            TK_WHITESPACE@39..40 " "
-                            TK_SINGLE_QUOTES@40..41 "'"
-                            TWIG_LITERAL_STRING_INNER@41..44
-                              TK_WORD@41..44 "bar"
-                            TK_SINGLE_QUOTES@44..45 "'"
-                      TK_CLOSE_CURLY@45..46 "}"
-                TK_WHITESPACE@46..47 " "
-                TK_PERCENT_CURLY@47..49 "%}""#]],
+                ROOT@0..49
+                  TWIG_INCLUDE@0..49
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_INCLUDE@3..10 "include"
+                    TWIG_EXPRESSION@10..26
+                      TWIG_LITERAL_STRING@10..26
+                        TK_WHITESPACE@10..11 " "
+                        TK_SINGLE_QUOTES@11..12 "'"
+                        TWIG_LITERAL_STRING_INNER@12..25
+                          TK_WORD@12..20 "template"
+                          TK_DOT@20..21 "."
+                          TK_WORD@21..25 "html"
+                        TK_SINGLE_QUOTES@25..26 "'"
+                    TWIG_INCLUDE_WITH@26..46
+                      TK_WHITESPACE@26..27 " "
+                      TK_WITH@27..31 "with"
+                      TWIG_EXPRESSION@31..46
+                        TWIG_LITERAL_HASH@31..46
+                          TK_WHITESPACE@31..32 " "
+                          TK_OPEN_CURLY@32..33 "{"
+                          TWIG_LITERAL_HASH_ITEMS@33..45
+                            TWIG_LITERAL_HASH_PAIR@33..45
+                              TWIG_LITERAL_HASH_KEY@33..38
+                                TWIG_LITERAL_STRING@33..38
+                                  TK_SINGLE_QUOTES@33..34 "'"
+                                  TWIG_LITERAL_STRING_INNER@34..37
+                                    TK_WORD@34..37 "foo"
+                                  TK_SINGLE_QUOTES@37..38 "'"
+                              TK_COLON@38..39 ":"
+                              TWIG_EXPRESSION@39..45
+                                TWIG_LITERAL_STRING@39..45
+                                  TK_WHITESPACE@39..40 " "
+                                  TK_SINGLE_QUOTES@40..41 "'"
+                                  TWIG_LITERAL_STRING_INNER@41..44
+                                    TK_WORD@41..44 "bar"
+                                  TK_SINGLE_QUOTES@44..45 "'"
+                          TK_CLOSE_CURLY@45..46 "}"
+                    TK_WHITESPACE@46..47 " "
+                    TK_PERCENT_CURLY@47..49 "%}""#]],
         )
     }
 
@@ -2715,47 +2724,48 @@ mod tests {
         check_parse(
             r#"{% include 'template.html' with {'foo': 'bar'} only %}"#,
             expect![[r#"
-            ROOT@0..54
-              TWIG_INCLUDE@0..54
-                TK_CURLY_PERCENT@0..2 "{%"
-                TK_WHITESPACE@2..3 " "
-                TK_INCLUDE@3..10 "include"
-                TWIG_EXPRESSION@10..26
-                  TWIG_LITERAL_STRING@10..26
-                    TK_WHITESPACE@10..11 " "
-                    TK_SINGLE_QUOTES@11..12 "'"
-                    TWIG_LITERAL_STRING_INNER@12..25
-                      TK_WORD@12..20 "template"
-                      TK_DOT@20..21 "."
-                      TK_WORD@21..25 "html"
-                    TK_SINGLE_QUOTES@25..26 "'"
-                TWIG_INCLUDE_WITH@26..46
-                  TK_WHITESPACE@26..27 " "
-                  TK_WITH@27..31 "with"
-                  TWIG_EXPRESSION@31..46
-                    TWIG_LITERAL_HASH@31..46
-                      TK_WHITESPACE@31..32 " "
-                      TK_OPEN_CURLY@32..33 "{"
-                      TWIG_LITERAL_HASH_PAIR@33..45
-                        TWIG_LITERAL_HASH_KEY@33..38
-                          TWIG_LITERAL_STRING@33..38
-                            TK_SINGLE_QUOTES@33..34 "'"
-                            TWIG_LITERAL_STRING_INNER@34..37
-                              TK_WORD@34..37 "foo"
-                            TK_SINGLE_QUOTES@37..38 "'"
-                        TK_COLON@38..39 ":"
-                        TWIG_EXPRESSION@39..45
-                          TWIG_LITERAL_STRING@39..45
-                            TK_WHITESPACE@39..40 " "
-                            TK_SINGLE_QUOTES@40..41 "'"
-                            TWIG_LITERAL_STRING_INNER@41..44
-                              TK_WORD@41..44 "bar"
-                            TK_SINGLE_QUOTES@44..45 "'"
-                      TK_CLOSE_CURLY@45..46 "}"
-                TK_WHITESPACE@46..47 " "
-                TK_ONLY@47..51 "only"
-                TK_WHITESPACE@51..52 " "
-                TK_PERCENT_CURLY@52..54 "%}""#]],
+                ROOT@0..54
+                  TWIG_INCLUDE@0..54
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_INCLUDE@3..10 "include"
+                    TWIG_EXPRESSION@10..26
+                      TWIG_LITERAL_STRING@10..26
+                        TK_WHITESPACE@10..11 " "
+                        TK_SINGLE_QUOTES@11..12 "'"
+                        TWIG_LITERAL_STRING_INNER@12..25
+                          TK_WORD@12..20 "template"
+                          TK_DOT@20..21 "."
+                          TK_WORD@21..25 "html"
+                        TK_SINGLE_QUOTES@25..26 "'"
+                    TWIG_INCLUDE_WITH@26..46
+                      TK_WHITESPACE@26..27 " "
+                      TK_WITH@27..31 "with"
+                      TWIG_EXPRESSION@31..46
+                        TWIG_LITERAL_HASH@31..46
+                          TK_WHITESPACE@31..32 " "
+                          TK_OPEN_CURLY@32..33 "{"
+                          TWIG_LITERAL_HASH_ITEMS@33..45
+                            TWIG_LITERAL_HASH_PAIR@33..45
+                              TWIG_LITERAL_HASH_KEY@33..38
+                                TWIG_LITERAL_STRING@33..38
+                                  TK_SINGLE_QUOTES@33..34 "'"
+                                  TWIG_LITERAL_STRING_INNER@34..37
+                                    TK_WORD@34..37 "foo"
+                                  TK_SINGLE_QUOTES@37..38 "'"
+                              TK_COLON@38..39 ":"
+                              TWIG_EXPRESSION@39..45
+                                TWIG_LITERAL_STRING@39..45
+                                  TK_WHITESPACE@39..40 " "
+                                  TK_SINGLE_QUOTES@40..41 "'"
+                                  TWIG_LITERAL_STRING_INNER@41..44
+                                    TK_WORD@41..44 "bar"
+                                  TK_SINGLE_QUOTES@44..45 "'"
+                          TK_CLOSE_CURLY@45..46 "}"
+                    TK_WHITESPACE@46..47 " "
+                    TK_ONLY@47..51 "only"
+                    TK_WHITESPACE@51..52 " "
+                    TK_PERCENT_CURLY@52..54 "%}""#]],
         )
     }
 
@@ -2833,44 +2843,45 @@ mod tests {
         check_parse(
             r#"{% include some_var ignore missing with {'foo': 'bar'} only %}"#,
             expect![[r#"
-            ROOT@0..62
-              TWIG_INCLUDE@0..62
-                TK_CURLY_PERCENT@0..2 "{%"
-                TK_WHITESPACE@2..3 " "
-                TK_INCLUDE@3..10 "include"
-                TWIG_EXPRESSION@10..19
-                  TWIG_LITERAL_NAME@10..19
-                    TK_WHITESPACE@10..11 " "
-                    TK_WORD@11..19 "some_var"
-                TK_WHITESPACE@19..20 " "
-                TK_IGNORE_MISSING@20..34 "ignore missing"
-                TWIG_INCLUDE_WITH@34..54
-                  TK_WHITESPACE@34..35 " "
-                  TK_WITH@35..39 "with"
-                  TWIG_EXPRESSION@39..54
-                    TWIG_LITERAL_HASH@39..54
-                      TK_WHITESPACE@39..40 " "
-                      TK_OPEN_CURLY@40..41 "{"
-                      TWIG_LITERAL_HASH_PAIR@41..53
-                        TWIG_LITERAL_HASH_KEY@41..46
-                          TWIG_LITERAL_STRING@41..46
-                            TK_SINGLE_QUOTES@41..42 "'"
-                            TWIG_LITERAL_STRING_INNER@42..45
-                              TK_WORD@42..45 "foo"
-                            TK_SINGLE_QUOTES@45..46 "'"
-                        TK_COLON@46..47 ":"
-                        TWIG_EXPRESSION@47..53
-                          TWIG_LITERAL_STRING@47..53
-                            TK_WHITESPACE@47..48 " "
-                            TK_SINGLE_QUOTES@48..49 "'"
-                            TWIG_LITERAL_STRING_INNER@49..52
-                              TK_WORD@49..52 "bar"
-                            TK_SINGLE_QUOTES@52..53 "'"
-                      TK_CLOSE_CURLY@53..54 "}"
-                TK_WHITESPACE@54..55 " "
-                TK_ONLY@55..59 "only"
-                TK_WHITESPACE@59..60 " "
-                TK_PERCENT_CURLY@60..62 "%}""#]],
+                ROOT@0..62
+                  TWIG_INCLUDE@0..62
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_INCLUDE@3..10 "include"
+                    TWIG_EXPRESSION@10..19
+                      TWIG_LITERAL_NAME@10..19
+                        TK_WHITESPACE@10..11 " "
+                        TK_WORD@11..19 "some_var"
+                    TK_WHITESPACE@19..20 " "
+                    TK_IGNORE_MISSING@20..34 "ignore missing"
+                    TWIG_INCLUDE_WITH@34..54
+                      TK_WHITESPACE@34..35 " "
+                      TK_WITH@35..39 "with"
+                      TWIG_EXPRESSION@39..54
+                        TWIG_LITERAL_HASH@39..54
+                          TK_WHITESPACE@39..40 " "
+                          TK_OPEN_CURLY@40..41 "{"
+                          TWIG_LITERAL_HASH_ITEMS@41..53
+                            TWIG_LITERAL_HASH_PAIR@41..53
+                              TWIG_LITERAL_HASH_KEY@41..46
+                                TWIG_LITERAL_STRING@41..46
+                                  TK_SINGLE_QUOTES@41..42 "'"
+                                  TWIG_LITERAL_STRING_INNER@42..45
+                                    TK_WORD@42..45 "foo"
+                                  TK_SINGLE_QUOTES@45..46 "'"
+                              TK_COLON@46..47 ":"
+                              TWIG_EXPRESSION@47..53
+                                TWIG_LITERAL_STRING@47..53
+                                  TK_WHITESPACE@47..48 " "
+                                  TK_SINGLE_QUOTES@48..49 "'"
+                                  TWIG_LITERAL_STRING_INNER@49..52
+                                    TK_WORD@49..52 "bar"
+                                  TK_SINGLE_QUOTES@52..53 "'"
+                          TK_CLOSE_CURLY@53..54 "}"
+                    TK_WHITESPACE@54..55 " "
+                    TK_ONLY@55..59 "only"
+                    TK_WHITESPACE@59..60 " "
+                    TK_PERCENT_CURLY@60..62 "%}""#]],
         )
     }
 
@@ -2923,36 +2934,37 @@ mod tests {
         check_parse(
             r#"{% include ['page_detailed.html', 'page.html'] %}"#,
             expect![[r#"
-            ROOT@0..49
-              TWIG_INCLUDE@0..49
-                TK_CURLY_PERCENT@0..2 "{%"
-                TK_WHITESPACE@2..3 " "
-                TK_INCLUDE@3..10 "include"
-                TWIG_EXPRESSION@10..46
-                  TWIG_LITERAL_ARRAY@10..46
-                    TK_WHITESPACE@10..11 " "
-                    TK_OPEN_SQUARE@11..12 "["
-                    TWIG_EXPRESSION@12..32
-                      TWIG_LITERAL_STRING@12..32
-                        TK_SINGLE_QUOTES@12..13 "'"
-                        TWIG_LITERAL_STRING_INNER@13..31
-                          TK_WORD@13..26 "page_detailed"
-                          TK_DOT@26..27 "."
-                          TK_WORD@27..31 "html"
-                        TK_SINGLE_QUOTES@31..32 "'"
-                    TK_COMMA@32..33 ","
-                    TWIG_EXPRESSION@33..45
-                      TWIG_LITERAL_STRING@33..45
-                        TK_WHITESPACE@33..34 " "
-                        TK_SINGLE_QUOTES@34..35 "'"
-                        TWIG_LITERAL_STRING_INNER@35..44
-                          TK_WORD@35..39 "page"
-                          TK_DOT@39..40 "."
-                          TK_WORD@40..44 "html"
-                        TK_SINGLE_QUOTES@44..45 "'"
-                    TK_CLOSE_SQUARE@45..46 "]"
-                TK_WHITESPACE@46..47 " "
-                TK_PERCENT_CURLY@47..49 "%}""#]],
+                ROOT@0..49
+                  TWIG_INCLUDE@0..49
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_INCLUDE@3..10 "include"
+                    TWIG_EXPRESSION@10..46
+                      TWIG_LITERAL_ARRAY@10..46
+                        TK_WHITESPACE@10..11 " "
+                        TK_OPEN_SQUARE@11..12 "["
+                        TWIG_LITERAL_ARRAY_INNER@12..45
+                          TWIG_EXPRESSION@12..32
+                            TWIG_LITERAL_STRING@12..32
+                              TK_SINGLE_QUOTES@12..13 "'"
+                              TWIG_LITERAL_STRING_INNER@13..31
+                                TK_WORD@13..26 "page_detailed"
+                                TK_DOT@26..27 "."
+                                TK_WORD@27..31 "html"
+                              TK_SINGLE_QUOTES@31..32 "'"
+                          TK_COMMA@32..33 ","
+                          TWIG_EXPRESSION@33..45
+                            TWIG_LITERAL_STRING@33..45
+                              TK_WHITESPACE@33..34 " "
+                              TK_SINGLE_QUOTES@34..35 "'"
+                              TWIG_LITERAL_STRING_INNER@35..44
+                                TK_WORD@35..39 "page"
+                                TK_DOT@39..40 "."
+                                TK_WORD@40..44 "html"
+                              TK_SINGLE_QUOTES@44..45 "'"
+                        TK_CLOSE_SQUARE@45..46 "]"
+                    TK_WHITESPACE@46..47 " "
+                    TK_PERCENT_CURLY@47..49 "%}""#]],
         )
     }
 
@@ -3274,6 +3286,7 @@ mod tests {
                           TK_WHITESPACE@56..60 "    "
                           TK_LESS_THAN@60..61 "<"
                           TK_WORD@61..67 "strong"
+                          HTML_ATTRIBUTE_LIST@67..67
                           TK_GREATER_THAN@67..68 ">"
                         BODY@68..77
                           HTML_TEXT@68..77
@@ -3718,21 +3731,22 @@ mod tests {
                           TWIG_LITERAL_HASH@20..35
                             TK_WHITESPACE@20..21 " "
                             TK_OPEN_CURLY@21..22 "{"
-                            TWIG_LITERAL_HASH_PAIR@22..34
-                              TWIG_LITERAL_HASH_KEY@22..27
-                                TWIG_LITERAL_STRING@22..27
-                                  TK_SINGLE_QUOTES@22..23 "'"
-                                  TWIG_LITERAL_STRING_INNER@23..26
-                                    TK_WORD@23..26 "foo"
-                                  TK_SINGLE_QUOTES@26..27 "'"
-                              TK_COLON@27..28 ":"
-                              TWIG_EXPRESSION@28..34
-                                TWIG_LITERAL_STRING@28..34
-                                  TK_WHITESPACE@28..29 " "
-                                  TK_SINGLE_QUOTES@29..30 "'"
-                                  TWIG_LITERAL_STRING_INNER@30..33
-                                    TK_WORD@30..33 "bar"
-                                  TK_SINGLE_QUOTES@33..34 "'"
+                            TWIG_LITERAL_HASH_ITEMS@22..34
+                              TWIG_LITERAL_HASH_PAIR@22..34
+                                TWIG_LITERAL_HASH_KEY@22..27
+                                  TWIG_LITERAL_STRING@22..27
+                                    TK_SINGLE_QUOTES@22..23 "'"
+                                    TWIG_LITERAL_STRING_INNER@23..26
+                                      TK_WORD@23..26 "foo"
+                                    TK_SINGLE_QUOTES@26..27 "'"
+                                TK_COLON@27..28 ":"
+                                TWIG_EXPRESSION@28..34
+                                  TWIG_LITERAL_STRING@28..34
+                                    TK_WHITESPACE@28..29 " "
+                                    TK_SINGLE_QUOTES@29..30 "'"
+                                    TWIG_LITERAL_STRING_INNER@30..33
+                                      TK_WORD@30..33 "bar"
+                                    TK_SINGLE_QUOTES@33..34 "'"
                             TK_CLOSE_CURLY@34..35 "}"
                       TK_WHITESPACE@35..36 " "
                       TK_PERCENT_CURLY@36..38 "%}"
@@ -3779,21 +3793,22 @@ mod tests {
                           TWIG_LITERAL_HASH@20..35
                             TK_WHITESPACE@20..21 " "
                             TK_OPEN_CURLY@21..22 "{"
-                            TWIG_LITERAL_HASH_PAIR@22..34
-                              TWIG_LITERAL_HASH_KEY@22..27
-                                TWIG_LITERAL_STRING@22..27
-                                  TK_SINGLE_QUOTES@22..23 "'"
-                                  TWIG_LITERAL_STRING_INNER@23..26
-                                    TK_WORD@23..26 "foo"
-                                  TK_SINGLE_QUOTES@26..27 "'"
-                              TK_COLON@27..28 ":"
-                              TWIG_EXPRESSION@28..34
-                                TWIG_LITERAL_STRING@28..34
-                                  TK_WHITESPACE@28..29 " "
-                                  TK_SINGLE_QUOTES@29..30 "'"
-                                  TWIG_LITERAL_STRING_INNER@30..33
-                                    TK_WORD@30..33 "bar"
-                                  TK_SINGLE_QUOTES@33..34 "'"
+                            TWIG_LITERAL_HASH_ITEMS@22..34
+                              TWIG_LITERAL_HASH_PAIR@22..34
+                                TWIG_LITERAL_HASH_KEY@22..27
+                                  TWIG_LITERAL_STRING@22..27
+                                    TK_SINGLE_QUOTES@22..23 "'"
+                                    TWIG_LITERAL_STRING_INNER@23..26
+                                      TK_WORD@23..26 "foo"
+                                    TK_SINGLE_QUOTES@26..27 "'"
+                                TK_COLON@27..28 ":"
+                                TWIG_EXPRESSION@28..34
+                                  TWIG_LITERAL_STRING@28..34
+                                    TK_WHITESPACE@28..29 " "
+                                    TK_SINGLE_QUOTES@29..30 "'"
+                                    TWIG_LITERAL_STRING_INNER@30..33
+                                      TK_WORD@30..33 "bar"
+                                    TK_SINGLE_QUOTES@33..34 "'"
                             TK_CLOSE_CURLY@34..35 "}"
                       TK_WHITESPACE@35..36 " "
                       TK_ONLY@36..40 "only"
@@ -4185,6 +4200,7 @@ mod tests {
                           TK_WHITESPACE@15..19 "    "
                           TK_LESS_THAN@19..20 "<"
                           TK_WORD@20..22 "ul"
+                          HTML_ATTRIBUTE_LIST@22..22
                           TK_GREATER_THAN@22..23 ">"
                         BODY@23..94
                           TWIG_FOR@23..94
@@ -4212,6 +4228,7 @@ mod tests {
                                   TK_WHITESPACE@50..58 "        "
                                   TK_LESS_THAN@58..59 "<"
                                   TK_WORD@59..61 "li"
+                                  HTML_ATTRIBUTE_LIST@61..61
                                   TK_GREATER_THAN@61..62 ">"
                                 BODY@62..72
                                   TWIG_VAR@62..72
@@ -4308,76 +4325,77 @@ mod tests {
                           TK_WHITESPACE@57..61 "    "
                           TK_LESS_THAN@61..62 "<"
                           TK_WORD@62..67 "input"
-                          HTML_ATTRIBUTE@67..85
-                            TK_WHITESPACE@67..68 " "
-                            TK_WORD@68..72 "type"
-                            TK_EQUAL@72..73 "="
-                            HTML_STRING@73..85
-                              TK_DOUBLE_QUOTES@73..74 "\""
-                              HTML_STRING_INNER@74..84
-                                TWIG_VAR@74..84
-                                  TK_OPEN_CURLY_CURLY@74..76 "{{"
-                                  TWIG_EXPRESSION@76..81
-                                    TWIG_LITERAL_NAME@76..81
-                                      TK_WHITESPACE@76..77 " "
-                                      TK_WORD@77..81 "type"
-                                  TK_WHITESPACE@81..82 " "
-                                  TK_CLOSE_CURLY_CURLY@82..84 "}}"
-                              TK_DOUBLE_QUOTES@84..85 "\""
-                          HTML_ATTRIBUTE@85..103
-                            TK_WHITESPACE@85..86 " "
-                            TK_WORD@86..90 "name"
-                            TK_EQUAL@90..91 "="
-                            HTML_STRING@91..103
-                              TK_DOUBLE_QUOTES@91..92 "\""
-                              HTML_STRING_INNER@92..102
-                                TWIG_VAR@92..102
-                                  TK_OPEN_CURLY_CURLY@92..94 "{{"
-                                  TWIG_EXPRESSION@94..99
-                                    TWIG_LITERAL_NAME@94..99
-                                      TK_WHITESPACE@94..95 " "
-                                      TK_WORD@95..99 "name"
-                                  TK_WHITESPACE@99..100 " "
-                                  TK_CLOSE_CURLY_CURLY@100..102 "}}"
-                              TK_DOUBLE_QUOTES@102..103 "\""
-                          HTML_ATTRIBUTE@103..125
-                            TK_WHITESPACE@103..104 " "
-                            TK_WORD@104..109 "value"
-                            TK_EQUAL@109..110 "="
-                            HTML_STRING@110..125
-                              TK_DOUBLE_QUOTES@110..111 "\""
-                              HTML_STRING_INNER@111..124
-                                TWIG_VAR@111..124
-                                  TK_OPEN_CURLY_CURLY@111..113 "{{"
-                                  TWIG_EXPRESSION@113..121
-                                    TWIG_FILTER@113..121
-                                      TWIG_OPERAND@113..119
-                                        TWIG_LITERAL_NAME@113..119
-                                          TK_WHITESPACE@113..114 " "
-                                          TK_WORD@114..119 "value"
-                                      TK_SINGLE_PIPE@119..120 "|"
-                                      TWIG_OPERAND@120..121
-                                        TWIG_LITERAL_NAME@120..121
-                                          TK_WORD@120..121 "e"
-                                  TK_WHITESPACE@121..122 " "
-                                  TK_CLOSE_CURLY_CURLY@122..124 "}}"
-                              TK_DOUBLE_QUOTES@124..125 "\""
-                          HTML_ATTRIBUTE@125..143
-                            TK_WHITESPACE@125..126 " "
-                            TK_WORD@126..130 "size"
-                            TK_EQUAL@130..131 "="
-                            HTML_STRING@131..143
-                              TK_DOUBLE_QUOTES@131..132 "\""
-                              HTML_STRING_INNER@132..142
-                                TWIG_VAR@132..142
-                                  TK_OPEN_CURLY_CURLY@132..134 "{{"
-                                  TWIG_EXPRESSION@134..139
-                                    TWIG_LITERAL_NAME@134..139
-                                      TK_WHITESPACE@134..135 " "
-                                      TK_WORD@135..139 "size"
-                                  TK_WHITESPACE@139..140 " "
-                                  TK_CLOSE_CURLY_CURLY@140..142 "}}"
-                              TK_DOUBLE_QUOTES@142..143 "\""
+                          HTML_ATTRIBUTE_LIST@67..143
+                            HTML_ATTRIBUTE@67..85
+                              TK_WHITESPACE@67..68 " "
+                              TK_WORD@68..72 "type"
+                              TK_EQUAL@72..73 "="
+                              HTML_STRING@73..85
+                                TK_DOUBLE_QUOTES@73..74 "\""
+                                HTML_STRING_INNER@74..84
+                                  TWIG_VAR@74..84
+                                    TK_OPEN_CURLY_CURLY@74..76 "{{"
+                                    TWIG_EXPRESSION@76..81
+                                      TWIG_LITERAL_NAME@76..81
+                                        TK_WHITESPACE@76..77 " "
+                                        TK_WORD@77..81 "type"
+                                    TK_WHITESPACE@81..82 " "
+                                    TK_CLOSE_CURLY_CURLY@82..84 "}}"
+                                TK_DOUBLE_QUOTES@84..85 "\""
+                            HTML_ATTRIBUTE@85..103
+                              TK_WHITESPACE@85..86 " "
+                              TK_WORD@86..90 "name"
+                              TK_EQUAL@90..91 "="
+                              HTML_STRING@91..103
+                                TK_DOUBLE_QUOTES@91..92 "\""
+                                HTML_STRING_INNER@92..102
+                                  TWIG_VAR@92..102
+                                    TK_OPEN_CURLY_CURLY@92..94 "{{"
+                                    TWIG_EXPRESSION@94..99
+                                      TWIG_LITERAL_NAME@94..99
+                                        TK_WHITESPACE@94..95 " "
+                                        TK_WORD@95..99 "name"
+                                    TK_WHITESPACE@99..100 " "
+                                    TK_CLOSE_CURLY_CURLY@100..102 "}}"
+                                TK_DOUBLE_QUOTES@102..103 "\""
+                            HTML_ATTRIBUTE@103..125
+                              TK_WHITESPACE@103..104 " "
+                              TK_WORD@104..109 "value"
+                              TK_EQUAL@109..110 "="
+                              HTML_STRING@110..125
+                                TK_DOUBLE_QUOTES@110..111 "\""
+                                HTML_STRING_INNER@111..124
+                                  TWIG_VAR@111..124
+                                    TK_OPEN_CURLY_CURLY@111..113 "{{"
+                                    TWIG_EXPRESSION@113..121
+                                      TWIG_FILTER@113..121
+                                        TWIG_OPERAND@113..119
+                                          TWIG_LITERAL_NAME@113..119
+                                            TK_WHITESPACE@113..114 " "
+                                            TK_WORD@114..119 "value"
+                                        TK_SINGLE_PIPE@119..120 "|"
+                                        TWIG_OPERAND@120..121
+                                          TWIG_LITERAL_NAME@120..121
+                                            TK_WORD@120..121 "e"
+                                    TK_WHITESPACE@121..122 " "
+                                    TK_CLOSE_CURLY_CURLY@122..124 "}}"
+                                TK_DOUBLE_QUOTES@124..125 "\""
+                            HTML_ATTRIBUTE@125..143
+                              TK_WHITESPACE@125..126 " "
+                              TK_WORD@126..130 "size"
+                              TK_EQUAL@130..131 "="
+                              HTML_STRING@131..143
+                                TK_DOUBLE_QUOTES@131..132 "\""
+                                HTML_STRING_INNER@132..142
+                                  TWIG_VAR@132..142
+                                    TK_OPEN_CURLY_CURLY@132..134 "{{"
+                                    TWIG_EXPRESSION@134..139
+                                      TWIG_LITERAL_NAME@134..139
+                                        TK_WHITESPACE@134..135 " "
+                                        TK_WORD@135..139 "size"
+                                    TK_WHITESPACE@139..140 " "
+                                    TK_CLOSE_CURLY_CURLY@140..142 "}}"
+                                TK_DOUBLE_QUOTES@142..143 "\""
                           TK_SLASH_GREATER_THAN@143..145 "/>"
                     TWIG_MACRO_ENDING_BLOCK@145..160
                       TK_LINE_BREAK@145..146 "\n"
@@ -4590,15 +4608,16 @@ mod tests {
                         TWIG_LITERAL_HASH@7..19
                           TK_WHITESPACE@7..8 " "
                           TK_OPEN_CURLY@8..9 "{"
-                          TWIG_LITERAL_HASH_PAIR@9..17
-                            TWIG_LITERAL_HASH_KEY@9..13
-                              TK_WHITESPACE@9..10 " "
-                              TK_WORD@10..13 "foo"
-                            TK_COLON@13..14 ":"
-                            TWIG_EXPRESSION@14..17
-                              TWIG_LITERAL_NUMBER@14..17
-                                TK_WHITESPACE@14..15 " "
-                                TK_NUMBER@15..17 "42"
+                          TWIG_LITERAL_HASH_ITEMS@9..17
+                            TWIG_LITERAL_HASH_PAIR@9..17
+                              TWIG_LITERAL_HASH_KEY@9..13
+                                TK_WHITESPACE@9..10 " "
+                                TK_WORD@10..13 "foo"
+                              TK_COLON@13..14 ":"
+                              TWIG_EXPRESSION@14..17
+                                TWIG_LITERAL_NUMBER@14..17
+                                  TK_WHITESPACE@14..15 " "
+                                  TK_NUMBER@15..17 "42"
                           TK_WHITESPACE@17..18 " "
                           TK_CLOSE_CURLY@18..19 "}"
                       TK_WHITESPACE@19..20 " "
@@ -4661,15 +4680,16 @@ mod tests {
                           TWIG_LITERAL_HASH@13..25
                             TK_WHITESPACE@13..14 " "
                             TK_OPEN_CURLY@14..15 "{"
-                            TWIG_LITERAL_HASH_PAIR@15..23
-                              TWIG_LITERAL_HASH_KEY@15..19
-                                TK_WHITESPACE@15..16 " "
-                                TK_WORD@16..19 "foo"
-                              TK_COLON@19..20 ":"
-                              TWIG_EXPRESSION@20..23
-                                TWIG_LITERAL_NUMBER@20..23
-                                  TK_WHITESPACE@20..21 " "
-                                  TK_NUMBER@21..23 "42"
+                            TWIG_LITERAL_HASH_ITEMS@15..23
+                              TWIG_LITERAL_HASH_PAIR@15..23
+                                TWIG_LITERAL_HASH_KEY@15..19
+                                  TK_WHITESPACE@15..16 " "
+                                  TK_WORD@16..19 "foo"
+                                TK_COLON@19..20 ":"
+                                TWIG_EXPRESSION@20..23
+                                  TWIG_LITERAL_NUMBER@20..23
+                                    TK_WHITESPACE@20..21 " "
+                                    TK_NUMBER@21..23 "42"
                             TK_WHITESPACE@23..24 " "
                             TK_CLOSE_CURLY@24..25 "}"
                       TK_WHITESPACE@25..26 " "
@@ -4742,15 +4762,16 @@ mod tests {
                         TWIG_LITERAL_HASH@29..41
                           TK_WHITESPACE@29..30 " "
                           TK_OPEN_CURLY@30..31 "{"
-                          TWIG_LITERAL_HASH_PAIR@31..39
-                            TWIG_LITERAL_HASH_KEY@31..35
-                              TK_WHITESPACE@31..32 " "
-                              TK_WORD@32..35 "foo"
-                            TK_COLON@35..36 ":"
-                            TWIG_EXPRESSION@36..39
-                              TWIG_LITERAL_NUMBER@36..39
-                                TK_WHITESPACE@36..37 " "
-                                TK_NUMBER@37..39 "42"
+                          TWIG_LITERAL_HASH_ITEMS@31..39
+                            TWIG_LITERAL_HASH_PAIR@31..39
+                              TWIG_LITERAL_HASH_KEY@31..35
+                                TK_WHITESPACE@31..32 " "
+                                TK_WORD@32..35 "foo"
+                              TK_COLON@35..36 ":"
+                              TWIG_EXPRESSION@36..39
+                                TWIG_LITERAL_NUMBER@36..39
+                                  TK_WHITESPACE@36..37 " "
+                                  TK_NUMBER@37..39 "42"
                           TK_WHITESPACE@39..40 " "
                           TK_CLOSE_CURLY@40..41 "}"
                       TK_WHITESPACE@41..42 " "
@@ -4931,20 +4952,21 @@ mod tests {
                         TWIG_EXPRESSION@26..41
                           TWIG_LITERAL_ARRAY@26..41
                             TK_OPEN_SQUARE@26..27 "["
-                            TWIG_EXPRESSION@27..32
-                              TWIG_LITERAL_STRING@27..32
-                                TK_SINGLE_QUOTES@27..28 "'"
-                                TWIG_LITERAL_STRING_INNER@28..31
-                                  TK_WORD@28..31 "cms"
-                                TK_SINGLE_QUOTES@31..32 "'"
-                            TK_COMMA@32..33 ","
-                            TWIG_EXPRESSION@33..40
-                              TWIG_LITERAL_STRING@33..40
-                                TK_WHITESPACE@33..34 " "
-                                TK_SINGLE_QUOTES@34..35 "'"
-                                TWIG_LITERAL_STRING_INNER@35..39
-                                  TK_WORD@35..39 "blog"
-                                TK_SINGLE_QUOTES@39..40 "'"
+                            TWIG_LITERAL_ARRAY_INNER@27..40
+                              TWIG_EXPRESSION@27..32
+                                TWIG_LITERAL_STRING@27..32
+                                  TK_SINGLE_QUOTES@27..28 "'"
+                                  TWIG_LITERAL_STRING_INNER@28..31
+                                    TK_WORD@28..31 "cms"
+                                  TK_SINGLE_QUOTES@31..32 "'"
+                              TK_COMMA@32..33 ","
+                              TWIG_EXPRESSION@33..40
+                                TWIG_LITERAL_STRING@33..40
+                                  TK_WHITESPACE@33..34 " "
+                                  TK_SINGLE_QUOTES@34..35 "'"
+                                  TWIG_LITERAL_STRING_INNER@35..39
+                                    TK_WORD@35..39 "blog"
+                                  TK_SINGLE_QUOTES@39..40 "'"
                             TK_CLOSE_SQUARE@40..41 "]"
                         TK_CLOSE_PARENTHESIS@41..42 ")"
                       TK_WHITESPACE@42..43 " "
@@ -5003,20 +5025,21 @@ mod tests {
                         TWIG_EXPRESSION@33..48
                           TWIG_LITERAL_ARRAY@33..48
                             TK_OPEN_SQUARE@33..34 "["
-                            TWIG_EXPRESSION@34..39
-                              TWIG_LITERAL_STRING@34..39
-                                TK_SINGLE_QUOTES@34..35 "'"
-                                TWIG_LITERAL_STRING_INNER@35..38
-                                  TK_WORD@35..38 "cms"
-                                TK_SINGLE_QUOTES@38..39 "'"
-                            TK_COMMA@39..40 ","
-                            TWIG_EXPRESSION@40..47
-                              TWIG_LITERAL_STRING@40..47
-                                TK_WHITESPACE@40..41 " "
-                                TK_SINGLE_QUOTES@41..42 "'"
-                                TWIG_LITERAL_STRING_INNER@42..46
-                                  TK_WORD@42..46 "blog"
-                                TK_SINGLE_QUOTES@46..47 "'"
+                            TWIG_LITERAL_ARRAY_INNER@34..47
+                              TWIG_EXPRESSION@34..39
+                                TWIG_LITERAL_STRING@34..39
+                                  TK_SINGLE_QUOTES@34..35 "'"
+                                  TWIG_LITERAL_STRING_INNER@35..38
+                                    TK_WORD@35..38 "cms"
+                                  TK_SINGLE_QUOTES@38..39 "'"
+                              TK_COMMA@39..40 ","
+                              TWIG_EXPRESSION@40..47
+                                TWIG_LITERAL_STRING@40..47
+                                  TK_WHITESPACE@40..41 " "
+                                  TK_SINGLE_QUOTES@41..42 "'"
+                                  TWIG_LITERAL_STRING_INNER@42..46
+                                    TK_WORD@42..46 "blog"
+                                  TK_SINGLE_QUOTES@46..47 "'"
                             TK_CLOSE_SQUARE@47..48 "]"
                         TK_CLOSE_PARENTHESIS@48..49 ")"
                       TK_WHITESPACE@49..50 " "
