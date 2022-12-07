@@ -66,8 +66,9 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
                     SyntaxElement::Node(n) => {
                         if typed::Error::can_cast(n.kind()) {
                             preorder.skip_subtree();
-                            continue; // Skip error nodes in rules for now
-                                      // TODO: maybe also pass errors to specific rules to generate CLI output?
+                            continue; // Skip error nodes in rules because they should have
+                                      // corresponding parser error messages in most cases and can contain
+                                      // malformed code
                         }
 
                         // adjust traversal context when entering special nodes

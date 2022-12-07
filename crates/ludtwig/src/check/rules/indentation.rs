@@ -1,6 +1,7 @@
 use ludtwig_parser::syntax::typed::{AstNode, HtmlStartingTag, HtmlTag, LudtwigDirectiveIgnore};
 use ludtwig_parser::syntax::untyped::{
-    SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken, TextRange, TextSize, WalkEvent,
+    PreorderWithTokens, SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken, TextRange, TextSize,
+    WalkEvent,
 };
 
 use crate::check::rule::{Rule, RuleContext, Severity};
@@ -13,13 +14,15 @@ impl Rule for RuleIndentation {
     }
 
     fn check_root(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
+        // keep track of some state during tree traversal
         let mut line_break_encountered = true;
         let mut indentation_level = 0; // whole indentation levels like nested elements
         let mut indentation_substeps = 0; // additional spaces for alignment (like attributes)
-        let indent_block_children = ctx.config().format.indent_children_of_blocks;
         let mut inside_trivia_sensitive_node = false;
-
         let mut is_ignored = false;
+
+        let indent_block_children = ctx.config().format.indent_children_of_blocks;
+
         let mut tree_iter = node.preorder_with_tokens();
         while let Some(walk) = tree_iter.next() {
             match walk {
@@ -47,102 +50,54 @@ impl Rule for RuleIndentation {
                             line_break_encountered = false;
                         }
                         SyntaxElement::Node(n) => {
-                            // rule ignore check
-                            if let Some(node) = n.prev_sibling() {
-                                if let Some(directive) = LudtwigDirectiveIgnore::cast(node) {
-                                    let ignored_rules = directive.get_rules();
-                                    if ignored_rules.is_empty() {
-                                        // all rules are disabled
-                                        tree_iter.skip_subtree();
-                                        continue;
-                                    }
-
-                                    if ignored_rules.iter().any(|r| r == self.name()) {
-                                        // this rule is now ignored
-                                        is_ignored = true;
-                                    }
-                                }
-                            }
-
-                            // check for special nodes
-                            if let Some(t) = HtmlTag::cast(n.clone()) {
-                                if let Some("pre" | "textarea") =
-                                    t.name().as_ref().map(SyntaxToken::text)
-                                {
-                                    inside_trivia_sensitive_node = true;
-                                }
-                            }
-
-                            // change indentation level
-                            if matches!(
-                                n.kind(),
-                                SyntaxKind::BODY
-                                    | SyntaxKind::TWIG_ARGUMENTS
-                                    | SyntaxKind::TWIG_LITERAL_ARRAY_INNER
-                                    | SyntaxKind::TWIG_LITERAL_HASH_ITEMS
-                            ) && (indent_block_children
-                                || !n
-                                    .parent()
-                                    .map_or(false, |p| p.kind() == SyntaxKind::TWIG_BLOCK))
+                            if self.check_for_rule_ignore_enter(&mut is_ignored, &mut tree_iter, &n)
                             {
-                                indentation_level += 1;
+                                continue;
                             }
 
-                            if n.kind() == SyntaxKind::HTML_ATTRIBUTE_LIST {
-                                if let Some(t) = n.parent().and_then(HtmlStartingTag::cast) {
-                                    if let Some(name) = t.name() {
-                                        indentation_substeps += 1 + name.text().chars().count() + 1;
-                                    }
-                                }
-                            }
+                            Self::check_for_trivia_sensitivity(
+                                &mut inside_trivia_sensitive_node,
+                                &n,
+                                WalkMode::Enter,
+                            );
+
+                            Self::check_indentation_level(
+                                &mut indentation_level,
+                                indent_block_children,
+                                &n,
+                                WalkMode::Enter,
+                            );
+
+                            Self::check_indentation_substeps(
+                                &mut indentation_substeps,
+                                &n,
+                                WalkMode::Enter,
+                            );
                         }
                     }
                 }
                 WalkEvent::Leave(element) => {
                     if let SyntaxElement::Node(n) = element {
-                        // rule ignore check
-                        if let Some(node) = n.prev_sibling() {
-                            if let Some(directive) = LudtwigDirectiveIgnore::cast(node) {
-                                let ignored_rules = directive.get_rules();
+                        self.check_for_rule_ignore_leave(&mut is_ignored, &n);
 
-                                if ignored_rules.iter().any(|r| r == self.name()) {
-                                    // this rule is no longer ignored
-                                    is_ignored = false;
-                                }
-                            }
-                        }
+                        Self::check_for_trivia_sensitivity(
+                            &mut inside_trivia_sensitive_node,
+                            &n,
+                            WalkMode::Leave,
+                        );
 
-                        // check for special nodes
-                        if let Some(t) = HtmlTag::cast(n.clone()) {
-                            if let Some("pre" | "textarea") =
-                                t.name().as_ref().map(SyntaxToken::text)
-                            {
-                                inside_trivia_sensitive_node = false;
-                            }
-                        }
+                        Self::check_indentation_level(
+                            &mut indentation_level,
+                            indent_block_children,
+                            &n,
+                            WalkMode::Leave,
+                        );
 
-                        // change indentation level
-                        if matches!(
-                            n.kind(),
-                            SyntaxKind::BODY
-                                | SyntaxKind::TWIG_ARGUMENTS
-                                | SyntaxKind::TWIG_LITERAL_ARRAY_INNER
-                                | SyntaxKind::TWIG_LITERAL_HASH_ITEMS
-                        ) && (indent_block_children
-                            || !n
-                                .parent()
-                                .map_or(false, |p| p.kind() == SyntaxKind::TWIG_BLOCK))
-                        {
-                            indentation_level -= 1;
-                        }
-
-                        if n.kind() == SyntaxKind::HTML_ATTRIBUTE_LIST {
-                            if let Some(t) = n.parent().and_then(HtmlStartingTag::cast) {
-                                if let Some(name) = t.name() {
-                                    indentation_substeps -= 1 + name.text().chars().count() + 1;
-                                }
-                            }
-                        }
+                        Self::check_indentation_substeps(
+                            &mut indentation_substeps,
+                            &n,
+                            WalkMode::Leave,
+                        );
                     }
                 }
             }
@@ -150,6 +105,12 @@ impl Rule for RuleIndentation {
 
         None
     }
+}
+
+#[derive(Debug, Copy, Clone)]
+enum WalkMode {
+    Enter,
+    Leave,
 }
 
 impl RuleIndentation {
@@ -177,19 +138,7 @@ impl RuleIndentation {
             SyntaxKind::TK_WHITESPACE => {
                 if token.text() != expected_str {
                     // get information about actual indentation
-                    let (found_spaces, found_tabs) =
-                        token
-                            .text()
-                            .chars()
-                            .fold((0, 0), |(mut spaces, mut tabs), c| {
-                                match c {
-                                    ' ' => spaces += 1,
-                                    '\t' => tabs += 1,
-                                    _ => {}
-                                }
-
-                                (spaces, tabs)
-                            });
+                    let (found_spaces, found_tabs) = get_spaces_and_tabs_count(token.text());
 
                     // report wrong indentation
                     let result = ctx
@@ -248,6 +197,125 @@ impl RuleIndentation {
             }
         }
     }
+
+    fn check_for_rule_ignore_enter(
+        &self,
+        is_ignored: &mut bool,
+        tree_iter: &mut PreorderWithTokens,
+        n: &SyntaxNode,
+    ) -> bool {
+        if let Some(node) = n.prev_sibling() {
+            if let Some(directive) = LudtwigDirectiveIgnore::cast(node) {
+                let ignored_rules = directive.get_rules();
+                if ignored_rules.is_empty() {
+                    // all rules are disabled
+                    tree_iter.skip_subtree();
+                    return true;
+                }
+
+                if ignored_rules.iter().any(|r| r == self.name()) {
+                    // this rule is now ignored
+                    *is_ignored = true;
+                }
+            }
+        }
+        false
+    }
+
+    fn check_for_rule_ignore_leave(&self, is_ignored: &mut bool, n: &SyntaxNode) {
+        if let Some(node) = n.prev_sibling() {
+            if let Some(directive) = LudtwigDirectiveIgnore::cast(node) {
+                let ignored_rules = directive.get_rules();
+
+                if ignored_rules.iter().any(|r| r == self.name()) {
+                    // this rule is no longer ignored
+                    *is_ignored = false;
+                }
+            }
+        }
+    }
+
+    fn check_for_trivia_sensitivity(
+        inside_trivia_sensitive_node: &mut bool,
+        n: &SyntaxNode,
+        walk_mode: WalkMode,
+    ) {
+        if let Some(t) = HtmlTag::cast(n.clone()) {
+            if let Some("pre" | "textarea") = t.name().as_ref().map(SyntaxToken::text) {
+                match walk_mode {
+                    WalkMode::Enter => {
+                        *inside_trivia_sensitive_node = true;
+                    }
+                    WalkMode::Leave => {
+                        *inside_trivia_sensitive_node = false;
+                    }
+                }
+            }
+        }
+    }
+
+    fn check_indentation_level(
+        indentation_level: &mut usize,
+        indent_block_children: bool,
+        n: &SyntaxNode,
+        walk_mode: WalkMode,
+    ) {
+        if matches!(
+            n.kind(),
+            SyntaxKind::BODY
+                | SyntaxKind::TWIG_ARGUMENTS
+                | SyntaxKind::TWIG_LITERAL_ARRAY_INNER
+                | SyntaxKind::TWIG_LITERAL_HASH_ITEMS
+        ) && (indent_block_children
+            || !n
+                .parent()
+                .map_or(false, |p| p.kind() == SyntaxKind::TWIG_BLOCK))
+        {
+            match walk_mode {
+                WalkMode::Enter => {
+                    *indentation_level += 1;
+                }
+                WalkMode::Leave => {
+                    *indentation_level -= 1;
+                }
+            }
+        }
+    }
+
+    fn check_indentation_substeps(
+        indentation_substeps: &mut usize,
+        n: &SyntaxNode,
+        walk_mode: WalkMode,
+    ) {
+        if n.kind() == SyntaxKind::HTML_ATTRIBUTE_LIST {
+            if let Some(t) = n.parent().and_then(HtmlStartingTag::cast) {
+                if let Some(name) = t.name() {
+                    let adjustment = 1 + name.text().chars().count() + 1;
+
+                    match walk_mode {
+                        WalkMode::Enter => {
+                            *indentation_substeps += adjustment;
+                        }
+                        WalkMode::Leave => {
+                            *indentation_substeps -= adjustment;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn get_spaces_and_tabs_count(input: &str) -> (i32, i32) {
+    input.chars().fold((0, 0), |(mut spaces, mut tabs), c| {
+        match c {
+            ' ' => spaces += 1,
+            '\t' => tabs += 1,
+            _ => {}
+        }
+
+        (spaces, tabs)
+    })
 }
 
 #[cfg(test)]
