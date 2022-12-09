@@ -5,6 +5,9 @@
 # To override any of the config values with environment variables use the following format:
 # LUDTWIG_FORMAT__INDENTATION_COUNT=1
 
+# To exclude any files / directories from ludtwig you can use `.ludtwig-ignore` files anywhere in the file tree
+# These are evaluated just like .gitignore files (which are also considered by ludtwig!)
+
 # Ludtwig does support directives as html and twig comments like
 # <!-- ludtwig-ignore-file rule1, rule2, rule3 -->
 # {# ludtwig-ignore-file rule1, rule2, rule3 #}

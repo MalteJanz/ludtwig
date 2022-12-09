@@ -9,3 +9,4 @@
 **/.DS_Store
 fuzz/corpus
 fuzz/artifacts
+/demo

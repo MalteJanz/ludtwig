@@ -6,11 +6,12 @@ use crate::check::rules::get_config_active_rule_definitions;
 use crate::config::Config;
 use crate::output::ProcessingEvent;
 use clap::Parser;
+use ignore::types::TypesBuilder;
+use ignore::{WalkBuilder, WalkState};
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc};
 use std::thread;
-use walkdir::{DirEntry, WalkDir};
 
 mod check;
 mod config;
@@ -125,9 +126,7 @@ fn app(opts: Opts, config: Config) -> i32 {
     let output_handler = thread::spawn(move || output::handle_processing_output(&rx));
 
     // work on each user specified file / directory path concurrently
-    opts.files.into_iter().for_each(|path| {
-        handle_input_path(path, cli_context.clone());
-    });
+    handle_input_paths(opts.files, cli_context.clone());
 
     drop(cli_context); // drop this tx channel
 
@@ -137,55 +136,63 @@ fn app(opts: Opts, config: Config) -> i32 {
         .expect("Error: can't join output_handler thread")
 }
 
-/// filters out hidden directories or files
-/// (that start with '.').
-fn is_not_hidden(entry: &DirEntry) -> bool {
-    let name = entry.file_name().to_string_lossy();
-
-    // '.' and './' is a valid path for the current working directory and not an hidden file / dir
-    // otherwise anything that starts with a '.' is considered hidden for ludtwig
-    !name.starts_with('.') || name == "." || name == "./"
-}
-
 /// Process a directory path.
-fn handle_input_path(path: PathBuf, cli_context: CliContext) {
-    let walker = WalkDir::new(path).into_iter();
+fn handle_input_paths(paths: Vec<PathBuf>, cli_context: CliContext) {
+    let types = TypesBuilder::new()
+        .add_defaults()
+        .select("twig")
+        .select("html")
+        .build()
+        .unwrap();
 
-    // synchronous directory traversal but move the work for each file to a different thread in the thread pool.
+    // create walker over all the user specified paths
+    let mut walker = WalkBuilder::new(&paths[0]);
+    for path in paths.into_iter().skip(1) {
+        walker.add(path);
+    }
+
+    let walker = walker
+        .add_custom_ignore_filename(".ludtwig-ignore")
+        .types(types)
+        .build_parallel();
+
+    // parallel directory traversal but move the work for each file to a different thread in the thread pool.
     rayon::scope(move |s| {
-        for entry in walker.filter_entry(is_not_hidden) {
-            let entry = match entry {
-                Ok(e) => e,
-                Err(e) => {
-                    println!("Error: walking over the file path: {}", e);
-                    cli_context.send_processing_output(ProcessingEvent::Report(Severity::Error));
-                    continue;
-                }
-            };
+        walker.run(|| {
+            let cli_context = cli_context.clone();
 
-            if !entry.file_type().is_file() {
-                continue;
-            }
-
-            let name = entry.file_name().to_string_lossy();
-
-            if !name.ends_with(".twig") && !name.ends_with(".html") {
-                continue;
-            }
-
-            let clone = cli_context.clone();
-            let tx_clone = cli_context.output_tx.clone();
-            s.spawn(
-                move |_s1| match process::process_file(entry.path().into(), clone) {
-                    Ok(_) => {}
+            Box::new(move |entry| {
+                let entry = match entry {
+                    Ok(e) => e,
                     Err(e) => {
-                        tx_clone
-                            .send(ProcessingEvent::Report(Severity::Error))
-                            .expect("output should still receive ProcessingEvents");
-                        println!("Error: {}", e);
+                        println!("Error: walking over the file path: {}", e);
+                        cli_context
+                            .send_processing_output(ProcessingEvent::Report(Severity::Error));
+                        return WalkState::Continue;
                     }
-                },
-            );
-        }
+                };
+
+                // filter out directories
+                if entry.file_type().map_or(true, |t| t.is_dir()) {
+                    return WalkState::Continue;
+                }
+
+                let clone = cli_context.clone();
+                let tx_clone = cli_context.output_tx.clone();
+                s.spawn(
+                    move |_s1| match process::process_file(entry.path().into(), clone) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            tx_clone
+                                .send(ProcessingEvent::Report(Severity::Error))
+                                .expect("output should still receive ProcessingEvents");
+                            println!("Error: {}", e);
+                        }
+                    },
+                );
+
+                WalkState::Continue
+            })
+        });
     });
 }
