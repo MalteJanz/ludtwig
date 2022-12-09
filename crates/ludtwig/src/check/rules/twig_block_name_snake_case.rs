@@ -1,7 +1,7 @@
 use ludtwig_parser::syntax::typed::{AstNode, TwigStartingBlock};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 
-use crate::check::rule::{Rule, RuleContext, Severity};
+use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 
 pub struct RuleTwigBlockNameSnakeCase;
 
@@ -10,16 +10,12 @@ impl Rule for RuleTwigBlockNameSnakeCase {
         "twig-block-name-snake-case"
     }
 
-    fn check_node(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
+    fn check_node(&self, node: SyntaxNode, _ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         let block_name = TwigStartingBlock::cast(node)?.name()?;
         if !is_valid_ascii_alpha_snake_case(block_name.text()) {
             // name is not valid ascii snake case
-            let mut result = ctx
-                .create_result(
-                    self.name(),
-                    Severity::Help,
-                    "Block name is not written in snake_case",
-                )
+            let mut result = self
+                .create_result(Severity::Help, "Block name is not written in snake_case")
                 .primary_note(
                     block_name.text_range(),
                     "help: rename this block in snake_case",
@@ -34,7 +30,7 @@ impl Rule for RuleTwigBlockNameSnakeCase {
                 );
             }
 
-            ctx.add_result(result);
+            return Some(vec![result]);
         }
         None
     }

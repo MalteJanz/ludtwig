@@ -2,7 +2,7 @@ use ludtwig_parser::syntax::typed::{support, AstNode, TwigLiteralHashKey, TwigLi
 use ludtwig_parser::syntax::untyped::{SyntaxNode, SyntaxNodeExt, TextRange, TextSize};
 use ludtwig_parser::TWIG_NAME_REGEX;
 
-use crate::check::rule::{Rule, RuleContext, Severity};
+use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 
 pub struct RuleTwigHashKeyNoQuotes;
 
@@ -11,7 +11,7 @@ impl Rule for RuleTwigHashKeyNoQuotes {
         "twig-hash-key-no-quotes"
     }
 
-    fn check_node(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
+    fn check_node(&self, node: SyntaxNode, _ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         let hash_key = TwigLiteralHashKey::cast(node)?;
         let key_string_literal: TwigLiteralString = support::child(hash_key.syntax())?;
         let key_string_inner = key_string_literal.get_inner()?;
@@ -23,8 +23,8 @@ impl Rule for RuleTwigHashKeyNoQuotes {
             TWIG_NAME_REGEX.is_match(&key_string_inner.syntax().text().to_string());
 
         if key_only_contains_one_element && key_string_matches_twig_word_regex {
-            let result = ctx
-                .create_result(self.name(), Severity::Help, "unnecessary quotation")
+            let result = self
+                .create_result(Severity::Help, "unnecessary quotation")
                 .primary_note(
                     key_string_literal.syntax().text_range_trimmed_trivia(),
                     "help: remove quotation",
@@ -55,7 +55,8 @@ impl Rule for RuleTwigHashKeyNoQuotes {
                     "",
                     "remove this quote",
                 );
-            ctx.add_result(result);
+
+            return Some(vec![result]);
         }
 
         None

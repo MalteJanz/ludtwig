@@ -1,6 +1,6 @@
 use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxToken};
 
-use crate::check::rule::{Rule, RuleContext, Severity};
+use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 
 pub struct RuleWhitespaceBetweenLineBreaks;
 
@@ -9,7 +9,7 @@ impl Rule for RuleWhitespaceBetweenLineBreaks {
         "whitespace-between-line-breaks"
     }
 
-    fn check_token(&self, token: SyntaxToken, ctx: &mut RuleContext) -> Option<()> {
+    fn check_token(&self, token: SyntaxToken, _ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         // rule only inspects line breaks
         if token.kind() != SyntaxKind::TK_LINE_BREAK {
             return None;
@@ -25,20 +25,15 @@ impl Rule for RuleWhitespaceBetweenLineBreaks {
             return None;
         }
 
-        let result = ctx
-            .create_result(
-                self.name(),
-                Severity::Help,
-                "Whitespace between line breaks",
-            )
+        let result = self
+            .create_result(Severity::Help, "Whitespace between line breaks")
             .primary_note(
                 may_be_ws.text_range(),
                 "Unexpected whitespace on empty line",
             )
             .suggestion(may_be_ws.text_range(), "", "Remove whitespace");
-        ctx.add_result(result);
 
-        None
+        Some(vec![result])
     }
 }
 

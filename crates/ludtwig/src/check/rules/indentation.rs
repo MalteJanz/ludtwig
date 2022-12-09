@@ -4,7 +4,7 @@ use ludtwig_parser::syntax::untyped::{
     WalkEvent,
 };
 
-use crate::check::rule::{Rule, RuleContext, Severity};
+use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 
 pub struct RuleIndentation;
 
@@ -13,7 +13,7 @@ impl Rule for RuleIndentation {
         "indentation"
     }
 
-    fn check_root(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
+    fn check_root(&self, node: SyntaxNode, ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         // keep track of some state during tree traversal
         let mut line_break_encountered = true;
         let mut indentation_level = 0; // whole indentation levels like nested elements
@@ -23,6 +23,7 @@ impl Rule for RuleIndentation {
 
         let indent_block_children = ctx.config().format.indent_children_of_blocks;
 
+        let mut check_results = vec![];
         let mut tree_iter = node.preorder_with_tokens();
         while let Some(walk) = tree_iter.next() {
             match walk {
@@ -36,12 +37,12 @@ impl Rule for RuleIndentation {
                         }
                         SyntaxElement::Token(t) if !is_ignored && line_break_encountered => {
                             if !inside_trivia_sensitive_node {
-                                self.handle_first_token_in_line(
+                                check_results.append(&mut self.handle_first_token_in_line(
                                     &t,
                                     indentation_level,
                                     indentation_substeps,
                                     ctx,
-                                );
+                                ));
                             }
                             line_break_encountered = false;
                         }
@@ -103,7 +104,11 @@ impl Rule for RuleIndentation {
             }
         }
 
-        None
+        if check_results.is_empty() {
+            None
+        } else {
+            Some(check_results)
+        }
     }
 }
 
@@ -119,8 +124,8 @@ impl RuleIndentation {
         token: &SyntaxToken,
         indentation_level: usize,
         indentation_substeps: usize,
-        ctx: &mut RuleContext,
-    ) {
+        ctx: &RuleRunContext,
+    ) -> Vec<CheckResult> {
         let indent_char = ctx.config().format.indentation_mode.corresponding_char();
         let indent_char_count = ctx.config().format.indentation_count;
         let expected_str = std::iter::repeat(indent_char)
@@ -141,8 +146,8 @@ impl RuleIndentation {
                     let (found_spaces, found_tabs) = get_spaces_and_tabs_count(token.text());
 
                     // report wrong indentation
-                    let result = ctx
-                        .create_result(self.name(), Severity::Help, "Wrong indentation")
+                    let result = self
+                        .create_result( Severity::Help, "Wrong indentation")
                         .primary_note(
                             token.text_range(),
                             format!(
@@ -164,15 +169,15 @@ impl RuleIndentation {
                                 substeps_expectation_notice,
                             ),
                         );
-                    ctx.add_result(result);
+                    return vec![result];
                 }
             }
             _ => {
                 if indentation_level > 0 || indentation_substeps > 0 {
                     // report missing whitespace token
                     let range = TextRange::at(token.text_range().start(), TextSize::from(0));
-                    let result = ctx
-                        .create_result(self.name(), Severity::Help, "Missing indentation")
+                    let result = self
+                        .create_result(Severity::Help, "Missing indentation")
                         .primary_note(
                             range,
                             format!(
@@ -192,10 +197,12 @@ impl RuleIndentation {
                                 substeps_expectation_notice,
                             ),
                         );
-                    ctx.add_result(result);
+                    return vec![result];
                 }
             }
         }
+
+        vec![]
     }
 
     fn check_for_rule_ignore_enter(

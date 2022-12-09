@@ -130,7 +130,7 @@ pub mod test {
     use ludtwig_parser::syntax::untyped::SyntaxNode;
 
     use crate::check::produce_diagnostics;
-    use crate::check::rule::RuleContext;
+    use crate::check::rule::CheckResult;
     use crate::check::rules::RULE_DEFINITIONS;
     use crate::check::run_rules;
     use crate::process::{iteratively_apply_suggestions, FileContext};
@@ -139,7 +139,7 @@ pub mod test {
     fn debug_rule(
         rule_name: &str,
         source_code: &str,
-    ) -> (FileContext, RuleContext, Receiver<ProcessingEvent>) {
+    ) -> (FileContext, Vec<CheckResult>, Receiver<ProcessingEvent>) {
         let config = Config::new(crate::config::DEFAULT_CONFIG_PATH).unwrap();
 
         let rule = RULE_DEFINITIONS

@@ -3,7 +3,7 @@ use regex::Regex;
 
 use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxToken, TextRange, TextSize};
 
-use crate::check::rule::{Rule, RuleContext, Severity};
+use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 use crate::config::LineEnding;
 
 pub struct RuleLineEnding;
@@ -13,7 +13,7 @@ impl Rule for RuleLineEnding {
         "line-ending"
     }
 
-    fn check_token(&self, token: SyntaxToken, ctx: &mut RuleContext) -> Option<()> {
+    fn check_token(&self, token: SyntaxToken, ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         static INVALID_REGEX: OnceCell<Regex> = OnceCell::new();
 
         if token.kind() != SyntaxKind::TK_LINE_BREAK {
@@ -36,24 +36,29 @@ impl Rule for RuleLineEnding {
             .unwrap()
         });
 
+        let mut results = vec![];
         for invalid in invalid_regex.find_iter(token.text()) {
             #[allow(clippy::cast_possible_truncation)]
             let range = TextRange::new(
                 token.text_range().start() + TextSize::from(invalid.start() as u32),
                 token.text_range().start() + TextSize::from(invalid.end() as u32),
             );
-            let result = ctx
-                .create_result(self.name(), Severity::Warning, "invalid line ending")
+            let result = self
+                .create_result(Severity::Warning, "invalid line ending")
                 .primary_note(
                     range,
                     "this line ending does not conform to the configured style",
                 )
                 .suggestion(range, correct_line_ending, message.clone());
 
-            ctx.add_result(result);
+            results.push(result);
         }
 
-        None
+        if results.is_empty() {
+            None
+        } else {
+            Some(results)
+        }
     }
 }
 

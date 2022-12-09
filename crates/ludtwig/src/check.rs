@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::sync::Arc;
 
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::SimpleFiles;
@@ -9,17 +9,19 @@ use ludtwig_parser::syntax::typed;
 use ludtwig_parser::syntax::typed::{AstNode, HtmlTag, LudtwigDirectiveIgnore};
 use ludtwig_parser::syntax::untyped::{debug_tree, SyntaxElement, SyntaxToken, WalkEvent};
 
-use crate::check::rule::{CheckSuggestion, RuleContext, Severity, TreeTraversalContext};
+use crate::check::rule::{
+    CheckResult, CheckSuggestion, RuleRunContext, Severity, TreeTraversalContext,
+};
 use crate::process::FileContext;
 use crate::ProcessingEvent;
 
 pub mod rule;
 pub mod rules;
 
-pub fn run_rules(file_context: &FileContext) -> RuleContext {
-    let mut ctx = RuleContext {
-        check_results: vec![],
-        cli_context: file_context.cli_context.clone(),
+pub fn run_rules(file_context: &FileContext) -> Vec<CheckResult> {
+    let mut check_results = vec![];
+    let mut run_context = RuleRunContext {
+        cli_data: Arc::clone(&file_context.cli_context.data),
         traversal_ctx: TreeTraversalContext {
             inside_trivia_sensitive_node: false,
         },
@@ -27,13 +29,26 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
 
     if file_context.file_rule_definitions.is_empty() {
         // no rules to run for this file
-        return ctx;
+        return vec![];
     }
 
+    /*
+    Performance notes for future considerations:
+    - Parallel iteration for `check_root` methods does NOT provide any measurable benefit
+    - Iteration order (first rules then run through the tree for each rule) is much slower!
+    - Parallel iteration over the rules on a single node / token:
+        - you need to pass the green node root and a TextRange and reconstruct that one node / token for every rule
+        - makes it hard / complex to implement
+        - likely also slower (because node / token reconstruction times)
+     */
+
     // run root node checks once for each rule
-    for rule in &file_context.file_rule_definitions {
-        rule.check_root(file_context.tree_root.clone(), &mut ctx);
-    }
+    let rule_results_iter = file_context
+        .file_rule_definitions
+        .iter()
+        .filter_map(|rule| rule.check_root(file_context.tree_root.clone(), &run_context))
+        .flatten();
+    check_results.extend(rule_results_iter);
 
     // iterate through syntax tree
     let mut ignored_rules: Vec<String> = vec![];
@@ -76,24 +91,38 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
                             if let Some("pre" | "textarea") =
                                 t.name().as_ref().map(SyntaxToken::text)
                             {
-                                ctx.traversal_ctx.inside_trivia_sensitive_node = true;
+                                run_context.traversal_ctx.inside_trivia_sensitive_node = true;
                             }
                         }
 
                         // run node checks for every rule
-                        for rule in &file_context.file_rule_definitions {
-                            if !ignored_rules.iter().any(|ignored| ignored == rule.name()) {
-                                rule.check_node(n.clone(), &mut ctx);
-                            }
-                        }
+                        let results = file_context
+                            .file_rule_definitions
+                            .iter()
+                            .filter_map(|rule| {
+                                if ignored_rules.iter().any(|ignored| ignored == rule.name()) {
+                                    None
+                                } else {
+                                    rule.check_node(n.clone(), &run_context)
+                                }
+                            })
+                            .flatten();
+                        check_results.extend(results);
                     }
                     SyntaxElement::Token(t) => {
                         // run token checks for every rule
-                        for rule in &file_context.file_rule_definitions {
-                            if !ignored_rules.iter().any(|ignored| ignored == rule.name()) {
-                                rule.check_token(t.clone(), &mut ctx);
-                            }
-                        }
+                        let results = file_context
+                            .file_rule_definitions
+                            .iter()
+                            .filter_map(|rule| {
+                                if ignored_rules.iter().any(|ignored| ignored == rule.name()) {
+                                    None
+                                } else {
+                                    rule.check_token(t.clone(), &run_context)
+                                }
+                            })
+                            .flatten();
+                        check_results.extend(results);
                     }
                 }
             }
@@ -115,7 +144,7 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
                 if let SyntaxElement::Node(n) = element {
                     if let Some(t) = HtmlTag::cast(n) {
                         if let Some("pre" | "textarea") = t.name().as_ref().map(SyntaxToken::text) {
-                            ctx.traversal_ctx.inside_trivia_sensitive_node = false;
+                            run_context.traversal_ctx.inside_trivia_sensitive_node = false;
                         }
                     }
                 }
@@ -123,15 +152,16 @@ pub fn run_rules(file_context: &FileContext) -> RuleContext {
         }
     }
 
-    ctx
+    check_results
 }
 
-pub fn get_rule_context_suggestions(rule_ctx: &RuleContext) -> Vec<(&str, &CheckSuggestion)> {
-    rule_ctx
-        .check_results
+pub fn get_rule_context_suggestions(
+    check_results: &[CheckResult],
+) -> Vec<(&'static str, &CheckSuggestion)> {
+    check_results
         .iter()
         .flat_map(|res| {
-            let rule_name = res.rule_name.borrow();
+            let rule_name = res.rule_name;
             res.suggestions.iter().map(move |sug| (rule_name, sug))
         })
         .collect()
@@ -139,7 +169,7 @@ pub fn get_rule_context_suggestions(rule_ctx: &RuleContext) -> Vec<(&str, &Check
 
 pub fn produce_diagnostics(
     file_context: &FileContext,
-    result_rule_ctx: RuleContext,
+    rule_results: Vec<CheckResult>,
     buffer: &mut Buffer,
 ) {
     // diagnostic output setup
@@ -179,7 +209,7 @@ pub fn produce_diagnostics(
     }
 
     // run through the rule check results
-    for result in result_rule_ctx.check_results {
+    for result in rule_results {
         let diagnostic = match result.severity {
             Severity::Error => Diagnostic::error(),
             Severity::Warning => Diagnostic::warning(),

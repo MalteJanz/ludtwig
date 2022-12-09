@@ -1,4 +1,4 @@
-use crate::check::rule::RuleContext;
+use crate::check::rule::{CheckResult, RuleExt, RuleRunContext};
 use crate::{Rule, Severity};
 use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxToken};
 
@@ -9,16 +9,15 @@ impl Rule for RuleUnknownToken {
         "unknown-token"
     }
 
-    fn check_token(&self, token: SyntaxToken, ctx: &mut RuleContext) -> Option<()> {
+    fn check_token(&self, token: SyntaxToken, _ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         if token.kind() != SyntaxKind::TK_UNKNOWN {
             return None;
         }
 
-        let result = ctx
-            .create_result(self.name(), Severity::Info, "Unknown syntax token found")
+        let result = self
+            .create_result(Severity::Info, "Unknown syntax token found")
             .primary_note(token.text_range(), "Unknown syntax token encountered here");
-        ctx.add_result(result);
 
-        None
+        Some(vec![result])
     }
 }

@@ -2,7 +2,7 @@ use ludtwig_parser::syntax::typed::{AstNode, TwigBinaryExpression};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 use ludtwig_parser::T;
 
-use crate::check::rule::{Rule, RuleContext, Severity};
+use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 
 pub struct RuleTwigLogicAnd;
 
@@ -11,17 +11,13 @@ impl Rule for RuleTwigLogicAnd {
         "twig-logic-and"
     }
 
-    fn check_node(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
+    fn check_node(&self, node: SyntaxNode, _ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         let binary_expr_op = TwigBinaryExpression::cast(node)?.operator()?;
 
         if binary_expr_op.kind() == T!["&&"] {
             // not a valid twig operator
-            let result = ctx
-                .create_result(
-                    self.name(),
-                    Severity::Error,
-                    "'&&' is not a valid twig operator",
-                )
+            let result = self
+                .create_result(Severity::Error, "'&&' is not a valid twig operator")
                 .primary_note(binary_expr_op.text_range(), "help: change this operator")
                 .suggestion(
                     binary_expr_op.text_range(),
@@ -29,7 +25,7 @@ impl Rule for RuleTwigLogicAnd {
                     "Try this operator instead",
                 );
 
-            ctx.add_result(result);
+            return Some(vec![result]);
         }
 
         None

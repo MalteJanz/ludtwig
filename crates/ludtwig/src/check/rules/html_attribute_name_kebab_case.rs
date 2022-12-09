@@ -1,7 +1,7 @@
 use ludtwig_parser::syntax::typed::{AstNode, HtmlAttribute};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 
-use crate::check::rule::{Rule, RuleContext, Severity};
+use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 
 pub struct RuleHtmlAttributeNameKebabCase;
 
@@ -10,13 +10,12 @@ impl Rule for RuleHtmlAttributeNameKebabCase {
         "html-attribute-name-kebab-case"
     }
 
-    fn check_node(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
+    fn check_node(&self, node: SyntaxNode, _ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         let attribute_name = HtmlAttribute::cast(node)?.name()?;
         if !is_valid_alphanumeric_kebab_case(attribute_name.text()) {
             // name is not valid
-            let mut result = ctx
+            let mut result = self
                 .create_result(
-                    self.name(),
                     Severity::Help,
                     "Attribute name is not written in kebab-case",
                 )
@@ -34,7 +33,7 @@ impl Rule for RuleHtmlAttributeNameKebabCase {
                 );
             }
 
-            ctx.add_result(result);
+            return Some(vec![result]);
         }
         None
     }

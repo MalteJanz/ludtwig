@@ -7,7 +7,7 @@ use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 use ludtwig_parser::ParseError;
 
-use crate::check::rule::{CheckSuggestion, Rule, RuleContext};
+use crate::check::rule::{CheckResult, CheckSuggestion, Rule};
 use crate::check::rules::get_file_active_rule_definitions;
 use crate::check::{get_rule_context_suggestions, produce_diagnostics, run_rules};
 use crate::error::FileProcessingError;
@@ -118,9 +118,9 @@ fn run_analysis(
 
 pub fn iteratively_apply_suggestions(
     file_context: FileContext,
-    rule_result_context: RuleContext,
-) -> Result<(FileContext, RuleContext, bool, usize), FileProcessingError> {
-    let mut current_results = (file_context, rule_result_context, false, 0);
+    check_results: Vec<CheckResult>,
+) -> Result<(FileContext, Vec<CheckResult>, bool, usize), FileProcessingError> {
+    let mut current_results = (file_context, check_results, false, 0);
 
     // try at maximum 10 parsing iterations
     for i in 0..10 {

@@ -1,7 +1,7 @@
 use ludtwig_parser::syntax::typed::{AstNode, TwigLiteralString};
 use ludtwig_parser::syntax::untyped::{SyntaxNode, SyntaxNodeExt, TextRange, TextSize};
 
-use crate::check::rule::{CheckResult, Rule, RuleContext, Severity};
+use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 use crate::config::Quotation;
 
 pub struct RuleTwigStringQuotation;
@@ -11,7 +11,7 @@ impl Rule for RuleTwigStringQuotation {
         "twig-string-quotation"
     }
 
-    fn check_node(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
+    fn check_node(&self, node: SyntaxNode, ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         let twig_string = TwigLiteralString::cast(node)?;
 
         // check for interpolated string where single quotes would be suggested
@@ -34,8 +34,8 @@ impl Rule for RuleTwigStringQuotation {
 
         if !opening_is_fine || !closing_is_fine {
             // invalid quotation
-            let mut result = ctx
-                .create_result(self.name(), Severity::Help, "wrong quotation")
+            let mut result = self
+                .create_result(Severity::Help, "wrong quotation")
                 .primary_note(
                     twig_string.syntax().text_range_trimmed_trivia(),
                     format!(
@@ -46,7 +46,8 @@ impl Rule for RuleTwigStringQuotation {
 
             result =
                 make_changed_quotes_suggestion_if_possible(&twig_string, correct_quote, result);
-            ctx.add_result(result);
+
+            return Some(vec![result]);
         }
 
         None

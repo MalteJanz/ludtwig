@@ -1,6 +1,7 @@
-use crate::{CliContext, Config};
+use crate::{CliSharedData, Config};
 use ludtwig_parser::syntax::untyped::{SyntaxNode, SyntaxToken, TextRange};
 use std::fmt::{Debug, Formatter};
+use std::sync::Arc;
 
 pub trait Rule: Sync {
     /// A unique, kebab-case name for the rule.
@@ -14,7 +15,8 @@ pub trait Rule: Sync {
     /// which are all optional.
     #[allow(unused_variables)]
     #[inline]
-    fn check_node(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
+    #[must_use]
+    fn check_node(&self, node: SyntaxNode, ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         None
     }
 
@@ -26,7 +28,8 @@ pub trait Rule: Sync {
     /// which are all optional.
     #[allow(unused_variables)]
     #[inline]
-    fn check_token(&self, token: SyntaxToken, ctx: &mut RuleContext) -> Option<()> {
+    #[must_use]
+    fn check_token(&self, token: SyntaxToken, ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         None
     }
 
@@ -42,8 +45,26 @@ pub trait Rule: Sync {
     /// which are all optional.
     #[allow(unused_variables)]
     #[inline]
-    fn check_root(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
+    #[must_use]
+    fn check_root(&self, node: SyntaxNode, ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         None
+    }
+}
+
+pub trait RuleExt: Rule {
+    /// Create a result for the corresponding rule.
+    fn create_result<S: Into<String>>(&self, severity: Severity, message: S) -> CheckResult;
+}
+
+impl<R: Rule> RuleExt for R {
+    fn create_result<S: Into<String>>(&self, severity: Severity, message: S) -> CheckResult {
+        CheckResult {
+            rule_name: self.name(),
+            severity,
+            message: message.into(),
+            primary: None,
+            suggestions: vec![],
+        }
     }
 }
 
@@ -59,37 +80,16 @@ pub struct TreeTraversalContext {
 }
 
 #[derive(Debug)]
-pub struct RuleContext {
+pub struct RuleRunContext {
     // file_id
     // source_text
-    pub(super) check_results: Vec<CheckResult>,
-    pub(super) cli_context: CliContext,
+    pub(super) cli_data: Arc<CliSharedData>,
     pub(super) traversal_ctx: TreeTraversalContext,
 }
 
-impl RuleContext {
-    #[allow(clippy::unused_self)]
-    pub fn create_result<S: Into<String>>(
-        &self,
-        rule_name: S,
-        severity: Severity,
-        message: S,
-    ) -> CheckResult {
-        CheckResult {
-            rule_name: rule_name.into(),
-            severity,
-            message: message.into(),
-            primary: None,
-            suggestions: vec![],
-        }
-    }
-
-    pub fn add_result(&mut self, result: CheckResult) {
-        self.check_results.push(result);
-    }
-
+impl RuleRunContext {
     pub fn config(&self) -> &Config {
-        &self.cli_context.data.config
+        &self.cli_data.config
     }
 
     pub fn traversal_ctx(&self) -> &TreeTraversalContext {
@@ -100,7 +100,7 @@ impl RuleContext {
 #[derive(Debug)]
 pub struct CheckResult {
     // file_id
-    pub(super) rule_name: String,
+    pub(super) rule_name: &'static str,
     pub(super) severity: Severity,
     pub(super) message: String,
     pub(super) primary: Option<CheckNote>,

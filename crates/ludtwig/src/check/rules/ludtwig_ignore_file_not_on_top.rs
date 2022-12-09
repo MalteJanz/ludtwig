@@ -1,4 +1,4 @@
-use crate::check::rule::{Rule, RuleContext};
+use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext};
 use crate::Severity;
 use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveFileIgnore};
 use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxNode};
@@ -10,15 +10,15 @@ impl Rule for RuleLudtwigIgnoreFileNotOnTop {
         "ludtwig-ignore-file-not-on-top"
     }
 
-    fn check_node(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
+    fn check_node(&self, node: SyntaxNode, _ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         let directive = LudtwigDirectiveFileIgnore::cast(node)?;
         let parent = directive.syntax().parent()?;
 
         if parent.kind() != SyntaxKind::ROOT {
-            let result = ctx.create_result(self.name(), Severity::Error, "ludtwig-ignore-file directive must be on the top level in a file otherwise it is discarded!")
+            let result = self.create_result( Severity::Error, "ludtwig-ignore-file directive must be on the top level in a file otherwise it is discarded!")
                 .primary_note(directive.syntax().text_range(), "move this to the top level of the file (ideally the first line)");
 
-            ctx.add_result(result);
+            return Some(vec![result]);
         }
 
         None

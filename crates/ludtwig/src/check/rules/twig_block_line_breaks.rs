@@ -1,7 +1,7 @@
 use ludtwig_parser::syntax::typed::{AstNode, TwigBlock};
 use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxNode, TextRange, TextSize};
 
-use crate::check::rule::{Rule, RuleContext, Severity};
+use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 
 pub struct RuleTwigBlockLineBreaks;
 
@@ -11,7 +11,7 @@ impl Rule for RuleTwigBlockLineBreaks {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn check_node(&self, node: SyntaxNode, ctx: &mut RuleContext) -> Option<()> {
+    fn check_node(&self, node: SyntaxNode, ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         if ctx.traversal_ctx().inside_trivia_sensitive_node {
             return None; // no trivia modification allowed here
         }
@@ -92,12 +92,13 @@ impl Rule for RuleTwigBlockLineBreaks {
             may_be_token.map(|token| (token, expected_str, line_break_amount))
         });
 
+        let mut results = vec![];
         for (token, expected_str, line_break_amount) in validate_iter {
             if token.kind() == SyntaxKind::TK_LINE_BREAK {
                 // validate existing line break
                 if token.text() != expected_str {
-                    let result = ctx
-                        .create_result(self.name(), Severity::Help, "Wrong line break around block")
+                    let result = self
+                        .create_result(Severity::Help, "Wrong line break around block")
                         .primary_note(
                             token.text_range(),
                             format!("Expected {} line breaks here", line_break_amount),
@@ -107,18 +108,15 @@ impl Rule for RuleTwigBlockLineBreaks {
                             expected_str.clone(),
                             format!("Change to {} line breaks", line_break_amount),
                         );
-                    ctx.add_result(result);
+
+                    results.push(result);
                 }
             } else {
                 let range = TextRange::at(token.text_range().start(), TextSize::from(0));
 
                 // missing line break
-                let result = ctx
-                    .create_result(
-                        self.name(),
-                        Severity::Help,
-                        "Missing line break around block",
-                    )
+                let result = self
+                    .create_result(Severity::Help, "Missing line break around block")
                     .primary_note(
                         range,
                         format!("Expected {} line breaks before this", line_break_amount),
@@ -128,11 +126,16 @@ impl Rule for RuleTwigBlockLineBreaks {
                         expected_str.clone(),
                         format!("Add {} line breaks before this", line_break_amount),
                     );
-                ctx.add_result(result);
+
+                results.push(result);
             }
         }
 
-        None
+        if results.is_empty() {
+            None
+        } else {
+            Some(results)
+        }
     }
 }
 
