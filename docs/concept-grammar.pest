@@ -16,7 +16,10 @@
 //     </p>
 // </div>
 // {% endblock %}
-
+//
+// But it has one serious flaw!
+// It allows HTML tags inside Twig blocks inside HTML opening tags
+// and wrongly parses html attributes inside top level Twig blocks instead of parsing them as HTML text.
 
 // any element in the document (including twig structures)
 element = { ws? ~ (twig | any_tag | text) }
@@ -28,13 +31,19 @@ twig_expression = { "{{" ~ ws? ~ text ~ ws? ~ "}}" }
 
 // twig structure definitions
 inner_twig = { inner_tag | element }
-twig_block = { "{%" ~ ws? ~ "block" ~ ws? ~ name ~ ws? ~ "%}" ~ ws? ~ inner_twig* ~ ws? ~ "{%" ~ ws? ~ "endblock" ~ ws? ~ "%}" }
-// more structures like for loops of if conditions...
+twig_block = { "{%" ~ ws? ~ "block" ~ ws? ~ name ~ ws? ~ "%}"
+                ~ ws? ~ inner_twig* ~ ws?
+                ~ "{%" ~ ws? ~ "endblock" ~ ws? ~ "%}" }
+// more structures like for loops or if conditions...
 
 // tag definitions
 any_tag = { div_tag | p_tag }
-div_tag = { "<div" ~ ws? ~ inner_tag* ~ ("/>" | ">" ~ children? ~ ws? ~ "</div>") }
-p_tag = { "<p" ~ ws? ~ inner_tag* ~ ("/>" | ">" ~ children? ~ ws? ~ "</p>") }
+div_tag = { "<div" ~ ws? ~ inner_tag* ~ ("/>" | ">"
+            ~ children? ~ ws?
+            ~ "</div>") }
+p_tag = { "<p" ~ ws? ~ inner_tag* ~ ("/>" | ">"
+            ~ children? ~ ws?
+            ~ "</p>") }
 // more html tags...
 
 inner_tag = { (attribute | twig) ~ ws? }
@@ -47,7 +56,7 @@ name = { ('a'..'z' | 'A'..'Z' | '0'..'9' | "_" | "-" | ":" | "@" | "#")+ }
 text = { (!(ws | "<" | "{{" | "{%") ~ ANY)+ }
 ws = { (" " | "\t" | "\n")+ }
 
-// quoted "strings"
+// quoted "strings", which can include twig
 string = { "\"" ~ (raw_string | escape | twig)* ~ "\"" }
 raw_string = { (!("\\" | "\"" | "{{" | "{%") ~ ANY)+ }
 predefined = { "n" | "r" | "t" | "\\" | "0" | "\"" | "'" }
