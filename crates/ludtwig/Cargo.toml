@@ -1,6 +1,6 @@
 [package]
 name = "ludtwig"
-description = "A CLI tool for template files (HTML + Twig) with focus on formatting and detecting mistakes."
+description = "Linter / Formatter for Twig template files which respects HTML and your time"
 keywords = ["formatter", "analyzer", "html", "twig", "template"]
 categories = ["command-line-utilities", "development-tools", "web-programming"]
 repository = "https://github.com/MalteJanz/ludtwig"
