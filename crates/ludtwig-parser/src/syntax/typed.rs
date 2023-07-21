@@ -441,7 +441,10 @@ ast_node!(
 ast_node!(TwigDeprecated, SyntaxKind::TWIG_DEPRECATED);
 ast_node!(TwigDo, SyntaxKind::TWIG_DO);
 ast_node!(TwigEmbed, SyntaxKind::TWIG_EMBED);
-ast_node!(TwigEmbedStartngBlock, SyntaxKind::TWIG_EMBED_STARTING_BLOCK);
+ast_node!(
+    TwigEmbedStartingBlock,
+    SyntaxKind::TWIG_EMBED_STARTING_BLOCK
+);
 ast_node!(TwigEmbedEndingBlock, SyntaxKind::TWIG_EMBED_ENDING_BLOCK);
 ast_node!(TwigFlush, SyntaxKind::TWIG_FLUSH);
 ast_node!(TwigFrom, SyntaxKind::TWIG_FROM);

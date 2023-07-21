@@ -9,6 +9,7 @@ use crate::check::rules::twig_block_name_snake_case::RuleTwigBlockNameSnakeCase;
 use crate::check::rules::twig_hash_key_no_quotes::RuleTwigHashKeyNoQuotes;
 use crate::check::rules::twig_logic_and::RuleTwigLogicAnd;
 use crate::check::rules::twig_logic_or::RuleTwigLogicOr;
+use crate::check::rules::twig_prefer_sw_extends_over_extends::RuleTwigShopwareExtends;
 use crate::check::rules::twig_string_quotation::RuleTwigStringQuotation;
 use crate::check::rules::unknown_token::RuleUnknownToken;
 use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
@@ -27,6 +28,7 @@ mod twig_block_name_snake_case;
 mod twig_hash_key_no_quotes;
 mod twig_logic_and;
 mod twig_logic_or;
+mod twig_prefer_sw_extends_over_extends;
 mod twig_string_quotation;
 mod unknown_token;
 mod whitespace_between_line_breaks;
@@ -46,6 +48,7 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleTwigStringQuotation,
     &RuleHtmlStringQuotation,
     &RuleTwigHashKeyNoQuotes,
+    &RuleTwigShopwareExtends,
 ];
 
 /// Get active rule definitions based on config

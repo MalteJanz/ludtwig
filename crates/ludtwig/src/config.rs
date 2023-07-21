@@ -170,7 +170,7 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
         Err(e) => {
             println!("Error reading configuration:");
             println!("{}", e);
-            std::process::exit(1);
+            std::process::exit(1)
         }
     }
 }
