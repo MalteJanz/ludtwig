@@ -11,8 +11,8 @@ use crate::check::rules::twig_logic_and::RuleTwigLogicAnd;
 use crate::check::rules::twig_logic_or::RuleTwigLogicOr;
 use crate::check::rules::twig_string_quotation::RuleTwigStringQuotation;
 use crate::check::rules::unknown_token::RuleUnknownToken;
-use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
 use crate::check::rules::use_not_same_as::RuleUseNotSameAs;
+use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
 use crate::error::ConfigurationError;
 use crate::Config;
 use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveFileIgnore};
@@ -30,8 +30,8 @@ mod twig_logic_and;
 mod twig_logic_or;
 mod twig_string_quotation;
 mod unknown_token;
-mod whitespace_between_line_breaks;
 mod use_not_same_as;
+mod whitespace_between_line_breaks;
 
 /// List of all rule trait objects, also add them to the `active-rules` in `ludtwig-config.toml`!
 pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
@@ -48,7 +48,7 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleTwigStringQuotation,
     &RuleHtmlStringQuotation,
     &RuleTwigHashKeyNoQuotes,
-    &RuleUseNotSameAs
+    &RuleUseNotSameAs,
 ];
 
 /// Get active rule definitions based on config

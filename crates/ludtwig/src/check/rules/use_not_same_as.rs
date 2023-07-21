@@ -13,14 +13,15 @@ impl Rule for RuleUseNotSameAs {
         if token.kind() != SyntaxKind::TK_EXCLAMATION_MARK_DOUBLE_EQUALS {
             return None;
         }
-        
 
         let result: CheckResult = self
-        .create_result(Severity::Info, "Don't use !== ")
-        .primary_note(token.text_range(), "Don't use '!==', try: not same as(condition)");
+            .create_result(Severity::Info, "Don't use !== ")
+            .primary_note(
+                token.text_range(),
+                "Don't use '!==', try: not same as(condition)",
+            );
 
         Some(vec![result])
-
     }
 }
 
