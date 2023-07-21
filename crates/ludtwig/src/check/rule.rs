@@ -63,6 +63,7 @@ impl<R: Rule> RuleExt for R {
             severity,
             message: message.into(),
             primary: None,
+            secondary: vec![],
             suggestions: vec![],
         }
     }
@@ -104,6 +105,7 @@ pub struct CheckResult {
     pub(super) severity: Severity,
     pub(super) message: String,
     pub(super) primary: Option<CheckNote>,
+    pub(super) secondary: Vec<CheckNote>,
     pub(super) suggestions: Vec<CheckSuggestion>,
 }
 
@@ -113,6 +115,14 @@ impl CheckResult {
     /// Further context can be provided with multiple secondary notes.
     pub fn primary_note<S: Into<String>>(mut self, syntax_range: TextRange, message: S) -> Self {
         self.primary = Some(CheckNote {
+            syntax_range,
+            message: message.into(),
+        });
+        self
+    }
+
+    pub fn secodary_note<S: Into<String>>(mut self, syntax_range: TextRange, message: S) -> Self {
+        self.secondary.push(CheckNote {
             syntax_range,
             message: message.into(),
         });

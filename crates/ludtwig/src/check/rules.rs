@@ -19,6 +19,9 @@ use crate::Config;
 use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveFileIgnore};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 
+use self::duplicate_block_names::RuleDuplicateBlockNames;
+
+mod duplicate_block_names;
 mod html_attribute_name_kebab_case;
 mod html_string_quotation;
 mod indentation;
@@ -52,6 +55,7 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleTwigPreferShopwareExtends,
     &RuleTwigUseIsSameAs,
     &RuleTwigUseIsNotSameAs,
+    &RuleDuplicateBlockNames,
 ];
 
 /// Get active rule definitions based on config
