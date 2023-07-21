@@ -4,6 +4,7 @@ description = "Linter / Formatter for Twig template files which respects HTML an
 keywords = ["formatter", "analyzer", "html", "twig", "template"]
 categories = ["command-line-utilities", "development-tools", "web-programming"]
 repository = "https://github.com/MalteJanz/ludtwig"
+readme = "../../README.md"
 version = "0.7.0"
 authors = ["Malte Janz <service.malte.j@protonmail.com>"]
 license = "MIT"
