@@ -42,6 +42,7 @@ active-rules = [
     "twig-string-quotation",
     "html-string-quotation",
     "twig-hash-key-no-quotes",
+    "use-not-same-as"
 ]
 
 [format]
