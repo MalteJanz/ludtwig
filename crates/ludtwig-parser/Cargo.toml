@@ -1,0 +1,30 @@
+[package]
+name = "ludtwig-parser"
+description = "Lossless parser for HTML / Twig templating syntax."
+keywords = ["parser", "twig", "html", "template"]
+categories = ["parser-implementations"]
+repository = "https://github.com/MalteJanz/ludtwig"
+documentation = "https://docs.rs/ludtwig-parser"
+version = "0.4.0"
+authors = ["Malte Janz <service.malte.j@protonmail.com>"]
+license = "MIT"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+bench = false
+
+[[bench]]
+name = "parsing_benchmark"
+harness = false
+
+[dev-dependencies]
+criterion = "0.4.0"
+expect-test = "1.4.0"
+
+[dependencies]
+rowan = "0.15.10"
+logos = "0.12.1"
+regex = "1.6.0"
+once_cell = "1.15.0"

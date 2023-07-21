@@ -4,5 +4,9 @@
 **/.idea
 .vscode
 **/.vscode
-/output
-/fixtures
+**/output
+**/fixtures
+**/.DS_Store
+fuzz/corpus
+fuzz/artifacts
+/demo
