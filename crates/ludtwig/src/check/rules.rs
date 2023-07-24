@@ -62,7 +62,7 @@ pub fn get_config_active_rule_definitions(
         .iter()
         .map(String::as_ref)
         .collect();
-    println!("{:?}", config_active_rules);
+
     let active_rules: Vec<&'static dyn Rule> = RULE_DEFINITIONS
         .iter()
         .filter_map(|r| {

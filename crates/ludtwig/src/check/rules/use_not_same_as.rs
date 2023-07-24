@@ -1,6 +1,7 @@
 use crate::check::rule::{CheckResult, RuleExt, RuleRunContext};
 use crate::{Rule, Severity};
-use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxToken};
+use ludtwig_parser::syntax::untyped::SyntaxToken;
+use ludtwig_parser::T;
 
 pub struct RuleUseNotSameAs;
 
@@ -10,7 +11,7 @@ impl Rule for RuleUseNotSameAs {
     }
 
     fn check_token(&self, token: SyntaxToken, _ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
-        if token.kind() != SyntaxKind::TK_EXCLAMATION_MARK_DOUBLE_EQUALS {
+        if token.kind() != T!["!=="] {
             return None;
         }
 
