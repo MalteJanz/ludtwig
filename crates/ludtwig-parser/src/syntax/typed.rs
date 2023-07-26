@@ -380,6 +380,14 @@ impl HtmlString {
     }
 }
 
+ast_node!(TwigExtends, SyntaxKind::TWIG_EXTENDS);
+impl TwigExtends {
+    #[must_use]
+    pub fn get_extends_keyword(&self) -> Option<SyntaxToken> {
+        support::token(&self.syntax, T!["extends"])
+    }
+}
+
 ast_node!(Body, SyntaxKind::BODY);
 ast_node!(TwigVar, SyntaxKind::TWIG_VAR);
 ast_node!(TwigExpression, SyntaxKind::TWIG_EXPRESSION);
@@ -431,7 +439,6 @@ ast_node!(TwigFor, SyntaxKind::TWIG_FOR);
 ast_node!(TwigForBlock, SyntaxKind::TWIG_FOR_BLOCK);
 ast_node!(TwigForElseBlock, SyntaxKind::TWIG_FOR_ELSE_BLOCK);
 ast_node!(TwigEndForBlock, SyntaxKind::TWIG_ENDFOR_BLOCK);
-ast_node!(TwigExtends, SyntaxKind::TWIG_EXTENDS);
 ast_node!(TwigInclude, SyntaxKind::TWIG_INCLUDE);
 ast_node!(TwigIncludeWith, SyntaxKind::TWIG_INCLUDE_WITH);
 ast_node!(TwigUse, SyntaxKind::TWIG_USE);
