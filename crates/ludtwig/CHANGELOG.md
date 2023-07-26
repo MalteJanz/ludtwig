@@ -1,7 +1,8 @@
 # NEXT-VERSION
+- Added `twig-use-is-not-same-as` rule
 
 # v0.7.0
-- WIP: rewrite
+- Rewrite of almost the complete codebase to make ludtwig a full linter / formatter
 
 # v0.6.1
 - Hotfix for the parser:

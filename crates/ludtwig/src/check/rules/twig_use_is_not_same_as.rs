@@ -4,11 +4,11 @@ use ludtwig_parser::syntax::typed::{AstNode, TwigBinaryExpression};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 use ludtwig_parser::T;
 
-pub struct RuleTwigUseNotSameAs;
+pub struct RuleTwigUseIsNotSameAs;
 
-impl Rule for RuleTwigUseNotSameAs {
+impl Rule for RuleTwigUseIsNotSameAs {
     fn name(&self) -> &'static str {
-        "twig-use-not-same-as"
+        "twig-use-is-not-same-as"
     }
 
     fn check_node(&self, node: SyntaxNode, _ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
@@ -23,13 +23,13 @@ impl Rule for RuleTwigUseNotSameAs {
             .create_result(Severity::Error, "!== is not a valid twig operator")
             .primary_note(
                 op.text_range(),
-                "This is not a valid Twig operator, try 'not same as(condition)' instead",
+                "This is not a valid Twig operator, try 'is not same as(condition)' instead",
             );
 
         if let Some(rhs) = expression.rhs_expression() {
             result = result.suggestion(
                 op.text_range().cover(rhs.syntax().text_range()),
-                format!("not same as({})", rhs.syntax().text().to_string().trim()),
+                format!("is not same as({})", rhs.syntax().text().to_string().trim()),
                 "Try this instead",
             );
         }
@@ -46,17 +46,17 @@ mod tests {
     #[test]
     fn rule_reports() {
         test_rule(
-            "twig-use-not-same-as",
+            "twig-use-is-not-same-as",
             "{% if test !== false %}{% endif %}",
             expect![[r#"
-                error[twig-use-not-same-as]: !== is not a valid twig operator
+                error[twig-use-is-not-same-as]: !== is not a valid twig operator
                   ┌─ ./debug-rule.html.twig:1:12
                   │
                 1 │ {% if test !== false %}{% endif %}
                   │            ^^^------
                   │            │
-                  │            Try this instead: not same as(false)
-                  │            This is not a valid Twig operator, try 'not same as(condition)' instead
+                  │            Try this instead: is not same as(false)
+                  │            This is not a valid Twig operator, try 'is not same as(condition)' instead
 
             "#]],
         );
@@ -65,9 +65,9 @@ mod tests {
     #[test]
     fn rule_fixes() {
         test_rule_fix(
-            "twig-use-not-same-as",
+            "twig-use-is-not-same-as",
             "{% if test !== false %}{% endif %}",
-            expect!["{% if test not same as(false) %}{% endif %}"],
+            expect!["{% if test is not same as(false) %}{% endif %}"],
         );
     }
 }
