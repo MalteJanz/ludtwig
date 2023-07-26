@@ -131,7 +131,7 @@ mod tests {
                 T![ws],
                 T!["}}"],
             ]
-        )
+        );
     }
 
     #[test]
@@ -139,17 +139,18 @@ mod tests {
         let results = lex("#{{");
         let syntax_kinds: Vec<SyntaxKind> = results.into_iter().map(|t| t.kind).collect();
 
-        assert_eq!(syntax_kinds, vec![T!["#"], T!["{{"],])
+        assert_eq!(syntax_kinds, vec![T!["#"], T!["{{"],]);
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn lex_all_tokens_chained_together() {
         use std::fmt::Write;
 
         let mut source = String::new();
         let mut expected_kinds: Vec<SyntaxKind> = vec![];
         let mut add = |text: &str, kind: SyntaxKind| {
-            write!(source, "{} ", text).unwrap();
+            write!(source, "{text} ").unwrap();
             expected_kinds.push(kind);
             expected_kinds.push(T![ws]);
         };
@@ -296,7 +297,7 @@ mod tests {
         // lex and compare
         let results = lex(&source);
         let found_syntax_kinds: Vec<SyntaxKind> = results.into_iter().map(|t| t.kind).collect();
-        assert_eq!(found_syntax_kinds, expected_kinds)
+        assert_eq!(found_syntax_kinds, expected_kinds);
     }
 
     #[test]

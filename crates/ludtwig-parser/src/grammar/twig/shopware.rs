@@ -225,7 +225,7 @@ mod tests {
                       TK_SINGLE_QUOTES@52..53 "'"
                     TK_WHITESPACE@53..54 " "
                     TK_PERCENT_CURLY@54..56 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -257,7 +257,7 @@ mod tests {
                         TK_SINGLE_QUOTES@59..60 "'"
                     TK_WHITESPACE@60..61 " "
                     TK_PERCENT_CURLY@61..63 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -337,7 +337,7 @@ mod tests {
                           TK_CLOSE_CURLY@117..118 "}"
                     TK_WHITESPACE@118..119 " "
                     TK_PERCENT_CURLY@119..121 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -394,7 +394,7 @@ mod tests {
                       TK_ENDSW_SILENT_FEATURE_CALL@85..110 "endsw_silent_feature_ ..."
                       TK_WHITESPACE@110..111 " "
                       TK_PERCENT_CURLY@111..113 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -409,7 +409,7 @@ mod tests {
                 TK_RETURN@3..9 "return"
                 TK_WHITESPACE@9..10 " "
                 TK_PERCENT_CURLY@10..12 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -428,7 +428,7 @@ mod tests {
                     TK_NUMBER@10..11 "5"
                 TK_WHITESPACE@11..12 " "
                 TK_PERCENT_CURLY@12..14 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -475,7 +475,7 @@ mod tests {
                             TK_CLOSE_PARENTHESIS@38..39 ")"
                     TK_WHITESPACE@39..40 " "
                     TK_PERCENT_CURLY@40..42 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -497,7 +497,7 @@ mod tests {
                     TK_SINGLE_QUOTES@17..18 "'"
                 TK_WHITESPACE@18..19 " "
                 TK_PERCENT_CURLY@19..21 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -545,7 +545,7 @@ mod tests {
                           TK_CLOSE_CURLY@40..41 "}"
                     TK_WHITESPACE@41..42 " "
                     TK_PERCENT_CURLY@42..44 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -567,7 +567,7 @@ mod tests {
                         TK_SINGLE_QUOTES@42..43 "'"
                     TK_WHITESPACE@43..44 " "
                     TK_PERCENT_CURLY@44..46 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -620,6 +620,6 @@ mod tests {
                           TK_CLOSE_CURLY@78..79 "}"
                     TK_WHITESPACE@79..80 " "
                     TK_PERCENT_CURLY@80..82 "%}""#]],
-        )
+        );
     }
 }

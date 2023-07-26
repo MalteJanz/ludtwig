@@ -100,7 +100,7 @@ mod tests {
                         TK_WORD@25..29 "else"
                     TK_WHITESPACE@29..30 " "
                     TK_CLOSE_CURLY_CURLY@30..32 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -137,6 +137,6 @@ mod tests {
                     TK_PERCENT_CURLY@53..55 "%}"
                     TK_WHITESPACE@55..56 " "
                     TK_HASHTAG_CLOSE_CURLY@56..58 "#}""##]],
-        )
+        );
     }
 }

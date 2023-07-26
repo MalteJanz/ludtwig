@@ -806,7 +806,7 @@ pub type PreorderWithTokens = rowan::api::PreorderWithTokens<TemplateLanguage>;
 
 #[must_use]
 pub fn debug_tree(syntax_node: &SyntaxNode) -> String {
-    let formatted = format!("{:#?}", syntax_node);
+    let formatted = format!("{syntax_node:#?}");
     // We cut off the last byte because formatting the SyntaxNode adds on a newline at the end.
     formatted[0..formatted.len() - 1].to_string()
 }

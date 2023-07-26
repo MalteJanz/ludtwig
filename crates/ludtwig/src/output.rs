@@ -64,7 +64,7 @@ pub fn handle_processing_output(rx: &Receiver<ProcessingEvent>) -> i32 {
         io::stderr().write_all(conclusion_msg.as_bytes()).unwrap();
         1 // return exit code 1 if there were errors, warnings or help.
     } else {
-        print!("{}", conclusion_msg);
+        print!("{conclusion_msg}");
         0
     }
 }

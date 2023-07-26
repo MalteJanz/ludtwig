@@ -101,12 +101,12 @@ impl Rule for RuleTwigBlockLineBreaks {
                         .create_result(Severity::Help, "Wrong line break around block")
                         .primary_note(
                             token.text_range(),
-                            format!("Expected {} line breaks here", line_break_amount),
+                            format!("Expected {line_break_amount} line breaks here"),
                         )
                         .suggestion(
                             token.text_range(),
                             expected_str.clone(),
-                            format!("Change to {} line breaks", line_break_amount),
+                            format!("Change to {line_break_amount} line breaks"),
                         );
 
                     results.push(result);
@@ -119,12 +119,12 @@ impl Rule for RuleTwigBlockLineBreaks {
                     .create_result(Severity::Help, "Missing line break around block")
                     .primary_note(
                         range,
-                        format!("Expected {} line breaks before this", line_break_amount),
+                        format!("Expected {line_break_amount} line breaks before this"),
                     )
                     .suggestion(
                         range,
                         expected_str.clone(),
-                        format!("Add {} line breaks before this", line_break_amount),
+                        format!("Add {line_break_amount} line breaks before this"),
                     );
 
                 results.push(result);

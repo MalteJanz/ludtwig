@@ -45,7 +45,7 @@ impl Parse {
         let mut s = debug_tree(&syntax_node);
 
         for error in &self.errors {
-            let _ = write!(s, "\n{}", error);
+            let _ = write!(s, "\n{error}");
         }
 
         s
@@ -152,7 +152,7 @@ impl<'source> Parser<'source> {
         if self.at(kind) {
             Some(self.bump())
         } else {
-            self.add_error(ParseErrorBuilder::new(format!("{}", kind)));
+            self.add_error(ParseErrorBuilder::new(format!("{kind}")));
             self.recover_expect(Some(kind), recovery_set)
         }
     }
@@ -240,6 +240,7 @@ impl<'source> Parser<'source> {
 }
 
 #[cfg(test)]
+#[allow(clippy::needless_pass_by_value)]
 pub(crate) fn check_parse(input: &str, expected_tree: expect_test::Expect) {
     let parse = parse(input);
     expected_tree.assert_eq(&parse.debug_parse());

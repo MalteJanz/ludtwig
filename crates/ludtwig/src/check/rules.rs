@@ -11,6 +11,8 @@ use crate::check::rules::twig_logic_and::RuleTwigLogicAnd;
 use crate::check::rules::twig_logic_or::RuleTwigLogicOr;
 use crate::check::rules::twig_prefer_sw_extends_over_extends::RuleTwigShopwareExtends;
 use crate::check::rules::twig_string_quotation::RuleTwigStringQuotation;
+use crate::check::rules::twig_use_is_not_same_as::RuleTwigUseIsNotSameAs;
+use crate::check::rules::twig_use_is_same_as::RuleTwigUseIsSameAs;
 use crate::check::rules::unknown_token::RuleUnknownToken;
 use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
 use crate::error::ConfigurationError;
@@ -30,6 +32,8 @@ mod twig_logic_and;
 mod twig_logic_or;
 mod twig_prefer_sw_extends_over_extends;
 mod twig_string_quotation;
+mod twig_use_is_not_same_as;
+mod twig_use_is_same_as;
 mod unknown_token;
 mod whitespace_between_line_breaks;
 
@@ -49,6 +53,8 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleHtmlStringQuotation,
     &RuleTwigHashKeyNoQuotes,
     &RuleTwigShopwareExtends,
+    &RuleTwigUseIsSameAs,
+    &RuleTwigUseIsNotSameAs,
 ];
 
 /// Get active rule definitions based on config
@@ -62,6 +68,7 @@ pub fn get_config_active_rule_definitions(
         .iter()
         .map(String::as_ref)
         .collect();
+
     let active_rules: Vec<&'static dyn Rule> = RULE_DEFINITIONS
         .iter()
         .filter_map(|r| {
@@ -174,6 +181,7 @@ pub mod test {
         (file_context, rule_result_context, rx)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn test_rule(rule_name: &str, source_code: &str, expected_report: expect_test::Expect) {
         let (file_context, rule_result_context, rx) = debug_rule(rule_name, source_code);
         let mut buffer = Buffer::no_color();
@@ -182,6 +190,7 @@ pub mod test {
         drop(rx);
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn test_rule_fix(
         rule_name: &str,
         source_code: &str,
@@ -200,6 +209,7 @@ pub mod test {
         drop(rx);
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn test_rule_does_not_fix(
         rule_name: &str,
         source_code: &str,

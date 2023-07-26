@@ -271,7 +271,7 @@ mod tests {
                     TK_WHITESPACE@2..3 " "
                     TK_CLOSE_CURLY_CURLY@3..5 "}}"
                 error at 3..5: expected twig expression but found }}"#]],
-        )
+        );
     }
 
     #[test]
@@ -288,7 +288,7 @@ mod tests {
                     TK_NUMBER@3..4 "1"
                 TK_WHITESPACE@4..5 " "
                 TK_CLOSE_CURLY_CURLY@5..7 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -313,7 +313,7 @@ mod tests {
                         TK_NUMBER@7..8 "2"
                 TK_WHITESPACE@8..9 " "
                 TK_CLOSE_CURLY_CURLY@9..11 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -346,7 +346,7 @@ mod tests {
                                 TK_NUMBER@11..12 "3"
                     TK_WHITESPACE@12..13 " "
                     TK_CLOSE_CURLY_CURLY@13..15 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -383,7 +383,7 @@ mod tests {
                             TK_NUMBER@13..14 "3"
                     TK_WHITESPACE@14..15 " "
                     TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -416,7 +416,7 @@ mod tests {
                                 TK_NUMBER@12..13 "1"
                     TK_WHITESPACE@13..14 " "
                     TK_CLOSE_CURLY_CURLY@14..16 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -437,7 +437,7 @@ mod tests {
                             TK_WORD@7..8 "a"
                     TK_WHITESPACE@8..9 " "
                     TK_CLOSE_CURLY_CURLY@9..11 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -462,7 +462,7 @@ mod tests {
                             TK_WORD@8..11 "odd"
                     TK_WHITESPACE@11..12 " "
                     TK_CLOSE_CURLY_CURLY@12..14 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -516,7 +516,7 @@ mod tests {
                             TK_WORD@43..48 "world"
                     TK_WHITESPACE@48..49 " "
                     TK_CLOSE_CURLY_CURLY@49..51 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -547,7 +547,7 @@ mod tests {
                                 TK_WORD@16..20 "even"
                     TK_WHITESPACE@20..21 " "
                     TK_CLOSE_CURLY_CURLY@21..23 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -583,7 +583,7 @@ mod tests {
                             TK_CLOSE_SQUARE@22..23 "]"
                     TK_WHITESPACE@23..24 " "
                     TK_CLOSE_CURLY_CURLY@24..26 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -615,7 +615,7 @@ mod tests {
                             TK_CLOSE_SQUARE@14..15 "]"
                     TK_WHITESPACE@15..16 " "
                     TK_CLOSE_CURLY_CURLY@16..18 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -650,7 +650,7 @@ mod tests {
                             TK_CLOSE_SQUARE@15..16 "]"
                     TK_WHITESPACE@16..17 " "
                     TK_CLOSE_CURLY_CURLY@17..19 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -679,7 +679,7 @@ mod tests {
                             TK_WORD@12..13 "b"
                     TK_WHITESPACE@13..14 " "
                     TK_CLOSE_CURLY_CURLY@14..16 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -708,7 +708,7 @@ mod tests {
                             TK_WORD@13..14 "b"
                     TK_WHITESPACE@14..15 " "
                     TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -753,7 +753,7 @@ mod tests {
                             TK_SINGLE_QUOTES@19..20 "'"
                     TK_WHITESPACE@20..21 " "
                     TK_CLOSE_CURLY_CURLY@21..23 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -790,7 +790,7 @@ mod tests {
                             TK_SINGLE_QUOTES@13..14 "'"
                     TK_WHITESPACE@14..15 " "
                     TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -828,7 +828,7 @@ mod tests {
                             TK_SINGLE_QUOTES@14..15 "'"
                     TK_WHITESPACE@15..16 " "
                     TK_CLOSE_CURLY_CURLY@16..18 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -867,7 +867,7 @@ mod tests {
                 TK_WHITESPACE@16..17 " "
                 TK_CLOSE_CURLY_CURLY@17..19 "}}"
             error at 17..19: expected twig expression but found }}"#]],
-        )
+        );
     }
 
     #[test]
@@ -897,7 +897,7 @@ mod tests {
                 TK_WHITESPACE@10..11 " "
                 TK_CLOSE_CURLY_CURLY@11..13 "}}"
             error at 11..13: expected twig expression or ':' but found }}"#]],
-        )
+        );
     }
 
     #[test]
@@ -942,7 +942,7 @@ mod tests {
                                 TK_SINGLE_QUOTES@19..20 "'"
                     TK_WHITESPACE@20..21 " "
                     TK_CLOSE_CURLY_CURLY@21..23 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -988,7 +988,7 @@ mod tests {
                             TK_WORD@44..51 "defined"
                     TK_WHITESPACE@51..52 " "
                     TK_CLOSE_CURLY_CURLY@52..54 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1013,7 +1013,7 @@ mod tests {
                         TK_WORD@10..14 "even"
                 TK_WHITESPACE@14..15 " "
                 TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1052,7 +1052,7 @@ mod tests {
                         TK_CLOSE_PARENTHESIS@33..34 ")"
                 TK_WHITESPACE@34..35 " "
                 TK_CLOSE_CURLY_CURLY@35..37 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1091,7 +1091,7 @@ mod tests {
                         TK_CLOSE_PARENTHESIS@38..39 ")"
                 TK_WHITESPACE@39..40 " "
                 TK_CLOSE_CURLY_CURLY@40..42 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1118,7 +1118,7 @@ mod tests {
                                 TK_WORD@6..9 "abs"
                     TK_WHITESPACE@9..10 " "
                     TK_CLOSE_CURLY_CURLY@10..12 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1149,7 +1149,7 @@ mod tests {
                             TK_WORD@8..11 "abs"
                     TK_WHITESPACE@11..12 " "
                     TK_CLOSE_CURLY_CURLY@12..14 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1190,7 +1190,7 @@ mod tests {
                             TK_WORD@15..19 "trim"
                     TK_WHITESPACE@19..20 " "
                     TK_CLOSE_CURLY_CURLY@20..22 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1237,7 +1237,7 @@ mod tests {
                             TK_WORD@20..26 "escape"
                     TK_WHITESPACE@26..27 " "
                     TK_CLOSE_CURLY_CURLY@27..29 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1274,7 +1274,7 @@ mod tests {
                         TK_NUMBER@28..29 "1"
                 TK_WHITESPACE@29..30 " "
                 TK_CLOSE_CURLY_CURLY@30..32 "}}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1309,6 +1309,6 @@ mod tests {
                         TK_CLOSE_SQUARE@11..12 "]"
                     TK_WHITESPACE@12..13 " "
                     TK_CLOSE_CURLY_CURLY@13..15 "}}""#]],
-        )
+        );
     }
 }

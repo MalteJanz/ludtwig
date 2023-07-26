@@ -31,7 +31,7 @@ impl Display for FileProcessingError {
                 write!(f, "max suggestion apply iteration encountered. This may be caused by fighting rules (programmer error) or too many conflicting suggestions at once")
             }
             FileProcessingError::OverlappingSuggestionInSingleRule { rule_name } => {
-                write!(f, "Suggestion collision inside the same rule, check rule {} or write bug report - this is a programmer error", rule_name)
+                write!(f, "Suggestion collision inside the same rule, check rule {rule_name} or write bug report - this is a programmer error")
             }
         }
     }
@@ -58,7 +58,7 @@ impl Display for ConfigurationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ConfigurationError::RuleNotFound { name } => {
-                write!(f, "Can't find active rule {}", name)
+                write!(f, "Can't find active rule {name}")
             }
         }
     }

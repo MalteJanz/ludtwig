@@ -134,7 +134,7 @@ impl RuleIndentation {
             .collect::<String>();
 
         let substeps_expectation_notice = if indentation_substeps > 0 {
-            format!(" (+{} spaces)", indentation_substeps)
+            format!(" (+{indentation_substeps} spaces)")
         } else {
             String::new()
         };

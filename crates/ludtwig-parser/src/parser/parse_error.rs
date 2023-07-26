@@ -87,7 +87,7 @@ mod test {
         };
 
         assert_eq!(
-            format!("{}", parse_error),
+            format!("{parse_error}"),
             "error at 3..5: expected word but found {%"
         );
     }

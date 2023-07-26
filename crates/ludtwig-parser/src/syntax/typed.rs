@@ -222,6 +222,19 @@ impl TwigBinaryExpression {
                 _ => None,
             })
     }
+
+    #[must_use]
+    pub fn lhs_expression(&self) -> Option<TwigExpression> {
+        self.syntax.children().find_map(TwigExpression::cast)
+    }
+
+    #[must_use]
+    pub fn rhs_expression(&self) -> Option<TwigExpression> {
+        self.syntax
+            .children()
+            .filter_map(TwigExpression::cast)
+            .nth(1)
+    }
 }
 
 ast_node!(

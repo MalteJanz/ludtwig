@@ -194,7 +194,7 @@ mod tests {
                       TK_WORD@47..73 "twig-block-name-snake ..."
                     TK_WHITESPACE@73..74 " "
                     TK_HASHTAG_CLOSE_CURLY@74..76 "#}""##]],
-        )
+        );
     }
 
     #[test]
@@ -215,7 +215,7 @@ mod tests {
                       TK_WORD@42..68 "twig-block-name-snake ..."
                     TK_WHITESPACE@68..69 " "
                     TK_HASHTAG_CLOSE_CURLY@69..71 "#}""##]],
-        )
+        );
     }
 
     #[test]
@@ -236,7 +236,7 @@ mod tests {
                       TK_WORD@49..75 "twig-block-name-snake ..."
                     TK_WHITESPACE@75..76 " "
                     TK_MINUS_MINUS_GREATER_THAN@76..79 "-->""#]],
-        )
+        );
     }
 
     #[test]
@@ -257,6 +257,6 @@ mod tests {
                       TK_WORD@44..70 "twig-block-name-snake ..."
                     TK_WHITESPACE@70..71 " "
                     TK_MINUS_MINUS_GREATER_THAN@71..74 "-->""#]],
-        )
+        );
     }
 }

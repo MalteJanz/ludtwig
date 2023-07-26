@@ -59,9 +59,8 @@ pub fn make_changed_quotes_suggestion_if_possible(
     correct_quote: char,
     mut result: CheckResult,
 ) -> CheckResult {
-    let inner = match twig_string.get_inner() {
-        Some(inner) => inner,
-        None => return result,
+    let Some(inner) = twig_string.get_inner() else {
+        return result;
     };
 
     let inner_text = inner.syntax().text();
