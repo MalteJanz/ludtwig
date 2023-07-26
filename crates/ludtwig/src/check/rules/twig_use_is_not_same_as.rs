@@ -12,8 +12,8 @@ impl Rule for RuleTwigUseIsNotSameAs {
     }
 
     fn check_node(&self, node: SyntaxNode, _ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
-        let expression = TwigBinaryExpression::cast(node)?;
-        let op = expression.operator()?;
+        let binary = TwigBinaryExpression::cast(node)?;
+        let op = binary.operator()?;
 
         if op.kind() != T!["!=="] {
             return None;
@@ -26,7 +26,7 @@ impl Rule for RuleTwigUseIsNotSameAs {
                 "This is not a valid Twig operator, try 'is not same as(condition)' instead",
             );
 
-        if let Some(rhs) = expression.rhs_expression() {
+        if let Some(rhs) = binary.rhs_expression() {
             result = result.suggestion(
                 op.text_range().cover(rhs.syntax().text_range()),
                 format!("is not same as({})", rhs.syntax().text().to_string().trim()),
@@ -68,6 +68,15 @@ mod tests {
             "twig-use-is-not-same-as",
             "{% if test !== false %}{% endif %}",
             expect!["{% if test is not same as(false) %}{% endif %}"],
+        );
+    }
+
+    #[test]
+    fn rule_fixes_complex() {
+        test_rule_fix(
+            "twig-use-is-not-same-as",
+            "{% if test !== 42 + 4 * 2 %}{% endif %}",
+            expect!["{% if test is not same as(42 + 4 * 2) %}{% endif %}"],
         );
     }
 }

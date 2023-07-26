@@ -1,5 +1,6 @@
 # NEXT-VERSION
 - Added `twig-use-is-not-same-as` rule
+- Added `twig-use-is-same-as` rule
 
 # v0.7.0
 - Rewrite of almost the complete codebase to make ludtwig a full linter / formatter

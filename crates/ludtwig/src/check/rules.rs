@@ -9,9 +9,9 @@ use crate::check::rules::twig_block_name_snake_case::RuleTwigBlockNameSnakeCase;
 use crate::check::rules::twig_hash_key_no_quotes::RuleTwigHashKeyNoQuotes;
 use crate::check::rules::twig_logic_and::RuleTwigLogicAnd;
 use crate::check::rules::twig_logic_or::RuleTwigLogicOr;
-use crate::check::rules::twig_logic_same_as::RuleTwigLogicSameAs;
 use crate::check::rules::twig_string_quotation::RuleTwigStringQuotation;
 use crate::check::rules::twig_use_is_not_same_as::RuleTwigUseIsNotSameAs;
+use crate::check::rules::twig_use_is_same_as::RuleTwigUseIsSameAs;
 use crate::check::rules::unknown_token::RuleUnknownToken;
 use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
 use crate::error::ConfigurationError;
@@ -29,9 +29,9 @@ mod twig_block_name_snake_case;
 mod twig_hash_key_no_quotes;
 mod twig_logic_and;
 mod twig_logic_or;
-mod twig_logic_same_as;
 mod twig_string_quotation;
 mod twig_use_is_not_same_as;
+mod twig_use_is_same_as;
 mod unknown_token;
 mod whitespace_between_line_breaks;
 
@@ -47,10 +47,10 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleHtmlAttributeNameKebabCase,
     &RuleTwigLogicAnd,
     &RuleTwigLogicOr,
-    &RuleTwigLogicSameAs,
     &RuleTwigStringQuotation,
     &RuleHtmlStringQuotation,
     &RuleTwigHashKeyNoQuotes,
+    &RuleTwigUseIsSameAs,
     &RuleTwigUseIsNotSameAs,
 ];
 

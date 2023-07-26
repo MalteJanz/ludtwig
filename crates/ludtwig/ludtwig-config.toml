@@ -39,10 +39,10 @@ active-rules = [
     "html-attribute-name-kebab-case",
     "twig-logic-and",
     "twig-logic-or",
-    "twig-logic-same-as",
     "twig-string-quotation",
     "html-string-quotation",
     "twig-hash-key-no-quotes",
+    "twig-use-is-same-as",
     "twig-use-is-not-same-as"
 ]
 
