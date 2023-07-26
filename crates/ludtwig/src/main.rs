@@ -108,7 +108,7 @@ fn app(opts: Opts, config: Config) -> i32 {
     let active_rules = match get_config_active_rule_definitions(&config) {
         Ok(rules) => rules,
         Err(e) => {
-            println!("Error: {}", e);
+            println!("Error: {e}");
             return 1;
         }
     };
@@ -165,7 +165,7 @@ fn handle_input_paths(paths: Vec<PathBuf>, cli_context: CliContext) {
                 let entry = match entry {
                     Ok(e) => e,
                     Err(e) => {
-                        println!("Error: walking over the file path: {}", e);
+                        println!("Error: walking over the file path: {e}");
                         cli_context
                             .send_processing_output(ProcessingEvent::Report(Severity::Error));
                         return WalkState::Continue;
@@ -186,7 +186,7 @@ fn handle_input_paths(paths: Vec<PathBuf>, cli_context: CliContext) {
                             tx_clone
                                 .send(ProcessingEvent::Report(Severity::Error))
                                 .expect("output should still receive ProcessingEvents");
-                            println!("Error: {}", e);
+                            println!("Error: {e}");
                         }
                     },
                 );

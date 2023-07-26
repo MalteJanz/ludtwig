@@ -136,6 +136,7 @@ pub(crate) struct CompletedMarker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::T;
 
     /*
     #[test]
@@ -180,6 +181,49 @@ mod tests {
                 Event::FinishNode,
                 Event::AddToken {
                     kind: SyntaxKind::TK_APPLY
+                },
+                Event::FinishNode
+            ]
+        );
+    }
+
+    #[test]
+    fn event_collection_precede_example() {
+        let mut collection = EventCollection::new();
+        let html_start_tag_m = collection.start();
+        collection.add_token(T!["<"]);
+        collection.add_token(T![word]);
+        let completed_html_start_tag_m =
+            collection.complete(html_start_tag_m, SyntaxKind::HTML_STARTING_TAG);
+
+        let html_tag_m = collection.precede(completed_html_start_tag_m);
+        let completed_html_tag_m = collection.complete(html_tag_m, SyntaxKind::HTML_TAG);
+
+        let root_m = collection.precede(completed_html_tag_m);
+        collection.complete(root_m, SyntaxKind::ROOT);
+
+        assert_eq!(
+            collection.into_event_list(),
+            vec![
+                Event::StartNode {
+                    kind: SyntaxKind::HTML_STARTING_TAG,
+                    forward_parent: Some(4)
+                },
+                Event::AddToken {
+                    kind: SyntaxKind::TK_LESS_THAN
+                },
+                Event::AddToken {
+                    kind: SyntaxKind::TK_WORD
+                },
+                Event::FinishNode,
+                Event::StartNode {
+                    kind: SyntaxKind::HTML_TAG,
+                    forward_parent: Some(2)
+                },
+                Event::FinishNode,
+                Event::StartNode {
+                    kind: SyntaxKind::ROOT,
+                    forward_parent: None
                 },
                 Event::FinishNode
             ]

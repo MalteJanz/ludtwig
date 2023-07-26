@@ -159,10 +159,7 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
         parser.expect(T![">"], &[]);
     } else {
         // no matching end tag found!
-        parser.add_error(ParseErrorBuilder::new(format!(
-            "</{}> ending tag",
-            tag_name
-        )));
+        parser.add_error(ParseErrorBuilder::new(format!("</{tag_name}> ending tag")));
         parser.recover(&[]);
     }
     parser.complete(end_tag_m, SyntaxKind::HTML_ENDING_TAG);
@@ -679,7 +676,7 @@ mod tests {
                 error at 29..31: expected {% but found </
                 error at 29..31: expected endblock but found </
                 error at 29..31: expected %} but found </"#]],
-        )
+        );
     }
 
     #[test]
@@ -726,7 +723,7 @@ mod tests {
                 error at 38..39: expected endblock but reached end of file
                 error at 38..39: expected %} but reached end of file
                 error at 38..39: expected </div> ending tag but reached end of file"#]],
-        )
+        );
     }
 
     #[test]
@@ -1918,7 +1915,7 @@ mod tests {
                       TK_LESS_THAN_SLASH@23..25 "</"
                       TK_WORD@25..28 "div"
                       TK_GREATER_THAN@28..29 ">""#]],
-        )
+        );
     }
 
     #[test]
@@ -1933,6 +1930,6 @@ mod tests {
                 TK_WHITESPACE@9..10 " "
                 TK_WORD@10..14 "html"
                 TK_GREATER_THAN@14..15 ">""#]],
-        )
+        );
     }
 }

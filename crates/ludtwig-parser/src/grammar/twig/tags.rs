@@ -264,8 +264,7 @@ fn parse_twig_macro(
         if let Some(macro_name) = macro_name {
             if end_macro_name_token.text != macro_name {
                 let parser_err = ParseErrorBuilder::new(format!(
-                    "nothing or same twig macro name as opening ({})",
-                    macro_name
+                    "nothing or same twig macro name as opening ({macro_name})"
                 ))
                 .at_token(end_macro_name_token);
 
@@ -875,14 +874,12 @@ fn parse_twig_set(
 
         if declaration_count != assignment_count {
             parser.add_error(ParseErrorBuilder::new(format!(
-                "a total of {} twig expressions (same amount as declarations) instead of {}",
-                declaration_count, assignment_count
+                "a total of {declaration_count} twig expressions (same amount as declarations) instead of {assignment_count}"
             )));
         }
     } else if declaration_count > 1 {
         parser.add_error(ParseErrorBuilder::new(format!(
-            "= followed by {} twig expressions",
-            declaration_count
+            "= followed by {declaration_count} twig expressions"
         )));
     }
 
@@ -963,8 +960,7 @@ fn parse_twig_block(
             if let Some(block_name) = block_name {
                 if end_block_name_token.text != block_name {
                     let parser_err = ParseErrorBuilder::new(format!(
-                        "nothing or same twig block name as opening ({})",
-                        block_name
+                        "nothing or same twig block name as opening ({block_name})"
                     ))
                     .at_token(end_block_name_token);
 
@@ -1071,7 +1067,7 @@ mod tests {
                     TK_WHITESPACE@2..3 " "
                     TK_WORD@3..7 "asdf"
                 error at 3..7: expected twig tag but found word"#]],
-        )
+        );
     }
 
     #[test]
@@ -1210,7 +1206,7 @@ mod tests {
                   TK_ENDIF@24..29 "endif"
                   TK_WHITESPACE@29..30 " "
                   TK_PERCENT_CURLY@30..32 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1264,7 +1260,7 @@ mod tests {
                   TK_ENDIF@55..60 "endif"
                   TK_WHITESPACE@60..61 " "
                   TK_PERCENT_CURLY@61..63 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1306,7 +1302,7 @@ mod tests {
                   TK_ENDIF@41..46 "endif"
                   TK_WHITESPACE@46..47 " "
                   TK_PERCENT_CURLY@47..49 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1352,7 +1348,7 @@ mod tests {
                   TK_ENDIF@37..42 "endif"
                   TK_WHITESPACE@42..43 " "
                   TK_PERCENT_CURLY@43..45 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1409,7 +1405,7 @@ mod tests {
                   TK_ENDIF@54..59 "endif"
                   TK_WHITESPACE@59..60 " "
                   TK_PERCENT_CURLY@60..62 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1481,7 +1477,7 @@ mod tests {
                   TK_ENDIF@73..78 "endif"
                   TK_WHITESPACE@78..79 " "
                   TK_PERCENT_CURLY@79..81 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1515,7 +1511,7 @@ mod tests {
                   TK_ENDBLOCK@41..49 "endblock"
                   TK_WHITESPACE@49..50 " "
                   TK_PERCENT_CURLY@50..52 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1538,7 +1534,7 @@ mod tests {
             error at 18..20: expected {% but reached end of file
             error at 18..20: expected endblock but reached end of file
             error at 18..20: expected %} but reached end of file"#]],
-        )
+        );
     }
 
     #[test]
@@ -1597,7 +1593,7 @@ mod tests {
                   TK_WORD@107..114 "sidebar"
                   TK_WHITESPACE@114..115 " "
                   TK_PERCENT_CURLY@115..117 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1657,7 +1653,7 @@ mod tests {
                   TK_WHITESPACE@108..109 " "
                   TK_PERCENT_CURLY@109..111 "%}"
             error at 78..85: expected nothing or same twig block name as opening (inner_sidebar) but found word"#]],
-        )
+        );
     }
 
     #[test]
@@ -1685,7 +1681,7 @@ mod tests {
                               TK_WORD@26..31 "title"
                       TK_WHITESPACE@31..32 " "
                       TK_PERCENT_CURLY@32..34 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1714,7 +1710,7 @@ mod tests {
                     TK_SINGLE_QUOTES@17..18 "'"
               TK_WHITESPACE@18..19 " "
               TK_PERCENT_CURLY@19..21 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1750,7 +1746,7 @@ mod tests {
                       TK_ENDSET@33..39 "endset"
                       TK_WHITESPACE@39..40 " "
                       TK_PERCENT_CURLY@40..42 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1803,7 +1799,7 @@ mod tests {
                         TK_SINGLE_QUOTES@41..42 "'"
                   TK_WHITESPACE@42..43 " "
                   TK_PERCENT_CURLY@43..45 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -1849,7 +1845,7 @@ mod tests {
                   TK_WHITESPACE@35..36 " "
                   TK_PERCENT_CURLY@36..38 "%}"
             error at 36..38: expected a total of 3 twig expressions (same amount as declarations) instead of 2 but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -1894,7 +1890,7 @@ mod tests {
                       TK_WHITESPACE@49..50 " "
                       TK_PERCENT_CURLY@50..52 "%}"
                 error at 21..23: expected = followed by 3 twig expressions but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -1922,7 +1918,7 @@ mod tests {
                       TK_PERCENT_CURLY@15..17 "%}"
                 error at 7..8: expected twig variable name but found =
                 error at 15..17: expected a total of 0 twig expressions (same amount as declarations) instead of 1 but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -1945,7 +1941,7 @@ mod tests {
                       TK_WHITESPACE@12..13 " "
                       TK_PERCENT_CURLY@13..15 "%}"
                 error at 13..15: expected a total of 1 twig expressions (same amount as declarations) instead of 0 but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -1979,7 +1975,7 @@ mod tests {
                 error at 21..23: expected {% but reached end of file
                 error at 21..23: expected endset but reached end of file
                 error at 21..23: expected %} but reached end of file"#]],
-        )
+        );
     }
 
     #[test]
@@ -2041,7 +2037,7 @@ mod tests {
                       TK_ENDFOR@60..66 "endfor"
                       TK_WHITESPACE@66..67 " "
                       TK_PERCENT_CURLY@67..69 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2095,7 +2091,7 @@ mod tests {
                   TK_ENDFOR@38..44 "endfor"
                   TK_WHITESPACE@44..45 " "
                   TK_PERCENT_CURLY@45..47 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2167,7 +2163,7 @@ mod tests {
                       TK_ENDFOR@63..69 "endfor"
                       TK_WHITESPACE@69..70 " "
                       TK_PERCENT_CURLY@70..72 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2250,7 +2246,7 @@ mod tests {
                       TK_ENDFOR@78..84 "endfor"
                       TK_WHITESPACE@84..85 " "
                       TK_PERCENT_CURLY@85..87 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2352,7 +2348,7 @@ mod tests {
                       TK_ENDFOR@107..113 "endfor"
                       TK_WHITESPACE@113..114 " "
                       TK_PERCENT_CURLY@114..116 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2413,7 +2409,7 @@ mod tests {
                       TK_PERCENT_CURLY@62..64 "%}"
                 error at 10..15: expected in but found word
                 error at 16..18: expected twig expression but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -2472,7 +2468,7 @@ mod tests {
                       TK_WHITESPACE@60..61 " "
                       TK_PERCENT_CURLY@61..63 "%}"
                 error at 15..17: expected twig expression but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -2496,7 +2492,7 @@ mod tests {
                 TK_DOUBLE_QUOTES@21..22 "\""
             TK_WHITESPACE@22..23 " "
             TK_PERCENT_CURLY@23..25 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2515,7 +2511,7 @@ mod tests {
                 TK_WORD@11..19 "some_var"
             TK_WHITESPACE@19..20 " "
             TK_PERCENT_CURLY@20..22 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2554,7 +2550,7 @@ mod tests {
                         TK_CLOSE_SQUARE@45..46 "]"
                     TK_WHITESPACE@46..47 " "
                     TK_PERCENT_CURLY@47..49 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2597,7 +2593,7 @@ mod tests {
                         TK_DOUBLE_QUOTES@51..52 "\""
                 TK_WHITESPACE@52..53 " "
                 TK_PERCENT_CURLY@53..55 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2613,7 +2609,7 @@ mod tests {
             TK_WHITESPACE@10..11 " "
             TK_PERCENT_CURLY@11..13 "%}"
         error at 11..13: expected twig expression but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -2637,7 +2633,7 @@ mod tests {
                 TK_SINGLE_QUOTES@23..24 "'"
             TK_WHITESPACE@24..25 " "
             TK_PERCENT_CURLY@25..27 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2668,7 +2664,7 @@ mod tests {
                       TK_WORD@32..36 "vars"
                 TK_WHITESPACE@36..37 " "
                 TK_PERCENT_CURLY@37..39 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2716,7 +2712,7 @@ mod tests {
                           TK_CLOSE_CURLY@45..46 "}"
                     TK_WHITESPACE@46..47 " "
                     TK_PERCENT_CURLY@47..49 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2766,7 +2762,7 @@ mod tests {
                     TK_ONLY@47..51 "only"
                     TK_WHITESPACE@51..52 " "
                     TK_PERCENT_CURLY@52..54 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2792,7 +2788,7 @@ mod tests {
             TK_ONLY@27..31 "only"
             TK_WHITESPACE@31..32 " "
             TK_PERCENT_CURLY@32..34 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2835,7 +2831,7 @@ mod tests {
                         TK_SINGLE_QUOTES@46..47 "'"
                 TK_WHITESPACE@47..48 " "
                 TK_PERCENT_CURLY@48..50 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2882,7 +2878,7 @@ mod tests {
                     TK_ONLY@55..59 "only"
                     TK_WHITESPACE@59..60 " "
                     TK_PERCENT_CURLY@60..62 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2898,7 +2894,7 @@ mod tests {
             TK_WHITESPACE@10..11 " "
             TK_PERCENT_CURLY@11..13 "%}"
         error at 11..13: expected twig expression as template name but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -2926,7 +2922,7 @@ mod tests {
                 TK_WHITESPACE@31..32 " "
                 TK_PERCENT_CURLY@32..34 "%}"
             error at 32..34: expected twig expression as with value but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -2965,7 +2961,7 @@ mod tests {
                         TK_CLOSE_SQUARE@45..46 "]"
                     TK_WHITESPACE@46..47 " "
                     TK_PERCENT_CURLY@47..49 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -2988,7 +2984,7 @@ mod tests {
               TK_DOUBLE_QUOTES@19..20 "\""
             TK_WHITESPACE@20..21 " "
             TK_PERCENT_CURLY@21..23 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3020,7 +3016,7 @@ mod tests {
                     TK_WHITESPACE@26..27 " "
                     TK_PERCENT_CURLY@27..29 "%}"
                 error at 14..15: expected no string interpolation, because it isn't allowed here but found #"##]],
-        )
+        );
     }
 
     #[test]
@@ -3064,7 +3060,7 @@ mod tests {
                         TK_WORD@60..70 "base_title"
                     TK_WHITESPACE@70..71 " "
                     TK_PERCENT_CURLY@71..73 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3090,7 +3086,7 @@ mod tests {
             TK_WHITESPACE@25..26 " "
             TK_PERCENT_CURLY@26..28 "%}"
         error at 26..28: expected at least one block name as block name but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -3119,7 +3115,7 @@ mod tests {
                         TK_WORD@26..27 "a"
                     TK_WHITESPACE@27..28 " "
                     TK_PERCENT_CURLY@28..30 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3158,7 +3154,7 @@ mod tests {
                       TK_ENDAPPLY@53..61 "endapply"
                       TK_WHITESPACE@61..62 " "
                       TK_PERCENT_CURLY@62..64 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3217,7 +3213,7 @@ mod tests {
                       TK_ENDAPPLY@68..76 "endapply"
                       TK_WHITESPACE@76..77 " "
                       TK_PERCENT_CURLY@77..79 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3304,7 +3300,7 @@ mod tests {
                       TK_ENDAPPLY@90..98 "endapply"
                       TK_WHITESPACE@98..99 " "
                       TK_PERCENT_CURLY@99..101 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3337,7 +3333,7 @@ mod tests {
                       TK_WHITESPACE@37..38 " "
                       TK_PERCENT_CURLY@38..40 "%}"
                 error at 9..11: expected twig filter but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -3373,7 +3369,7 @@ mod tests {
                       TK_WHITESPACE@39..40 " "
                       TK_PERCENT_CURLY@40..42 "%}"
                 error at 9..10: expected twig filter but found number"#]],
-        )
+        );
     }
 
     #[test]
@@ -3427,7 +3423,7 @@ mod tests {
                       TK_ENDAUTOESCAPE@107..120 "endautoescape"
                       TK_WHITESPACE@120..121 " "
                       TK_PERCENT_CURLY@121..123 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3489,7 +3485,7 @@ mod tests {
                       TK_ENDAUTOESCAPE@119..132 "endautoescape"
                       TK_WHITESPACE@132..133 " "
                       TK_PERCENT_CURLY@133..135 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3537,7 +3533,7 @@ mod tests {
                       TK_ENDAUTOESCAPE@79..92 "endautoescape"
                       TK_WHITESPACE@92..93 " "
                       TK_PERCENT_CURLY@93..95 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3597,7 +3593,7 @@ mod tests {
                       TK_WHITESPACE@134..135 " "
                       TK_PERCENT_CURLY@135..137 "%}"
                 error at 14..20: expected twig escape strategy as string or 'false' but found word"#]],
-        )
+        );
     }
 
     #[test]
@@ -3642,7 +3638,7 @@ mod tests {
                       TK_SINGLE_QUOTES@81..82 "'"
                     TK_WHITESPACE@82..83 " "
                     TK_PERCENT_CURLY@83..85 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3658,7 +3654,7 @@ mod tests {
                     TK_WHITESPACE@13..14 " "
                     TK_PERCENT_CURLY@14..16 "%}"
                 error at 14..16: expected twig deprecation message as string but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -3685,7 +3681,7 @@ mod tests {
                         TK_NUMBER@10..11 "2"
                 TK_WHITESPACE@11..12 " "
                 TK_PERCENT_CURLY@12..14 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3701,7 +3697,7 @@ mod tests {
                 TK_WHITESPACE@5..6 " "
                 TK_PERCENT_CURLY@6..8 "%}"
             error at 6..8: expected twig expression but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -3763,7 +3759,7 @@ mod tests {
                       TK_ENDEMBED@50..58 "endembed"
                       TK_WHITESPACE@58..59 " "
                       TK_PERCENT_CURLY@59..61 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3827,7 +3823,7 @@ mod tests {
                       TK_ENDEMBED@55..63 "endembed"
                       TK_WHITESPACE@63..64 " "
                       TK_PERCENT_CURLY@64..66 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3867,7 +3863,7 @@ mod tests {
                       TK_ENDEMBED@45..53 "endembed"
                       TK_WHITESPACE@53..54 " "
                       TK_PERCENT_CURLY@54..56 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3882,7 +3878,7 @@ mod tests {
                 TK_FLUSH@3..8 "flush"
                 TK_WHITESPACE@8..9 " "
                 TK_PERCENT_CURLY@9..11 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3922,7 +3918,7 @@ mod tests {
                         TK_WORD@50..58 "textarea"
                     TK_WHITESPACE@58..59 " "
                     TK_PERCENT_CURLY@59..61 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3963,7 +3959,7 @@ mod tests {
                         TK_WORD@49..57 "textarea"
                     TK_WHITESPACE@57..58 " "
                     TK_PERCENT_CURLY@58..60 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -3990,7 +3986,7 @@ mod tests {
                 TK_WHITESPACE@27..28 " "
                 TK_PERCENT_CURLY@28..30 "%}"
             error at 28..30: expected at least one macro name as macro name but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -4016,7 +4012,7 @@ mod tests {
                 TK_PERCENT_CURLY@21..23 "%}"
             error at 21..23: expected import but found %}
             error at 21..23: expected at least one macro name as macro name but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -4045,7 +4041,7 @@ mod tests {
                   TK_WORD@26..31 "forms"
                 TK_WHITESPACE@31..32 " "
                 TK_PERCENT_CURLY@32..34 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -4075,7 +4071,7 @@ mod tests {
                       TK_WORD@25..30 "forms"
                     TK_WHITESPACE@30..31 " "
                     TK_PERCENT_CURLY@31..33 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -4102,7 +4098,7 @@ mod tests {
                 TK_WHITESPACE@25..26 " "
                 TK_PERCENT_CURLY@26..28 "%}"
             error at 26..28: expected name for twig macro but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -4128,7 +4124,7 @@ mod tests {
                 TK_PERCENT_CURLY@23..25 "%}"
             error at 23..25: expected as but found %}
             error at 23..25: expected name for twig macro but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -4171,7 +4167,7 @@ mod tests {
                       TK_ENDSANDBOX@47..57 "endsandbox"
                       TK_WHITESPACE@57..58 " "
                       TK_PERCENT_CURLY@58..60 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -4264,10 +4260,11 @@ mod tests {
                       TK_ENDVERBATIM@108..119 "endverbatim"
                       TK_WHITESPACE@119..120 " "
                       TK_PERCENT_CURLY@120..122 "%}""#]],
-        )
+        );
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn parse_twig_macro() {
         check_parse(
             r#"{% macro input(name, value, type = "text", size = 20) %}
@@ -4404,7 +4401,7 @@ mod tests {
                       TK_ENDMACRO@149..157 "endmacro"
                       TK_WHITESPACE@157..158 " "
                       TK_PERCENT_CURLY@158..160 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -4442,7 +4439,7 @@ mod tests {
                       TK_WORD@40..45 "input"
                       TK_WHITESPACE@45..46 " "
                       TK_PERCENT_CURLY@46..48 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -4481,7 +4478,7 @@ mod tests {
                       TK_WHITESPACE@43..44 " "
                       TK_PERCENT_CURLY@44..46 "%}"
                 error at 40..43: expected nothing or same twig macro name as opening (input) but found word"#]],
-        )
+        );
     }
 
     #[test]
@@ -4519,7 +4516,7 @@ mod tests {
                       TK_PERCENT_CURLY@44..46 "%}"
                 error at 15..17: expected ( but found %}
                 error at 15..17: expected ) but found %}"#]],
-        )
+        );
     }
 
     #[test]
@@ -4588,7 +4585,7 @@ mod tests {
                       TK_ENDWITH@72..79 "endwith"
                       TK_WHITESPACE@79..80 " "
                       TK_PERCENT_CURLY@80..82 "%}""##]],
-        )
+        );
     }
 
     #[test]
@@ -4653,7 +4650,7 @@ mod tests {
                       TK_ENDWITH@61..68 "endwith"
                       TK_WHITESPACE@68..69 " "
                       TK_PERCENT_CURLY@69..71 "%}""##]],
-        )
+        );
     }
 
     #[test]
@@ -4719,7 +4716,7 @@ mod tests {
                       TK_ENDWITH@56..63 "endwith"
                       TK_WHITESPACE@63..64 " "
                       TK_PERCENT_CURLY@64..66 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -4814,7 +4811,7 @@ mod tests {
                       TK_ENDWITH@112..119 "endwith"
                       TK_WHITESPACE@119..120 " "
                       TK_PERCENT_CURLY@120..122 "%}""##]],
-        )
+        );
     }
 
     #[test]
@@ -4867,7 +4864,7 @@ mod tests {
                       TK_ENDCACHE@86..94 "endcache"
                       TK_WHITESPACE@94..95 " "
                       TK_PERCENT_CURLY@95..97 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -4920,7 +4917,7 @@ mod tests {
                       TK_ENDCACHE@63..71 "endcache"
                       TK_WHITESPACE@71..72 " "
                       TK_PERCENT_CURLY@72..74 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -4985,7 +4982,7 @@ mod tests {
                       TK_ENDCACHE@63..71 "endcache"
                       TK_WHITESPACE@71..72 " "
                       TK_PERCENT_CURLY@72..74 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -5058,7 +5055,7 @@ mod tests {
                       TK_ENDCACHE@70..78 "endcache"
                       TK_WHITESPACE@78..79 " "
                       TK_PERCENT_CURLY@79..81 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -5137,7 +5134,7 @@ mod tests {
                       TK_ENDCACHE@79..87 "endcache"
                       TK_WHITESPACE@87..88 " "
                       TK_PERCENT_CURLY@88..90 "%}""#]],
-        )
+        );
     }
 
     #[test]
@@ -5170,6 +5167,6 @@ mod tests {
                       TK_WHITESPACE@37..38 " "
                       TK_PERCENT_CURLY@38..40 "%}"
                 error at 9..11: expected twig expression as cache key but found %}"#]],
-        )
+        );
     }
 }

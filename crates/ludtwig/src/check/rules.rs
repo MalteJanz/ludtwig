@@ -10,8 +10,8 @@ use crate::check::rules::twig_hash_key_no_quotes::RuleTwigHashKeyNoQuotes;
 use crate::check::rules::twig_logic_and::RuleTwigLogicAnd;
 use crate::check::rules::twig_logic_or::RuleTwigLogicOr;
 use crate::check::rules::twig_string_quotation::RuleTwigStringQuotation;
+use crate::check::rules::twig_use_not_same_as::RuleTwigUseNotSameAs;
 use crate::check::rules::unknown_token::RuleUnknownToken;
-use crate::check::rules::use_not_same_as::RuleUseNotSameAs;
 use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
 use crate::error::ConfigurationError;
 use crate::Config;
@@ -29,8 +29,8 @@ mod twig_hash_key_no_quotes;
 mod twig_logic_and;
 mod twig_logic_or;
 mod twig_string_quotation;
+mod twig_use_not_same_as;
 mod unknown_token;
-mod use_not_same_as;
 mod whitespace_between_line_breaks;
 
 /// List of all rule trait objects, also add them to the `active-rules` in `ludtwig-config.toml`!
@@ -48,7 +48,7 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleTwigStringQuotation,
     &RuleHtmlStringQuotation,
     &RuleTwigHashKeyNoQuotes,
-    &RuleUseNotSameAs,
+    &RuleTwigUseNotSameAs,
 ];
 
 /// Get active rule definitions based on config
@@ -175,6 +175,7 @@ pub mod test {
         (file_context, rule_result_context, rx)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn test_rule(rule_name: &str, source_code: &str, expected_report: expect_test::Expect) {
         let (file_context, rule_result_context, rx) = debug_rule(rule_name, source_code);
         let mut buffer = Buffer::no_color();
@@ -183,6 +184,7 @@ pub mod test {
         drop(rx);
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn test_rule_fix(
         rule_name: &str,
         source_code: &str,
@@ -201,6 +203,7 @@ pub mod test {
         drop(rx);
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn test_rule_does_not_fix(
         rule_name: &str,
         source_code: &str,
