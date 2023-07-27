@@ -1,7 +1,7 @@
 # NEXT-VERSION
 
 # v0.4.0
-- WIP: rewrite
+- Rewrite of the whole parser to make it lossless and implemented error recovery
 
 # v0.3.3
 - Hotfix: fixed another panic (attempt to subtract with overflow) for the parsing error line and column numbers reconstruction.

@@ -76,10 +76,9 @@ Have a look at the example below to get the general idea where Twig syntax is al
 ```
 
 ## License
-Copyright (c) 2020 Malte Janz  
+Copyright (c) 2023 Malte Janz  
 `ludtwig` is distributed under the terms of the MIT License.  
 See the [LICENSE](./LICENSE) file for details.
 
 For testing purposes this repository also includes code from the following sources (not included in distributed binary):
 - [Shopware](https://github.com/shopware/platform) - [MIT](https://github.com/shopware/platform/blob/master/LICENSE)
-- [SwagMigrationAssistant](https://github.com/shopware/SwagMigrationAssistant) - [MIT](https://github.com/shopware/SwagMigrationAssistant/blob/master/LICENSE)
