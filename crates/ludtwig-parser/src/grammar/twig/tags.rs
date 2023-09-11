@@ -33,8 +33,6 @@ pub(crate) fn at_twig_termination_tag(p: &mut Parser) -> bool {
         || p.at_following(&[T!["{%"], T!["endwith"]])
         || p.at_following(&[T!["{%"], T!["endcache"]])
         || p.at_following(&[T!["{%"], T!["endsw_silent_feature_call"]])
-        || p.at_following(&[T!["{%"], T!["else"]])
-        || p.at_following(&[T!["{%"], T!["else"]])
 }
 
 pub(crate) fn parse_twig_block_statement(
