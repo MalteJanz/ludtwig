@@ -1,7 +1,7 @@
 # Source of this pipeline code: https://github.com/paskausks/rust-bin-github-workflows
 # MIT License - Copyright (c) 2019 Rihards Paskausks
 # Modified by
-# Copyright (c) 2020 Malte Janz
+# Copyright (c) 2023 Malte Janz
 
 name: CI
 
@@ -18,62 +18,62 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [linux, macos, windows]
         include:
           - build: linux
             os: ubuntu-latest
-          - build: macos
+          - build: macos-native
+            os: macos-latest
+          - build: macos-silicon
             os: macos-latest
           - build: windows
             os: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Install latest stable Rust version
-      uses: actions-rs/toolchain@v1
+    - uses: actions/checkout@v4
+    - name: Install latest stable Rust version (native)
+      uses: dtolnay/rust-toolchain@stable
+      if: matrix.build != 'macos-silicon'
+    - name: Install latest stable Rust version (cross-compile)
+      uses: dtolnay/rust-toolchain@stable
+      if: matrix.build == 'macos-silicon'
       with:
-        toolchain: stable
-    - uses: Swatinem/rust-cache@v1
-    - name: Cargo build
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --verbose
+        target: aarch64-apple-darwin
+    - uses: Swatinem/rust-cache@v2
+    - name: Cargo build (native)
+      if: matrix.build != 'macos-silicon'
+      run: cargo build --verbose
+    - name: Cargo build (cross-compile)
+      if: matrix.build == 'macos-silicon'
+      run: cargo build --verbose --target aarch64-apple-darwin
     - name: Cargo test
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --verbose
+      if: matrix.build != 'macos-silicon' # can't execute tests for another platform binary
+      run: cargo test --verbose --all-features
 
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install latest stable Rust version
-      uses: actions-rs/toolchain@v1
+      uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: stable
         components: rustfmt
-    - uses: Swatinem/rust-cache@v1
+    - uses: Swatinem/rust-cache@v2
     - name: Run cargo fmt
-      uses: actions-rs/cargo@v1
-      with:
-        command: fmt
-        args: -- --check
+      run: cargo fmt -- --check
 
   clippy_check:
     name: Clippy check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install latest stable Rust version
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           components: clippy
-      - uses: Swatinem/rust-cache@v1
-      - uses: actions-rs/clippy-check@v1
+      - uses: Swatinem/rust-cache@v2
+      - uses: giraffate/clippy-action@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          clippy_flags: --all-features
+          reporter: 'github-pr-review'

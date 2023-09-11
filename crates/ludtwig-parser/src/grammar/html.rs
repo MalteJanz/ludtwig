@@ -9,7 +9,7 @@ use regex::Regex;
 
 // Every token value that matches this regex is allowed for html attribute names
 static HTML_NAME_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^([a-zA-Z]|([:@\#_\$][a-zA-Z]))[a-zA-Z0-9_\-]*$"#).unwrap());
+    Lazy::new(|| Regex::new(r"^([a-zA-Z]|([:@\#_\$][a-zA-Z]))[a-zA-Z0-9_\-]*$").unwrap());
 
 static HTML_VOID_ELEMENTS: &[&str] = &[
     "area", "base", "br", "col", "command", "embed", "hr", "img", "input", "keygen", "link",

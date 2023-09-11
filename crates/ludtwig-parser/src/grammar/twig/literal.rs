@@ -9,7 +9,7 @@ use regex::Regex;
 
 // TODO: maybe allow more here to partly support twig.js. Needs testing on real world templates
 pub static TWIG_NAME_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$"#).unwrap());
+    Lazy::new(|| Regex::new(r"^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$").unwrap());
 
 pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker> {
     if parser.at(T![number]) {

@@ -81,6 +81,8 @@ impl Clone for CliContext {
 }
 
 impl CliContext {
+    /// # Panics
+    /// if the output channel was already closed on the other side.
     pub fn send_processing_output(&self, event: ProcessingEvent) {
         self.output_tx
             .send(event)
