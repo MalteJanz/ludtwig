@@ -1,7 +1,7 @@
 # Source of this pipeline code: https://github.com/paskausks/rust-bin-github-workflows
 # MIT License - Copyright (c) 2019 Rihards Paskausks
 # Modified by
-# Copyright (c) 2020 Malte Janz
+# Copyright (c) 2023 Malte Janz
 
 on:
   push:
@@ -24,7 +24,7 @@ env:
 
 jobs:
   create:
-    name: Create
+    name: Create GitHub draft release
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -49,7 +49,7 @@ jobs:
   
   
   build:
-    name: Build draft release
+    name: Build artifacts
     needs: [create]
 
     runs-on: ${{ matrix.os }}
@@ -64,26 +64,37 @@ jobs:
             os: macos-latest
             type: application/gzip
             output_ending: .tar.gz
+          - build: aarch64-apple-darwin
+            os: macos-latest
+            type: application/gzip
+            output_ending: .tar.gz
           - build: x86_64-pc-windows-msvc
             os: windows-latest
             type: application/zip
             output_ending: .zip
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     
-    - name: Install latest stable Rust version
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-    
-    - uses: Swatinem/rust-cache@v1
+    - name: Install latest stable Rust version (native)
+      uses: dtolnay/rust-toolchain@stable
+      if: matrix.build != 'aarch64-apple-darwin'
 
-    - name: Run cargo build
-      uses: actions-rs/cargo@v1
+    - name: Install latest stable Rust version (cross-compile)
+      uses: dtolnay/rust-toolchain@stable
+      if: matrix.build == 'aarch64-apple-darwin'
       with:
-        command: build
-        args: --release --verbose
+        target: aarch64-apple-darwin
+    
+    - uses: Swatinem/rust-cache@v2
+
+    - name: Run cargo build (native)
+      if: matrix.build != 'aarch64-apple-darwin'
+      run: cargo build --release --verbose
+
+    - name: Run cargo build (cross-compile)
+      if: matrix.build == 'aarch64-apple-darwin'
+      run: cargo build --release --verbose --target aarch64-apple-darwin
 
     - name: Create artifact directory
       run: mkdir artifacts

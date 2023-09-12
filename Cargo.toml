@@ -3,6 +3,7 @@ members = [
     "crates/ludtwig",
     "crates/ludtwig-parser"
 ]
+resolver = "2"
 
 [profile.release]
 strip = true # make the binary smaller
