@@ -96,6 +96,10 @@ jobs:
       if: matrix.build == 'aarch64-apple-darwin'
       run: cargo build --release --verbose --target aarch64-apple-darwin
 
+    - name: Move cross-compiled output
+      if: matrix.build == 'aarch64-apple-darwin'
+      run: mv -f ./target/aarch64-apple-darwin/release/${{ env.RELEASE_BIN }} ./target/release/${{ env.RELEASE_BIN }}
+
     - name: Create artifact directory
       run: mkdir artifacts
 
