@@ -23,33 +23,21 @@ env:
 
 
 jobs:
-  create:
-    name: Create GitHub draft release
+  tag_version:
+    name: Get the version from tag
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
       version: ${{ steps.get_version.outputs.VERSION }}
-    
-    steps:
-     - name: Create draft release
-       id: create_release
-       uses: softprops/action-gh-release@v1
-       with:
-         token: ${{ secrets.GITHUB_TOKEN }}
-         tag_name: ${{ github.ref }}
-         name: Release ${{ github.ref }}
-         draft: true
-         prerelease: false
 
-     - name: Get the version
-       id: get_version
-       shell: bash
-       run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/v}
-  
-  
+    steps:
+      - name: Save version from tag
+        id: get_version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
   build:
     name: Build artifacts
-    needs: [create]
+    needs: [tag_version]
 
     runs-on: ${{ matrix.os }}
     strategy:
@@ -103,11 +91,11 @@ jobs:
       run: mkdir artifacts
 
     - name: Create archive for Windows
-      run: 7z a -tzip ./artifacts/${{ env.RELEASE_BIN }}-${{ needs.create.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }} ./target/release/${{ env.RELEASE_BIN }}.exe ${{ env.RELEASE_ADDS }}
+      run: 7z a -tzip ./artifacts/${{ env.RELEASE_BIN }}-${{ needs.tag_version.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }} ./target/release/${{ env.RELEASE_BIN }}.exe ${{ env.RELEASE_ADDS }}
       if: matrix.os == 'windows-latest'
 
     - name: Create archive for Linux
-      run: 7z a -ttar -so -an ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }} | 7z a -tgzip -si ./artifacts/${{ env.RELEASE_BIN }}-${{ needs.create.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }}
+      run: 7z a -ttar -so -an ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }} | 7z a -tgzip -si ./artifacts/${{ env.RELEASE_BIN }}-${{ needs.tag_version.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }}
       if: matrix.os == 'ubuntu-latest'
 
     - name: Install p7zip on MacOS
@@ -116,13 +104,36 @@ jobs:
       if: matrix.os == 'macos-latest'
     
     - name: Create archive for MacOS
-      run: 7z a -ttar -so -an ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }} | 7z a -tgzip -si ./artifacts/${{ env.RELEASE_BIN }}-${{ needs.create.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }}
+      run: 7z a -ttar -so -an ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }} | 7z a -tgzip -si ./artifacts/${{ env.RELEASE_BIN }}-${{ needs.tag_version.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }}
       if: matrix.os == 'macos-latest'
 
-    - name: Upload Release Asset
-      id: upload-release-asset 
-      uses: softprops/action-gh-release@v1
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        tag_name: ${{ github.ref }}
-        files: artifacts/${{ env.RELEASE_BIN }}-${{ needs.create.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }}
+        name: executables
+        path: artifacts/*
+        if-no-files-found: error
+
+
+  create:
+    name: Create GitHub draft release
+    needs: [tag_version, build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: executables
+          path: artifacts
+
+      - name: Create draft release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ github.ref }}
+          name: Release ${{ needs.tag_version.outputs.version }}
+          draft: true
+          prerelease: false
+          files: |
+            artifacts/*
