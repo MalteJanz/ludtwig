@@ -136,6 +136,7 @@ mod tests {
         assert!(is_valid_alphanumeric_kebab_case(":vue-bound"));
         assert!(is_valid_alphanumeric_kebab_case("@vue-event"));
         assert!(is_valid_alphanumeric_kebab_case("#vue-slot"));
+        assert!(is_valid_alphanumeric_kebab_case("my-attribute2"));
 
         assert!(!is_valid_alphanumeric_kebab_case("my--attribute"));
         assert!(!is_valid_alphanumeric_kebab_case("-my-attribute"));
@@ -182,6 +183,10 @@ mod tests {
         assert_eq!(try_make_kebab_case("my_"), Some("my".to_string()));
         assert_eq!(try_make_kebab_case("-my"), Some("my".to_string()));
         assert_eq!(try_make_kebab_case("_my"), Some("my".to_string()));
+        assert_eq!(
+            try_make_kebab_case("my_attribute2_is_valid3"),
+            Some("my-attribute2-is-valid3".to_string())
+        );
         assert_eq!(try_make_kebab_case("_My-Broken_-Block_"), None);
     }
 
