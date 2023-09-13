@@ -1,4 +1,6 @@
 # NEXT-VERSION
+
+# v0.8.0
 - Added `twig-use-is-not-same-as` rule
 - Added `twig-use-is-same-as` rule
 - Added `twig-prefer-shopware-extends` rule
