@@ -1,0 +1,12 @@
+/target
+**/target
+.idea
+**/.idea
+.vscode
+**/.vscode
+/output
+/fixtures
+.github
+fuzz/corpus
+fuzz/artifacts
+/demo
