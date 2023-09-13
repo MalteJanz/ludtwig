@@ -8,8 +8,11 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 
 // Every token value that matches this regex is allowed for html attribute names
-static HTML_NAME_REGEX: Lazy<Regex> =
+static HTML_ATTRIBUTE_NAME_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^([a-zA-Z]|([:@\#_\$][a-zA-Z]))[a-zA-Z0-9_\-]*$").unwrap());
+
+static HTML_TAG_NAME_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^[a-zA-Z][a-zA-Z0-9\-]*$").unwrap());
 
 static HTML_VOID_ELEMENTS: &[&str] = &[
     "area", "base", "br", "col", "command", "embed", "hr", "img", "input", "keygen", "link",
@@ -90,10 +93,14 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
     // parse start tag
     let starting_tag_m = parser.start();
     parser.bump();
-    let tag_name = parser
-        .expect(T![word], &[T![">"], T!["/>"], T!["</"], T![word], T![">"]])
-        .map_or("", |t| t.text)
-        .to_owned();
+
+    let tag_name = parser.peek_token().map_or("", |t| t.text).to_owned();
+    if HTML_TAG_NAME_REGEX.is_match(&tag_name) {
+        parser.bump_as(T![word]);
+    } else {
+        parser.add_error(ParseErrorBuilder::new("HTML Tag Name"));
+        parser.recover(&[T![">"], T!["/>"], T!["</"], T![word], T![">"]]);
+    }
 
     // parse attributes (can include twig)
     let attributes_m = parser.start();
@@ -169,7 +176,7 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
 
 fn parse_html_attribute_or_twig(parser: &mut Parser) -> Option<CompletedMarker> {
     let token_text = parser.peek_token()?.text;
-    let attribute_m = if HTML_NAME_REGEX.is_match(token_text) {
+    let attribute_m = if HTML_ATTRIBUTE_NAME_REGEX.is_match(token_text) {
         // normal html attribute name
         let attribute_m = parser.start();
         parser.bump_as(T![word]);
@@ -1915,6 +1922,31 @@ mod tests {
                       TK_LESS_THAN_SLASH@23..25 "</"
                       TK_WORD@25..28 "div"
                       TK_GREATER_THAN@28..29 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_tag_with_token_collision_name() {
+        check_parse(
+            r#"<source srcset="...">"#,
+            expect![[r#"
+            ROOT@0..21
+              HTML_TAG@0..21
+                HTML_STARTING_TAG@0..21
+                  TK_LESS_THAN@0..1 "<"
+                  TK_WORD@1..7 "source"
+                  HTML_ATTRIBUTE_LIST@7..20
+                    HTML_ATTRIBUTE@7..20
+                      TK_WHITESPACE@7..8 " "
+                      TK_WORD@8..14 "srcset"
+                      TK_EQUAL@14..15 "="
+                      HTML_STRING@15..20
+                        TK_DOUBLE_QUOTES@15..16 "\""
+                        HTML_STRING_INNER@16..19
+                          TK_DOUBLE_DOT@16..18 ".."
+                          TK_DOT@18..19 "."
+                        TK_DOUBLE_QUOTES@19..20 "\""
+                  TK_GREATER_THAN@20..21 ">""#]],
         );
     }
 
