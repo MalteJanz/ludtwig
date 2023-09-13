@@ -175,11 +175,21 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
 }
 
 fn parse_html_attribute_or_twig(parser: &mut Parser) -> Option<CompletedMarker> {
-    let token_text = parser.peek_token()?.text;
-    let attribute_m = if HTML_ATTRIBUTE_NAME_REGEX.is_match(token_text) {
+    let token_text = if parser.at(T![":"]) {
+        format!(":{}", parser.peek_nth_token(1)?.text)
+    } else {
+        parser.peek_token()?.text.to_owned()
+    };
+
+    let attribute_m = if HTML_ATTRIBUTE_NAME_REGEX.is_match(&token_text) {
         // normal html attribute name
         let attribute_m = parser.start();
-        parser.bump_as(T![word]);
+        if parser.at(T![":"]) {
+            parser.bump_next_n_as(2, T![word]);
+        } else {
+            parser.bump_as(T![word]);
+        }
+
         attribute_m
     } else {
         // is the attribute name a twig var expression?
@@ -1922,6 +1932,78 @@ mod tests {
                       TK_LESS_THAN_SLASH@23..25 "</"
                       TK_WORD@25..28 "div"
                       TK_GREATER_THAN@28..29 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_tag_with_special_js_framework_attributes() {
+        check_parse(
+            r#"
+                <template #slot>
+                    <my-component :bind="hello" @click="onClick">
+                        hello
+                    </my-component>
+                </template>
+            "#,
+            expect![[r##"
+                ROOT@0..206
+                  HTML_TAG@0..193
+                    HTML_STARTING_TAG@0..33
+                      TK_LINE_BREAK@0..1 "\n"
+                      TK_WHITESPACE@1..17 "                "
+                      TK_LESS_THAN@17..18 "<"
+                      TK_WORD@18..26 "template"
+                      HTML_ATTRIBUTE_LIST@26..32
+                        HTML_ATTRIBUTE@26..32
+                          TK_WHITESPACE@26..27 " "
+                          TK_WORD@27..32 "#slot"
+                      TK_GREATER_THAN@32..33 ">"
+                    BODY@33..165
+                      HTML_TAG@33..165
+                        HTML_STARTING_TAG@33..99
+                          TK_LINE_BREAK@33..34 "\n"
+                          TK_WHITESPACE@34..54 "                    "
+                          TK_LESS_THAN@54..55 "<"
+                          TK_WORD@55..67 "my-component"
+                          HTML_ATTRIBUTE_LIST@67..98
+                            HTML_ATTRIBUTE@67..81
+                              TK_WHITESPACE@67..68 " "
+                              TK_WORD@68..73 ":bind"
+                              TK_EQUAL@73..74 "="
+                              HTML_STRING@74..81
+                                TK_DOUBLE_QUOTES@74..75 "\""
+                                HTML_STRING_INNER@75..80
+                                  TK_WORD@75..80 "hello"
+                                TK_DOUBLE_QUOTES@80..81 "\""
+                            HTML_ATTRIBUTE@81..98
+                              TK_WHITESPACE@81..82 " "
+                              TK_WORD@82..88 "@click"
+                              TK_EQUAL@88..89 "="
+                              HTML_STRING@89..98
+                                TK_DOUBLE_QUOTES@89..90 "\""
+                                HTML_STRING_INNER@90..97
+                                  TK_WORD@90..97 "onClick"
+                                TK_DOUBLE_QUOTES@97..98 "\""
+                          TK_GREATER_THAN@98..99 ">"
+                        BODY@99..129
+                          HTML_TEXT@99..129
+                            TK_LINE_BREAK@99..100 "\n"
+                            TK_WHITESPACE@100..124 "                        "
+                            TK_WORD@124..129 "hello"
+                        HTML_ENDING_TAG@129..165
+                          TK_LINE_BREAK@129..130 "\n"
+                          TK_WHITESPACE@130..150 "                    "
+                          TK_LESS_THAN_SLASH@150..152 "</"
+                          TK_WORD@152..164 "my-component"
+                          TK_GREATER_THAN@164..165 ">"
+                    HTML_ENDING_TAG@165..193
+                      TK_LINE_BREAK@165..166 "\n"
+                      TK_WHITESPACE@166..182 "                "
+                      TK_LESS_THAN_SLASH@182..184 "</"
+                      TK_WORD@184..192 "template"
+                      TK_GREATER_THAN@192..193 ">"
+                  TK_LINE_BREAK@193..194 "\n"
+                  TK_WHITESPACE@194..206 "            ""##]],
         );
     }
 

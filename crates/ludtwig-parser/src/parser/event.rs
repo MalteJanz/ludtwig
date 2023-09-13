@@ -10,6 +10,11 @@ pub(super) enum Event {
     AddToken {
         kind: SyntaxKind,
     },
+    /// Combines the next n lexer tokens into one (in the tree) with a specified SyntaxKind
+    AddNextNTokensAs {
+        n: usize,
+        kind: SyntaxKind,
+    },
     FinishNode,
     /// Should consume any amount of trivia at this exact point in the tree
     ExplicitlyConsumeTrivia,
@@ -35,6 +40,10 @@ impl EventCollection {
 
     pub(super) fn add_token(&mut self, kind: SyntaxKind) {
         self.events.push(Event::AddToken { kind });
+    }
+
+    pub(super) fn add_next_n_tokens_as(&mut self, n: usize, kind: SyntaxKind) {
+        self.events.push(Event::AddNextNTokensAs { n, kind });
     }
 
     pub(super) fn explicitly_consume_trivia(&mut self) {

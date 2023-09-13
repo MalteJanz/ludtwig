@@ -323,7 +323,6 @@ mod tests {
         check_regex("camelCase", T![word], "word");
         check_regex("kebab-case", T![word], "word");
         check_regex("snake_case", T![word], "word");
-        check_regex(":hello123", T![word], "word");
         check_regex("#hello123", T![word], "word");
         check_regex("@hello123", T![word], "word");
         check_regex("block1", T![word], "word");

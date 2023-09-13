@@ -24,6 +24,15 @@ impl<'source> Source<'source> {
         Some(token)
     }
 
+    pub(super) fn next_n_tokens(&mut self, n: usize) -> Vec<&'source Token<'source>> {
+        self.eat_trivia();
+
+        let token = self.tokens[self.cursor..].iter().take(n).collect();
+        self.cursor += n;
+
+        token
+    }
+
     pub(super) fn peek_kind(&mut self) -> Option<SyntaxKind> {
         self.eat_trivia();
         self.peek_kind_raw()
@@ -32,6 +41,14 @@ impl<'source> Source<'source> {
     pub(super) fn peek_token(&mut self) -> Option<&Token> {
         self.eat_trivia();
         self.peek_token_raw()
+    }
+
+    /// Lookahead is expensive!
+    /// This lookahead doesn't skip further trivia tokens and is only there for combining the next n lexer tokens!
+    /// for n of zero use `peek_token` instead!
+    pub(super) fn peek_nth_token(&mut self, n: usize) -> Option<&Token> {
+        self.eat_trivia();
+        self.tokens[self.cursor..].get(n)
     }
 
     pub(super) fn at_following(&mut self, set: &[SyntaxKind]) -> bool {

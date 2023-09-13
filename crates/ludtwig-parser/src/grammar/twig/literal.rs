@@ -293,26 +293,25 @@ fn parse_twig_indexer(parser: &mut Parser, mut last_node: CompletedMarker) -> Co
     parser.bump();
 
     let index_m = parser.start();
-    let mut is_slice = false;
-    if parser.at(T![":"]) {
-        parser.bump();
-        is_slice = true;
-    }
 
-    // parse the index expression
-    if parse_twig_expression(parser).is_none() && !parser.at(T![":"]) {
+    // try to parse the first and maybe only expression
+    let missing_lower_slice_bound = parse_twig_expression(parser).is_none();
+
+    // look for range syntax and try to parse the second and maybe only expression
+    let mut is_slice = false;
+    let missing_upper_slice_bound = if parser.at(T![":"]) {
+        parser.bump();
+        is_slice = true; // now it is a slice instead of a simple lookup
+        parse_twig_expression(parser).is_none()
+    } else {
+        true
+    };
+
+    if missing_lower_slice_bound && missing_upper_slice_bound {
         parser.add_error(ParseErrorBuilder::new("twig expression"));
         parser.recover(TWIG_EXPRESSION_RECOVERY_SET);
     }
 
-    if parser.at(T![":"]) {
-        parser.bump();
-        is_slice = true;
-        if parse_twig_expression(parser).is_none() {
-            parser.add_error(ParseErrorBuilder::new("twig expression"));
-            parser.recover(TWIG_EXPRESSION_RECOVERY_SET);
-        }
-    }
     parser.complete(
         index_m,
         if is_slice {
@@ -969,6 +968,46 @@ mod tests {
     }
 
     #[test]
+    fn parse_twig_expression_hash_missing_whitespace() {
+        check_parse(
+            "{{ { '%total%':reviews.totalReviews } }}",
+            expect![[r#"
+            ROOT@0..40
+              TWIG_VAR@0..40
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..37
+                  TWIG_LITERAL_HASH@2..37
+                    TK_WHITESPACE@2..3 " "
+                    TK_OPEN_CURLY@3..4 "{"
+                    TWIG_LITERAL_HASH_ITEMS@4..35
+                      TWIG_LITERAL_HASH_PAIR@4..35
+                        TWIG_LITERAL_HASH_KEY@4..14
+                          TWIG_LITERAL_STRING@4..14
+                            TK_WHITESPACE@4..5 " "
+                            TK_SINGLE_QUOTES@5..6 "'"
+                            TWIG_LITERAL_STRING_INNER@6..13
+                              TK_PERCENT@6..7 "%"
+                              TK_WORD@7..12 "total"
+                              TK_PERCENT@12..13 "%"
+                            TK_SINGLE_QUOTES@13..14 "'"
+                        TK_COLON@14..15 ":"
+                        TWIG_EXPRESSION@15..35
+                          TWIG_ACCESSOR@15..35
+                            TWIG_OPERAND@15..22
+                              TWIG_LITERAL_NAME@15..22
+                                TK_WORD@15..22 "reviews"
+                            TK_DOT@22..23 "."
+                            TWIG_OPERAND@23..35
+                              TWIG_LITERAL_NAME@23..35
+                                TK_WORD@23..35 "totalReviews"
+                    TK_WHITESPACE@35..36 " "
+                    TK_CLOSE_CURLY@36..37 "}"
+                TK_WHITESPACE@37..38 " "
+                TK_CLOSE_CURLY_CURLY@38..40 "}}""#]],
+        );
+    }
+
+    #[test]
     fn parse_twig_complex_expression_hash() {
         check_parse(
             "{{ { (foo): 'foo', (1 + 1): 'bar', (foo ~ 'b'): 'baz' } }}",
@@ -1491,8 +1530,7 @@ mod tests {
                           TK_COLON@12..13 ":"
                         TK_CLOSE_SQUARE@13..14 "]"
                     TK_WHITESPACE@14..15 " "
-                    TK_CLOSE_CURLY_CURLY@15..17 "}}"
-                error at 13..14: expected twig expression but found ]"#]],
+                    TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
         );
     }
 
@@ -1519,6 +1557,110 @@ mod tests {
                         TK_CLOSE_SQUARE@13..14 "]"
                     TK_WHITESPACE@14..15 " "
                     TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_variable_array_range_right_accessor_negative() {
+        check_parse(
+            r#"{{ prices[:-2] }}"#,
+            expect![[r#"
+            ROOT@0..17
+              TWIG_VAR@0..17
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..14
+                  TWIG_INDEX_LOOKUP@2..14
+                    TWIG_OPERAND@2..9
+                      TWIG_LITERAL_NAME@2..9
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..9 "prices"
+                    TK_OPEN_SQUARE@9..10 "["
+                    TWIG_INDEX_RANGE@10..13
+                      TK_COLON@10..11 ":"
+                      TWIG_EXPRESSION@11..13
+                        TWIG_UNARY_EXPRESSION@11..13
+                          TK_MINUS@11..12 "-"
+                          TWIG_EXPRESSION@12..13
+                            TWIG_LITERAL_NUMBER@12..13
+                              TK_NUMBER@12..13 "2"
+                    TK_CLOSE_SQUARE@13..14 "]"
+                TK_WHITESPACE@14..15 " "
+                TK_CLOSE_CURLY_CURLY@15..17 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_variable_array_range_right_accessor_variable() {
+        check_parse(
+            r#"{{ prices[:upperLimit] }}"#,
+            expect![[r#"
+            ROOT@0..25
+              TWIG_VAR@0..25
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..22
+                  TWIG_INDEX_LOOKUP@2..22
+                    TWIG_OPERAND@2..9
+                      TWIG_LITERAL_NAME@2..9
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..9 "prices"
+                    TK_OPEN_SQUARE@9..10 "["
+                    TWIG_INDEX_RANGE@10..21
+                      TK_COLON@10..11 ":"
+                      TWIG_EXPRESSION@11..21
+                        TWIG_LITERAL_NAME@11..21
+                          TK_WORD@11..21 "upperLimit"
+                    TK_CLOSE_SQUARE@21..22 "]"
+                TK_WHITESPACE@22..23 " "
+                TK_CLOSE_CURLY_CURLY@23..25 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_variable_array_range_left_accessor_variable() {
+        check_parse(
+            r#"{{ prices[upperLimit:] }}"#,
+            expect![[r#"
+            ROOT@0..25
+              TWIG_VAR@0..25
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..22
+                  TWIG_INDEX_LOOKUP@2..22
+                    TWIG_OPERAND@2..9
+                      TWIG_LITERAL_NAME@2..9
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..9 "prices"
+                    TK_OPEN_SQUARE@9..10 "["
+                    TWIG_INDEX_RANGE@10..21
+                      TWIG_EXPRESSION@10..20
+                        TWIG_LITERAL_NAME@10..20
+                          TK_WORD@10..20 "upperLimit"
+                      TK_COLON@20..21 ":"
+                    TK_CLOSE_SQUARE@21..22 "]"
+                TK_WHITESPACE@22..23 " "
+                TK_CLOSE_CURLY_CURLY@23..25 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_variable_array_index_missing_expression() {
+        check_parse(
+            r#"{{ prices[] }}"#,
+            expect![[r#"
+            ROOT@0..14
+              TWIG_VAR@0..14
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..11
+                  TWIG_INDEX_LOOKUP@2..11
+                    TWIG_OPERAND@2..9
+                      TWIG_LITERAL_NAME@2..9
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..9 "prices"
+                    TK_OPEN_SQUARE@9..10 "["
+                    TWIG_INDEX@10..10
+                    TK_CLOSE_SQUARE@10..11 "]"
+                TK_WHITESPACE@11..12 " "
+                TK_CLOSE_CURLY_CURLY@12..14 "}}"
+            error at 10..11: expected twig expression but found ]"#]],
         );
     }
 
@@ -1921,7 +2063,8 @@ mod tests {
                                   TK_WORD@19..20 "Y"
                                   TK_WHITESPACE@20..21 " "
                                   TK_WORD@21..22 "H"
-                                  TK_WORD@22..24 ":i"
+                                  TK_COLON@22..23 ":"
+                                  TK_WORD@23..24 "i"
                                 TK_SINGLE_QUOTES@24..25 "'"
                             TK_COMMA@25..26 ","
                             TWIG_NAMED_ARGUMENT@26..50
