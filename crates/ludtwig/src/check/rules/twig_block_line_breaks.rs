@@ -317,4 +317,16 @@ mod tests {
             "#]],
         );
     }
+
+    #[test]
+    fn rule_does_not_report_inside_attribute_string() {
+        test_rule(
+            "twig-block-line-breaks",
+            r#"
+                <div class="{% block my_string_block %}hello{% endblock %}">
+                </div>
+        "#,
+            expect![r#""#],
+        );
+    }
 }
