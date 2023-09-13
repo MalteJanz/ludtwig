@@ -6,7 +6,9 @@ use codespan_reporting::term;
 use codespan_reporting::term::termcolor::Buffer;
 
 use ludtwig_parser::syntax::typed;
-use ludtwig_parser::syntax::typed::{AstNode, HtmlTag, LudtwigDirectiveIgnore};
+use ludtwig_parser::syntax::typed::{
+    AstNode, HtmlStringInner, HtmlTag, LudtwigDirectiveIgnore, TwigLiteralStringInner,
+};
 use ludtwig_parser::syntax::untyped::{debug_tree, SyntaxElement, SyntaxToken, WalkEvent};
 
 use crate::check::rule::{
@@ -18,6 +20,7 @@ use crate::ProcessingEvent;
 pub mod rule;
 pub mod rules;
 
+#[allow(clippy::too_many_lines)]
 pub fn run_rules(file_context: &FileContext) -> Vec<CheckResult> {
     let mut check_results = vec![];
     let mut run_context = RuleRunContext {
@@ -87,7 +90,11 @@ pub fn run_rules(file_context: &FileContext) -> Vec<CheckResult> {
                         }
 
                         // adjust traversal context when entering special nodes
-                        if let Some(t) = HtmlTag::cast(n.clone()) {
+                        if HtmlStringInner::can_cast(n.kind())
+                            || TwigLiteralStringInner::can_cast(n.kind())
+                        {
+                            run_context.traversal_ctx.inside_trivia_sensitive_node = true;
+                        } else if let Some(t) = HtmlTag::cast(n.clone()) {
                             if let Some("pre" | "textarea") =
                                 t.name().as_ref().map(SyntaxToken::text)
                             {
@@ -142,7 +149,11 @@ pub fn run_rules(file_context: &FileContext) -> Vec<CheckResult> {
 
                 // adjust traversal context when exiting special nodes
                 if let SyntaxElement::Node(n) = element {
-                    if let Some(t) = HtmlTag::cast(n) {
+                    if HtmlStringInner::can_cast(n.kind())
+                        || TwigLiteralStringInner::can_cast(n.kind())
+                    {
+                        run_context.traversal_ctx.inside_trivia_sensitive_node = false;
+                    } else if let Some(t) = HtmlTag::cast(n) {
                         if let Some("pre" | "textarea") = t.name().as_ref().map(SyntaxToken::text) {
                             run_context.traversal_ctx.inside_trivia_sensitive_node = false;
                         }

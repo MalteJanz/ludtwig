@@ -3,6 +3,7 @@
 - Added `twig-use-is-same-as` rule
 - Added `twig-prefer-shopware-extends` rule
 - Fixed `twig-block-name-snake-case` rule to handle digits correctly
+- Fixed `twig-block-line-breaks` rule to not suggest line breaks inside HTML attribute strings
 
 # v0.7.0
 - Rewrite of almost the complete codebase to make ludtwig a full linter / formatter
