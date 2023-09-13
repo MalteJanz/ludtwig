@@ -47,7 +47,7 @@ fn is_valid_ascii_alpha_snake_case(s: &str) -> bool {
         }
 
         // chars must be ascii lowercase or an underline
-        if !c.is_ascii_lowercase() && c != '_' {
+        if !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != '_' {
             return false;
         }
 
@@ -123,6 +123,11 @@ mod tests {
     fn test_is_ascii_alpha_snake_case() {
         assert!(is_valid_ascii_alpha_snake_case("my_block"));
         assert!(is_valid_ascii_alpha_snake_case("my_b_l_o_c_k"));
+        assert!(is_valid_ascii_alpha_snake_case(
+            "page_account_register_advantages_entry1"
+        ));
+        assert!(is_valid_ascii_alpha_snake_case("b2b_something"));
+        assert!(is_valid_ascii_alpha_snake_case("something_v1_child"));
 
         assert!(!is_valid_ascii_alpha_snake_case("my-block"));
         assert!(!is_valid_ascii_alpha_snake_case("myBlock"));
@@ -134,6 +139,10 @@ mod tests {
         assert!(!is_valid_ascii_alpha_snake_case("my_block__"));
         assert!(!is_valid_ascii_alpha_snake_case("__my_block__"));
         assert!(!is_valid_ascii_alpha_snake_case("innerA"));
+        assert!(!is_valid_ascii_alpha_snake_case("pageAccountRegister"));
+        assert!(!is_valid_ascii_alpha_snake_case("page-account-register"));
+        assert!(!is_valid_ascii_alpha_snake_case("b2bSomething"));
+        assert!(!is_valid_ascii_alpha_snake_case("something_v1-child"));
     }
 
     #[test]
@@ -159,6 +168,22 @@ mod tests {
         assert_eq!(try_make_snake_case("inner_"), Some("inner".to_string()));
         assert_eq!(try_make_snake_case("-inner"), Some("inner".to_string()));
         assert_eq!(try_make_snake_case("_inner"), Some("inner".to_string()));
+        assert_eq!(
+            try_make_snake_case("pageAccountRegister"),
+            Some("page_account_register".to_string())
+        );
+        assert_eq!(
+            try_make_snake_case("page-account-register"),
+            Some("page_account_register".to_string())
+        );
+        assert_eq!(
+            try_make_snake_case("b2bSomething"),
+            Some("b2b_something".to_string())
+        );
+        assert_eq!(
+            try_make_snake_case("something_v1-child"),
+            Some("something_v1_child".to_string())
+        );
         assert_eq!(try_make_snake_case("_My-Broken_-Block_"), None);
     }
 
