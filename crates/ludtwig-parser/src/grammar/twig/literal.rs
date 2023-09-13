@@ -341,7 +341,15 @@ fn parse_twig_accessor(parser: &mut Parser, mut last_node: CompletedMarker) -> C
 
     // parse the rhs and wrap it also in an operand
     let m = parser.start();
-    if parse_twig_name(parser).is_none() {
+    if parser.at(T![number]) {
+        // found an array index lookup instead of name accessor!
+        let n = parse_twig_number(parser);
+        let n = parser.precede(n);
+        parser.complete(n, SyntaxKind::TWIG_EXPRESSION);
+        parser.complete(m, SyntaxKind::TWIG_INDEX);
+        let node = parser.complete(outer, SyntaxKind::TWIG_INDEX_LOOKUP);
+        return node;
+    } else if parse_twig_name(parser).is_none() {
         parser.add_error(ParseErrorBuilder::new(
             "twig variable property, key or method",
         ));
@@ -1352,6 +1360,83 @@ mod tests {
                         TK_CLOSE_SQUARE@26..27 "]"
                     TK_WHITESPACE@27..28 " "
                     TK_CLOSE_CURLY_CURLY@28..30 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_variable_nested_array_accessor_with_dot() {
+        check_parse(
+            r#"{{ product.prices['eur'].0 }}"#,
+            expect![[r#"
+            ROOT@0..29
+              TWIG_VAR@0..29
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..26
+                  TWIG_INDEX_LOOKUP@2..26
+                    TWIG_OPERAND@2..24
+                      TWIG_INDEX_LOOKUP@2..24
+                        TWIG_OPERAND@2..17
+                          TWIG_ACCESSOR@2..17
+                            TWIG_OPERAND@2..10
+                              TWIG_LITERAL_NAME@2..10
+                                TK_WHITESPACE@2..3 " "
+                                TK_WORD@3..10 "product"
+                            TK_DOT@10..11 "."
+                            TWIG_OPERAND@11..17
+                              TWIG_LITERAL_NAME@11..17
+                                TK_WORD@11..17 "prices"
+                        TK_OPEN_SQUARE@17..18 "["
+                        TWIG_INDEX@18..23
+                          TWIG_EXPRESSION@18..23
+                            TWIG_LITERAL_STRING@18..23
+                              TK_SINGLE_QUOTES@18..19 "'"
+                              TWIG_LITERAL_STRING_INNER@19..22
+                                TK_WORD@19..22 "eur"
+                              TK_SINGLE_QUOTES@22..23 "'"
+                        TK_CLOSE_SQUARE@23..24 "]"
+                    TK_DOT@24..25 "."
+                    TWIG_INDEX@25..26
+                      TWIG_EXPRESSION@25..26
+                        TWIG_LITERAL_NUMBER@25..26
+                          TK_NUMBER@25..26 "0"
+                TK_WHITESPACE@26..27 " "
+                TK_CLOSE_CURLY_CURLY@27..29 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_variable_array_dot_accessor() {
+        check_parse(
+            r#"{{ product.tags.0.name }}"#,
+            expect![[r#"
+            ROOT@0..25
+              TWIG_VAR@0..25
+                TK_OPEN_CURLY_CURLY@0..2 "{{"
+                TWIG_EXPRESSION@2..22
+                  TWIG_ACCESSOR@2..22
+                    TWIG_OPERAND@2..17
+                      TWIG_INDEX_LOOKUP@2..17
+                        TWIG_OPERAND@2..15
+                          TWIG_ACCESSOR@2..15
+                            TWIG_OPERAND@2..10
+                              TWIG_LITERAL_NAME@2..10
+                                TK_WHITESPACE@2..3 " "
+                                TK_WORD@3..10 "product"
+                            TK_DOT@10..11 "."
+                            TWIG_OPERAND@11..15
+                              TWIG_LITERAL_NAME@11..15
+                                TK_WORD@11..15 "tags"
+                        TK_DOT@15..16 "."
+                        TWIG_INDEX@16..17
+                          TWIG_EXPRESSION@16..17
+                            TWIG_LITERAL_NUMBER@16..17
+                              TK_NUMBER@16..17 "0"
+                    TK_DOT@17..18 "."
+                    TWIG_OPERAND@18..22
+                      TWIG_LITERAL_NAME@18..22
+                        TK_WORD@18..22 "name"
+                TK_WHITESPACE@22..23 " "
+                TK_CLOSE_CURLY_CURLY@23..25 "}}""#]],
         );
     }
 

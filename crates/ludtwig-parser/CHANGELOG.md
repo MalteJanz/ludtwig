@@ -1,5 +1,6 @@
 # NEXT-VERSION
 - Fix HTML Tag name parser token collisions, which caused tags like `source` to not parse correctly
+- Fix Twig accessor parser to allow array indexing by dot operator
 
 # v0.4.0
 - Rewrite of the whole parser to make it lossless and implemented error recovery
