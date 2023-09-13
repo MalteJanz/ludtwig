@@ -35,7 +35,11 @@ impl<'source> Sink<'source> {
         let mut forward_kinds = Vec::new();
 
         for idx in 0..self.events.len() {
-            if matches!(self.events[idx], Event::AddToken { .. }) || idx == self.events.len() - 1 {
+            if matches!(
+                self.events[idx],
+                Event::AddToken { .. } | Event::AddNextNTokensAs { .. }
+            ) || idx == self.events.len() - 1
+            {
                 // consume trivia before any token event or the last event
                 self.consume_trivia();
             }
@@ -76,6 +80,7 @@ impl<'source> Sink<'source> {
                     }
                 }
                 Event::AddToken { kind } => self.token_as(kind),
+                Event::AddNextNTokensAs { n, kind } => self.next_n_tokens_as(n, kind),
                 Event::ExplicitlyConsumeTrivia => self.consume_trivia(),
                 Event::FinishNode => self.builder.finish_node(),
                 Event::Placeholder => {}
@@ -122,6 +127,17 @@ impl<'source> Sink<'source> {
         self.builder
             .token(TemplateLanguage::kind_to_raw(kind), text);
         self.cursor += 1;
+    }
+
+    fn next_n_tokens_as(&mut self, n: usize, kind: SyntaxKind) {
+        let combined_string: String = self.tokens[self.cursor..(self.cursor + n)]
+            .iter()
+            .map(|t| t.text)
+            .collect();
+
+        self.builder
+            .token(TemplateLanguage::kind_to_raw(kind), &combined_string);
+        self.cursor += n;
     }
 }
 

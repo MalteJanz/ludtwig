@@ -81,6 +81,13 @@ impl<'source> Parser<'source> {
         self.source.peek_token()
     }
 
+    /// Lookahead is expensive!
+    /// This lookahead doesn't skip further trivia tokens and is only there for combining the next n lexer tokens!
+    /// for n of zero use `peek_token` instead!
+    pub(crate) fn peek_nth_token(&mut self, n: usize) -> Option<&Token> {
+        self.source.peek_nth_token(n)
+    }
+
     pub(crate) fn get_pos(&self) -> usize {
         self.source.get_pos()
     }
@@ -142,6 +149,20 @@ impl<'source> Parser<'source> {
             text: consumed.text,
             range: consumed.range,
         }
+    }
+
+    #[track_caller]
+    pub(crate) fn bump_next_n_as(&mut self, n: usize, kind: SyntaxKind) -> Vec<&Token> {
+        let consumed = self.source.next_n_tokens(n);
+        assert_eq!(
+            consumed.len(),
+            n,
+            "bump_next_n_as called, but there are not enough tokens!"
+        );
+
+        self.event_collection.add_next_n_tokens_as(n, kind);
+
+        consumed
     }
 
     pub(crate) fn expect(

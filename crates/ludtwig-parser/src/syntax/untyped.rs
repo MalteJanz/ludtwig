@@ -30,7 +30,7 @@ pub enum SyntaxKind {
     TK_LINE_BREAK,
     /// a single word containing only characters, numbers or symbols
     /// must start with a alpha or one of the special starting characters followed by a normal alpha
-    #[regex(r"([a-zA-Z]|([:@\#_\$][a-zA-Z]))[a-zA-Z0-9_\-]*")]
+    #[regex(r"([a-zA-Z]|([@\#_\$][a-zA-Z]))[a-zA-Z0-9_\-]*")]
     TK_WORD,
     /// a valid twig number
     #[regex(r"[0-9]+(\.[0-9]+)?([Ee][\+\-][0-9]+)?")]
