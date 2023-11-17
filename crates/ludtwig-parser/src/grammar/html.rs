@@ -293,10 +293,10 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
     let inner_m = parser.start();
     // run the appropriate inner parser
     match quote_kind {
-        Some(quote_kind) if quote_kind == T!["\""] => {
+        Some(T!["\""]) => {
             inner_double_quote_parser(parser);
         }
-        Some(quote_kind) if quote_kind == T!["'"] => {
+        Some(T!["'"]) => {
             inner_single_quote_parser(parser);
         }
         None => {

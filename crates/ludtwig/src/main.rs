@@ -8,7 +8,7 @@ use crate::output::ProcessingEvent;
 use clap::Parser;
 use ignore::types::TypesBuilder;
 use ignore::{WalkBuilder, WalkState};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc};
 use std::thread;
@@ -155,8 +155,16 @@ fn handle_input_paths(paths: Vec<PathBuf>, cli_context: CliContext) {
 
     let walker = walker
         .add_custom_ignore_filename(".ludtwig-ignore")
-        .types(types)
-        .build_parallel();
+        .types(types);
+
+    // maybe consider .ludtwig-ignore in cwd (current working directory) just like the ludtwig-config.toml
+    let cwd_ignore_path = Path::new("./.ludtwig-ignore");
+    if cwd_ignore_path.exists() {
+        if let Some(e) = walker.add_ignore(cwd_ignore_path) {
+            panic!("Error: can't use ./.ludtwig-ignore: {e}");
+        }
+    }
+    let walker = walker.build_parallel();
 
     // parallel directory traversal but move the work for each file to a different thread in the thread pool.
     rayon::scope(move |s| {
@@ -183,7 +191,7 @@ fn handle_input_paths(paths: Vec<PathBuf>, cli_context: CliContext) {
                 let tx_clone = cli_context.output_tx.clone();
                 s.spawn(
                     move |_s1| match process::process_file(entry.path().into(), clone) {
-                        Ok(_) => {}
+                        Ok(()) => {}
                         Err(e) => {
                             tx_clone
                                 .send(ProcessingEvent::Report(Severity::Error))
