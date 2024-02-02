@@ -88,7 +88,7 @@ fn run_analysis(
             };
         if dirty {
             match fs::write(&file_context.file_path, &file_context.source_code) {
-                Ok(_) => {}
+                Ok(()) => {}
                 Err(e) => {
                     return Err(FileProcessingError::FileWrite {
                         path: file_context.file_path,

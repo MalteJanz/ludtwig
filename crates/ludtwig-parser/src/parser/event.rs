@@ -306,6 +306,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "Inner Markers must be closed before outer Markers!")]
+    #[cfg(debug_assertions)]
     fn event_collection_inner_before_outer_markers_panic() {
         let mut collection = EventCollection::new();
         let m_outer = collection.start();
@@ -323,6 +324,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "Inner Markers must be closed before outer Markers!")]
+    #[cfg(debug_assertions)]
     fn event_collection_inner_before_outer_preceding_markers_panic() {
         let mut collection = EventCollection::new();
         let m_outer = collection.start();

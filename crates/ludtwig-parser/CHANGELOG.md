@@ -1,4 +1,5 @@
 # NEXT-VERSION
+- Fix two failing tests when running `cargo test --release`
 
 # v0.5.0
 - Fix HTML Tag name parser token collisions, which caused tags like `source` to not parse correctly
