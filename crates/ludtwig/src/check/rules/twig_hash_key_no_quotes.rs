@@ -65,7 +65,7 @@ impl Rule for RuleTwigHashKeyNoQuotes {
 
 #[cfg(test)]
 mod tests {
-    use crate::check::rules::test::{test_rule, test_rule_fix};
+    use crate::check::rules::test::{test_rule, test_rule_does_not_fix, test_rule_fix};
     use expect_test::expect;
 
     #[test]
@@ -103,6 +103,15 @@ mod tests {
             "twig-hash-key-no-quotes",
             r#"{% set v = { 'myKey': 42 } %}"#,
             expect![r#"{% set v = { myKey: 42 } %}"#],
+        );
+    }
+
+    #[test]
+    fn rule_does_not_fix_strings_containing_quotes() {
+        test_rule_does_not_fix(
+            "twig-hash-key-no-quotes",
+            r#"{{ 'replace " this quote'|replace({'"': 'another quote with'}) }}"#,
+            expect![r#"{{ 'replace " this quote'|replace({'"': 'another quote with'}) }}"#],
         );
     }
 }

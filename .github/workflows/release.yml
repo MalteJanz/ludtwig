@@ -52,7 +52,7 @@ jobs:
             type: application/gzip
             output_ending: .tar.gz
           - build: aarch64-apple-darwin
-            os: macos-latest
+            os: macos-14 # m1 runner
             type: application/gzip
             output_ending: .tar.gz
           - build: x86_64-pc-windows-msvc
@@ -63,29 +63,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Install latest stable Rust version (native)
+    - name: Install latest stable Rust version
       uses: dtolnay/rust-toolchain@stable
-      if: matrix.build != 'aarch64-apple-darwin'
 
-    - name: Install latest stable Rust version (cross-compile)
-      uses: dtolnay/rust-toolchain@stable
-      if: matrix.build == 'aarch64-apple-darwin'
-      with:
-        target: aarch64-apple-darwin
-    
     - uses: Swatinem/rust-cache@v2
 
-    - name: Run cargo build (native)
-      if: matrix.build != 'aarch64-apple-darwin'
+    - name: Run cargo build
       run: cargo build --release --verbose
-
-    - name: Run cargo build (cross-compile)
-      if: matrix.build == 'aarch64-apple-darwin'
-      run: cargo build --release --verbose --target aarch64-apple-darwin
-
-    - name: Move cross-compiled output
-      if: matrix.build == 'aarch64-apple-darwin'
-      run: mv -f ./target/aarch64-apple-darwin/release/${{ env.RELEASE_BIN }} ./target/release/${{ env.RELEASE_BIN }}
 
     - name: Create artifact directory
       run: mkdir artifacts
@@ -101,11 +85,11 @@ jobs:
     - name: Install p7zip on MacOS
       # 7Zip not available on MacOS, install p7zip via homebrew.
       run: brew install p7zip
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-latest' || matrix.os == 'macos-14'
     
     - name: Create archive for MacOS
       run: 7z a -ttar -so -an ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }} | 7z a -tgzip -si ./artifacts/${{ env.RELEASE_BIN }}-${{ needs.tag_version.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }}
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-latest' || matrix.os == 'macos-14'
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3

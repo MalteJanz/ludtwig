@@ -5,7 +5,7 @@ keywords = ["formatter", "analyzer", "html", "twig", "template"]
 categories = ["command-line-utilities", "development-tools", "web-programming"]
 repository = "https://github.com/MalteJanz/ludtwig"
 readme = "../../README.md"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["Malte Janz <service.malte.j@protonmail.com>"]
 license = "MIT"
 edition = "2021"
@@ -13,7 +13,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ludtwig-parser = { path = "../ludtwig-parser", version = "0.5.0" }
+ludtwig-parser = { path = "../ludtwig-parser", version = "0.5.1" }
 clap = { version = "4.0.4", features = ["derive"] }
 rayon = "1.5.3"
 ignore = "0.4.18"

@@ -1,4 +1,6 @@
 # NEXT-VERSION
+
+# v0.8.1
 - Fixed an issue where `.ludtwig-ignore` in the current working directory (where ludtwig is executed) was not respected if not included in searching paths. Workaround was using `ludtwig .`.
 
 # v0.8.0

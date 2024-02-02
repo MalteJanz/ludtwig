@@ -24,29 +24,18 @@ jobs:
           - build: macos-native
             os: macos-latest
           - build: macos-silicon
-            os: macos-latest
+            os: macos-14 # m1 runner
           - build: windows
             os: windows-latest
 
     steps:
     - uses: actions/checkout@v4
-    - name: Install latest stable Rust version (native)
+    - name: Install latest stable Rust version
       uses: dtolnay/rust-toolchain@stable
-      if: matrix.build != 'macos-silicon'
-    - name: Install latest stable Rust version (cross-compile)
-      uses: dtolnay/rust-toolchain@stable
-      if: matrix.build == 'macos-silicon'
-      with:
-        target: aarch64-apple-darwin
     - uses: Swatinem/rust-cache@v2
-    - name: Cargo build (native)
-      if: matrix.build != 'macos-silicon'
+    - name: Cargo build
       run: cargo build --verbose
-    - name: Cargo build (cross-compile)
-      if: matrix.build == 'macos-silicon'
-      run: cargo build --verbose --target aarch64-apple-darwin
     - name: Cargo test
-      if: matrix.build != 'macos-silicon' # can't execute tests for another platform binary
       run: cargo test --verbose --all-features
 
   rustfmt:
