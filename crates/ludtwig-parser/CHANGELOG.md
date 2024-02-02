@@ -1,5 +1,6 @@
 # NEXT-VERSION
-- Fix two failing tests when running `cargo test --release`
+- [#79](https://github.com/MalteJanz/ludtwig/issues/79) Fix two failing tests when running `cargo test --release`
+- [#82](https://github.com/MalteJanz/ludtwig/issues/82) Fix parsing of unquoted twig hash syntax, when it only consists of a single underscore
 
 # v0.5.0
 - Fix HTML Tag name parser token collisions, which caused tags like `source` to not parse correctly

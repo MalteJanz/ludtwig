@@ -921,6 +921,45 @@ mod tests {
     }
 
     #[test]
+    fn parse_twig_unquoted_hash_with_only_underscore() {
+        check_parse(
+            "{{ { valid: 42, _: 99 } }}",
+            expect![[r#"
+                ROOT@0..26
+                  TWIG_VAR@0..26
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..23
+                      TWIG_LITERAL_HASH@2..23
+                        TK_WHITESPACE@2..3 " "
+                        TK_OPEN_CURLY@3..4 "{"
+                        TWIG_LITERAL_HASH_ITEMS@4..21
+                          TWIG_LITERAL_HASH_PAIR@4..14
+                            TWIG_LITERAL_HASH_KEY@4..10
+                              TK_WHITESPACE@4..5 " "
+                              TK_WORD@5..10 "valid"
+                            TK_COLON@10..11 ":"
+                            TWIG_EXPRESSION@11..14
+                              TWIG_LITERAL_NUMBER@11..14
+                                TK_WHITESPACE@11..12 " "
+                                TK_NUMBER@12..14 "42"
+                          TK_COMMA@14..15 ","
+                          TWIG_LITERAL_HASH_PAIR@15..21
+                            TWIG_LITERAL_HASH_KEY@15..17
+                              TK_WHITESPACE@15..16 " "
+                              TK_WORD@16..17 "_"
+                            TK_COLON@17..18 ":"
+                            TWIG_EXPRESSION@18..21
+                              TWIG_LITERAL_NUMBER@18..21
+                                TK_WHITESPACE@18..19 " "
+                                TK_NUMBER@19..21 "99"
+                        TK_WHITESPACE@21..22 " "
+                        TK_CLOSE_CURLY@22..23 "}"
+                    TK_WHITESPACE@23..24 " "
+                    TK_CLOSE_CURLY_CURLY@24..26 "}}""#]],
+        );
+    }
+
+    #[test]
     fn parse_twig_expression_hash_missing_comma() {
         check_parse(
             "{{ { (15): 42 (60): 33 } }}",
