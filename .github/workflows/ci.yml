@@ -1,7 +1,7 @@
 # Source of this pipeline code: https://github.com/paskausks/rust-bin-github-workflows
 # MIT License - Copyright (c) 2019 Rihards Paskausks
 # Modified by
-# Copyright (c) 2023 Malte Janz
+# Copyright (c) 2024 Malte Janz
 
 name: CI
 
@@ -15,52 +15,53 @@ jobs:
   build:
     name: Build
 
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - build: linux
-            os: ubuntu-latest
-          - build: macos-native
-            os: macos-latest
-          - build: macos-silicon
-            os: macos-14 # m1 runner
-          - build: windows
-            os: windows-latest
+    runs-on: ubuntu-latest # full build + test on every major platform is done by the release pipeline
 
     steps:
     - uses: actions/checkout@v4
+
     - name: Install latest stable Rust version
       uses: dtolnay/rust-toolchain@stable
+
     - uses: Swatinem/rust-cache@v2
+
     - name: Cargo build
       run: cargo build --verbose
+
     - name: Cargo test
       run: cargo test --verbose --all-features
+
 
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+
     - name: Install latest stable Rust version
       uses: dtolnay/rust-toolchain@stable
       with:
         components: rustfmt
+
     - uses: Swatinem/rust-cache@v2
+
     - name: Run cargo fmt
       run: cargo fmt -- --check
+
 
   clippy_check:
     name: Clippy check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install latest stable Rust version
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+
       - uses: Swatinem/rust-cache@v2
+
       - uses: giraffate/clippy-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

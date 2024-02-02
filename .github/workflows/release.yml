@@ -1,7 +1,7 @@
 # Source of this pipeline code: https://github.com/paskausks/rust-bin-github-workflows
 # MIT License - Copyright (c) 2019 Rihards Paskausks
 # Modified by
-# Copyright (c) 2023 Malte Janz
+# Copyright (c) 2024 Malte Janz
 
 on:
   push:
@@ -38,6 +38,7 @@ jobs:
         shell: bash
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
+
   build:
     name: Build artifacts
     needs: [tag_version]
@@ -70,6 +71,9 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - uses: Swatinem/rust-cache@v2
+
+    - name: Final cargo test
+      run: cargo test --verbose --all-features
 
     - name: Run cargo build
       run: cargo build --release --verbose
@@ -125,6 +129,7 @@ jobs:
           files: |
             artifacts/*
 
+
   publish_crate:
     name: Publish to crates.io
     needs: [tag_version, build]
@@ -140,13 +145,11 @@ jobs:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
         run: cargo publish --token ${CRATES_TOKEN} -p ludtwig-parser
 
-      - name: Wait a moment for the crate to be published
-        run: sleep 10
-
       - name: Publish ludtwig
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
         run: cargo publish --token ${CRATES_TOKEN} -p ludtwig
+
 
   publish_docker:
     name: Build & push docker image

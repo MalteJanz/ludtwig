@@ -1,10 +1,14 @@
 # Ludtwig
-![GitHub](https://img.shields.io/github/license/MalteJanz/ludtwig?color=blue&style=flat-square)
-![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/MalteJanz/ludtwig/CI/main?label=CI&logo=GitHub%20Actions&logoColor=%23FFFFFF&style=flat-square)
-![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/MalteJanz/ludtwig?include_prereleases&logo=GitHub&style=flat-square)
-![Crates.io](https://img.shields.io/crates/v/ludtwig?style=flat-square)
-![GitHub all releases](https://img.shields.io/github/downloads/MalteJanz/ludtwig/total?logo=GitHub&style=flat-square)
-![Crates.io](https://img.shields.io/crates/d/ludtwig?label=downloads%20crates.io&style=flat-square)
+[![GitHub](https://img.shields.io/github/license/MalteJanz/ludtwig?color=blue&style=flat-square)](./LICENSE)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/MalteJanz/ludtwig/ci.yml)
+
+[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/MalteJanz/ludtwig?include_prereleases&logo=GitHub&style=flat-square)](https://github.com/MalteJanz/ludtwig/releases/latest)
+[![Crates.io](https://img.shields.io/crates/v/ludtwig?style=flat-square)](https://crates.io/crates/ludtwig)
+[![Docker Image Version (latest semver)](https://img.shields.io/docker/v/maltejanz/ludtwig?label=docker)](https://hub.docker.com/r/maltejanz/ludtwig)
+
+[![GitHub all releases](https://img.shields.io/github/downloads/MalteJanz/ludtwig/total?logo=GitHub&style=flat-square)](https://github.com/MalteJanz/ludtwig/releases/latest)
+[![Crates.io](https://img.shields.io/crates/d/ludtwig?label=downloads%20crates.io&style=flat-square)](https://crates.io/crates/ludtwig)
+[![Docker Pulls](https://img.shields.io/docker/pulls/maltejanz/ludtwig)](https://hub.docker.com/r/maltejanz/ludtwig)
 
 Linter / Formatter for Twig template files which respects HTML and your time.
 
@@ -38,11 +42,18 @@ Linter / Formatter for Twig template files which respects HTML and your time.
 ### Cargo (rust toolchain)
 Run the following cargo command to install or update ludtwig:
 `cargo install ludtwig`  
-You can install cargo here: https://www.rust-lang.org/learn/get-started  
-If you don't want to install the rust toolchain / cargo you can still use the manual installation below.
+You can install [cargo here](https://www.rust-lang.org/learn/get-started)
+If you don't want to install the rust toolchain / cargo you can still use the other methods below.
 
 ### Manual
 Download the latest [release binary](https://github.com/MalteJanz/ludtwig/releases) for your operating system and put it in your PATH for easy access.
+
+### Docker
+Have a look at the [docker image](https://hub.docker.com/r/maltejanz/ludtwig) or try it with the following command to lint the current working directory:
+`docker run --rm -v $(pwd):/ludtwig maltejanz/ludtwig:latest ludtwig .`
+
+### Nix / DevEnv
+You can also use the [nix package](https://search.nixos.org/packages?channel=unstable&show=ludtwig&from=0&size=50&sort=relevance&type=packages&query=ludtwig).
 
 ## How to use Ludtwig?
 After the installation have a look at `ludtwig --help` for more information. It should be self-explanatory.
@@ -76,7 +87,7 @@ Have a look at the example below to get the general idea where Twig syntax is al
 ```
 
 ## License
-Copyright (c) 2023 Malte Janz  
+Copyright (c) 2024 Malte Janz  
 `ludtwig` is distributed under the terms of the MIT License.  
 See the [LICENSE](./LICENSE) file for details.
 
