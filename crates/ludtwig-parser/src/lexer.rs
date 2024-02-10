@@ -18,6 +18,7 @@ pub(crate) fn lex(source: &str) -> Vec<Token> {
             TextRange::new(start, end)
         };
 
+        let kind = kind.unwrap_or(SyntaxKind::TK_UNKNOWN);
         result.push(Token {
             kind,
             text: lexer.slice(),

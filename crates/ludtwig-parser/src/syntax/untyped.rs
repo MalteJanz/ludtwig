@@ -313,7 +313,6 @@ pub enum SyntaxKind {
     TK_LUDTWIG_IGNORE_FILE,
     #[token("ludtwig-ignore", ignore(ascii_case))]
     TK_LUDTWIG_IGNORE,
-    #[error]
     TK_UNKNOWN, // contains invalid / unrecognized syntax (used for error recovery).
 
     /*
