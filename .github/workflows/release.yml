@@ -76,7 +76,7 @@ jobs:
       run: cargo test --verbose --all-features
 
     - name: Run cargo build
-      run: cargo build --release --verbose
+      run: cargo build --release --verbose --frozen
 
     - name: Create artifact directory
       run: mkdir artifacts
