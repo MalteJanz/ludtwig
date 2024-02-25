@@ -1,12 +1,21 @@
 # NEXT-VERSION
 
+- The used ludtwig version is now printed out every time ludtwig is executed
+- [#90](https://github.com/MalteJanz/ludtwig/issues/90) Print out the used config file or environment variable overrides
+- [#90](https://github.com/MalteJanz/ludtwig/issues/90) Added `--verbose` CLI flag to print out all used config values
+  and maybe more details in the future
+
 # v0.8.2
+
 - Updated dependencies to latest versions
 
 # v0.8.1
-- Fixed an issue where `.ludtwig-ignore` in the current working directory (where ludtwig is executed) was not respected if not included in searching paths. Workaround was using `ludtwig .`.
+
+- Fixed an issue where `.ludtwig-ignore` in the current working directory (where ludtwig is executed) was not respected
+  if not included in searching paths. Workaround was using `ludtwig .`.
 
 # v0.8.0
+
 - Added `twig-use-is-not-same-as` rule
 - Added `twig-use-is-same-as` rule
 - Added `twig-prefer-shopware-extends` rule
@@ -14,14 +23,17 @@
 - Fixed `twig-block-line-breaks` rule to not suggest line breaks inside HTML attribute strings
 
 # v0.7.0
+
 - Rewrite of almost the complete codebase to make ludtwig a full linter / formatter
 
 # v0.6.1
+
 - Hotfix for the parser:
   fixed a panic (attempt to subtract with overflow) for the parsing error line and column numbers reconstruction.
   this panic most likely only occurred on empty `.twig` files.
 
 # v0.6.0
+
 - [Feature #5](https://github.com/MalteJanz/ludtwig/issues/5):
   Implemented layered configuration via environment variables or `.toml` files.
   The default configuration file can be generated on the fly with the `-C` flag and
@@ -46,6 +58,7 @@
   They now also work correctly with utf-8 files.
 
 # v0.5.1
+
 - [Bugfix #29](https://github.com/MalteJanz/ludtwig/issues/29):
   Allow `.` or `./` (current working directory paths) as input.
 - [Bugfix #30](https://github.com/MalteJanz/ludtwig/issues/30):
@@ -54,34 +67,41 @@
   The parser does not report the correct line number on windows (CRLF line endings) for parsing errors.
 
 # v0.5.0
+
 - [Bugfix / Breaking change #27](https://github.com/MalteJanz/ludtwig/issues/27):
   Twig block nesting was causing missing empty lines around twig blocks in some cases.
 
 # v0.4.0
+
 - An Update of [ludtwig-parser (see changelog)](https://github.com/MalteJanz/ludtwig-parser/releases/tag/v0.3.0)
   and the use of iterators for the analyzing has improved the performance of ludtwig itself by around 20%.
 - The analyzer for duplicate twig block names now also checks blocks that are inside html tag attributes.
 - Code cleanup and refactoring
 
 # v0.3.0
+
 - Performance increase of around 91% (almost doubled) in some cases.
   This was made possible by switching the async runtime from tokio to async-std and doing
   some optimizations of the directory traversal (which was blocking code).
 - \[BREAKING\] Improved directory traversal by skipping hidden directories and files
 
 # v0.2.1
+
 - Bump version for crates.io release.
 - Extracted parser code into it's own repository and public crate.
 
 # v0.2.0
+
 - [FEATURE #4](https://github.com/MalteJanz/ludtwig/issues/4):
   Implemented twig syntax support for `if` / `elseif` / `else` / `for` / `apply` / `set` (without `=`) blocks.
   Also any other non hierarchical twig statement `{% ... %}` will now be parsed (but not validated)
 - [FEATURE #16](https://github.com/MalteJanz/ludtwig/issues/16):
   Implemented support for twig comments and structures like `if` / `block` / ... in the attributes of an html tag.
-  Tag attributes are only a subset of the AST structure and their children only can contain other Tag attributes (for example no html tag as an html attribute is possible).
+  Tag attributes are only a subset of the AST structure and their children only can contain other Tag attributes (for
+  example no html tag as an html attribute is possible).
 - [FEATURE #19](https://github.com/MalteJanz/ludtwig/issues/19):
-  Enabled parsing support for output expressions as html tag attribute names and allow any twig structure or output expression inside attribute values.
+  Enabled parsing support for output expressions as html tag attribute names and allow any twig structure or output
+  expression inside attribute values.
   This also allows nested quotes `"` that are inside twig syntax inside of a value like  
   `alt="{{ "something.other"|trans|striptags }}"`
 - [REMOVED #21](https://github.com/MalteJanz/ludtwig/issues/21)
@@ -89,7 +109,7 @@
   The reasoning behind this is that it looks not very useful in practice and clutters the output with warnings.
 - [FEATURE]
   Added new analyzer that checks for duplicate twig block names.
-- \[BUGFIX\]: 
+- \[BUGFIX\]:
   Improved readability for parsing errors by displaying the error and its context in a way that is readable by the user.
   For example missing closing tags will give the context with each attribute to identify the right tag.
   The attributes were not displayed in a user readable way before this change.

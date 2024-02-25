@@ -139,4 +139,57 @@ mod tests {
                     TK_HASHTAG_CLOSE_CURLY@56..58 "#}""##]],
         );
     }
+
+    #[test]
+    fn parse_twig_component_call() {
+        check_parse(
+            "{{ component('Alert', { message: 'Hello Twig Components!' }) }}",
+            expect![[r#"
+                ROOT@0..63
+                  TWIG_VAR@0..63
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..60
+                      TWIG_FUNCTION_CALL@2..60
+                        TWIG_OPERAND@2..12
+                          TWIG_LITERAL_NAME@2..12
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..12 "component"
+                        TK_OPEN_PARENTHESIS@12..13 "("
+                        TWIG_ARGUMENTS@13..59
+                          TWIG_EXPRESSION@13..20
+                            TWIG_LITERAL_STRING@13..20
+                              TK_SINGLE_QUOTES@13..14 "'"
+                              TWIG_LITERAL_STRING_INNER@14..19
+                                TK_WORD@14..19 "Alert"
+                              TK_SINGLE_QUOTES@19..20 "'"
+                          TK_COMMA@20..21 ","
+                          TWIG_EXPRESSION@21..59
+                            TWIG_LITERAL_HASH@21..59
+                              TK_WHITESPACE@21..22 " "
+                              TK_OPEN_CURLY@22..23 "{"
+                              TWIG_LITERAL_HASH_ITEMS@23..57
+                                TWIG_LITERAL_HASH_PAIR@23..57
+                                  TWIG_LITERAL_HASH_KEY@23..31
+                                    TK_WHITESPACE@23..24 " "
+                                    TK_WORD@24..31 "message"
+                                  TK_COLON@31..32 ":"
+                                  TWIG_EXPRESSION@32..57
+                                    TWIG_LITERAL_STRING@32..57
+                                      TK_WHITESPACE@32..33 " "
+                                      TK_SINGLE_QUOTES@33..34 "'"
+                                      TWIG_LITERAL_STRING_INNER@34..56
+                                        TK_WORD@34..39 "Hello"
+                                        TK_WHITESPACE@39..40 " "
+                                        TK_WORD@40..44 "Twig"
+                                        TK_WHITESPACE@44..45 " "
+                                        TK_WORD@45..55 "Components"
+                                        TK_EXCLAMATION_MARK@55..56 "!"
+                                      TK_SINGLE_QUOTES@56..57 "'"
+                              TK_WHITESPACE@57..58 " "
+                              TK_CLOSE_CURLY@58..59 "}"
+                        TK_CLOSE_PARENTHESIS@59..60 ")"
+                    TK_WHITESPACE@60..61 " "
+                    TK_CLOSE_CURLY_CURLY@61..63 "}}""#]],
+        );
+    }
 }

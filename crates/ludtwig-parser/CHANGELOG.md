@@ -1,9 +1,6 @@
 # NEXT-VERSION
 
-- The used ludtwig version is now printed out every time ludtwig is executed
-- [#90](https://github.com/MalteJanz/ludtwig/issues/90) Print out the used config file or environment variable overrides
-- [#90](https://github.com/MalteJanz/ludtwig/issues/90) Added `--verbose` CLI flag to print out all used config values
-  and maybe more details in the future
+- [#96](https://github.com/MalteJanz/ludtwig/issues/96) Fix parsing of twig component tags
 
 # v0.5.2
 
