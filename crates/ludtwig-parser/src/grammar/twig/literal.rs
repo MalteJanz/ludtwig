@@ -36,7 +36,7 @@ pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker>
     }
 }
 
-/// Parses any amount of postfix operators like accessors (.), indexer ([]), function calls() or filters(|)
+/// Parses any amount of postfix operators like accessors (.), indexer ([]), function `calls()` or filters(|)
 pub(crate) fn parse_postfix_operators(
     parser: &mut Parser,
     mut node: CompletedMarker,

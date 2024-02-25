@@ -20,6 +20,7 @@ mod output;
 mod process;
 
 // uses author, version and description from Cargo.toml
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct Opts {
@@ -37,10 +38,6 @@ pub struct Opts {
     #[arg(short = 'f', long)]
     fix: bool,
 
-    /// Print out the parsed syntax tree for each file
-    #[arg(short = 'i', long)]
-    inspect: bool,
-
     /// Specify where the ludtwig configuration file is. Ludtwig looks in the current directory for a 'ludtwig-config.toml' by default.
     #[arg(short = 'c', long)]
     config_path: Option<PathBuf>,
@@ -48,6 +45,14 @@ pub struct Opts {
     /// Create the default configuration file in the config path. Defaults to the current directory.
     #[arg(short = 'C', long, name = "create_config")]
     create_config: bool,
+
+    /// Verbose output, for example the exact configuration values used are displayed
+    #[arg(short = 'v', long)]
+    verbose: bool,
+
+    /// Print out the parsed syntax tree for each file
+    #[arg(short = 'i', long)]
+    inspect: bool,
 }
 
 /// Context to pass to every processing thead (can be cloned)
@@ -93,6 +98,7 @@ impl CliContext {
 /// Parse the CLI arguments and bootstrap the application.
 fn main() {
     let opts: Opts = Opts::parse();
+    println!(concat!("Ludtwig ", env!("CARGO_PKG_VERSION")));
     let config = config::handle_config_or_exit(&opts);
 
     let process_code = app(opts, config);

@@ -1,3 +1,4 @@
+use std::env;
 use std::fmt::{Display, Formatter};
 use std::path::{Path, PathBuf};
 
@@ -165,10 +166,34 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
         std::process::exit(0);
     }
 
-    match Config::new(config_path) {
-        Ok(c) => c,
+    match Config::new(config_path.clone()) {
+        Ok(c) => {
+            if config_path.exists() {
+                println!(
+                    "Loaded configuration file at {}",
+                    config_path.to_string_lossy()
+                );
+            } else {
+                println!(
+                    "Using default config, because no config file found at {}",
+                    config_path.to_string_lossy()
+                );
+            }
+
+            for (k, v) in env::vars() {
+                if k.starts_with("LUDTWIG_") {
+                    println!("Found environment variable for overriding config: {k}={v}");
+                }
+            }
+
+            if opts.verbose {
+                println!("Used config values: \n{c:#?}");
+            }
+
+            c
+        }
         Err(e) => {
-            println!("Error reading configuration:");
+            println!("Error reading config:");
             println!("{e}");
             std::process::exit(1)
         }
