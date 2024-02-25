@@ -95,7 +95,22 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
     parser.bump();
 
     let tag_name = parser.peek_token().map_or("", |t| t.text).to_owned();
-    if HTML_TAG_NAME_REGEX.is_match(&tag_name) {
+    if tag_name.eq_ignore_ascii_case("twig")
+        && parser
+            .peek_nth_token(1)
+            .map_or(false, |t| t.kind == T![":"])
+    {
+        // possible twig component (e.g. <twig:Alert>)
+        if parser
+            .peek_nth_token(2)
+            .map_or(false, |t| t.kind == T![word])
+        {
+            parser.bump_next_n_as(3, T![word]);
+        } else {
+            parser.add_error(ParseErrorBuilder::new("Twig component name"));
+        }
+    } else if HTML_TAG_NAME_REGEX.is_match(&tag_name) {
+        // normal html tag name
         parser.bump_as(T![word]);
     } else {
         parser.add_error(ParseErrorBuilder::new("HTML Tag Name"));
@@ -2044,6 +2059,42 @@ mod tests {
                 TK_WHITESPACE@9..10 " "
                 TK_WORD@10..14 "html"
                 TK_GREATER_THAN@14..15 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_component_tag() {
+        check_parse(
+            r#"<twig:Alert message="Or use the fun HTML syntax!" />"#,
+            expect![[r#"
+                ROOT@0..52
+                  HTML_TAG@0..52
+                    HTML_STARTING_TAG@0..52
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..11 "twig:Alert"
+                      HTML_ATTRIBUTE_LIST@11..49
+                        HTML_ATTRIBUTE@11..49
+                          TK_WHITESPACE@11..12 " "
+                          TK_WORD@12..19 "message"
+                          TK_EQUAL@19..20 "="
+                          HTML_STRING@20..49
+                            TK_DOUBLE_QUOTES@20..21 "\""
+                            HTML_STRING_INNER@21..48
+                              TK_WORD@21..23 "Or"
+                              TK_WHITESPACE@23..24 " "
+                              TK_USE@24..27 "use"
+                              TK_WHITESPACE@27..28 " "
+                              TK_WORD@28..31 "the"
+                              TK_WHITESPACE@31..32 " "
+                              TK_WORD@32..35 "fun"
+                              TK_WHITESPACE@35..36 " "
+                              TK_WORD@36..40 "HTML"
+                              TK_WHITESPACE@40..41 " "
+                              TK_WORD@41..47 "syntax"
+                              TK_EXCLAMATION_MARK@47..48 "!"
+                            TK_DOUBLE_QUOTES@48..49 "\""
+                      TK_WHITESPACE@49..50 " "
+                      TK_SLASH_GREATER_THAN@50..52 "/>""#]],
         );
     }
 }
