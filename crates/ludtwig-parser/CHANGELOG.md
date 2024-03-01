@@ -1,6 +1,7 @@
 # NEXT-VERSION
 
 - [#96](https://github.com/MalteJanz/ludtwig/issues/96) Fix parsing of twig component tags
+- [#89](https://github.com/MalteJanz/ludtwig/issues/89) Allow parsing of less than sign in text
 
 # v0.5.2
 
