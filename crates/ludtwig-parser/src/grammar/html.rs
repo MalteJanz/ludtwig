@@ -20,7 +20,13 @@ static HTML_VOID_ELEMENTS: &[&str] = &[
 ];
 
 pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
-    if parser.at(T!["<"]) {
+    if parser.at(T!["<"])
+        && parser.peek_nth_token(1).map_or(false, |t| {
+            t.kind != T![ws] && t.kind != T![number] && !GENERAL_RECOVERY_SET.contains(&t.kind)
+        })
+    {
+        // '<' should not be followed by EOF, a ws, a number or RECOVERY_SET token,
+        // because then it is considered as arbitrary text (and parsed by the last else block)
         Some(parse_html_element(parser))
     } else if parser.at(T!["<!--"]) {
         Some(parse_html_comment(parser))
@@ -44,7 +50,17 @@ fn parse_html_doctype(parser: &mut Parser) -> CompletedMarker {
 }
 
 fn parse_html_text(parser: &mut Parser) -> Option<CompletedMarker> {
-    if parser.at_end() || parser.at_set(GENERAL_RECOVERY_SET) || parser.at_set(&[T!["</"]]) {
+    fn parser_at_less_than_non_word(p: &mut Parser) -> bool {
+        p.at(T!["<"])
+            && p.peek_nth_token(1).map_or(true, |t| {
+                t.kind == T![ws] || t.kind == T![number] || GENERAL_RECOVERY_SET.contains(&t.kind)
+            })
+    }
+
+    if parser.at_end()
+        || parser.at_set(&[T!["</"]])
+        || (parser.at_set(GENERAL_RECOVERY_SET) && !parser_at_less_than_non_word(parser))
+    {
         return None;
     }
 
@@ -52,7 +68,10 @@ fn parse_html_text(parser: &mut Parser) -> Option<CompletedMarker> {
 
     parse_many(
         parser,
-        |p| p.at_set(GENERAL_RECOVERY_SET) || p.at_set(&[T!["</"]]),
+        |p| {
+            p.at_set(&[T!["</"]])
+                || (p.at_set(GENERAL_RECOVERY_SET) && !parser_at_less_than_non_word(p))
+        },
         |p| {
             p.bump();
         },
@@ -2095,6 +2114,120 @@ mod tests {
                             TK_DOUBLE_QUOTES@48..49 "\""
                       TK_WHITESPACE@49..50 " "
                       TK_SLASH_GREATER_THAN@50..52 "/>""#]],
+        );
+    }
+
+    #[test]
+    fn parse_text_with_lesser_than_sign_inside() {
+        check_parse(
+            "<p>
+    downloads < 100
+</p>",
+            expect![[r#"
+                ROOT@0..28
+                  HTML_TAG@0..28
+                    HTML_STARTING_TAG@0..3
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..2 "p"
+                      HTML_ATTRIBUTE_LIST@2..2
+                      TK_GREATER_THAN@2..3 ">"
+                    BODY@3..23
+                      HTML_TEXT@3..23
+                        TK_LINE_BREAK@3..4 "\n"
+                        TK_WHITESPACE@4..8 "    "
+                        TK_WORD@8..17 "downloads"
+                        TK_WHITESPACE@17..18 " "
+                        TK_LESS_THAN@18..19 "<"
+                        TK_WHITESPACE@19..20 " "
+                        TK_NUMBER@20..23 "100"
+                    HTML_ENDING_TAG@23..28
+                      TK_LINE_BREAK@23..24 "\n"
+                      TK_LESS_THAN_SLASH@24..26 "</"
+                      TK_WORD@26..27 "p"
+                      TK_GREATER_THAN@27..28 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_less_than_sign_followed_by_ws_and_text() {
+        check_parse(
+            "<p>
+        < 100
+</p>",
+            expect![[r#"
+                ROOT@0..22
+                  HTML_TAG@0..22
+                    HTML_STARTING_TAG@0..3
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..2 "p"
+                      HTML_ATTRIBUTE_LIST@2..2
+                      TK_GREATER_THAN@2..3 ">"
+                    BODY@3..17
+                      HTML_TEXT@3..17
+                        TK_LINE_BREAK@3..4 "\n"
+                        TK_WHITESPACE@4..12 "        "
+                        TK_LESS_THAN@12..13 "<"
+                        TK_WHITESPACE@13..14 " "
+                        TK_NUMBER@14..17 "100"
+                    HTML_ENDING_TAG@17..22
+                      TK_LINE_BREAK@17..18 "\n"
+                      TK_LESS_THAN_SLASH@18..20 "</"
+                      TK_WORD@20..21 "p"
+                      TK_GREATER_THAN@21..22 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_alone_standing_less_than_sign() {
+        check_parse(
+            "{% block s %}<{% endblock %}",
+            expect![[r#"
+                ROOT@0..28
+                  TWIG_BLOCK@0..28
+                    TWIG_STARTING_BLOCK@0..13
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_BLOCK@3..8 "block"
+                      TK_WHITESPACE@8..9 " "
+                      TK_WORD@9..10 "s"
+                      TK_WHITESPACE@10..11 " "
+                      TK_PERCENT_CURLY@11..13 "%}"
+                    BODY@13..14
+                      HTML_TEXT@13..14
+                        TK_LESS_THAN@13..14 "<"
+                    TWIG_ENDING_BLOCK@14..28
+                      TK_CURLY_PERCENT@14..16 "{%"
+                      TK_WHITESPACE@16..17 " "
+                      TK_ENDBLOCK@17..25 "endblock"
+                      TK_WHITESPACE@25..26 " "
+                      TK_PERCENT_CURLY@26..28 "%}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_less_than_sign_eof() {
+        check_parse(
+            "downloads <",
+            expect![[r#"
+                ROOT@0..11
+                  HTML_TEXT@0..11
+                    TK_WORD@0..9 "downloads"
+                    TK_WHITESPACE@9..10 " "
+                    TK_LESS_THAN@10..11 "<""#]],
+        );
+    }
+
+    #[test]
+    fn parse_less_than_number() {
+        check_parse(
+            "downloads <100",
+            expect![[r#"
+                ROOT@0..14
+                  HTML_TEXT@0..14
+                    TK_WORD@0..9 "downloads"
+                    TK_WHITESPACE@9..10 " "
+                    TK_LESS_THAN@10..11 "<"
+                    TK_NUMBER@11..14 "100""#]],
         );
     }
 }
