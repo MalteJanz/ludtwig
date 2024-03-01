@@ -26,6 +26,7 @@
 
 # -------------------------------
 # Ludtwig configuration
+version = "{{LUDTWIG_VERSION}}"
 # -------------------------------
 [general]
 active-rules = [

@@ -2,6 +2,9 @@
 
 - [#88](https://github.com/MalteJanz/ludtwig/issues/88) [BREAKING] Removed rule `unkown-token` because it is a debugging
   leftover and causes confusion. Please remove it from your config file.
+- [#102](https://github.com/MalteJanz/ludtwig/issues/102) [BREAKING] Added `version` to `ludtwig-config.toml`, which
+  should match the used ludtwig version. Ludtwig will display a warning if this doesn't match, to ensure the user keeps
+  their config up to date and is aware of the latest feature additions (doesn't miss out on rules for example).
 
 # v0.8.3
 
