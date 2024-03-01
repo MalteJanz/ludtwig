@@ -17,18 +17,30 @@ impl Rule for RuleTwigBlockLineBreaks {
         }
 
         let block = TwigBlock::cast(node)?;
-
-        // early return if parent is the root
+        let prev_sibling = block.syntax().prev_sibling().and_then(|n| {
+            if matches!(
+                n.kind(),
+                SyntaxKind::TWIG_COMMENT
+                    | SyntaxKind::HTML_COMMENT
+                    | SyntaxKind::LUDTWIG_DIRECTIVE_FILE_IGNORE
+                    | SyntaxKind::LUDTWIG_DIRECTIVE_IGNORE
+            ) {
+                n.prev_sibling()
+            } else {
+                Some(n)
+            }
+        });
+        // early return if parent is the root and there is no prev sibling
         if block.syntax().parent().map_or(true, |may_be_body| {
-            matches!(may_be_body.kind(), SyntaxKind::ROOT)
+            matches!(may_be_body.kind(), SyntaxKind::ROOT) && prev_sibling.is_none()
         }) {
             return None;
         }
 
         // find first token of twig block (ideally a line break)
         let starting_block = block.starting_block()?;
-        let prev_sibling = block.syntax().prev_sibling();
-        let starting_syntax = match prev_sibling {
+        let possible_comment = starting_block.syntax().prev_sibling();
+        let starting_syntax = match possible_comment {
             Some(ref n)
                 if matches!(
                     n.kind(),
@@ -143,7 +155,7 @@ impl Rule for RuleTwigBlockLineBreaks {
 mod tests {
     use expect_test::expect;
 
-    use crate::check::rules::test::{test_rule, test_rule_fix};
+    use crate::check::rules::test::{test_rule, test_rule_does_not_fix, test_rule_fix};
 
     #[test]
     fn rule_reports() {
@@ -246,6 +258,104 @@ mod tests {
                         {% endblock %}
                     </div>
                 {% endblock %}"#]],
+        );
+    }
+
+    #[test]
+    fn rule_reports_top_level() {
+        test_rule(
+            "twig-block-line-breaks",
+            r#"{% block my_block %}
+                hello
+            {% endblock %}
+            {%block another %}
+                world
+            {% endblock %}"#,
+            expect![[r#"
+                help[twig-block-line-breaks]: Wrong line break around block
+                  ┌─ ./debug-rule.html.twig:3:27
+                  │    
+                3 │                 {% endblock %}
+                  │ ╭────────────────────────────^
+                  │ │ ╭──────────────────────────'
+                4 │ │ │             {%block another %}
+                  │ ╰─│^ Expected 2 line breaks here
+                  │   ╰' Change to 2 line breaks: 
+
+
+
+            "#]],
+        );
+    }
+
+    #[test]
+    fn rule_fixes_top_level() {
+        test_rule_fix(
+            "twig-block-line-breaks",
+            r#"{% block my_block %}
+                hello
+            {% endblock %}
+            {%block another %}
+                world
+            {% endblock %}"#,
+            expect![[r#"{% block my_block %}
+                hello
+            {% endblock %}
+
+            {%block another %}
+                world
+            {% endblock %}"#]],
+        );
+    }
+
+    #[test]
+    fn rule_reports_together_with_comments() {
+        test_rule(
+            "twig-block-line-breaks",
+            r#"{# @deprecated tag:v6.7.0 - Block will be removed. #}
+{% block component_address_address_editor_modal_inner %}
+    {# @deprecated tag:v6.7.0 - Block will be removed. #}
+    {% block component_address_address_editor_modal_accordion_overview %}
+        {% if not page.address %}
+            {# @deprecated tag:v6.7.0 - Block will be removed. #}
+            {% block component_address_address_editor_modal_accordion_overview_billing %}
+                hello
+            {% endblock %}
+        {% endif %}
+    {% endblock %}
+{% endblock %}"#,
+            expect![[r#""#]],
+        );
+    }
+
+    #[test]
+    fn rule_fixes_together_with_comments() {
+        test_rule_does_not_fix(
+            "twig-block-line-breaks",
+            r#"{# @deprecated tag:v6.7.0 - Block will be removed. #}
+{% block component_address_address_editor_modal_inner %}
+    {# @deprecated tag:v6.7.0 - Block will be removed. #}
+    {% block component_address_address_editor_modal_accordion_overview %}
+        {% if not page.address %}
+            {# @deprecated tag:v6.7.0 - Block will be removed. #}
+            {% block component_address_address_editor_modal_accordion_overview_billing %}
+                hello
+            {% endblock %}
+        {% endif %}
+    {% endblock %}
+{% endblock %}"#,
+            expect![[r#"{# @deprecated tag:v6.7.0 - Block will be removed. #}
+{% block component_address_address_editor_modal_inner %}
+    {# @deprecated tag:v6.7.0 - Block will be removed. #}
+    {% block component_address_address_editor_modal_accordion_overview %}
+        {% if not page.address %}
+            {# @deprecated tag:v6.7.0 - Block will be removed. #}
+            {% block component_address_address_editor_modal_accordion_overview_billing %}
+                hello
+            {% endblock %}
+        {% endif %}
+    {% endblock %}
+{% endblock %}"#]],
         );
     }
 
