@@ -4,6 +4,7 @@
 - [#90](https://github.com/MalteJanz/ludtwig/issues/90) Print out the used config file or environment variable overrides
 - [#90](https://github.com/MalteJanz/ludtwig/issues/90) Added `--verbose` CLI flag to print out all used config values
   and maybe more details in the future
+- Adjusted `twig-block-line-breaks` rule to better suggest line breaks that visually make sense
 
 # v0.8.2
 

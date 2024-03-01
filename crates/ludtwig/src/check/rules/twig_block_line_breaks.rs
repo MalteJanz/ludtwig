@@ -24,6 +24,7 @@ impl Rule for RuleTwigBlockLineBreaks {
         }) {
             return None;
         }
+        let next_sibling = block.syntax().next_sibling();
 
         // find first token of twig block (ideally a line break)
         let starting_block = block.starting_block()?;
@@ -44,6 +45,21 @@ impl Rule for RuleTwigBlockLineBreaks {
             _ => starting_block.syntax(),
         };
         let first_child_token = starting_syntax.first_token();
+
+        // don't consider comments as previous siblings
+        let prev_sibling = prev_sibling.and_then(|n| {
+            if matches!(
+                n.kind(),
+                SyntaxKind::TWIG_COMMENT
+                    | SyntaxKind::HTML_COMMENT
+                    | SyntaxKind::LUDTWIG_DIRECTIVE_FILE_IGNORE
+                    | SyntaxKind::LUDTWIG_DIRECTIVE_IGNORE
+            ) {
+                n.prev_sibling()
+            } else {
+                Some(n)
+            }
+        });
 
         // find first token after the twig block (ideally a line break)
         // set to None if next sibling is also a block (which also places linebreaks before)
@@ -66,11 +82,25 @@ impl Rule for RuleTwigBlockLineBreaks {
         };
         let before_line_break_amount = match prev_sibling {
             Some(_) => config_line_break_amount,
-            None => 1,
+            None => {
+                // check if there is at least one next sibling
+                if next_sibling.is_some() {
+                    config_line_break_amount
+                } else {
+                    1 // nested block inside of block, no line break needed
+                }
+            }
         };
-        let after_line_break_amount = match block.syntax().next_sibling() {
+        let after_line_break_amount = match next_sibling {
             Some(_) => config_line_break_amount,
-            None => 1,
+            None => {
+                // check if there is at least one prev sibling
+                if prev_sibling.is_some() {
+                    config_line_break_amount
+                } else {
+                    1 // nested block inside of block, no line break needed
+                }
+            }
         };
         let before_expected_str = expected_line_break.repeat(before_line_break_amount);
         let after_expected_str = expected_line_break.repeat(after_line_break_amount);
@@ -167,6 +197,18 @@ mod tests {
 {% endblock %}",
             expect![[r#"
                 help[twig-block-line-breaks]: Wrong line break around block
+                  ┌─ ./debug-rule.html.twig:2:26
+                  │    
+                2 │         <div cla-ss="my-div">
+                  │ ╭───────────────────────────^
+                  │ │ ╭─────────────────────────'
+                3 │ │ │         {% block inner_a %}
+                  │ ╰─│^ Expected 2 line breaks here
+                  │   ╰' Change to 2 line breaks: 
+
+
+
+                help[twig-block-line-breaks]: Wrong line break around block
                   ┌─ ./debug-rule.html.twig:5:23
                   │    
                 5 │             {% endblock %}
@@ -202,6 +244,18 @@ mod tests {
 
 
 
+                help[twig-block-line-breaks]: Wrong line break around block
+                   ┌─ ./debug-rule.html.twig:14:23
+                   │    
+                14 │             {% endblock %}
+                   │ ╭────────────────────────^
+                   │ │ ╭──────────────────────'
+                15 │ │ │     </div>
+                   │ ╰─│^ Expected 2 line breaks here
+                   │   ╰' Change to 2 line breaks: 
+
+
+
             "#]],
         );
     }
@@ -229,6 +283,7 @@ mod tests {
             expect![[r#"
                 {% block my_block %}
                     <div cla-ss="my-div">
+
                         {% block inner_a %}
                             hello
                         {% endblock %}
@@ -244,8 +299,107 @@ mod tests {
                                 abc
                             {% endblock %}
                         {% endblock %}
+
                     </div>
                 {% endblock %}"#]],
+        );
+    }
+
+    #[test]
+    fn rule_should_report_empty_line_in_nesting_with_siblings() {
+        test_rule(
+            "twig-block-line-breaks",
+            r#"{% block swag_customized_products_description %}
+                    {% block swag_customized_products_description_image %}
+                        {% block swag_customized_products_description_image_img %}
+                            <img class="swag-customized-products__image img-fluid"
+                                 src="{{ customizedProductsTemplate.media|sw_encode_media_url }}"
+                                 alt="{{ customizedProductsTemplate.translated.displayName }}"/>
+                        {% endblock %}
+                        {% block swag_customized_products_description_image_sibling %}
+                            <div>
+                                some other sibling
+                            </div>
+                        {% endblock %}
+                    {% endblock %}
+                {% endblock %}"#,
+            expect![[r#"
+                help[twig-block-line-breaks]: Wrong line break around block
+                  ┌─ ./debug-rule.html.twig:2:75
+                  │    
+                2 │                         {% block swag_customized_products_description_image %}
+                  │ ╭────────────────────────────────────────────────────────────────────────────^
+                  │ │ ╭──────────────────────────────────────────────────────────────────────────'
+                3 │ │ │                         {% block swag_customized_products_description_image_img %}
+                  │ ╰─│^ Expected 2 line breaks here
+                  │   ╰' Change to 2 line breaks: 
+
+
+
+                help[twig-block-line-breaks]: Wrong line break around block
+                  ┌─ ./debug-rule.html.twig:7:39
+                  │    
+                7 │                             {% endblock %}
+                  │ ╭────────────────────────────────────────^
+                  │ │ ╭──────────────────────────────────────'
+                8 │ │ │                         {% block swag_customized_products_description_image_sibling %}
+                  │ ╰─│^ Expected 2 line breaks here
+                  │   ╰' Change to 2 line breaks: 
+
+
+
+                help[twig-block-line-breaks]: Wrong line break around block
+                   ┌─ ./debug-rule.html.twig:12:39
+                   │    
+                12 │                             {% endblock %}
+                   │ ╭────────────────────────────────────────^
+                   │ │ ╭──────────────────────────────────────'
+                13 │ │ │                     {% endblock %}
+                   │ ╰─│^ Expected 2 line breaks here
+                   │   ╰' Change to 2 line breaks: 
+
+
+
+            "#]],
+        );
+    }
+
+    #[test]
+    fn rule_should_report_empty_line_in_nesting_with_siblings_fixes() {
+        test_rule_fix(
+            "twig-block-line-breaks",
+            r#"{% block swag_customized_products_description %}
+                    {% block swag_customized_products_description_image %}
+                        {% block swag_customized_products_description_image_img %}
+                            <img class="swag-customized-products__image img-fluid"
+                                 src="{{ customizedProductsTemplate.media|sw_encode_media_url }}"
+                                 alt="{{ customizedProductsTemplate.translated.displayName }}"/>
+                        {% endblock %}
+                        {% block swag_customized_products_description_image_sibling %}
+                            <div>
+                                some other sibling
+                            </div>
+                        {% endblock %}
+                    {% endblock %}
+                {% endblock %}"#,
+            expect![[r#"
+                {% block swag_customized_products_description %}
+                                    {% block swag_customized_products_description_image %}
+
+                                        {% block swag_customized_products_description_image_img %}
+                                            <img class="swag-customized-products__image img-fluid"
+                                                 src="{{ customizedProductsTemplate.media|sw_encode_media_url }}"
+                                                 alt="{{ customizedProductsTemplate.translated.displayName }}"/>
+                                        {% endblock %}
+
+                                        {% block swag_customized_products_description_image_sibling %}
+                                            <div>
+                                                some other sibling
+                                            </div>
+                                        {% endblock %}
+
+                                    {% endblock %}
+                                {% endblock %}"#]],
         );
     }
 
@@ -303,6 +457,18 @@ mod tests {
 </div>"#,
             expect![[r#"
                 help[twig-block-line-breaks]: Wrong line break around block
+                   ┌─ ./debug-rule.html.twig:41:6
+                   │    
+                41 │     <div>
+                   │ ╭───────^
+                   │ │ ╭─────'
+                42 │ │ │     {% block inner_a %}
+                   │ ╰─│^ Expected 2 line breaks here
+                   │   ╰' Change to 2 line breaks: 
+
+
+
+                help[twig-block-line-breaks]: Wrong line break around block
                    ┌─ ./debug-rule.html.twig:44:19
                    │    
                 44 │         {% endblock %}
@@ -314,7 +480,62 @@ mod tests {
 
 
 
+                help[twig-block-line-breaks]: Wrong line break around block
+                   ┌─ ./debug-rule.html.twig:47:19
+                   │    
+                47 │         {% endblock %}
+                   │ ╭────────────────────^
+                   │ │ ╭──────────────────'
+                48 │ │ │ </div>
+                   │ ╰─│^ Expected 2 line breaks here
+                   │   ╰' Change to 2 line breaks: 
+
+
+
             "#]],
+        );
+    }
+
+    #[test]
+    fn rule_does_not_report_on_nested_blocks() {
+        test_rule(
+            "twig-block-line-breaks",
+            r#"
+                {% block swag_customized_products_description %}
+                    {% block swag_customized_products_description_image %}
+                        {% if customizedProductsTemplate.media %}
+                            <div class="swag-customized-products__image">
+                                <img class="swag-customized-products__image img-fluid"
+                                     src="{{ customizedProductsTemplate.media|sw_encode_media_url }}"
+                                     alt="{{ customizedProductsTemplate.translated.displayName }}"/>
+                            </div>
+                        {% endif %}
+                    {% endblock %}
+                {% endblock %}
+        "#,
+            expect![r#""#],
+        );
+    }
+
+    #[test]
+    fn rule_does_not_report_on_nested_blocks_with_comments() {
+        test_rule(
+            "twig-block-line-breaks",
+            r#"
+                {% block swag_customized_products_description %}
+                    {# @deprecated tag:v6.7.0 - Block will be removed. #}
+                    {% block swag_customized_products_description_image %}
+                        {% if customizedProductsTemplate.media %}
+                            <div class="swag-customized-products__image">
+                                <img class="swag-customized-products__image img-fluid"
+                                     src="{{ customizedProductsTemplate.media|sw_encode_media_url }}"
+                                     alt="{{ customizedProductsTemplate.translated.displayName }}"/>
+                            </div>
+                        {% endif %}
+                    {% endblock %}
+                {% endblock %}
+        "#,
+            expect![r#""#],
         );
     }
 
