@@ -1,5 +1,7 @@
 # NEXT-VERSION
 
+# v0.8.3
+
 - The used ludtwig version is now printed out every time ludtwig is executed
 - [#90](https://github.com/MalteJanz/ludtwig/issues/90) Print out the used config file or environment variable overrides
 - [#90](https://github.com/MalteJanz/ludtwig/issues/90) Added `--verbose` CLI flag to print out all used config values
