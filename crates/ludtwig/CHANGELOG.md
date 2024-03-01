@@ -1,5 +1,8 @@
 # NEXT-VERSION
 
+- [#88](https://github.com/MalteJanz/ludtwig/issues/88) [BREAKING] Removed rule `unkown-token` because it is a debugging
+  leftover and causes confusion. Please remove it from your config file.
+
 # v0.8.3
 
 - The used ludtwig version is now printed out every time ludtwig is executed

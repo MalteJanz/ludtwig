@@ -13,7 +13,6 @@ use crate::check::rules::twig_prefer_shopware_extends::RuleTwigPreferShopwareExt
 use crate::check::rules::twig_string_quotation::RuleTwigStringQuotation;
 use crate::check::rules::twig_use_is_not_same_as::RuleTwigUseIsNotSameAs;
 use crate::check::rules::twig_use_is_same_as::RuleTwigUseIsSameAs;
-use crate::check::rules::unknown_token::RuleUnknownToken;
 use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
 use crate::error::ConfigurationError;
 use crate::Config;
@@ -34,13 +33,11 @@ mod twig_prefer_shopware_extends;
 mod twig_string_quotation;
 mod twig_use_is_not_same_as;
 mod twig_use_is_same_as;
-mod unknown_token;
 mod whitespace_between_line_breaks;
 
 /// List of all rule trait objects, also add them to the `active-rules` in `ludtwig-config.toml`!
 pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleLudtwigIgnoreFileNotOnTop,
-    &RuleUnknownToken,
     &RuleWhitespaceBetweenLineBreaks,
     &RuleLineEnding,
     &RuleIndentation,
@@ -223,5 +220,15 @@ pub mod test {
         assert!(!dirty);
         assert_eq!(iteration, 0, "No fixing should have no extra iterations!");
         drop(rx);
+    }
+
+    #[test]
+    fn test_all_rules_in_config_exists() {
+        let config = Config::new(crate::config::DEFAULT_CONFIG_PATH).unwrap();
+        let active_rules =
+            crate::check::rules::get_config_active_rule_definitions(&config).unwrap();
+        for rule in config.general.active_rules {
+            assert!(active_rules.iter().any(|r| r.name() == rule));
+        }
     }
 }
