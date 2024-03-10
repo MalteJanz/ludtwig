@@ -11,6 +11,7 @@ use crate::Opts;
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
+    pub version: String,
     pub general: General,
     pub format: Format,
 }
@@ -125,11 +126,15 @@ impl Quotation {
 pub const DEFAULT_CONFIG_PATH: &str = "./ludtwig-config.toml";
 pub const DEFAULT_RAW_CONFIG: &str = include_str!("../ludtwig-config.toml");
 
+pub const LUDTWIG_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 impl Config {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, figment::Error> {
         let config: Config = Figment::new()
             // first read the raw config from memory (for default values)
-            .merge(Toml::string(DEFAULT_RAW_CONFIG))
+            .merge(Toml::string(
+                &DEFAULT_RAW_CONFIG.replace("{{LUDTWIG_VERSION}}", LUDTWIG_VERSION),
+            ))
             // then read the config in the file system (if it exists)
             .merge(Toml::file(path))
             // last read from the environment
@@ -152,12 +157,13 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
 
     if opts.create_config {
         if Path::exists(config_path.as_ref()) {
-            println!("The configuration file already exists at that location. \
+            println!("The configuration file already exists at the location {config_path:?}. \
             Try choosing a different location with '-c my-path' or make a backup of your current config file (rename it).");
             std::process::exit(1);
         }
 
-        std::fs::write(&config_path, DEFAULT_RAW_CONFIG).expect("can't write default config");
+        let config_raw = DEFAULT_RAW_CONFIG.replace("{{LUDTWIG_VERSION}}", LUDTWIG_VERSION);
+        std::fs::write(&config_path, config_raw).expect("can't write default config");
         println!(
             "Default config was written to {}",
             config_path.to_string_lossy()
@@ -184,6 +190,13 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
                 if k.starts_with("LUDTWIG_") {
                     println!("Found environment variable for overriding config: {k}={v}");
                 }
+            }
+
+            if c.version != LUDTWIG_VERSION {
+                println!(
+                    "Warning: The version of the config file ({}) does not match the version of ludtwig ({}). You should update your config file and set it to the same version when you are done. To update you should carefully read the changelog or generate a new config with 'ludtwig -C' to not miss out on new features.",
+                    c.version, LUDTWIG_VERSION
+                );
             }
 
             if opts.verbose {
