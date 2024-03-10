@@ -237,6 +237,12 @@ pub fn produce_diagnostics(
                 .push(Label::primary(file_id, primary.syntax_range).with_message(primary.message));
         }
 
+        for secondary in result.secondary {
+            labels.push(
+                Label::secondary(file_id, secondary.syntax_range).with_message(secondary.message),
+            );
+        }
+
         for suggestion in result.suggestions {
             labels.push(
                 Label::secondary(file_id, suggestion.syntax_range).with_message(format!(

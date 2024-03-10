@@ -802,6 +802,7 @@ pub type SyntaxToken = rowan::SyntaxToken<TemplateLanguage>;
 pub type SyntaxElement = rowan::NodeOrToken<SyntaxNode, SyntaxToken>;
 pub type SyntaxNodeChildren = rowan::SyntaxNodeChildren<TemplateLanguage>;
 pub type SyntaxElementChildren = rowan::SyntaxElementChildren<TemplateLanguage>;
+pub type Preorder = rowan::api::Preorder<TemplateLanguage>;
 pub type PreorderWithTokens = rowan::api::PreorderWithTokens<TemplateLanguage>;
 
 #[must_use]
