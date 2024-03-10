@@ -45,7 +45,7 @@ active-rules = [
     "twig-use-is-same-as",
     "twig-use-is-not-same-as",
     "twig-prefer-shopware-extends",
-    "duplicate-block-names",
+    "twig-block-duplicate",
 ]
 
 [format]

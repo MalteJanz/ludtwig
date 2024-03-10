@@ -1,5 +1,7 @@
 # NEXT-VERSION
 
+- [#50](https://github.com/MalteJanz/ludtwig/pull/50) Expose `Preorder` type for AST traversal
+
 # v0.5.3
 
 - [#96](https://github.com/MalteJanz/ludtwig/issues/96) Fix parsing of twig component tags
