@@ -30,7 +30,6 @@
 [general]
 active-rules = [
     "ludtwig-ignore-file-not-on-top",
-    "unknown-token",
     "whitespace-between-line-breaks",
     "line-ending",
     "indentation",
