@@ -1,5 +1,5 @@
-use once_cell::sync::OnceCell;
 use regex::Regex;
+use std::sync::OnceLock;
 
 use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxToken, TextRange, TextSize};
 
@@ -14,7 +14,7 @@ impl Rule for RuleLineEnding {
     }
 
     fn check_token(&self, token: SyntaxToken, ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
-        static INVALID_REGEX: OnceCell<Regex> = OnceCell::new();
+        static INVALID_REGEX: OnceLock<Regex> = OnceLock::new();
 
         if token.kind() != SyntaxKind::TK_LINE_BREAK {
             return None;
