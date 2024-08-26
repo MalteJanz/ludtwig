@@ -22,14 +22,14 @@ pub struct FileContext {
     /// The file path that is associated with this context
     pub file_path: PathBuf,
 
-    /// The parsed [SyntaxNode] AST for this file / context.
+    /// The parsed `SyntaxNode` AST for this file / context.
     pub tree_root: SyntaxNode,
 
     pub source_code: String,
 
     pub parse_errors: Vec<ParseError>,
 
-    /// active rules for this specific file (may be less than global config definitions).
+    /// active rules for this specific file (may contain less than global config definitions).
     /// these are defined after processing ludtwig-ignore-file directives
     pub file_rule_definitions: Vec<&'static dyn Rule>,
 }

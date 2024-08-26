@@ -10,7 +10,7 @@ pub(super) enum Event {
     AddToken {
         kind: SyntaxKind,
     },
-    /// Combines the next n lexer tokens into one (in the tree) with a specified SyntaxKind
+    /// Combines the next n lexer tokens into one (in the tree) with a specified `SyntaxKind`
     AddNextNTokensAs {
         n: usize,
         kind: SyntaxKind,

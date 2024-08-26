@@ -4,15 +4,15 @@ use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser, GENERAL_RECOVERY_SET};
 use crate::syntax::untyped::SyntaxKind;
 use crate::T;
-use once_cell::sync::Lazy;
 use regex::Regex;
+use std::sync::LazyLock;
 
 // Every token value that matches this regex is allowed for html attribute names
-static HTML_ATTRIBUTE_NAME_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^([a-zA-Z]|([:@\#_\$][a-zA-Z]))[a-zA-Z0-9_\-]*$").unwrap());
+static HTML_ATTRIBUTE_NAME_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^([a-zA-Z]|([:@\#_\$][a-zA-Z]))[a-zA-Z0-9_\-]*$").unwrap());
 
-static HTML_TAG_NAME_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^[a-zA-Z][a-zA-Z0-9\-]*$").unwrap());
+static HTML_TAG_NAME_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z][a-zA-Z0-9\-]*$").unwrap());
 
 static HTML_VOID_ELEMENTS: &[&str] = &[
     "area", "base", "br", "col", "command", "embed", "hr", "img", "input", "keygen", "link",

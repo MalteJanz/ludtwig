@@ -1,19 +1,12 @@
-# Source of this pipeline code: https://github.com/paskausks/rust-bin-github-workflows
-# MIT License - Copyright (c) 2019 Rihards Paskausks
-# Modified by
-# Copyright (c) 2024 Malte Janz
+name: Create and deploy release
 
 on:
   push:
-    # Sequence of patterns matched against refs/tags
     tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
-
-name: Create and deploy release
+      - "v*"
 
 env:
-  # Could, potentially automatically parse
-  # the bin name, but let's do it automatically for now.
+  # Name of the executable
   RELEASE_BIN: ludtwig
 
   # Space separated paths to include in the archive.
@@ -38,10 +31,9 @@ jobs:
         shell: bash
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
-
   build:
     name: Build artifacts
-    needs: [tag_version]
+    needs: [ tag_version ]
 
     runs-on: ${{ matrix.os }}
     strategy:
@@ -65,61 +57,56 @@ jobs:
             output_ending: .zip
 
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install latest stable Rust version
-      uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v4
 
-    - uses: Swatinem/rust-cache@v2
+      - name: Install latest stable Rust version
+        uses: dtolnay/rust-toolchain@stable
 
-    - name: Final cargo test
-      run: cargo test --verbose --all-features
+      - uses: Swatinem/rust-cache@v2
 
-    - name: Run cargo build
-      run: cargo build --release --verbose
+      - name: Final cargo test
+        run: cargo test --verbose --all-features
 
-    - name: Create artifact directory
-      run: mkdir artifacts
+      - name: Run cargo build
+        run: cargo build --release --verbose
 
-    - name: Create archive for Windows
-      run: 7z a -tzip ./artifacts/${{ env.RELEASE_BIN }}-${{ needs.tag_version.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }} ./target/release/${{ env.RELEASE_BIN }}.exe ${{ env.RELEASE_ADDS }}
-      if: matrix.os == 'windows-latest'
+      - name: Create artifact directory
+        run: mkdir artifacts
 
-    - name: Create archive for Linux
-      run: 7z a -ttar -so -an ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }} | 7z a -tgzip -si ./artifacts/${{ env.RELEASE_BIN }}-${{ needs.tag_version.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }}
-      if: matrix.os == 'ubuntu-latest'
+      - name: Create archive for Windows
+        run: 7z a -tzip ./artifacts/${{ env.RELEASE_BIN }}-${{ needs.tag_version.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }} ./target/release/${{ env.RELEASE_BIN }}.exe ${{ env.RELEASE_ADDS }}
+        if: matrix.os == 'windows-latest'
 
-    - name: Install p7zip on MacOS
-      # 7Zip not available on MacOS, install p7zip via homebrew.
-      run: brew install p7zip
-      if: matrix.os == 'macos-latest' || matrix.os == 'macos-14'
-    
-    - name: Create archive for MacOS
-      run: 7z a -ttar -so -an ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }} | 7z a -tgzip -si ./artifacts/${{ env.RELEASE_BIN }}-${{ needs.tag_version.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }}
-      if: matrix.os == 'macos-latest' || matrix.os == 'macos-14'
+      - name: Create archive for Linux
+        run: 7z a -ttar -so -an ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }} | 7z a -tgzip -si ./artifacts/${{ env.RELEASE_BIN }}-${{ needs.tag_version.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }}
+        if: matrix.os == 'ubuntu-latest'
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: executables
-        path: artifacts/*
-        if-no-files-found: error
+      - name: Create archive for MacOS
+        run: 7z a -ttar -so -an ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }} | 7z a -tgzip -si ./artifacts/${{ env.RELEASE_BIN }}-${{ needs.tag_version.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }}
+        if: matrix.os == 'macos-latest' || matrix.os == 'macos-14'
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: artifacts/*
+          name: executable-${{ matrix.build }}
+          if-no-files-found: error
 
   github_draft_release:
     name: Create GitHub draft release
-    needs: [tag_version, build]
+    needs: [ tag_version, build ]
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
-          name: executables
           path: artifacts
+          pattern: executable-*
+          merge-multiple: true
 
       - name: Create draft release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ github.ref }}
@@ -129,10 +116,9 @@ jobs:
           files: |
             artifacts/*
 
-
   publish_crate:
     name: Publish to crates.io
-    needs: [tag_version, build]
+    needs: [ tag_version, build ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -153,7 +139,7 @@ jobs:
 
   publish_docker:
     name: Build & push docker image
-    needs: [tag_version, build]
+    needs: [ tag_version, build ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
