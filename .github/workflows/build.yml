@@ -1,0 +1,33 @@
+name: Build and test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  pull-requests: write
+
+env:
+  RUSTFLAGS: "-Dwarnings"
+  RUST_BACKTRACE: 1
+
+jobs:
+  build_and_test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install latest stable Rust version
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Cargo build
+        run: cargo build --verbose
+
+      - name: Cargo test
+        run: cargo test --verbose --all-features --no-fail-fast
