@@ -1,3 +1,19 @@
+//! This module contains all the rowan types.
+//!
+//! All GreenNodes and consequently RedNodes as well as AST Nodes
+//! contain a single [SyntaxKind] variant for each GreenNode.
+//!
+//! You can use the macro (T![])[crate::T] to quickly construct a [SyntaxKind]
+//! and for example compare it to a different one. For example
+//! ```
+//! use ludtwig_parser::syntax::untyped::SyntaxKind;
+//! use ludtwig_parser::T;
+//! assert_eq!(T!["%}"], SyntaxKind::TK_PERCENT_CURLY);
+//! ```
+//!
+//! An overview of the syntax tree concept can be found
+//! at the [crate level documentation](crate#syntax-trees).
+
 use logos::Logos;
 pub use rowan::Direction;
 /// `GreenNode` is an immutable tree, which is cheap to change,

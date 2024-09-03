@@ -1,3 +1,12 @@
+//! This module contains all abstract syntax tree (AST) types.
+//! All of them implement the [AstNode] trait.
+//!
+//! Some of them come with extra utility methods, to quickly access some data
+//! (e.g. [TwigBlock::name]).
+//!
+//! An overview of the syntax tree concept can be found
+//! at the [crate level documentation](crate#syntax-trees).
+
 pub use rowan::ast::support;
 pub use rowan::ast::AstChildren;
 pub use rowan::ast::AstNode;
@@ -388,8 +397,23 @@ impl TwigExtends {
     }
 }
 
-ast_node!(Body, SyntaxKind::BODY);
 ast_node!(TwigVar, SyntaxKind::TWIG_VAR);
+impl TwigVar {
+    #[must_use]
+    pub fn get_expression(&self) -> Option<TwigExpression> {
+        support::child(&self.syntax)
+    }
+}
+
+ast_node!(TwigLiteralName, SyntaxKind::TWIG_LITERAL_NAME);
+impl TwigLiteralName {
+    #[must_use]
+    pub fn get_name(&self) -> Option<SyntaxToken> {
+        support::token(&self.syntax, SyntaxKind::TK_WORD)
+    }
+}
+
+ast_node!(Body, SyntaxKind::BODY);
 ast_node!(TwigExpression, SyntaxKind::TWIG_EXPRESSION);
 ast_node!(TwigUnaryExpression, SyntaxKind::TWIG_UNARY_EXPRESSION);
 ast_node!(
@@ -424,7 +448,6 @@ ast_node!(TwigLiteralHashItems, SyntaxKind::TWIG_LITERAL_HASH_ITEMS);
 ast_node!(TwigLiteralHashPair, SyntaxKind::TWIG_LITERAL_HASH_PAIR);
 ast_node!(TwigLiteralHashKey, SyntaxKind::TWIG_LITERAL_HASH_KEY);
 ast_node!(TwigLiteralHashValue, SyntaxKind::TWIG_LITERAL_HASH_VALUE);
-ast_node!(TwigLiteralName, SyntaxKind::TWIG_LITERAL_NAME);
 ast_node!(TwigComment, SyntaxKind::TWIG_COMMENT);
 ast_node!(TwigIf, SyntaxKind::TWIG_IF);
 ast_node!(TwigIfBlock, SyntaxKind::TWIG_IF_BLOCK);
