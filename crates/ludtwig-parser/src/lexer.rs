@@ -294,6 +294,8 @@ mod tests {
         add("ludtwig-ignore-file", T!["ludtwig-ignore-file"]);
         add("ludtwig-ignore", T!["ludtwig-ignore"]);
         add("€", T![unknown]);
+        add("trans", T!["trans"]);
+        add("endtrans", T!["endtrans"]);
 
         // lex and compare
         let results = lex(&source);

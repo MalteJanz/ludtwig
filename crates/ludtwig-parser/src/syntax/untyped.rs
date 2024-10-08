@@ -290,6 +290,12 @@ pub enum SyntaxKind {
     #[token("source")]
     TK_SOURCE,
 
+    /* Drupal Trans */
+    #[token("trans")]
+    TK_TRANS,
+    #[token("endtrans")]
+    TK_ENDTRANS,
+
     /* shopware specific */
     #[token("sw_extends")]
     TK_SW_EXTENDS,
@@ -429,6 +435,11 @@ pub enum SyntaxKind {
     TWIG_CACHE_TAGS,
     TWIG_CACHE_STARTING_BLOCK,
     TWIG_CACHE_ENDING_BLOCK,
+
+    // Drupal Trans
+    TWIG_TRANS,
+    TWIG_TRANS_BLOCK,
+    TWIG_ENDTRANS_BLOCK,
 
     // shopware specific
     SHOPWARE_TWIG_SW_EXTENDS,
@@ -596,6 +607,8 @@ macro_rules! T {
     ["date"] => { $crate::syntax::untyped::SyntaxKind::TK_DATE };
     ["include"] => { $crate::syntax::untyped::SyntaxKind::TK_INCLUDE };
     ["source"] => { $crate::syntax::untyped::SyntaxKind::TK_SOURCE };
+    ["trans"] => { $crate::syntax::untyped::SyntaxKind::TK_TRANS };
+    ["endtrans"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDTRANS };
     ["sw_extends"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_EXTENDS };
     ["sw_silent_feature_call"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_SILENT_FEATURE_CALL };
     ["endsw_silent_feature_call"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDSW_SILENT_FEATURE_CALL };
@@ -747,6 +760,8 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_DATE => "date",
             SyntaxKind::TK_INCLUDE => "include",
             SyntaxKind::TK_SOURCE => "source",
+            SyntaxKind::TK_TRANS => "trans",
+            SyntaxKind::TK_ENDTRANS => "endtrans",
             SyntaxKind::TK_SW_EXTENDS => "sw_extends",
             SyntaxKind::TK_SW_SILENT_FEATURE_CALL => "sw_silent_feature_call",
             SyntaxKind::TK_ENDSW_SILENT_FEATURE_CALL => "endsw_silent_feature_call",
