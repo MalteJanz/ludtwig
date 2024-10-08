@@ -33,6 +33,7 @@ pub(crate) fn at_twig_termination_tag(p: &mut Parser) -> bool {
         || p.at_following(&[T!["{%"], T!["endwith"]])
         || p.at_following(&[T!["{%"], T!["endcache"]])
         || p.at_following(&[T!["{%"], T!["endsw_silent_feature_call"]])
+        || p.at_following(&[T!["{%"], T!["endtrans"]]) // Drupal Trans / Endtrans
 }
 
 pub(crate) fn parse_twig_block_statement(
@@ -83,6 +84,8 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_with(parser, m, child_parser))
     } else if parser.at(T!["cache"]) {
         Some(parse_twig_cache(parser, m, child_parser))
+    } else if parser.at(T!["trans"]) {
+      Some(parse_twig_trans(parser, m, child_parser))
     } else {
         match parse_shopware_twig_block_statement(parser, m, child_parser) {
             BlockParseResult::NothingFound(m) => {
@@ -1046,6 +1049,52 @@ fn parse_twig_if(
     parser.complete(end_block_m, SyntaxKind::TWIG_ENDIF_BLOCK);
 
     parser.complete(wrapper_m, SyntaxKind::TWIG_IF)
+}
+
+fn parse_twig_trans(
+  parser: &mut Parser,
+  outer: Marker,
+  child_parser: ParseFunction,
+) -> CompletedMarker {
+  debug_assert!(parser.at(T!["trans"]));
+  parser.bump();
+
+  parser.expect(
+      T!["%}"],
+      &[T!["endtrans"], T!["%}"], T!["</"]],
+  );
+
+  let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_TRANS);
+  let wrapper_m = parser.precede(wrapper_m);
+
+  // parse branches
+  loop {
+      // parse body (all the children)
+      let body_m = parser.start();
+      parse_many(
+          parser,
+          |p| {
+              p.at_following(&[T!["{%"], T!["endtrans"]])
+          },
+          |p| {
+              child_parser(p);
+          },
+      );
+      parser.complete(body_m, SyntaxKind::BODY);
+
+      if parser.at_following(&[T!["{%"], T!["endtrans"]]) {
+          break; // no more branches
+      }
+      break;
+  }
+
+  let end_block_m = parser.start();
+  parser.expect(T!["{%"], &[T!["endtrans"], T!["%}"], T!["</"]]);
+  parser.expect(T!["endtrans"], &[T!["%}"], T!["</"]]);
+  parser.expect(T!["%}"], &[T!["</"]]);
+  parser.complete(end_block_m, SyntaxKind::TWIG_ENDTRANS_BLOCK);
+
+  parser.complete(wrapper_m, SyntaxKind::TWIG_TRANS)
 }
 
 #[cfg(test)]
