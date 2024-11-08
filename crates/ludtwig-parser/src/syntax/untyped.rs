@@ -465,6 +465,7 @@ pub enum SyntaxKind {
     HTML_STRING,       // used as attribute values
     HTML_STRING_INNER, // content inside the quotes of html attribute values
     HTML_TEXT,         // used as plain text between html tags / twig blocks
+    HTML_RAW_TEXT, // used as raw text between "raw text" html elements like inline script and style
     HTML_COMMENT,
     HTML_TAG,
     HTML_STARTING_TAG,
