@@ -578,6 +578,7 @@ ast_node!(HtmlDoctype, SyntaxKind::HTML_DOCTYPE);
 ast_node!(HtmlAttributeList, SyntaxKind::HTML_ATTRIBUTE_LIST);
 ast_node!(HtmlStringInner, SyntaxKind::HTML_STRING_INNER);
 ast_node!(HtmlText, SyntaxKind::HTML_TEXT);
+ast_node!(HtmlRawText, SyntaxKind::HTML_RAW_TEXT);
 ast_node!(HtmlComment, SyntaxKind::HTML_COMMENT);
 ast_node!(Error, SyntaxKind::ERROR);
 ast_node!(Root, SyntaxKind::ROOT);
