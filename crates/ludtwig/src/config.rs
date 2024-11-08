@@ -201,8 +201,7 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
             } else if !raw_user_config.contains("version = ") {
                 // ToDo #119: this edge case should be removed in future versions, the version field was introduced in 0.9.0
                 println!(
-                    "Warning: The version of the config file (UNKNOWN) does not match the version of ludtwig ({}). You should update your config file and set it to the same version when you are done. To update you should carefully read the changelog or generate a new config with 'ludtwig -C' to not miss out on new features.",
-                    LUDTWIG_VERSION
+                    "Warning: The version of the config file (UNKNOWN) does not match the version of ludtwig ({LUDTWIG_VERSION}). You should update your config file and set it to the same version when you are done. To update you should carefully read the changelog or generate a new config with 'ludtwig -C' to not miss out on new features.",
                 );
             }
 
