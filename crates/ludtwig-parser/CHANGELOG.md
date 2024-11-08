@@ -1,5 +1,7 @@
 # NEXT-VERSION
 
+# v0.6.0
+
 - [#50](https://github.com/MalteJanz/ludtwig/pull/50) Expose `Preorder` type for AST traversal
 - [#109](https://github.com/MalteJanz/ludtwig/pull/109) Added parser documentation and some more AST utility method
   implementations
