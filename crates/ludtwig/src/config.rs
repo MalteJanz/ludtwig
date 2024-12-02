@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use figment::providers::{Env, Format as FigFormat, Toml};
 use figment::Figment;
+use regex::Regex;
 use serde::Deserialize;
 
 use crate::Opts;
@@ -192,10 +193,17 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
                 }
             }
 
+            let raw_user_config = std::fs::read_to_string(config_path).unwrap_or_default();
+            let version_field_regex = Regex::new("version\\s?=").unwrap();
             if c.version != LUDTWIG_VERSION {
                 println!(
                     "Warning: The version of the config file ({}) does not match the version of ludtwig ({}). You should update your config file and set it to the same version when you are done. To update you should carefully read the changelog or generate a new config with 'ludtwig -C' to not miss out on new features.",
                     c.version, LUDTWIG_VERSION
+                );
+            } else if !version_field_regex.is_match(&raw_user_config) {
+                // ToDo #119: this edge case should be removed in future versions, the version field was introduced in 0.9.0
+                println!(
+                    "Warning: The version of the config file (UNKNOWN) does not match the version of ludtwig ({LUDTWIG_VERSION}). You should update your config file and set it to the same version when you are done. To update you should carefully read the changelog or generate a new config with 'ludtwig -C' to not miss out on new features.",
                 );
             }
 

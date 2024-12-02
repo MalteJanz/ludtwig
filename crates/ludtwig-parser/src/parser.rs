@@ -23,6 +23,27 @@ mod source;
 pub(crate) static GENERAL_RECOVERY_SET: &[SyntaxKind] =
     &[T!["{%"], T!["{{"], T!["{#"], T!["<"], T!["<!--"], T!["<!"]];
 
+/// Parses a given string slice (of Twig+HTML code) into a syntax tree.
+///
+/// ## Example
+/// ```
+/// use ludtwig_parser::syntax::untyped::{debug_tree, SyntaxNode};
+///
+/// let parse = ludtwig_parser::parse("{{ 42 }}");
+/// let (tree_root, errors) = parse.split();
+///
+/// assert_eq!(debug_tree(&tree_root), r##"ROOT@0..8
+///   TWIG_VAR@0..8
+///     TK_OPEN_CURLY_CURLY@0..2 "{{"
+///     TWIG_EXPRESSION@2..5
+///       TWIG_LITERAL_NUMBER@2..5
+///         TK_WHITESPACE@2..3 " "
+///         TK_NUMBER@3..5 "42"
+///     TK_WHITESPACE@5..6 " "
+///     TK_CLOSE_CURLY_CURLY@6..8 "}}""##);
+/// ```
+/// More examples can be found at the
+/// [crate level documentation](crate).
 #[must_use]
 pub fn parse(input_text: &str) -> Parse {
     let lex_result = lex(input_text);
@@ -39,6 +60,15 @@ pub struct Parse {
 }
 
 impl Parse {
+    /// Split the parse result into a syntax tree root node and
+    /// the list of parse errors
+    #[must_use]
+    pub fn split(self) -> (SyntaxNode, Vec<ParseError>) {
+        let root = SyntaxNode::new_root(self.green_node.clone());
+
+        (root, self.errors)
+    }
+
     #[must_use]
     pub fn debug_parse(&self) -> String {
         let syntax_node = SyntaxNode::new_root(self.green_node.clone());

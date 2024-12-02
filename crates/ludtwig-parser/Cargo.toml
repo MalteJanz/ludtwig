@@ -5,7 +5,7 @@ keywords = ["parser", "twig", "html", "template"]
 categories = ["parser-implementations"]
 repository = "https://github.com/MalteJanz/ludtwig"
 documentation = "https://docs.rs/ludtwig-parser"
-version = "0.5.3"
+version = "0.6.0"
 authors = ["Malte Janz <service.malte.j@protonmail.com>"]
 license = "MIT"
 edition = "2021"
@@ -22,9 +22,9 @@ harness = false
 
 [dev-dependencies]
 criterion = "0.5.1"
-expect-test = "1.5"
+expect-test = "1.5.0"
 
 [dependencies]
-rowan = "0.15.16"
+rowan = "0.16.1"
 logos = "0.14.2"
-regex = "1.11.0"
+regex = "1.11.1"

@@ -1,11 +1,23 @@
+//! This module contains all abstract syntax tree (AST) types.
+//! All of them implement the [AstNode] trait.
+//!
+//! Some of them come with extra utility methods, to quickly access some data
+//! (e.g. [TwigBlock::name]).
+//!
+//! An overview of the syntax tree concept can be found
+//! at the [crate level documentation](crate#syntax-trees).
+
 pub use rowan::ast::support;
 pub use rowan::ast::AstChildren;
 pub use rowan::ast::AstNode;
 use rowan::NodeOrToken;
+use std::fmt::{Debug, Display, Formatter};
 
 use crate::T;
 
-use super::untyped::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken, TemplateLanguage};
+use super::untyped::{
+    debug_tree, SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken, TemplateLanguage,
+};
 
 /// So far, we've been working with a homogeneous untyped tree.
 /// It's nice to provide generic tree operations, like traversals,
@@ -20,7 +32,7 @@ use super::untyped::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken, Templat
 /// combination of `serde`, `ron` and `tera` crates invaluable for that!
 macro_rules! ast_node {
     ($ast:ident, $kind:path) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+        #[derive(Clone, PartialEq, Eq, Hash)]
         pub struct $ast {
             pub(crate) syntax: SyntaxNode,
         }
@@ -48,6 +60,20 @@ macro_rules! ast_node {
 
             fn syntax(&self) -> &rowan::SyntaxNode<Self::Language> {
                 &self.syntax
+            }
+        }
+
+        impl Display for $ast {
+            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", self.syntax)?;
+                Ok(())
+            }
+        }
+
+        impl Debug for $ast {
+            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", debug_tree(&self.syntax))?;
+                Ok(())
             }
         }
     };
@@ -116,9 +142,15 @@ impl HtmlTag {
     #[must_use]
     pub fn name(&self) -> Option<SyntaxToken> {
         match self.starting_tag() {
-            None => None,
             Some(n) => n.name(),
+            None => None,
         }
+    }
+
+    /// Returns true if the tag doesn't have an ending tag
+    #[must_use]
+    pub fn is_self_closing(&self) -> bool {
+        self.ending_tag().is_none()
     }
 
     /// Attributes of the tag
@@ -201,6 +233,12 @@ impl HtmlAttribute {
 
 ast_node!(HtmlEndingTag, SyntaxKind::HTML_ENDING_TAG);
 impl HtmlEndingTag {
+    /// Name of the tag
+    #[must_use]
+    pub fn name(&self) -> Option<SyntaxToken> {
+        support::token(&self.syntax, T![word])
+    }
+
     /// Parent complete html tag
     #[must_use]
     pub fn html_tag(&self) -> Option<HtmlTag> {
@@ -388,8 +426,23 @@ impl TwigExtends {
     }
 }
 
-ast_node!(Body, SyntaxKind::BODY);
 ast_node!(TwigVar, SyntaxKind::TWIG_VAR);
+impl TwigVar {
+    #[must_use]
+    pub fn get_expression(&self) -> Option<TwigExpression> {
+        support::child(&self.syntax)
+    }
+}
+
+ast_node!(TwigLiteralName, SyntaxKind::TWIG_LITERAL_NAME);
+impl TwigLiteralName {
+    #[must_use]
+    pub fn get_name(&self) -> Option<SyntaxToken> {
+        support::token(&self.syntax, SyntaxKind::TK_WORD)
+    }
+}
+
+ast_node!(Body, SyntaxKind::BODY);
 ast_node!(TwigExpression, SyntaxKind::TWIG_EXPRESSION);
 ast_node!(TwigUnaryExpression, SyntaxKind::TWIG_UNARY_EXPRESSION);
 ast_node!(
@@ -409,7 +462,6 @@ ast_node!(TwigIndexRange, SyntaxKind::TWIG_INDEX_RANGE);
 ast_node!(TwigFunctionCall, SyntaxKind::TWIG_FUNCTION_CALL);
 ast_node!(TwigArguments, SyntaxKind::TWIG_ARGUMENTS);
 ast_node!(TwigNamedArgument, SyntaxKind::TWIG_NAMED_ARGUMENT);
-
 ast_node!(
     TwigLiteralStringInterpolation,
     SyntaxKind::TWIG_LITERAL_STRING_INTERPOLATION
@@ -424,7 +476,6 @@ ast_node!(TwigLiteralHashItems, SyntaxKind::TWIG_LITERAL_HASH_ITEMS);
 ast_node!(TwigLiteralHashPair, SyntaxKind::TWIG_LITERAL_HASH_PAIR);
 ast_node!(TwigLiteralHashKey, SyntaxKind::TWIG_LITERAL_HASH_KEY);
 ast_node!(TwigLiteralHashValue, SyntaxKind::TWIG_LITERAL_HASH_VALUE);
-ast_node!(TwigLiteralName, SyntaxKind::TWIG_LITERAL_NAME);
 ast_node!(TwigComment, SyntaxKind::TWIG_COMMENT);
 ast_node!(TwigIf, SyntaxKind::TWIG_IF);
 ast_node!(TwigIfBlock, SyntaxKind::TWIG_IF_BLOCK);
@@ -527,6 +578,97 @@ ast_node!(HtmlDoctype, SyntaxKind::HTML_DOCTYPE);
 ast_node!(HtmlAttributeList, SyntaxKind::HTML_ATTRIBUTE_LIST);
 ast_node!(HtmlStringInner, SyntaxKind::HTML_STRING_INNER);
 ast_node!(HtmlText, SyntaxKind::HTML_TEXT);
+ast_node!(HtmlRawText, SyntaxKind::HTML_RAW_TEXT);
 ast_node!(HtmlComment, SyntaxKind::HTML_COMMENT);
 ast_node!(Error, SyntaxKind::ERROR);
 ast_node!(Root, SyntaxKind::ROOT);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parse;
+    use expect_test::expect;
+
+    fn parse_and_extract<T: AstNode<Language = TemplateLanguage>>(input: &str) -> T {
+        let (tree, errors) = parse(input).split();
+        assert_eq!(errors, vec![]);
+        support::child(&tree).unwrap()
+    }
+
+    #[test]
+    fn simple_html_tag() {
+        let raw = r#"<div class="hello">world {{ 42 }}</div>"#;
+        let html_tag: HtmlTag = parse_and_extract(raw);
+
+        assert_eq!(format!("{html_tag}"), raw.to_string());
+        expect![[r#"
+            HTML_TAG@0..39
+              HTML_STARTING_TAG@0..19
+                TK_LESS_THAN@0..1 "<"
+                TK_WORD@1..4 "div"
+                HTML_ATTRIBUTE_LIST@4..18
+                  HTML_ATTRIBUTE@4..18
+                    TK_WHITESPACE@4..5 " "
+                    TK_WORD@5..10 "class"
+                    TK_EQUAL@10..11 "="
+                    HTML_STRING@11..18
+                      TK_DOUBLE_QUOTES@11..12 "\""
+                      HTML_STRING_INNER@12..17
+                        TK_WORD@12..17 "hello"
+                      TK_DOUBLE_QUOTES@17..18 "\""
+                TK_GREATER_THAN@18..19 ">"
+              BODY@19..33
+                HTML_TEXT@19..24
+                  TK_WORD@19..24 "world"
+                TWIG_VAR@24..33
+                  TK_WHITESPACE@24..25 " "
+                  TK_OPEN_CURLY_CURLY@25..27 "{{"
+                  TWIG_EXPRESSION@27..30
+                    TWIG_LITERAL_NUMBER@27..30
+                      TK_WHITESPACE@27..28 " "
+                      TK_NUMBER@28..30 "42"
+                  TK_WHITESPACE@30..31 " "
+                  TK_CLOSE_CURLY_CURLY@31..33 "}}"
+              HTML_ENDING_TAG@33..39
+                TK_LESS_THAN_SLASH@33..35 "</"
+                TK_WORD@35..38 "div"
+                TK_GREATER_THAN@38..39 ">""#]]
+        .assert_eq(&format!("{html_tag:?}"));
+
+        assert!(!html_tag.is_self_closing());
+        assert_eq!(
+            html_tag.name().map(|t| t.to_string()),
+            Some("div".to_string())
+        );
+        assert_eq!(
+            html_tag.starting_tag().map(|t| t.to_string()),
+            Some(r#"<div class="hello">"#.to_string())
+        );
+        assert_eq!(
+            html_tag.body().map(|t| t.to_string()),
+            Some("world {{ 42 }}".to_string())
+        );
+        assert_eq!(
+            html_tag.ending_tag().map(|t| t.to_string()),
+            Some("</div>".to_string())
+        );
+        assert_eq!(html_tag.attributes().count(), 1);
+        assert_eq!(
+            html_tag
+                .attributes()
+                .next()
+                .and_then(|t| t.name())
+                .map(|t| t.to_string()),
+            Some("class".to_string())
+        );
+        assert_eq!(
+            html_tag
+                .attributes()
+                .next()
+                .and_then(|t| t.value())
+                .and_then(|t| t.get_inner())
+                .map(|t| t.to_string()),
+            Some("hello".to_string())
+        );
+    }
+}
