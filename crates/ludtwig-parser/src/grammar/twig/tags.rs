@@ -85,7 +85,7 @@ pub(crate) fn parse_twig_block_statement(
     } else if parser.at(T!["cache"]) {
         Some(parse_twig_cache(parser, m, child_parser))
     } else if parser.at(T!["trans"]) {
-      Some(parse_twig_trans(parser, m, child_parser))
+        Some(parse_twig_trans(parser, m, child_parser))
     } else {
         match parse_shopware_twig_block_statement(parser, m, child_parser) {
             BlockParseResult::NothingFound(m) => {
@@ -1067,26 +1067,15 @@ fn parse_twig_trans(
   let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_TRANS);
   let wrapper_m = parser.precede(wrapper_m);
 
-  // parse branches
-  loop {
-      // parse body (all the children)
-      let body_m = parser.start();
-      parse_many(
-          parser,
-          |p| {
-              p.at_following(&[T!["{%"], T!["endtrans"]])
-          },
-          |p| {
-              child_parser(p);
-          },
-      );
-      parser.complete(body_m, SyntaxKind::BODY);
-
-      if parser.at_following(&[T!["{%"], T!["endtrans"]]) {
-          break; // no more branches
-      }
-      break;
-  }
+  parse_many(
+    parser,
+    |p| {
+        p.at_following(&[T!["{%"], T!["endtrans"]])
+    },
+    |p| {
+        child_parser(p);
+    },
+);
 
   let end_block_m = parser.start();
   parser.expect(T!["{%"], &[T!["endtrans"], T!["%}"], T!["</"]]);
