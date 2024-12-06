@@ -1084,7 +1084,7 @@ fn parse_twig_trans(
   parser.expect(T!["{%"], &[T!["endtrans"], T!["%}"], T!["</"]]);
   parser.expect(T!["endtrans"], &[T!["%}"], T!["</"]]);
   parser.expect(T!["%}"], &[T!["</"]]);
-  parser.complete(end_block_m, SyntaxKind::TWIG_ENDTRANS_BLOCK);
+  parser.complete(end_block_m, SyntaxKind::TWIG_TRANS_ENDING_BLOCK);
 
   parser.complete(wrapper_m, SyntaxKind::TWIG_TRANS)
 }
