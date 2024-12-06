@@ -382,9 +382,9 @@ mod tests {
                                 TWIG_OPERAND@63..76
                                   TWIG_LITERAL_NAME@63..76
                                     TK_WORD@63..76 "incrementPage"
-                            TK_OPEN_PARENTHESIS@76..77 "("
-                            TWIG_ARGUMENTS@77..77
-                            TK_CLOSE_PARENTHESIS@77..78 ")"
+                            TWIG_ARGUMENTS@76..78
+                              TK_OPEN_PARENTHESIS@76..77 "("
+                              TK_CLOSE_PARENTHESIS@77..78 ")"
                         TK_WHITESPACE@78..79 " "
                         TK_CLOSE_CURLY_CURLY@79..81 "}}"
                     SHOPWARE_SILENT_FEATURE_CALL_ENDING_BLOCK@81..113
@@ -451,8 +451,8 @@ mod tests {
                               TWIG_LITERAL_NAME@13..21
                                 TK_WHITESPACE@13..14 " "
                                 TK_WORD@14..21 "compare"
-                            TK_OPEN_PARENTHESIS@21..22 "("
-                            TWIG_ARGUMENTS@22..38
+                            TWIG_ARGUMENTS@21..39
+                              TK_OPEN_PARENTHESIS@21..22 "("
                               TWIG_EXPRESSION@22..25
                                 TWIG_LITERAL_STRING@22..25
                                   TK_SINGLE_QUOTES@22..23 "'"
@@ -472,7 +472,7 @@ mod tests {
                                 TWIG_LITERAL_NAME@33..38
                                   TK_WHITESPACE@33..34 " "
                                   TK_WORD@34..38 "test"
-                            TK_CLOSE_PARENTHESIS@38..39 ")"
+                              TK_CLOSE_PARENTHESIS@38..39 ")"
                     TK_WHITESPACE@39..40 " "
                     TK_PERCENT_CURLY@40..42 "%}""#]],
         );

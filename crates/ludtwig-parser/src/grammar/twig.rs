@@ -154,8 +154,8 @@ mod tests {
                           TWIG_LITERAL_NAME@2..12
                             TK_WHITESPACE@2..3 " "
                             TK_WORD@3..12 "component"
-                        TK_OPEN_PARENTHESIS@12..13 "("
-                        TWIG_ARGUMENTS@13..59
+                        TWIG_ARGUMENTS@12..60
+                          TK_OPEN_PARENTHESIS@12..13 "("
                           TWIG_EXPRESSION@13..20
                             TWIG_LITERAL_STRING@13..20
                               TK_SINGLE_QUOTES@13..14 "'"
@@ -187,7 +187,7 @@ mod tests {
                                       TK_SINGLE_QUOTES@56..57 "'"
                               TK_WHITESPACE@57..58 " "
                               TK_CLOSE_CURLY@58..59 "}"
-                        TK_CLOSE_PARENTHESIS@59..60 ")"
+                          TK_CLOSE_PARENTHESIS@59..60 ")"
                     TK_WHITESPACE@60..61 " "
                     TK_CLOSE_CURLY_CURLY@61..63 "}}""#]],
         );
