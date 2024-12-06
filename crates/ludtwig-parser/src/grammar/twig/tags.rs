@@ -1067,6 +1067,8 @@ fn parse_twig_trans(
   let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_TRANS);
   let wrapper_m = parser.precede(wrapper_m);
 
+  // parse all the children except endtrans
+  let body_m = parser.start();
   parse_many(
     parser,
     |p| {
@@ -1075,7 +1077,8 @@ fn parse_twig_trans(
     |p| {
         child_parser(p);
     },
-);
+  );
+  parser.complete(body_m, SyntaxKind::BODY);
 
   let end_block_m = parser.start();
   parser.expect(T!["{%"], &[T!["endtrans"], T!["%}"], T!["</"]]);
