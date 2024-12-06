@@ -460,6 +460,7 @@ ast_node!(TwigIndexLookup, SyntaxKind::TWIG_INDEX_LOOKUP);
 ast_node!(TwigIndex, SyntaxKind::TWIG_INDEX);
 ast_node!(TwigIndexRange, SyntaxKind::TWIG_INDEX_RANGE);
 ast_node!(TwigFunctionCall, SyntaxKind::TWIG_FUNCTION_CALL);
+ast_node!(TwigArrowFunction, SyntaxKind::TWIG_ARROW_FUNCTION);
 ast_node!(TwigArguments, SyntaxKind::TWIG_ARGUMENTS);
 ast_node!(TwigNamedArgument, SyntaxKind::TWIG_NAMED_ARGUMENT);
 ast_node!(

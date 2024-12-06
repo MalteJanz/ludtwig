@@ -1,5 +1,8 @@
 # NEXT-VERSION
 
+- [#126](https://github.com/MalteJanz/ludtwig/pull/126) Added arrow function parsing
+- [#126](https://github.com/MalteJanz/ludtwig/pull/126) [BREAKING] Changed parsing of `TWIG_ARGUMENTS` to include opening and closing parenthesis
+
 # v0.6.0
 
 - [#50](https://github.com/MalteJanz/ludtwig/pull/50) Expose `Preorder` type for AST traversal
