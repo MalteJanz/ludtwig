@@ -36,8 +36,7 @@ Linter / Formatter for Twig template files which respects HTML and your time.
 ## Current limitations
 
 - Twig syntax is still not fully supported
-    - `{%- ... -%}` whitespace removal braces are not yet supported
-    - Usage of PHP closures as function arguments is currently not supported
+    - `{%- ... -%}` whitespace removal braces are not yet supported, see [#56](https://github.com/MalteJanz/ludtwig/issues/56)
 - You may encounter other edge cases that result in parsing errors. Please create issues for them.
 - The list of rules is still quite small so many things besides the syntax aren't checked / suggested
 
