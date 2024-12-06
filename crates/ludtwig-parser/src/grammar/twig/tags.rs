@@ -1064,7 +1064,7 @@ fn parse_twig_trans(
       &[T!["endtrans"], T!["%}"], T!["</"]],
   );
 
-  let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_TRANS);
+  let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_TRANS_STARTING_BLOCK);
   let wrapper_m = parser.precede(wrapper_m);
 
   // parse all the children except endtrans
