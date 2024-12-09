@@ -25,11 +25,17 @@ pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker>
     } else if parser.at(T!["{"]) {
         Some(parse_twig_hash(parser))
     } else {
+        // literal name
         let mut node = parse_twig_name(parser)?;
 
-        // check for optional function call
+        // check for optional function call or arrow function
         if parser.at(T!["("]) {
             node = parse_twig_function(parser, node);
+        } else if parser.at(T!["=>"]) {
+            // wrap literal name node
+            let m = parser.precede(node);
+            let last_node = parser.complete(m, SyntaxKind::TWIG_ARGUMENTS);
+            node = parse_twig_arrow_function(parser, last_node);
         }
 
         Some(node)
@@ -257,9 +263,9 @@ pub(crate) fn parse_twig_filter(
         parser.add_error(ParseErrorBuilder::new("twig filter"));
         parser.recover(TWIG_EXPRESSION_RECOVERY_SET);
     } else if parser.at(T!["("]) {
-        parser.bump();
         // parse any amount of arguments
         let arguments_m = parser.start();
+        parser.bump();
         parse_many(
             parser,
             |p| p.at(T![")"]),
@@ -272,8 +278,8 @@ pub(crate) fn parse_twig_filter(
                 }
             },
         );
-        parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
         parser.expect(T![")"], TWIG_EXPRESSION_RECOVERY_SET);
+        parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
     }
     parser.complete(m, SyntaxKind::TWIG_OPERAND);
 
@@ -367,7 +373,10 @@ fn parse_twig_accessor(parser: &mut Parser, mut last_node: CompletedMarker) -> C
     node
 }
 
-fn parse_twig_function(parser: &mut Parser, mut last_node: CompletedMarker) -> CompletedMarker {
+pub(crate) fn parse_twig_function(
+    parser: &mut Parser,
+    mut last_node: CompletedMarker,
+) -> CompletedMarker {
     debug_assert!(parser.at(T!["("]));
 
     // wrap last_node in an operand and create outer marker
@@ -375,11 +384,10 @@ fn parse_twig_function(parser: &mut Parser, mut last_node: CompletedMarker) -> C
     last_node = parser.complete(m, SyntaxKind::TWIG_OPERAND);
     let outer = parser.precede(last_node);
 
-    // bump the opening '('
-    parser.bump();
-
     // parse any amount of arguments
     let arguments_m = parser.start();
+    // bump the opening '('
+    parser.bump();
     parse_many(
         parser,
         |p| p.at(T![")"]),
@@ -392,12 +400,34 @@ fn parse_twig_function(parser: &mut Parser, mut last_node: CompletedMarker) -> C
             }
         },
     );
-    parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
-
     parser.expect(T![")"], TWIG_EXPRESSION_RECOVERY_SET);
+    parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
 
     // complete the outer marker
     parser.complete(outer, SyntaxKind::TWIG_FUNCTION_CALL)
+}
+
+pub(crate) fn parse_twig_arrow_function(
+    parser: &mut Parser,
+    last_node: CompletedMarker,
+) -> CompletedMarker {
+    debug_assert!(parser.at(T!["=>"]));
+
+    let outer = parser.precede(last_node);
+
+    // bump the arrow
+    parser.bump();
+
+    // parse closure expression
+    if parse_twig_expression(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new(
+            "single twig expression as the body of the closure",
+        ));
+        parser.recover(TWIG_EXPRESSION_RECOVERY_SET);
+    }
+
+    // complete the outer marker
+    parser.complete(outer, SyntaxKind::TWIG_ARROW_FUNCTION)
 }
 
 pub(crate) fn parse_twig_function_argument(parser: &mut Parser) -> Option<CompletedMarker> {
@@ -1773,15 +1803,15 @@ mod tests {
                                 TWIG_OPERAND@11..17
                                   TWIG_LITERAL_NAME@11..17
                                     TK_WORD@11..17 "prices"
-                            TK_OPEN_PARENTHESIS@17..18 "("
-                            TWIG_ARGUMENTS@18..23
+                            TWIG_ARGUMENTS@17..24
+                              TK_OPEN_PARENTHESIS@17..18 "("
                               TWIG_EXPRESSION@18..23
                                 TWIG_LITERAL_STRING@18..23
                                   TK_SINGLE_QUOTES@18..19 "'"
                                   TWIG_LITERAL_STRING_INNER@19..22
                                     TK_WORD@19..22 "eur"
                                   TK_SINGLE_QUOTES@22..23 "'"
-                            TK_CLOSE_PARENTHESIS@23..24 ")"
+                              TK_CLOSE_PARENTHESIS@23..24 ")"
                         TK_DOT@24..25 "."
                         TWIG_OPERAND@25..30
                           TWIG_LITERAL_NAME@25..30
@@ -1819,15 +1849,15 @@ mod tests {
                                 TWIG_OPERAND@18..23
                                   TWIG_LITERAL_NAME@18..23
                                     TK_WORD@18..23 "gross"
-                            TK_OPEN_PARENTHESIS@23..24 "("
-                            TWIG_ARGUMENTS@24..29
+                            TWIG_ARGUMENTS@23..30
+                              TK_OPEN_PARENTHESIS@23..24 "("
                               TWIG_EXPRESSION@24..29
                                 TWIG_LITERAL_STRING@24..29
                                   TK_SINGLE_QUOTES@24..25 "'"
                                   TWIG_LITERAL_STRING_INNER@25..28
                                     TK_WORD@25..28 "eur"
                                   TK_SINGLE_QUOTES@28..29 "'"
-                            TK_CLOSE_PARENTHESIS@29..30 ")"
+                              TK_CLOSE_PARENTHESIS@29..30 ")"
                         TK_DOT@30..31 "."
                         TWIG_OPERAND@31..36
                           TWIG_LITERAL_NAME@31..36
@@ -1851,9 +1881,9 @@ mod tests {
                           TWIG_LITERAL_NAME@2..7
                             TK_WHITESPACE@2..3 " "
                             TK_WORD@3..7 "doIt"
-                        TK_OPEN_PARENTHESIS@7..8 "("
-                        TWIG_ARGUMENTS@8..8
-                        TK_CLOSE_PARENTHESIS@8..9 ")"
+                        TWIG_ARGUMENTS@7..9
+                          TK_OPEN_PARENTHESIS@7..8 "("
+                          TK_CLOSE_PARENTHESIS@8..9 ")"
                     TK_WHITESPACE@9..10 " "
                     TK_CLOSE_CURLY_CURLY@10..12 "}}""#]],
         );
@@ -1873,8 +1903,8 @@ mod tests {
                           TWIG_LITERAL_NAME@2..6
                             TK_WHITESPACE@2..3 " "
                             TK_WORD@3..6 "sum"
-                        TK_OPEN_PARENTHESIS@6..7 "("
-                        TWIG_ARGUMENTS@7..11
+                        TWIG_ARGUMENTS@6..12
+                          TK_OPEN_PARENTHESIS@6..7 "("
                           TWIG_EXPRESSION@7..8
                             TWIG_LITERAL_NUMBER@7..8
                               TK_NUMBER@7..8 "1"
@@ -1883,7 +1913,7 @@ mod tests {
                             TWIG_LITERAL_NUMBER@9..11
                               TK_WHITESPACE@9..10 " "
                               TK_NUMBER@10..11 "2"
-                        TK_CLOSE_PARENTHESIS@11..12 ")"
+                          TK_CLOSE_PARENTHESIS@11..12 ")"
                     TK_WHITESPACE@12..13 " "
                     TK_CLOSE_CURLY_CURLY@13..15 "}}""#]],
         );
@@ -1903,8 +1933,8 @@ mod tests {
                           TWIG_LITERAL_NAME@2..6
                             TK_WHITESPACE@2..3 " "
                             TK_WORD@3..6 "sum"
-                        TK_OPEN_PARENTHESIS@6..7 "("
-                        TWIG_ARGUMENTS@7..15
+                        TWIG_ARGUMENTS@6..16
+                          TK_OPEN_PARENTHESIS@6..7 "("
                           TWIG_NAMED_ARGUMENT@7..10
                             TK_WORD@7..8 "a"
                             TK_EQUAL@8..9 "="
@@ -1919,7 +1949,7 @@ mod tests {
                             TWIG_EXPRESSION@14..15
                               TWIG_LITERAL_NUMBER@14..15
                                 TK_NUMBER@14..15 "2"
-                        TK_CLOSE_PARENTHESIS@15..16 ")"
+                          TK_CLOSE_PARENTHESIS@15..16 ")"
                     TK_WHITESPACE@16..17 " "
                     TK_CLOSE_CURLY_CURLY@17..19 "}}""#]],
         );
@@ -1939,8 +1969,8 @@ mod tests {
                           TWIG_LITERAL_NAME@2..6
                             TK_WHITESPACE@2..3 " "
                             TK_WORD@3..6 "sum"
-                        TK_OPEN_PARENTHESIS@6..7 "("
-                        TWIG_ARGUMENTS@7..21
+                        TWIG_ARGUMENTS@6..22
+                          TK_OPEN_PARENTHESIS@6..7 "("
                           TWIG_EXPRESSION@7..8
                             TWIG_LITERAL_NUMBER@7..8
                               TK_NUMBER@7..8 "1"
@@ -1952,7 +1982,7 @@ mod tests {
                             TWIG_EXPRESSION@12..21
                               TWIG_LITERAL_NAME@12..21
                                 TK_WORD@12..21 "my_number"
-                        TK_CLOSE_PARENTHESIS@21..22 ")"
+                          TK_CLOSE_PARENTHESIS@21..22 ")"
                     TK_WHITESPACE@22..23 " "
                     TK_CLOSE_CURLY_CURLY@23..25 "}}""#]],
         );
@@ -1972,8 +2002,8 @@ mod tests {
                           TWIG_LITERAL_NAME@2..6
                             TK_WHITESPACE@2..3 " "
                             TK_WORD@3..6 "sum"
-                        TK_OPEN_PARENTHESIS@6..7 "("
-                        TWIG_ARGUMENTS@7..16
+                        TWIG_ARGUMENTS@6..17
+                          TK_OPEN_PARENTHESIS@6..7 "("
                           TWIG_EXPRESSION@7..8
                             TWIG_LITERAL_NUMBER@7..8
                               TK_NUMBER@7..8 "1"
@@ -1984,15 +2014,252 @@ mod tests {
                                 TWIG_LITERAL_NAME@9..13
                                   TK_WHITESPACE@9..10 " "
                                   TK_WORD@10..13 "sin"
-                              TK_OPEN_PARENTHESIS@13..14 "("
-                              TWIG_ARGUMENTS@14..15
+                              TWIG_ARGUMENTS@13..16
+                                TK_OPEN_PARENTHESIS@13..14 "("
                                 TWIG_EXPRESSION@14..15
                                   TWIG_LITERAL_NUMBER@14..15
                                     TK_NUMBER@14..15 "1"
-                              TK_CLOSE_PARENTHESIS@15..16 ")"
-                        TK_CLOSE_PARENTHESIS@16..17 ")"
+                                TK_CLOSE_PARENTHESIS@15..16 ")"
+                          TK_CLOSE_PARENTHESIS@16..17 ")"
                     TK_WHITESPACE@17..18 " "
                     TK_CLOSE_CURLY_CURLY@18..20 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_arrow_function_simple() {
+        check_parse(
+            r#"{% set my_arrow_function = i => i % 2 %}"#,
+            expect![[r#"
+                ROOT@0..40
+                  TWIG_SET@0..40
+                    TWIG_SET_BLOCK@0..40
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_SET@3..6 "set"
+                      TWIG_ASSIGNMENT@6..37
+                        TWIG_LITERAL_NAME@6..24
+                          TK_WHITESPACE@6..7 " "
+                          TK_WORD@7..24 "my_arrow_function"
+                        TK_WHITESPACE@24..25 " "
+                        TK_EQUAL@25..26 "="
+                        TWIG_EXPRESSION@26..37
+                          TWIG_ARROW_FUNCTION@26..37
+                            TWIG_ARGUMENTS@26..28
+                              TWIG_LITERAL_NAME@26..28
+                                TK_WHITESPACE@26..27 " "
+                                TK_WORD@27..28 "i"
+                            TK_WHITESPACE@28..29 " "
+                            TK_EQUAL_GREATER_THAN@29..31 "=>"
+                            TWIG_EXPRESSION@31..37
+                              TWIG_BINARY_EXPRESSION@31..37
+                                TWIG_EXPRESSION@31..33
+                                  TWIG_LITERAL_NAME@31..33
+                                    TK_WHITESPACE@31..32 " "
+                                    TK_WORD@32..33 "i"
+                                TK_WHITESPACE@33..34 " "
+                                TK_PERCENT@34..35 "%"
+                                TWIG_EXPRESSION@35..37
+                                  TWIG_LITERAL_NUMBER@35..37
+                                    TK_WHITESPACE@35..36 " "
+                                    TK_NUMBER@36..37 "2"
+                      TK_WHITESPACE@37..38 " "
+                      TK_PERCENT_CURLY@38..40 "%}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_arrow_function_simple_brackets() {
+        check_parse(
+            r#"{% set my_arrow_function = (i) => i % 2 %}"#,
+            expect![[r#"
+                ROOT@0..42
+                  TWIG_SET@0..42
+                    TWIG_SET_BLOCK@0..42
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_SET@3..6 "set"
+                      TWIG_ASSIGNMENT@6..39
+                        TWIG_LITERAL_NAME@6..24
+                          TK_WHITESPACE@6..7 " "
+                          TK_WORD@7..24 "my_arrow_function"
+                        TK_WHITESPACE@24..25 " "
+                        TK_EQUAL@25..26 "="
+                        TWIG_EXPRESSION@26..39
+                          TWIG_ARROW_FUNCTION@26..39
+                            TWIG_ARGUMENTS@26..30
+                              TK_WHITESPACE@26..27 " "
+                              TK_OPEN_PARENTHESIS@27..28 "("
+                              TWIG_LITERAL_NAME@28..29
+                                TK_WORD@28..29 "i"
+                              TK_CLOSE_PARENTHESIS@29..30 ")"
+                            TK_WHITESPACE@30..31 " "
+                            TK_EQUAL_GREATER_THAN@31..33 "=>"
+                            TWIG_EXPRESSION@33..39
+                              TWIG_BINARY_EXPRESSION@33..39
+                                TWIG_EXPRESSION@33..35
+                                  TWIG_LITERAL_NAME@33..35
+                                    TK_WHITESPACE@33..34 " "
+                                    TK_WORD@34..35 "i"
+                                TK_WHITESPACE@35..36 " "
+                                TK_PERCENT@36..37 "%"
+                                TWIG_EXPRESSION@37..39
+                                  TWIG_LITERAL_NUMBER@37..39
+                                    TK_WHITESPACE@37..38 " "
+                                    TK_NUMBER@38..39 "2"
+                      TK_WHITESPACE@39..40 " "
+                      TK_PERCENT_CURLY@40..42 "%}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_arrow_function_advanced() {
+        check_parse(
+            r#"{% set my_arrow_function = (a, b) => a >= b %}"#,
+            expect![[r#"
+                ROOT@0..46
+                  TWIG_SET@0..46
+                    TWIG_SET_BLOCK@0..46
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_SET@3..6 "set"
+                      TWIG_ASSIGNMENT@6..43
+                        TWIG_LITERAL_NAME@6..24
+                          TK_WHITESPACE@6..7 " "
+                          TK_WORD@7..24 "my_arrow_function"
+                        TK_WHITESPACE@24..25 " "
+                        TK_EQUAL@25..26 "="
+                        TWIG_EXPRESSION@26..43
+                          TWIG_ARROW_FUNCTION@26..43
+                            TWIG_ARGUMENTS@26..33
+                              TK_WHITESPACE@26..27 " "
+                              TK_OPEN_PARENTHESIS@27..28 "("
+                              TWIG_LITERAL_NAME@28..29
+                                TK_WORD@28..29 "a"
+                              TK_COMMA@29..30 ","
+                              TWIG_LITERAL_NAME@30..32
+                                TK_WHITESPACE@30..31 " "
+                                TK_WORD@31..32 "b"
+                              TK_CLOSE_PARENTHESIS@32..33 ")"
+                            TK_WHITESPACE@33..34 " "
+                            TK_EQUAL_GREATER_THAN@34..36 "=>"
+                            TWIG_EXPRESSION@36..43
+                              TWIG_BINARY_EXPRESSION@36..43
+                                TWIG_EXPRESSION@36..38
+                                  TWIG_LITERAL_NAME@36..38
+                                    TK_WHITESPACE@36..37 " "
+                                    TK_WORD@37..38 "a"
+                                TK_WHITESPACE@38..39 " "
+                                TK_GREATER_THAN_EQUAL@39..41 ">="
+                                TWIG_EXPRESSION@41..43
+                                  TWIG_LITERAL_NAME@41..43
+                                    TK_WHITESPACE@41..42 " "
+                                    TK_WORD@42..43 "b"
+                      TK_WHITESPACE@43..44 " "
+                      TK_PERCENT_CURLY@44..46 "%}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_arrow_function_as_filer_argument() {
+        check_parse(
+            r#"{% for item in crossSellings|filter(item => item.total > 0 and item.crossSelling.active == true) %} {{ item }} {% endfor %}"#,
+            expect![[r#"
+                ROOT@0..123
+                  TWIG_FOR@0..123
+                    TWIG_FOR_BLOCK@0..99
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_FOR@3..6 "for"
+                      TWIG_LITERAL_NAME@6..11
+                        TK_WHITESPACE@6..7 " "
+                        TK_WORD@7..11 "item"
+                      TK_WHITESPACE@11..12 " "
+                      TK_IN@12..14 "in"
+                      TWIG_EXPRESSION@14..96
+                        TWIG_FILTER@14..96
+                          TWIG_OPERAND@14..28
+                            TWIG_LITERAL_NAME@14..28
+                              TK_WHITESPACE@14..15 " "
+                              TK_WORD@15..28 "crossSellings"
+                          TK_SINGLE_PIPE@28..29 "|"
+                          TWIG_OPERAND@29..96
+                            TWIG_LITERAL_NAME@29..35
+                              TK_WORD@29..35 "filter"
+                            TWIG_ARGUMENTS@35..96
+                              TK_OPEN_PARENTHESIS@35..36 "("
+                              TWIG_EXPRESSION@36..95
+                                TWIG_ARROW_FUNCTION@36..95
+                                  TWIG_ARGUMENTS@36..40
+                                    TWIG_LITERAL_NAME@36..40
+                                      TK_WORD@36..40 "item"
+                                  TK_WHITESPACE@40..41 " "
+                                  TK_EQUAL_GREATER_THAN@41..43 "=>"
+                                  TWIG_EXPRESSION@43..95
+                                    TWIG_BINARY_EXPRESSION@43..95
+                                      TWIG_BINARY_EXPRESSION@43..58
+                                        TWIG_EXPRESSION@43..54
+                                          TWIG_ACCESSOR@43..54
+                                            TWIG_OPERAND@43..48
+                                              TWIG_LITERAL_NAME@43..48
+                                                TK_WHITESPACE@43..44 " "
+                                                TK_WORD@44..48 "item"
+                                            TK_DOT@48..49 "."
+                                            TWIG_OPERAND@49..54
+                                              TWIG_LITERAL_NAME@49..54
+                                                TK_WORD@49..54 "total"
+                                        TK_WHITESPACE@54..55 " "
+                                        TK_GREATER_THAN@55..56 ">"
+                                        TWIG_EXPRESSION@56..58
+                                          TWIG_LITERAL_NUMBER@56..58
+                                            TK_WHITESPACE@56..57 " "
+                                            TK_NUMBER@57..58 "0"
+                                      TK_WHITESPACE@58..59 " "
+                                      TK_AND@59..62 "and"
+                                      TWIG_EXPRESSION@62..95
+                                        TWIG_BINARY_EXPRESSION@62..95
+                                          TWIG_EXPRESSION@62..87
+                                            TWIG_ACCESSOR@62..87
+                                              TWIG_OPERAND@62..80
+                                                TWIG_ACCESSOR@62..80
+                                                  TWIG_OPERAND@62..67
+                                                    TWIG_LITERAL_NAME@62..67
+                                                      TK_WHITESPACE@62..63 " "
+                                                      TK_WORD@63..67 "item"
+                                                  TK_DOT@67..68 "."
+                                                  TWIG_OPERAND@68..80
+                                                    TWIG_LITERAL_NAME@68..80
+                                                      TK_WORD@68..80 "crossSelling"
+                                              TK_DOT@80..81 "."
+                                              TWIG_OPERAND@81..87
+                                                TWIG_LITERAL_NAME@81..87
+                                                  TK_WORD@81..87 "active"
+                                          TK_WHITESPACE@87..88 " "
+                                          TK_DOUBLE_EQUAL@88..90 "=="
+                                          TWIG_EXPRESSION@90..95
+                                            TWIG_LITERAL_BOOLEAN@90..95
+                                              TK_WHITESPACE@90..91 " "
+                                              TK_TRUE@91..95 "true"
+                              TK_CLOSE_PARENTHESIS@95..96 ")"
+                      TK_WHITESPACE@96..97 " "
+                      TK_PERCENT_CURLY@97..99 "%}"
+                    BODY@99..110
+                      TWIG_VAR@99..110
+                        TK_WHITESPACE@99..100 " "
+                        TK_OPEN_CURLY_CURLY@100..102 "{{"
+                        TWIG_EXPRESSION@102..107
+                          TWIG_LITERAL_NAME@102..107
+                            TK_WHITESPACE@102..103 " "
+                            TK_WORD@103..107 "item"
+                        TK_WHITESPACE@107..108 " "
+                        TK_CLOSE_CURLY_CURLY@108..110 "}}"
+                    TWIG_ENDFOR_BLOCK@110..123
+                      TK_WHITESPACE@110..111 " "
+                      TK_CURLY_PERCENT@111..113 "{%"
+                      TK_WHITESPACE@113..114 " "
+                      TK_ENDFOR@114..120 "endfor"
+                      TK_WHITESPACE@120..121 " "
+                      TK_PERCENT_CURLY@121..123 "%}""#]],
         );
     }
 
@@ -2014,8 +2281,8 @@ mod tests {
                         TWIG_OPERAND@8..18
                           TWIG_LITERAL_NAME@8..12
                             TK_WORD@8..12 "join"
-                          TK_OPEN_PARENTHESIS@12..13 "("
-                          TWIG_ARGUMENTS@13..17
+                          TWIG_ARGUMENTS@12..18
+                            TK_OPEN_PARENTHESIS@12..13 "("
                             TWIG_EXPRESSION@13..17
                               TWIG_LITERAL_STRING@13..17
                                 TK_SINGLE_QUOTES@13..14 "'"
@@ -2023,7 +2290,7 @@ mod tests {
                                   TK_COMMA@14..15 ","
                                   TK_WHITESPACE@15..16 " "
                                 TK_SINGLE_QUOTES@16..17 "'"
-                          TK_CLOSE_PARENTHESIS@17..18 ")"
+                            TK_CLOSE_PARENTHESIS@17..18 ")"
                     TK_WHITESPACE@18..19 " "
                     TK_CLOSE_CURLY_CURLY@19..21 "}}""#]],
         );
@@ -2049,8 +2316,8 @@ mod tests {
                             TWIG_OPERAND@8..18
                               TWIG_LITERAL_NAME@8..12
                                 TK_WORD@8..12 "join"
-                              TK_OPEN_PARENTHESIS@12..13 "("
-                              TWIG_ARGUMENTS@13..17
+                              TWIG_ARGUMENTS@12..18
+                                TK_OPEN_PARENTHESIS@12..13 "("
                                 TWIG_EXPRESSION@13..17
                                   TWIG_LITERAL_STRING@13..17
                                     TK_SINGLE_QUOTES@13..14 "'"
@@ -2058,7 +2325,7 @@ mod tests {
                                       TK_COMMA@14..15 ","
                                       TK_WHITESPACE@15..16 " "
                                     TK_SINGLE_QUOTES@16..17 "'"
-                              TK_CLOSE_PARENTHESIS@17..18 ")"
+                                TK_CLOSE_PARENTHESIS@17..18 ")"
                         TK_SINGLE_PIPE@18..19 "|"
                         TWIG_OPERAND@19..23
                           TWIG_LITERAL_NAME@19..23
@@ -2089,8 +2356,8 @@ mod tests {
                         TWIG_OPERAND@9..51
                           TWIG_LITERAL_NAME@9..13
                             TK_WORD@9..13 "date"
-                          TK_OPEN_PARENTHESIS@13..14 "("
-                          TWIG_ARGUMENTS@14..50
+                          TWIG_ARGUMENTS@13..51
+                            TK_OPEN_PARENTHESIS@13..14 "("
                             TWIG_EXPRESSION@14..25
                               TWIG_LITERAL_STRING@14..25
                                 TK_SINGLE_QUOTES@14..15 "'"
@@ -2118,7 +2385,7 @@ mod tests {
                                     TK_FORWARD_SLASH@43..44 "/"
                                     TK_WORD@44..49 "Paris"
                                   TK_DOUBLE_QUOTES@49..50 "\""
-                          TK_CLOSE_PARENTHESIS@50..51 ")"
+                            TK_CLOSE_PARENTHESIS@50..51 ")"
                     TK_WHITESPACE@51..52 " "
                     TK_CLOSE_CURLY_CURLY@52..54 "}}""#]],
         );
@@ -2169,8 +2436,8 @@ mod tests {
                           TWIG_LITERAL_NAME@2..10
                             TK_WHITESPACE@2..3 " "
                             TK_WORD@3..10 "include"
-                        TK_OPEN_PARENTHESIS@10..11 "("
-                        TWIG_ARGUMENTS@11..43
+                        TWIG_ARGUMENTS@10..44
+                          TK_OPEN_PARENTHESIS@10..11 "("
                           TWIG_EXPRESSION@11..43
                             TWIG_LITERAL_STRING@11..43
                               TK_SINGLE_QUOTES@11..12 "'"
@@ -2183,7 +2450,7 @@ mod tests {
                                 TK_DOT@37..38 "."
                                 TK_WORD@38..42 "html"
                               TK_SINGLE_QUOTES@42..43 "'"
-                        TK_CLOSE_PARENTHESIS@43..44 ")"
+                          TK_CLOSE_PARENTHESIS@43..44 ")"
                     TK_WHITESPACE@44..45 " "
                     TK_CLOSE_CURLY_CURLY@45..47 "}}""#]],
         );
