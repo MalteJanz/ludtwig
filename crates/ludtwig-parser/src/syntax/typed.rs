@@ -583,6 +583,15 @@ ast_node!(HtmlRawText, SyntaxKind::HTML_RAW_TEXT);
 ast_node!(HtmlComment, SyntaxKind::HTML_COMMENT);
 ast_node!(Error, SyntaxKind::ERROR);
 ast_node!(Root, SyntaxKind::ROOT);
+ast_node!(TwigTrans, SyntaxKind::TWIG_TRANS);
+ast_node!(
+    TwigTransStartingBlock,
+    SyntaxKind::TWIG_TRANS_STARTING_BLOCK
+);
+ast_node!(
+    TwigTransEndingBlock,
+    SyntaxKind::TWIG_TRANS_ENDING_BLOCK
+);
 
 #[cfg(test)]
 mod tests {

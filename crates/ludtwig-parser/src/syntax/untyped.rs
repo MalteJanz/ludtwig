@@ -457,8 +457,8 @@ pub enum SyntaxKind {
 
     // Drupal Trans
     TWIG_TRANS,
-    TWIG_TRANS_BLOCK,
-    TWIG_ENDTRANS_BLOCK,
+    TWIG_TRANS_STARTING_BLOCK,
+    TWIG_TRANS_ENDING_BLOCK,
 
     // shopware specific
     SHOPWARE_TWIG_SW_EXTENDS,
