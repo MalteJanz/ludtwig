@@ -15,7 +15,7 @@ rust-version = "1.80.0"
 
 [dependencies]
 ludtwig-parser = { path = "../ludtwig-parser", version = "0.6.0" }
-clap = { version = "4.5.21", features = ["derive"] }
+clap = { version = "4.5.23", features = ["derive"] }
 rayon = "1.10.0"
 ignore = "0.4.23"
 figment = { version = "0.10.19", features = ["toml", "env"] }

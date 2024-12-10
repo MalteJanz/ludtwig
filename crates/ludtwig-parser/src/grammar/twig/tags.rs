@@ -224,8 +224,8 @@ fn parse_twig_macro(
         .map(|t| t.text.to_owned());
 
     // macro must have parentheses (arguments can be zero)
-    parser.expect(T!["("], &[T![")"], T!["endmacro"], T!["%}"], T!["</"]]);
     let arguments_m = parser.start();
+    parser.expect(T!["("], &[T![")"], T!["endmacro"], T!["%}"], T!["</"]]);
     parse_many(
         parser,
         |p| p.at_set(&[T!["%}"], T![")"]]),
@@ -238,8 +238,8 @@ fn parse_twig_macro(
             }
         },
     );
-    parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
     parser.expect(T![")"], &[T!["endmacro"], T!["%}"], T!["</"]]);
+    parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
     parser.expect(T!["%}"], &[T!["endmacro"], T!["%}"], T!["</"]]);
 
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_MACRO_STARTING_BLOCK);
@@ -439,9 +439,9 @@ fn parse_twig_apply(
     if let Some(mut node) = parse_twig_name(parser) {
         // parse optional arguments
         if parser.at(T!["("]) {
-            parser.bump();
             // parse any amount of arguments
             let arguments_m = parser.start();
+            parser.bump();
             parse_many(
                 parser,
                 |p| p.at_set(&[T!["%}"], T![")"]]),
@@ -454,8 +454,8 @@ fn parse_twig_apply(
                     }
                 },
             );
-            parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
             parser.expect(T![")"], &[T!["endapply"], T!["%}"], T!["</"]]);
+            parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
         }
 
         // parse any amount of piped filters
@@ -3220,8 +3220,8 @@ mod tests {
                       TWIG_LITERAL_NAME@8..13
                         TK_WHITESPACE@8..9 " "
                         TK_WORD@9..13 "trim"
-                      TK_OPEN_PARENTHESIS@13..14 "("
-                      TWIG_ARGUMENTS@14..30
+                      TWIG_ARGUMENTS@13..31
+                        TK_OPEN_PARENTHESIS@13..14 "("
                         TWIG_EXPRESSION@14..17
                           TWIG_LITERAL_STRING@14..17
                             TK_SINGLE_QUOTES@14..15 "'"
@@ -3239,7 +3239,7 @@ mod tests {
                               TWIG_LITERAL_STRING_INNER@25..29
                                 TK_WORD@25..29 "left"
                               TK_SINGLE_QUOTES@29..30 "'"
-                      TK_CLOSE_PARENTHESIS@30..31 ")"
+                        TK_CLOSE_PARENTHESIS@30..31 ")"
                       TK_WHITESPACE@31..32 " "
                       TK_PERCENT_CURLY@32..34 "%}"
                     BODY@34..64
@@ -3287,21 +3287,21 @@ mod tests {
                             TWIG_OPERAND@15..29
                               TWIG_LITERAL_NAME@15..21
                                 TK_WORD@15..21 "escape"
-                              TK_OPEN_PARENTHESIS@21..22 "("
-                              TWIG_ARGUMENTS@22..28
+                              TWIG_ARGUMENTS@21..29
+                                TK_OPEN_PARENTHESIS@21..22 "("
                                 TWIG_EXPRESSION@22..28
                                   TWIG_LITERAL_STRING@22..28
                                     TK_SINGLE_QUOTES@22..23 "'"
                                     TWIG_LITERAL_STRING_INNER@23..27
                                       TK_WORD@23..27 "html"
                                     TK_SINGLE_QUOTES@27..28 "'"
-                              TK_CLOSE_PARENTHESIS@28..29 ")"
+                                TK_CLOSE_PARENTHESIS@28..29 ")"
                         TK_SINGLE_PIPE@29..30 "|"
                         TWIG_OPERAND@30..52
                           TWIG_LITERAL_NAME@30..34
                             TK_WORD@30..34 "trim"
-                          TK_OPEN_PARENTHESIS@34..35 "("
-                          TWIG_ARGUMENTS@35..51
+                          TWIG_ARGUMENTS@34..52
+                            TK_OPEN_PARENTHESIS@34..35 "("
                             TWIG_EXPRESSION@35..38
                               TWIG_LITERAL_STRING@35..38
                                 TK_SINGLE_QUOTES@35..36 "'"
@@ -3319,7 +3319,7 @@ mod tests {
                                   TWIG_LITERAL_STRING_INNER@46..50
                                     TK_WORD@46..50 "left"
                                   TK_SINGLE_QUOTES@50..51 "'"
-                          TK_CLOSE_PARENTHESIS@51..52 ")"
+                            TK_CLOSE_PARENTHESIS@51..52 ")"
                       TK_WHITESPACE@52..53 " "
                       TK_PERCENT_CURLY@53..55 "%}"
                     BODY@55..86
@@ -4326,8 +4326,8 @@ mod tests {
                       TK_MACRO@3..8 "macro"
                       TK_WHITESPACE@8..9 " "
                       TK_WORD@9..14 "input"
-                      TK_OPEN_PARENTHESIS@14..15 "("
-                      TWIG_ARGUMENTS@15..52
+                      TWIG_ARGUMENTS@14..53
+                        TK_OPEN_PARENTHESIS@14..15 "("
                         TWIG_EXPRESSION@15..19
                           TWIG_LITERAL_NAME@15..19
                             TK_WORD@15..19 "name"
@@ -4359,7 +4359,7 @@ mod tests {
                             TWIG_LITERAL_NUMBER@49..52
                               TK_WHITESPACE@49..50 " "
                               TK_NUMBER@50..52 "20"
-                      TK_CLOSE_PARENTHESIS@52..53 ")"
+                        TK_CLOSE_PARENTHESIS@52..53 ")"
                       TK_WHITESPACE@53..54 " "
                       TK_PERCENT_CURLY@54..56 "%}"
                     BODY@56..145
@@ -4466,9 +4466,9 @@ mod tests {
                       TK_MACRO@3..8 "macro"
                       TK_WHITESPACE@8..9 " "
                       TK_WORD@9..14 "input"
-                      TK_OPEN_PARENTHESIS@14..15 "("
-                      TWIG_ARGUMENTS@15..15
-                      TK_CLOSE_PARENTHESIS@15..16 ")"
+                      TWIG_ARGUMENTS@14..16
+                        TK_OPEN_PARENTHESIS@14..15 "("
+                        TK_CLOSE_PARENTHESIS@15..16 ")"
                       TK_WHITESPACE@16..17 " "
                       TK_PERCENT_CURLY@17..19 "%}"
                     BODY@19..27
@@ -4504,9 +4504,9 @@ mod tests {
                       TK_MACRO@3..8 "macro"
                       TK_WHITESPACE@8..9 " "
                       TK_WORD@9..14 "input"
-                      TK_OPEN_PARENTHESIS@14..15 "("
-                      TWIG_ARGUMENTS@15..15
-                      TK_CLOSE_PARENTHESIS@15..16 ")"
+                      TWIG_ARGUMENTS@14..16
+                        TK_OPEN_PARENTHESIS@14..15 "("
+                        TK_CLOSE_PARENTHESIS@15..16 ")"
                       TK_WHITESPACE@16..17 " "
                       TK_PERCENT_CURLY@17..19 "%}"
                     BODY@19..27

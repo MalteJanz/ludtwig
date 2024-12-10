@@ -16,12 +16,12 @@
 
 use logos::Logos;
 pub use rowan::Direction;
-/// `GreenNode` is an immutable tree, which is cheap to change,
-/// but doesn't contain offsets and parent pointers.
+// `GreenNode` is an immutable tree, which is cheap to change,
+// but doesn't contain offsets and parent pointers.
 pub use rowan::GreenNode;
-/// You can construct `GreenNodes` by hand, but a builder
-/// is helpful for top-down parsers: it maintains a stack
-/// of currently in-progress nodes
+// You can construct `GreenNodes` by hand, but a builder
+// is helpful for top-down parsers: it maintains a stack
+// of currently in-progress nodes
 pub use rowan::GreenNodeBuilder;
 pub use rowan::Language;
 pub use rowan::SyntaxText;
@@ -121,6 +121,8 @@ pub enum SyntaxKind {
     TK_GREATER_THAN,
     #[token(">=")]
     TK_GREATER_THAN_EQUAL,
+    #[token("=>")]
+    TK_EQUAL_GREATER_THAN,
     #[token("/>")]
     TK_SLASH_GREATER_THAN,
     #[token("<!--")]
@@ -358,6 +360,7 @@ pub enum SyntaxKind {
     TWIG_INDEX_RANGE,  // covers a array index range like '0:10' inside []
 
     TWIG_FUNCTION_CALL,
+    TWIG_ARROW_FUNCTION, // like 'i => i % 2' or '(a, b) => a >= b'
     TWIG_ARGUMENTS,
     TWIG_NAMED_ARGUMENT,
 
@@ -535,6 +538,7 @@ macro_rules! T {
     ["DOCTYPE"] => { $crate::syntax::untyped::SyntaxKind::TK_DOCTYPE };
     [">"] => { $crate::syntax::untyped::SyntaxKind::TK_GREATER_THAN };
     [">="] => { $crate::syntax::untyped::SyntaxKind::TK_GREATER_THAN_EQUAL };
+    ["=>"] => { $crate::syntax::untyped::SyntaxKind::TK_EQUAL_GREATER_THAN };
     ["/>"] => { $crate::syntax::untyped::SyntaxKind::TK_SLASH_GREATER_THAN };
     ["<!--"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_EXCLAMATION_MARK_MINUS_MINUS };
     ["-->"] => { $crate::syntax::untyped::SyntaxKind::TK_MINUS_MINUS_GREATER_THAN };
@@ -688,6 +692,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_DOCTYPE => "DOCTYPE",
             SyntaxKind::TK_GREATER_THAN => ">",
             SyntaxKind::TK_GREATER_THAN_EQUAL => ">=",
+            SyntaxKind::TK_EQUAL_GREATER_THAN => "=>",
             SyntaxKind::TK_SLASH_GREATER_THAN => "/>",
             SyntaxKind::TK_LESS_THAN_EXCLAMATION_MARK_MINUS_MINUS => "<!--",
             SyntaxKind::TK_MINUS_MINUS_GREATER_THAN => "-->",
@@ -796,20 +801,20 @@ impl fmt::Display for SyntaxKind {
     }
 }
 
-/// Some boilerplate is needed, as rowan settled on using its own
-/// `struct SyntaxKind(u16)` internally, instead of accepting the
-/// user's `enum SyntaxKind` as a type parameter.
-///
-/// First, to easily pass the enum variants into rowan via `.into()`:
+// Some boilerplate is needed, as rowan settled on using its own
+// `struct SyntaxKind(u16)` internally, instead of accepting the
+// user's `enum SyntaxKind` as a type parameter.
+//
+// First, to easily pass the enum variants into rowan via `.into()`:
 impl From<SyntaxKind> for rowan::SyntaxKind {
     fn from(kind: SyntaxKind) -> Self {
         Self(kind as u16)
     }
 }
 
-/// Second, implementing the `Language` trait teaches rowan to convert between
-/// these two `SyntaxKind` types, allowing for a nicer `SyntaxNode` API where
-/// "kinds" are values from our `enum SyntaxKind`, instead of plain u16 values.
+// Second, implementing the `Language` trait teaches rowan to convert between
+// these two `SyntaxKind` types, allowing for a nicer `SyntaxNode` API where
+// "kinds" are values from our `enum SyntaxKind`, instead of plain u16 values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TemplateLanguage {}
 impl Language for TemplateLanguage {
@@ -823,12 +828,11 @@ impl Language for TemplateLanguage {
     }
 }
 
-/// To work with the parse results we need a view into the
-/// green tree - the Syntax tree.
-/// It is also immutable, like a `GreenNode`,
-/// but it contains parent pointers, offsets, and
-/// has identity semantics.
-
+// To work with the parse results we need a view into the
+// green tree - the Syntax tree.
+// It is also immutable, like a `GreenNode`,
+// but it contains parent pointers, offsets, and
+// has identity semantics.
 pub type SyntaxNode = rowan::SyntaxNode<TemplateLanguage>;
 pub type SyntaxToken = rowan::SyntaxToken<TemplateLanguage>;
 pub type SyntaxElement = rowan::NodeOrToken<SyntaxNode, SyntaxToken>;

@@ -36,6 +36,8 @@ pub(crate) struct Token<'source> {
     pub(crate) range: TextRange,
 }
 
+// ToDo: might be able to remove this annotation in future rust-analyzer version
+#[allow(clippy::needless_lifetimes)]
 impl<'source> Token<'source> {
     #[cfg(test)]
     pub(crate) fn new(kind: SyntaxKind, text: &'source str, range: TextRange) -> Self {
@@ -194,6 +196,7 @@ mod tests {
         add("doctype", T!["DOCTYPE"]);
         add(">", T![">"]);
         add(">=", T![">="]);
+        add("=>", T!["=>"]);
         add("/>", T!["/>"]);
         add("<!--", T!["<!--"]);
         add("-->", T!["-->"]);
@@ -532,6 +535,11 @@ mod tests {
     #[test]
     fn lex_greater_than_equal() {
         check_token(">=", T![">="]);
+    }
+
+    #[test]
+    fn lex_equal_greater_than() {
+        check_token("=>", T!["=>"]);
     }
 
     #[test]
