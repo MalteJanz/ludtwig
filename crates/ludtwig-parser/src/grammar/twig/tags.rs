@@ -5216,18 +5216,19 @@ mod tests {
           expect![[r#"
               ROOT@0..38
                 TWIG_TRANS@0..38
-                  TWIG_TRANS@0..11
+                  TWIG_TRANS_STARTING_BLOCK@0..11
                     TK_CURLY_PERCENT@0..2 "{%"
                     TK_WHITESPACE@2..3 " "
                     TK_TRANS@3..8 "trans"
                     TK_WHITESPACE@8..9 " "
                     TK_PERCENT_CURLY@9..11 "%}"
-                  HTML_TEXT@11..23
-                    TK_WHITESPACE@11..12 " "
-                    TK_WORD@12..17 "hello"
-                    TK_WHITESPACE@17..18 " "
-                    TK_WORD@18..23 "world"
-                  TWIG_ENDTRANS_BLOCK@23..38
+                  BODY@11..23
+                    HTML_TEXT@11..23
+                      TK_WHITESPACE@11..12 " "
+                      TK_WORD@12..17 "hello"
+                      TK_WHITESPACE@17..18 " "
+                      TK_WORD@18..23 "world"
+                  TWIG_TRANS_ENDING_BLOCK@23..38
                     TK_WHITESPACE@23..24 " "
                     TK_CURLY_PERCENT@24..26 "{%"
                     TK_WHITESPACE@26..27 " "
