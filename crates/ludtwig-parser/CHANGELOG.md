@@ -2,6 +2,7 @@
 
 - [#126](https://github.com/MalteJanz/ludtwig/pull/126) Added arrow function parsing
 - [#126](https://github.com/MalteJanz/ludtwig/pull/126) [BREAKING] Changed parsing of `TWIG_ARGUMENTS` to include opening and closing parenthesis
+- [#128](https://github.com/MalteJanz/ludtwig/pull/128) Fixed parsing of non self closing twig component HTML tags
 
 # v0.6.0
 
