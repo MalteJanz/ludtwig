@@ -22,7 +22,7 @@ harness = false
 
 [dev-dependencies]
 criterion = "0.5.1"
-expect-test = "1.5.0"
+expect-test = "1.5.1"
 
 [dependencies]
 rowan = "0.16.1"
