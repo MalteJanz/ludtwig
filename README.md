@@ -30,13 +30,14 @@ Linter / Formatter for Twig template files which respects HTML and your time.
     - Environment variables can override config values
 - The Parser is not HTML Spec compliant, but
     - Almost all Twig syntax is supported
-    - all input is parsed into a Syntax tree
+    - all input is parsed into a lossless syntax tree
     - even invalid syntax does not stop the parsing, and it tries to parse as much valid syntax as possible
 
 ## Current limitations
 
 - Twig syntax is still not fully supported
-    - `{%- ... -%}` whitespace removal braces are not yet supported, see [#56](https://github.com/MalteJanz/ludtwig/issues/56)
+    - most notably `{%- ... -%}` whitespace removal braces are not yet supported,
+      see [#56](https://github.com/MalteJanz/ludtwig/issues/56)
 - You may encounter other edge cases that result in parsing errors. Please create issues for them.
 - The list of rules is still quite small so many things besides the syntax aren't checked / suggested
 
@@ -73,7 +74,7 @@ To create it in your current working directory run `ludtwig -C`.
 
 ## Allowed syntax
 
-To prevent the creation of invalid / dirty HTML by Twig ludtwig only allows the Twig syntax in certain places.
+To prevent many cases of creating invalid / dirty HTML by Twig, ludtwig only allows the Twig syntax in certain places.
 Without this restriction it wouldn't be possible to parse the combined syntax in a single hierarchical syntax tree.
 Have a look at the example below to get the general idea where Twig syntax is allowed:
 
@@ -99,9 +100,41 @@ Have a look at the example below to get the general idea where Twig syntax is al
 {% endblock %}
 ```
 
+Ludtwig doesn't accept and will produce parsing errors for any Twig syntax that could cut off HTML in obvious ways, e.g.:
+
+```twig
+{% if condition %}
+    <div class="container">
+{% endif %}
+    Some content
+{% if condition %}
+    </div>
+{% endif %}
+```
+
+produces the following parsing error:
+
+```txt
+...
+error[SyntaxError]: The parser encountered a syntax error
+  ┌─ bad-example.html.twig:3:1
+  │
+3 │ {% endif %}
+  │ ^^ expected </div> ending tag but found {%
+...
+```
+This is intentional, as the example above is very error-prone to maintain correctly and
+this trade-of allows to represent both HTML and Twig syntax in a single hierarchical syntax tree.
+In contrast, the [Twig PHP compiler](https://github.com/twigphp/Twig) mostly treats all other syntax that isn't Twig, as plain text,
+which comes with the benefit that Twig can be written between any character, which isn't that useful in practice when writing HTML templates,
+but can be if you're not writing a template for HTML.
+
+> In general, you only want to write valid HTML (full elements) between your Twig syntax (`{% ... %}`).
+> With some exceptions for HTML attributes.
+
 ## License
 
-Copyright (c) 2024 Malte Janz  
+Copyright (c) 2025 Malte Janz  
 `ludtwig` is distributed under the terms of the MIT License.  
 See the [LICENSE](./LICENSE) file for details.
 
