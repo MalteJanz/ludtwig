@@ -1052,41 +1052,36 @@ fn parse_twig_if(
 }
 
 fn parse_twig_trans(
-  parser: &mut Parser,
-  outer: Marker,
-  child_parser: ParseFunction,
+    parser: &mut Parser,
+    outer: Marker,
+    child_parser: ParseFunction,
 ) -> CompletedMarker {
-  debug_assert!(parser.at(T!["trans"]));
-  parser.bump();
+    debug_assert!(parser.at(T!["trans"]));
+    parser.bump();
 
-  parser.expect(
-      T!["%}"],
-      &[T!["endtrans"], T!["%}"], T!["</"]],
-  );
+    parser.expect(T!["%}"], &[T!["endtrans"], T!["%}"], T!["</"]]);
 
-  let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_TRANS_STARTING_BLOCK);
-  let wrapper_m = parser.precede(wrapper_m);
+    let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_TRANS_STARTING_BLOCK);
+    let wrapper_m = parser.precede(wrapper_m);
 
-  // parse all the children except endtrans
-  let body_m = parser.start();
-  parse_many(
-    parser,
-    |p| {
-        p.at_following(&[T!["{%"], T!["endtrans"]])
-    },
-    |p| {
-        child_parser(p);
-    },
-  );
-  parser.complete(body_m, SyntaxKind::BODY);
+    // parse all the children except endtrans
+    let body_m = parser.start();
+    parse_many(
+        parser,
+        |p| p.at_following(&[T!["{%"], T!["endtrans"]]),
+        |p| {
+            child_parser(p);
+        },
+    );
+    parser.complete(body_m, SyntaxKind::BODY);
 
-  let end_block_m = parser.start();
-  parser.expect(T!["{%"], &[T!["endtrans"], T!["%}"], T!["</"]]);
-  parser.expect(T!["endtrans"], &[T!["%}"], T!["</"]]);
-  parser.expect(T!["%}"], &[T!["</"]]);
-  parser.complete(end_block_m, SyntaxKind::TWIG_TRANS_ENDING_BLOCK);
+    let end_block_m = parser.start();
+    parser.expect(T!["{%"], &[T!["endtrans"], T!["%}"], T!["</"]]);
+    parser.expect(T!["endtrans"], &[T!["%}"], T!["</"]]);
+    parser.expect(T!["%}"], &[T!["</"]]);
+    parser.complete(end_block_m, SyntaxKind::TWIG_TRANS_ENDING_BLOCK);
 
-  parser.complete(wrapper_m, SyntaxKind::TWIG_TRANS)
+    parser.complete(wrapper_m, SyntaxKind::TWIG_TRANS)
 }
 
 #[cfg(test)]
@@ -5209,11 +5204,11 @@ mod tests {
         );
     }
 
-  #[test]
-  fn parse_twig_trans() {
-      check_parse(
-          "{% trans %} hello world {% endtrans %}",
-          expect![[r#"
+    #[test]
+    fn parse_twig_trans() {
+        check_parse(
+            "{% trans %} hello world {% endtrans %}",
+            expect![[r#"
               ROOT@0..38
                 TWIG_TRANS@0..38
                   TWIG_TRANS_STARTING_BLOCK@0..11
@@ -5235,6 +5230,6 @@ mod tests {
                     TK_ENDTRANS@27..35 "endtrans"
                     TK_WHITESPACE@35..36 " "
                     TK_PERCENT_CURLY@36..38 "%}""#]],
-    );
-  }
+        );
+    }
 }

@@ -588,10 +588,7 @@ ast_node!(
     TwigTransStartingBlock,
     SyntaxKind::TWIG_TRANS_STARTING_BLOCK
 );
-ast_node!(
-    TwigTransEndingBlock,
-    SyntaxKind::TWIG_TRANS_ENDING_BLOCK
-);
+ast_node!(TwigTransEndingBlock, SyntaxKind::TWIG_TRANS_ENDING_BLOCK);
 
 #[cfg(test)]
 mod tests {
