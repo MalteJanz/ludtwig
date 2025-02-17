@@ -112,7 +112,7 @@ impl<'source> Source<'source> {
     }
 
     fn at_trivia(&self) -> bool {
-        self.peek_kind_raw().map_or(false, SyntaxKind::is_trivia)
+        self.peek_kind_raw().is_some_and(SyntaxKind::is_trivia)
     }
 
     fn peek_kind_raw(&self) -> Option<SyntaxKind> {

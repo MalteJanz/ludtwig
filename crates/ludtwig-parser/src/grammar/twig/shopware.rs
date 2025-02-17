@@ -400,7 +400,7 @@ mod tests {
     #[test]
     fn parse_shopware_return() {
         check_parse(
-            r#"{% return %}"#,
+            r"{% return %}",
             expect![[r#"
             ROOT@0..12
               SHOPWARE_RETURN@0..12
@@ -415,7 +415,7 @@ mod tests {
     #[test]
     fn parse_shopware_return_value() {
         check_parse(
-            r#"{% return 5 %}"#,
+            r"{% return 5 %}",
             expect![[r#"
             ROOT@0..14
               SHOPWARE_RETURN@0..14
@@ -434,7 +434,7 @@ mod tests {
     #[test]
     fn parse_shopware_return_expression() {
         check_parse(
-            r#"{% return not compare('=', 'foo', test) %}"#,
+            r"{% return not compare('=', 'foo', test) %}",
             expect![[r#"
                 ROOT@0..42
                   SHOPWARE_RETURN@0..42
@@ -481,7 +481,7 @@ mod tests {
     #[test]
     fn parse_shopware_icon() {
         check_parse(
-            r#"{% sw_icon 'clock' %}"#,
+            r"{% sw_icon 'clock' %}",
             expect![[r#"
             ROOT@0..21
               SHOPWARE_ICON@0..21
@@ -503,7 +503,7 @@ mod tests {
     #[test]
     fn parse_shopware_icon_with_style() {
         check_parse(
-            r#"{% sw_icon 'minus' style { 'size': 'xs' } %}"#,
+            r"{% sw_icon 'minus' style { 'size': 'xs' } %}",
             expect![[r#"
                 ROOT@0..44
                   SHOPWARE_ICON@0..44
@@ -551,7 +551,7 @@ mod tests {
     #[test]
     fn parse_shopware_thumbnails() {
         check_parse(
-            r#"{% sw_thumbnails 'cart-item-img-thumbnails' %}"#,
+            r"{% sw_thumbnails 'cart-item-img-thumbnails' %}",
             expect![[r#"
                 ROOT@0..46
                   SHOPWARE_THUMBNAILS@0..46
@@ -573,7 +573,7 @@ mod tests {
     #[test]
     fn parse_shopware_thumbnails_with() {
         check_parse(
-            r#"{% sw_thumbnails 'product-image-thumbnails' with { media: product.cover.media } %}"#,
+            r"{% sw_thumbnails 'product-image-thumbnails' with { media: product.cover.media } %}",
             expect![[r#"
                 ROOT@0..82
                   SHOPWARE_THUMBNAILS@0..82

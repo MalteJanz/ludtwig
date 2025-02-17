@@ -192,7 +192,7 @@ mod tests {
         test_rule(
             "twig-block-name-snake-case",
             "{% block a-b %}hello{% endblock %}",
-            expect![[r#"
+            expect![[r"
                 help[twig-block-name-snake-case]: Block name is not written in snake_case
                   ┌─ ./debug-rule.html.twig:1:10
                   │
@@ -202,7 +202,7 @@ mod tests {
                   │          help: rename this block in snake_case
                   │          Try this name instead: a_b
 
-            "#]],
+            "]],
         );
     }
 

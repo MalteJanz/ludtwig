@@ -27,10 +27,10 @@ impl Rule for RuleTwigStringQuotation {
         let correct_quote = ctx.config().format.twig_quotation.corresponding_char();
         let opening_is_fine = twig_string
             .get_opening_quote()
-            .map_or(false, |t| t.text().starts_with(correct_quote));
+            .is_some_and(|t| t.text().starts_with(correct_quote));
         let closing_is_fine = twig_string
             .get_closing_quote()
-            .map_or(false, |t| t.text().starts_with(correct_quote));
+            .is_some_and(|t| t.text().starts_with(correct_quote));
 
         if !opening_is_fine || !closing_is_fine {
             // invalid quotation
@@ -139,7 +139,7 @@ mod tests {
         test_rule(
             "twig-string-quotation",
             r#"{{ "/#{prefix}/phoneNumber" }}"#,
-            expect![r#""#],
+            expect![r""],
         );
     }
 
@@ -148,7 +148,7 @@ mod tests {
         test_rule_fix(
             "twig-string-quotation",
             r#"{{ "double-quoted" }}"#,
-            expect![r#"{{ 'double-quoted' }}"#],
+            expect![r"{{ 'double-quoted' }}"],
         );
     }
 

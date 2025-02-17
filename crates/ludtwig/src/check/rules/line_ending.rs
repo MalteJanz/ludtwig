@@ -27,7 +27,7 @@ impl Rule for RuleLineEnding {
         // because this function is called in a hot loop this does improve it's performance significantly
         let invalid_regex = INVALID_REGEX.get_or_init(|| {
             Regex::new(&format!(
-                r#"({})"#,
+                r"({})",
                 match ctx.config().format.line_ending {
                     LineEnding::UnixLF => "\r\n", // inverse: look for windows line endings
                     LineEnding::WindowsCRLF => "[^\r]?\n", // inverse: look for unix line endings
@@ -73,7 +73,7 @@ mod tests {
         test_rule(
             "line-ending",
             "\r\n",
-            expect![[r#"
+            expect![[r"
                 warning[line-ending]: invalid line ending
                   ┌─ ./debug-rule.html.twig:1:1
                   │    
@@ -83,14 +83,14 @@ mod tests {
                   │   ╰' use UnixLF (\n) instead: 
 
 
-            "#]],
+            "]],
         );
         test_rule_fix(
             "line-ending",
             "\r\nA",
-            expect![[r#"
+            expect![[r"
 
-                A"#]],
+                A"]],
         );
     }
 
@@ -99,7 +99,7 @@ mod tests {
         test_rule(
             "line-ending",
             "hello\r\nworld\r\n",
-            expect![[r#"
+            expect![[r"
                 warning[line-ending]: invalid line ending
                   ┌─ ./debug-rule.html.twig:1:6
                   │    
@@ -122,15 +122,15 @@ mod tests {
                   │   ╰' use UnixLF (\n) instead: 
 
 
-            "#]],
+            "]],
         );
         test_rule_fix(
             "line-ending",
             "hello\r\nworld\r\n",
-            expect![[r#"
+            expect![[r"
                 hello
                 world
-            "#]],
+            "]],
         );
     }
 
@@ -139,7 +139,7 @@ mod tests {
         test_rule(
             "line-ending",
             "hello\r\n\r\n\r\nworld",
-            expect![[r#"
+            expect![[r"
                 warning[line-ending]: invalid line ending
                   ┌─ ./debug-rule.html.twig:1:6
                   │    
@@ -169,16 +169,16 @@ mod tests {
                   │   ╰' use UnixLF (\n) instead: 
 
 
-            "#]],
+            "]],
         );
         test_rule_fix(
             "line-ending",
             "hello\r\n\r\n\r\nworld",
-            expect![[r#"
+            expect![[r"
                 hello
 
 
-                world"#]],
+                world"]],
         );
     }
 
@@ -187,7 +187,7 @@ mod tests {
         test_rule(
             "line-ending",
             "hello\n\r\nworld",
-            expect![[r#"
+            expect![[r"
                 warning[line-ending]: invalid line ending
                   ┌─ ./debug-rule.html.twig:2:1
                   │    
@@ -197,15 +197,15 @@ mod tests {
                   │   ╰' use UnixLF (\n) instead: 
 
 
-            "#]],
+            "]],
         );
         test_rule_fix(
             "line-ending",
             "hello\n\r\nworld",
-            expect![[r#"
+            expect![[r"
                 hello
 
-                world"#]],
+                world"]],
         );
     }
 }

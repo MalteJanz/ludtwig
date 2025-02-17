@@ -1714,9 +1714,9 @@ mod tests {
     #[test]
     fn parse_twig_capturing_set() {
         check_parse(
-            r#"{% set foo %}
+            r"{% set foo %}
     hello world
-{% endset %}"#,
+{% endset %}",
             expect![[r#"
                 ROOT@0..42
                   TWIG_SET@0..42
@@ -1750,7 +1750,7 @@ mod tests {
     #[test]
     fn parse_twig_multi_set() {
         check_parse(
-            r#"{% set foo, bar, baz = 'foo', 'bar', 'baz' %}"#,
+            r"{% set foo, bar, baz = 'foo', 'bar', 'baz' %}",
             expect![[r#"
             ROOT@0..45
               TWIG_SET@0..45
@@ -1803,7 +1803,7 @@ mod tests {
     #[test]
     fn parse_twig_multi_set_non_equal_declarations() {
         check_parse(
-            r#"{% set foo, bar, baz = 'foo', 'bar' %}"#,
+            r"{% set foo, bar, baz = 'foo', 'bar' %}",
             expect![[r#"
             ROOT@0..38
               TWIG_SET@0..38
@@ -1849,9 +1849,9 @@ mod tests {
     #[test]
     fn parse_twig_multi_with_capturing() {
         check_parse(
-            r#"{% set foo, bar, baz %}
+            r"{% set foo, bar, baz %}
     hello world
-{% endset %}"#,
+{% endset %}",
             expect![[r#"
                 ROOT@0..52
                   TWIG_SET@0..52
@@ -1894,7 +1894,7 @@ mod tests {
     #[test]
     fn parse_twig_set_missing_declaration() {
         check_parse(
-            r#"{% set = 'foo' %}"#,
+            r"{% set = 'foo' %}",
             expect![[r#"
                 ROOT@0..17
                   TWIG_SET@0..17
@@ -1922,7 +1922,7 @@ mod tests {
     #[test]
     fn parse_twig_set_missing_assignment() {
         check_parse(
-            r#"{% set foo = %}"#,
+            r"{% set foo = %}",
             expect![[r#"
                 ROOT@0..15
                   TWIG_SET@0..15
@@ -1945,7 +1945,7 @@ mod tests {
     #[test]
     fn parse_twig_set_missing_equal() {
         check_parse(
-            r#"{% set foo, bar, baz %}"#,
+            r"{% set foo, bar, baz %}",
             expect![[r#"
                 ROOT@0..23
                   TWIG_SET@0..23
@@ -1979,9 +1979,9 @@ mod tests {
     #[test]
     fn parse_twig_for_in_users() {
         check_parse(
-            r#"{% for user in users %}
+            r"{% for user in users %}
     <li>{{ user.username }}</li>
-{% endfor %}"#,
+{% endfor %}",
             expect![[r#"
                 ROOT@0..69
                   TWIG_FOR@0..69
@@ -2041,9 +2041,9 @@ mod tests {
     #[test]
     fn parse_twig_for_in_number_range() {
         check_parse(
-            r#"{% for i in 0..10 %}
+            r"{% for i in 0..10 %}
     * {{ i }}
-{% endfor %}"#,
+{% endfor %}",
             expect![[r#"
             ROOT@0..47
               TWIG_FOR@0..47
@@ -2095,9 +2095,9 @@ mod tests {
     #[test]
     fn parse_twig_for_in_letter_range_with_filters() {
         check_parse(
-            r#"{% for letter in 'a'|upper..'z'|upper %}
+            r"{% for letter in 'a'|upper..'z'|upper %}
     * {{ letter }}
-{% endfor %}"#,
+{% endfor %}",
             expect![[r#"
                 ROOT@0..72
                   TWIG_FOR@0..72
@@ -2167,9 +2167,9 @@ mod tests {
     #[test]
     fn parse_twig_for_key_value_in_users() {
         check_parse(
-            r#"{% for key, user in users %}
+            r"{% for key, user in users %}
     <li>{{ key }}: {{ user.username|e }}</li>
-{% endfor %}"#,
+{% endfor %}",
             expect![[r#"
                 ROOT@0..87
                   TWIG_FOR@0..87
@@ -2250,11 +2250,11 @@ mod tests {
     #[test]
     fn parse_twig_for_with_else() {
         check_parse(
-            r#"{% for user in users %}
+            r"{% for user in users %}
     <li>{{ user.username }}</li>
 {% else %}
     <li><em>no user found</em></li>
-{% endfor %}"#,
+{% endfor %}",
             expect![[r#"
                 ROOT@0..116
                   TWIG_FOR@0..116
@@ -2352,9 +2352,9 @@ mod tests {
     #[test]
     fn parse_twig_for_with_missing_variable() {
         check_parse(
-            r#"{% for in users %}
+            r"{% for in users %}
     <li>{{ user.username }}</li>
-{% endfor %}"#,
+{% endfor %}",
             expect![[r#"
                 ROOT@0..64
                   TWIG_FOR@0..64
@@ -2413,9 +2413,9 @@ mod tests {
     #[test]
     fn parse_twig_for_with_missing_expression() {
         check_parse(
-            r#"{% for user in %}
+            r"{% for user in %}
     <li>{{ user.username }}</li>
-{% endfor %}"#,
+{% endfor %}",
             expect![[r#"
                 ROOT@0..63
                   TWIG_FOR@0..63
@@ -2496,7 +2496,7 @@ mod tests {
     #[test]
     fn parse_twig_extends_with_variable() {
         check_parse(
-            r#"{% extends some_var %}"#,
+            r"{% extends some_var %}",
             expect![[r#"
         ROOT@0..22
           TWIG_EXTENDS@0..22
@@ -2515,7 +2515,7 @@ mod tests {
     #[test]
     fn parse_twig_extends_with_array() {
         check_parse(
-            r#"{% extends ['layout.html', 'base_layout.html'] %}"#,
+            r"{% extends ['layout.html', 'base_layout.html'] %}",
             expect![[r#"
                 ROOT@0..49
                   TWIG_EXTENDS@0..49
@@ -2597,7 +2597,7 @@ mod tests {
     #[test]
     fn parse_twig_extends_missing_expression() {
         check_parse(
-            r#"{% extends %}"#,
+            r"{% extends %}",
             expect![[r#"
         ROOT@0..13
           TWIG_EXTENDS@0..13
@@ -2613,7 +2613,7 @@ mod tests {
     #[test]
     fn parse_twig_include_string() {
         check_parse(
-            r#"{% include 'header.html' %}"#,
+            r"{% include 'header.html' %}",
             expect![[r#"
         ROOT@0..27
           TWIG_INCLUDE@0..27
@@ -2637,7 +2637,7 @@ mod tests {
     #[test]
     fn parse_twig_include_with_variable() {
         check_parse(
-            r#"{% include 'template.html' with vars %}"#,
+            r"{% include 'template.html' with vars %}",
             expect![[r#"
             ROOT@0..39
               TWIG_INCLUDE@0..39
@@ -2668,7 +2668,7 @@ mod tests {
     #[test]
     fn parse_twig_include_with_hash() {
         check_parse(
-            r#"{% include 'template.html' with {'foo': 'bar'} %}"#,
+            r"{% include 'template.html' with {'foo': 'bar'} %}",
             expect![[r#"
                 ROOT@0..49
                   TWIG_INCLUDE@0..49
@@ -2716,7 +2716,7 @@ mod tests {
     #[test]
     fn parse_twig_include_with_hash_only() {
         check_parse(
-            r#"{% include 'template.html' with {'foo': 'bar'} only %}"#,
+            r"{% include 'template.html' with {'foo': 'bar'} only %}",
             expect![[r#"
                 ROOT@0..54
                   TWIG_INCLUDE@0..54
@@ -2766,7 +2766,7 @@ mod tests {
     #[test]
     fn parse_twig_include_only() {
         check_parse(
-            r#"{% include 'template.html' only %}"#,
+            r"{% include 'template.html' only %}",
             expect![[r#"
         ROOT@0..34
           TWIG_INCLUDE@0..34
@@ -2792,7 +2792,7 @@ mod tests {
     #[test]
     fn parse_twig_include_expression() {
         check_parse(
-            r#"{% include ajax ? 'ajax.html' : 'not_ajax.html' %}"#,
+            r"{% include ajax ? 'ajax.html' : 'not_ajax.html' %}",
             expect![[r#"
             ROOT@0..50
               TWIG_INCLUDE@0..50
@@ -2835,7 +2835,7 @@ mod tests {
     #[test]
     fn parse_twig_include_variable_ignore_missing_with_hash_only() {
         check_parse(
-            r#"{% include some_var ignore missing with {'foo': 'bar'} only %}"#,
+            r"{% include some_var ignore missing with {'foo': 'bar'} only %}",
             expect![[r#"
                 ROOT@0..62
                   TWIG_INCLUDE@0..62
@@ -2882,7 +2882,7 @@ mod tests {
     #[test]
     fn parse_twig_include_missing_template() {
         check_parse(
-            r#"{% include %}"#,
+            r"{% include %}",
             expect![[r#"
         ROOT@0..13
           TWIG_INCLUDE@0..13
@@ -2898,7 +2898,7 @@ mod tests {
     #[test]
     fn parse_twig_include_missing_with_value() {
         check_parse(
-            r#"{% include 'template.html' with %}"#,
+            r"{% include 'template.html' with %}",
             expect![[r#"
             ROOT@0..34
               TWIG_INCLUDE@0..34
@@ -2926,7 +2926,7 @@ mod tests {
     #[test]
     fn parse_twig_include_array() {
         check_parse(
-            r#"{% include ['page_detailed.html', 'page.html'] %}"#,
+            r"{% include ['page_detailed.html', 'page.html'] %}",
             expect![[r#"
                 ROOT@0..49
                   TWIG_INCLUDE@0..49
@@ -3119,9 +3119,9 @@ mod tests {
     #[test]
     fn parse_twig_apply_filter() {
         check_parse(
-            r#"{% apply upper %}
+            r"{% apply upper %}
     This text becomes uppercase
-{% endapply %}"#,
+{% endapply %}",
             expect![[r#"
                 ROOT@0..64
                   TWIG_APPLY@0..64
@@ -3158,9 +3158,9 @@ mod tests {
     #[test]
     fn parse_twig_apply_filter_with_arguments() {
         check_parse(
-            r#"{% apply trim('-', side='left') %}
+            r"{% apply trim('-', side='left') %}
     This text becomes trimmed
-{% endapply %}"#,
+{% endapply %}",
             expect![[r#"
                 ROOT@0..79
                   TWIG_APPLY@0..79
@@ -3217,9 +3217,9 @@ mod tests {
     #[test]
     fn parse_twig_apply_filter_chained() {
         check_parse(
-            r#"{% apply lower|escape('html')|trim('-', side='left') %}
+            r"{% apply lower|escape('html')|trim('-', side='left') %}
     <strong>SOME TEXT</strong>
-{% endapply %}"#,
+{% endapply %}",
             expect![[r#"
                 ROOT@0..101
                   TWIG_APPLY@0..101
@@ -3304,9 +3304,9 @@ mod tests {
     #[test]
     fn parse_twig_apply_missing_filter() {
         check_parse(
-            r#"{% apply %}
+            r"{% apply %}
     SOME TEXT
-{% endapply %}"#,
+{% endapply %}",
             expect![[r#"
                 ROOT@0..40
                   TWIG_APPLY@0..40
@@ -3337,9 +3337,9 @@ mod tests {
     #[test]
     fn parse_twig_apply_wrong_type() {
         check_parse(
-            r#"{% apply 5 %}
+            r"{% apply 5 %}
     SOME TEXT
-{% endapply %}"#,
+{% endapply %}",
             expect![[r#"
                 ROOT@0..42
                   TWIG_APPLY@0..42
@@ -3373,10 +3373,10 @@ mod tests {
     #[test]
     fn parse_twig_autoescape() {
         check_parse(
-            r#"{% autoescape %}
+            r"{% autoescape %}
     Everything will be automatically escaped in this block
     using the HTML strategy
-{% endautoescape %}"#,
+{% endautoescape %}",
             expect![[r#"
                 ROOT@0..123
                   TWIG_AUTOESCAPE@0..123
@@ -3427,10 +3427,10 @@ mod tests {
     #[test]
     fn parse_twig_autoescape_strategy() {
         check_parse(
-            r#"{% autoescape 'js' %}
+            r"{% autoescape 'js' %}
     Everything will be automatically escaped in this block
     using the js escaping strategy
-{% endautoescape %}"#,
+{% endautoescape %}",
             expect![[r#"
                 ROOT@0..135
                   TWIG_AUTOESCAPE@0..135
@@ -3489,9 +3489,9 @@ mod tests {
     #[test]
     fn parse_twig_autoescape_false() {
         check_parse(
-            r#"{% autoescape false %}
+            r"{% autoescape false %}
     Everything will be outputted as is in this block
-{% endautoescape %}"#,
+{% endautoescape %}",
             expect![[r#"
                 ROOT@0..95
                   TWIG_AUTOESCAPE@0..95
@@ -3537,10 +3537,10 @@ mod tests {
     #[test]
     fn parse_twig_autoescape_wrong_var() {
         check_parse(
-            r#"{% autoescape my_var %}
+            r"{% autoescape my_var %}
     Everything will be automatically escaped in this block
     using the js escaping strategy
-{% endautoescape %}"#,
+{% endautoescape %}",
             expect![[r#"
                 ROOT@0..137
                   TWIG_AUTOESCAPE@0..137
@@ -3642,7 +3642,7 @@ mod tests {
     #[test]
     fn parse_twig_deprecated_missing_string() {
         check_parse(
-            r#"{% deprecated %}"#,
+            r"{% deprecated %}",
             expect![[r#"
                 ROOT@0..16
                   TWIG_DEPRECATED@0..16
@@ -3658,7 +3658,7 @@ mod tests {
     #[test]
     fn parse_twig_do() {
         check_parse(
-            r#"{% do 1 + 2 %}"#,
+            r"{% do 1 + 2 %}",
             expect![[r#"
             ROOT@0..14
               TWIG_DO@0..14
@@ -3685,7 +3685,7 @@ mod tests {
     #[test]
     fn parse_twig_do_missing_expression() {
         check_parse(
-            r#"{% do %}"#,
+            r"{% do %}",
             expect![[r#"
             ROOT@0..8
               TWIG_DO@0..8
@@ -3867,7 +3867,7 @@ mod tests {
     #[test]
     fn parse_twig_flush() {
         check_parse(
-            r#"{% flush %}"#,
+            r"{% flush %}",
             expect![[r#"
             ROOT@0..11
               TWIG_FLUSH@0..11
@@ -3882,7 +3882,7 @@ mod tests {
     #[test]
     fn parse_twig_from_template_import() {
         check_parse(
-            r#"{% from 'forms.html' import input as input_field, textarea %}"#,
+            r"{% from 'forms.html' import input as input_field, textarea %}",
             expect![[r#"
                 ROOT@0..61
                   TWIG_FROM@0..61
@@ -3922,7 +3922,7 @@ mod tests {
     #[test]
     fn parse_twig_from_expression_import() {
         check_parse(
-            r#"{% from my_var|trim import input as input_field, textarea %}"#,
+            r"{% from my_var|trim import input as input_field, textarea %}",
             expect![[r#"
                 ROOT@0..60
                   TWIG_FROM@0..60
@@ -3963,7 +3963,7 @@ mod tests {
     #[test]
     fn parse_twig_from_missing_macros() {
         check_parse(
-            r#"{% from 'forms.html' import %}"#,
+            r"{% from 'forms.html' import %}",
             expect![[r#"
             ROOT@0..30
               TWIG_FROM@0..30
@@ -3990,7 +3990,7 @@ mod tests {
     #[test]
     fn parse_twig_from_missing_import_and_macros() {
         check_parse(
-            r#"{% from 'forms.html' %}"#,
+            r"{% from 'forms.html' %}",
             expect![[r#"
             ROOT@0..23
               TWIG_FROM@0..23
@@ -4045,7 +4045,7 @@ mod tests {
     #[test]
     fn parse_twig_import_expression_as_macro() {
         check_parse(
-            r#"{% import my_var|trim as forms %}"#,
+            r"{% import my_var|trim as forms %}",
             expect![[r#"
                 ROOT@0..33
                   TWIG_IMPORT@0..33
@@ -4128,9 +4128,9 @@ mod tests {
     #[test]
     fn parse_twig_sandbox() {
         check_parse(
-            r#"{% sandbox %}
+            r"{% sandbox %}
     {% include 'user.html' %}
-{% endsandbox %}"#,
+{% endsandbox %}",
             expect![[r#"
                 ROOT@0..60
                   TWIG_SANDBOX@0..60
@@ -4171,13 +4171,13 @@ mod tests {
     #[test]
     fn parse_twig_verbatim() {
         check_parse(
-            r#"{% verbatim %}
+            r"{% verbatim %}
     <ul>
     {% for item in seq %}
         <li>{{ item }}</li>
     {% endfor %}
     </ul>
-{% endverbatim %}"#,
+{% endverbatim %}",
             expect![[r#"
                 ROOT@0..122
                   TWIG_VERBATIM@0..122
@@ -4405,9 +4405,9 @@ mod tests {
     #[test]
     fn parse_twig_macro_with_matching_end_tag() {
         check_parse(
-            r#"{% macro input() %}
+            r"{% macro input() %}
     ...
-{% endmacro input %}"#,
+{% endmacro input %}",
             expect![[r#"
                 ROOT@0..48
                   TWIG_MACRO@0..48
@@ -4443,9 +4443,9 @@ mod tests {
     #[test]
     fn parse_twig_macro_with_non_matching_end_tag() {
         check_parse(
-            r#"{% macro input() %}
+            r"{% macro input() %}
     ...
-{% endmacro inp %}"#,
+{% endmacro inp %}",
             expect![[r#"
                 ROOT@0..46
                   TWIG_MACRO@0..46
@@ -4482,9 +4482,9 @@ mod tests {
     #[test]
     fn parse_twig_macro_missing_arguments() {
         check_parse(
-            r#"{% macro input %}
+            r"{% macro input %}
     ...
-{% endmacro input %}"#,
+{% endmacro input %}",
             expect![[r#"
                 ROOT@0..46
                   TWIG_MACRO@0..46
@@ -4520,10 +4520,10 @@ mod tests {
     #[test]
     fn parse_twig_with() {
         check_parse(
-            r#"{% with %}
+            r"{% with %}
     {% set foo = 42 %}
     {{ foo }} {# foo is 42 here #}
-{% endwith %}"#,
+{% endwith %}",
             expect![[r##"
                 ROOT@0..82
                   TWIG_WITH@0..82
@@ -4589,9 +4589,9 @@ mod tests {
     #[test]
     fn parse_twig_with_and_hash() {
         check_parse(
-            r#"{% with { foo: 42 } %}
+            r"{% with { foo: 42 } %}
     {{ foo }} {# foo is 42 here #}
-{% endwith %}"#,
+{% endwith %}",
             expect![[r##"
                 ROOT@0..71
                   TWIG_WITH@0..71
@@ -4654,10 +4654,10 @@ mod tests {
     #[test]
     fn parse_twig_with_and_expression() {
         check_parse(
-            r#"{% set vars = { foo: 42 } %}
+            r"{% set vars = { foo: 42 } %}
 {% with vars %}
     ...
-{% endwith %}"#,
+{% endwith %}",
             expect![[r#"
                 ROOT@0..66
                   TWIG_SET@0..28
@@ -4720,11 +4720,11 @@ mod tests {
     #[test]
     fn parse_twig_with_and_hash_only() {
         check_parse(
-            r#"{% set bar = 'bar' %}
+            r"{% set bar = 'bar' %}
 {% with { foo: 42 } only %}
     {# only foo is defined #}
     {# bar is not defined #}
-{% endwith %}"#,
+{% endwith %}",
             expect![[r##"
                 ROOT@0..122
                   TWIG_SET@0..21
@@ -5138,9 +5138,9 @@ mod tests {
     #[test]
     fn parse_twig_cache_missing_key() {
         check_parse(
-            r#"{% cache %}
+            r"{% cache %}
     Some code
-{% endcache %}"#,
+{% endcache %}",
             expect![[r#"
                 ROOT@0..40
                   TWIG_CACHE@0..40
