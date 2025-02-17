@@ -1334,7 +1334,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_get_attribute_expression() {
         check_parse(
-            r#"{{ product.prices.euro }}"#,
+            r"{{ product.prices.euro }}",
             expect![[r#"
                 ROOT@0..25
                   TWIG_VAR@0..25
@@ -1363,7 +1363,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_with_filters() {
         check_parse(
-            r#"{{ product.price|striptags|title }}"#,
+            r"{{ product.price|striptags|title }}",
             expect![[r#"
                 ROOT@0..35
                   TWIG_VAR@0..35
@@ -1398,7 +1398,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_array_accessor() {
         check_parse(
-            r#"{{ product.prices['eur'] }}"#,
+            r"{{ product.prices['eur'] }}",
             expect![[r#"
                 ROOT@0..27
                   TWIG_VAR@0..27
@@ -1432,7 +1432,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_nested_array_accessor() {
         check_parse(
-            r#"{{ product.prices['eur'][0] }}"#,
+            r"{{ product.prices['eur'][0] }}",
             expect![[r#"
                 ROOT@0..30
                   TWIG_VAR@0..30
@@ -1474,7 +1474,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_nested_array_accessor_with_dot() {
         check_parse(
-            r#"{{ product.prices['eur'].0 }}"#,
+            r"{{ product.prices['eur'].0 }}",
             expect![[r#"
             ROOT@0..29
               TWIG_VAR@0..29
@@ -1515,7 +1515,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_array_dot_accessor() {
         check_parse(
-            r#"{{ product.tags.0.name }}"#,
+            r"{{ product.tags.0.name }}",
             expect![[r#"
             ROOT@0..25
               TWIG_VAR@0..25
@@ -1551,7 +1551,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_array_range_accessor() {
         check_parse(
-            r#"{{ prices[0:10] }}"#,
+            r"{{ prices[0:10] }}",
             expect![[r#"
                 ROOT@0..18
                   TWIG_VAR@0..18
@@ -1580,7 +1580,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_array_range_left_accessor() {
         check_parse(
-            r#"{{ prices[10:] }}"#,
+            r"{{ prices[10:] }}",
             expect![[r#"
                 ROOT@0..17
                   TWIG_VAR@0..17
@@ -1606,7 +1606,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_array_range_right_accessor() {
         check_parse(
-            r#"{{ prices[:10] }}"#,
+            r"{{ prices[:10] }}",
             expect![[r#"
                 ROOT@0..17
                   TWIG_VAR@0..17
@@ -1632,7 +1632,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_array_range_right_accessor_negative() {
         check_parse(
-            r#"{{ prices[:-2] }}"#,
+            r"{{ prices[:-2] }}",
             expect![[r#"
             ROOT@0..17
               TWIG_VAR@0..17
@@ -1661,7 +1661,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_array_range_right_accessor_variable() {
         check_parse(
-            r#"{{ prices[:upperLimit] }}"#,
+            r"{{ prices[:upperLimit] }}",
             expect![[r#"
             ROOT@0..25
               TWIG_VAR@0..25
@@ -1687,7 +1687,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_array_range_left_accessor_variable() {
         check_parse(
-            r#"{{ prices[upperLimit:] }}"#,
+            r"{{ prices[upperLimit:] }}",
             expect![[r#"
             ROOT@0..25
               TWIG_VAR@0..25
@@ -1713,7 +1713,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_array_index_missing_expression() {
         check_parse(
-            r#"{{ prices[] }}"#,
+            r"{{ prices[] }}",
             expect![[r#"
             ROOT@0..14
               TWIG_VAR@0..14
@@ -1736,7 +1736,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_accessor_indexer_and_filter() {
         check_parse(
-            r#"{{ product.prices['eur'][0]|title }}"#,
+            r"{{ product.prices['eur'][0]|title }}",
             expect![[r#"
                 ROOT@0..36
                   TWIG_VAR@0..36
@@ -1784,7 +1784,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_function_accessor() {
         check_parse(
-            r#"{{ product.prices('eur').gross }}"#,
+            r"{{ product.prices('eur').gross }}",
             expect![[r#"
                 ROOT@0..33
                   TWIG_VAR@0..33
@@ -1824,7 +1824,7 @@ mod tests {
     #[test]
     fn parse_twig_variable_deep_function_accessor() {
         check_parse(
-            r#"{{ product.prices.gross('eur').gross }}"#,
+            r"{{ product.prices.gross('eur').gross }}",
             expect![[r#"
                 ROOT@0..39
                   TWIG_VAR@0..39
@@ -1870,7 +1870,7 @@ mod tests {
     #[test]
     fn parse_twig_function() {
         check_parse(
-            r#"{{ doIt() }}"#,
+            r"{{ doIt() }}",
             expect![[r#"
                 ROOT@0..12
                   TWIG_VAR@0..12
@@ -1892,7 +1892,7 @@ mod tests {
     #[test]
     fn parse_twig_function_arguments() {
         check_parse(
-            r#"{{ sum(1, 2) }}"#,
+            r"{{ sum(1, 2) }}",
             expect![[r#"
                 ROOT@0..15
                   TWIG_VAR@0..15
@@ -1922,7 +1922,7 @@ mod tests {
     #[test]
     fn parse_twig_function_named_arguments() {
         check_parse(
-            r#"{{ sum(a=1, b=2) }}"#,
+            r"{{ sum(a=1, b=2) }}",
             expect![[r#"
                 ROOT@0..19
                   TWIG_VAR@0..19
@@ -1958,7 +1958,7 @@ mod tests {
     #[test]
     fn parse_twig_function_mixed_named_arguments() {
         check_parse(
-            r#"{{ sum(1, b=my_number) }}"#,
+            r"{{ sum(1, b=my_number) }}",
             expect![[r#"
                 ROOT@0..25
                   TWIG_VAR@0..25
@@ -1991,7 +1991,7 @@ mod tests {
     #[test]
     fn parse_twig_function_nested_call() {
         check_parse(
-            r#"{{ sum(1, sin(1)) }}"#,
+            r"{{ sum(1, sin(1)) }}",
             expect![[r#"
                 ROOT@0..20
                   TWIG_VAR@0..20
@@ -2029,7 +2029,7 @@ mod tests {
     #[test]
     fn parse_twig_arrow_function_simple() {
         check_parse(
-            r#"{% set my_arrow_function = i => i % 2 %}"#,
+            r"{% set my_arrow_function = i => i % 2 %}",
             expect![[r#"
                 ROOT@0..40
                   TWIG_SET@0..40
@@ -2071,7 +2071,7 @@ mod tests {
     #[test]
     fn parse_twig_arrow_function_simple_brackets() {
         check_parse(
-            r#"{% set my_arrow_function = (i) => i % 2 %}"#,
+            r"{% set my_arrow_function = (i) => i % 2 %}",
             expect![[r#"
                 ROOT@0..42
                   TWIG_SET@0..42
@@ -2115,7 +2115,7 @@ mod tests {
     #[test]
     fn parse_twig_arrow_function_advanced() {
         check_parse(
-            r#"{% set my_arrow_function = (a, b) => a >= b %}"#,
+            r"{% set my_arrow_function = (a, b) => a >= b %}",
             expect![[r#"
                 ROOT@0..46
                   TWIG_SET@0..46
@@ -2163,7 +2163,7 @@ mod tests {
     #[test]
     fn parse_twig_arrow_function_as_filer_argument() {
         check_parse(
-            r#"{% for item in crossSellings|filter(item => item.total > 0 and item.crossSelling.active == true) %} {{ item }} {% endfor %}"#,
+            r"{% for item in crossSellings|filter(item => item.total > 0 and item.crossSelling.active == true) %} {{ item }} {% endfor %}",
             expect![[r#"
                 ROOT@0..123
                   TWIG_FOR@0..123
@@ -2266,7 +2266,7 @@ mod tests {
     #[test]
     fn parse_twig_filter_arguments() {
         check_parse(
-            r#"{{ list|join(', ') }}"#,
+            r"{{ list|join(', ') }}",
             expect![[r#"
                 ROOT@0..21
                   TWIG_VAR@0..21
@@ -2299,7 +2299,7 @@ mod tests {
     #[test]
     fn parse_twig_double_filter_arguments() {
         check_parse(
-            r#"{{ list|join(', ')|trim }}"#,
+            r"{{ list|join(', ')|trim }}",
             expect![[r#"
                 ROOT@0..26
                   TWIG_VAR@0..26
@@ -2394,7 +2394,7 @@ mod tests {
     #[test]
     fn parse_twig_filter_within_binary_comparison() {
         check_parse(
-            r#"{{ users|length > 0 }}"#,
+            r"{{ users|length > 0 }}",
             expect![[r#"
                 ROOT@0..22
                   TWIG_VAR@0..22
@@ -2425,7 +2425,7 @@ mod tests {
     #[test]
     fn parse_twig_include_function_call() {
         check_parse(
-            r#"{{ include('sections/articles/sidebar.html') }}"#,
+            r"{{ include('sections/articles/sidebar.html') }}",
             expect![[r#"
                 ROOT@0..47
                   TWIG_VAR@0..47

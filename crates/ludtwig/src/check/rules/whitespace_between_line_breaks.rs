@@ -51,7 +51,7 @@ mod tests {
 \t
             <hr/>
 {% endblock %}",
-            expect![[r#"
+            expect![[r"
                 help[whitespace-between-line-breaks]: Whitespace between line breaks
                   ┌─ ./debug-rule.html.twig:2:1
                   │
@@ -61,7 +61,7 @@ mod tests {
                   │ Unexpected whitespace on empty line
                   │ Remove whitespace: 
 
-            "#]],
+            "]],
         );
     }
 
@@ -73,11 +73,11 @@ mod tests {
 \t
             <hr/>
 {% endblock %}",
-            expect![[r#"
+            expect![[r"
                 {% block my_block %}
 
                             <hr/>
-                {% endblock %}"#]],
+                {% endblock %}"]],
         );
     }
 }

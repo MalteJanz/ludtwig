@@ -82,7 +82,7 @@ impl Rule for RuleTwigBlockLineBreaks {
             .and_then(|t| t.next_token())
             .filter(|_| {
                 // if next real sibling (excluding comment) is a block, return no token, because that block will handle the line breaks
-                !real_next_sibling.map_or(false, |n| n.kind() == SyntaxKind::TWIG_BLOCK)
+                !real_next_sibling.is_some_and(|n| n.kind() == SyntaxKind::TWIG_BLOCK)
             });
 
         let expected_line_break = ctx.config().format.line_ending.corresponding_string();
@@ -192,7 +192,7 @@ mod tests {
         {% endblock %}
     </div>
 {% endblock %}",
-            expect![[r#"
+            expect![[r"
                 help[twig-block-line-breaks]: Wrong line break around block
                   ┌─ ./debug-rule.html.twig:5:23
                   │    
@@ -229,7 +229,7 @@ mod tests {
 
 
 
-            "#]],
+            "]],
         );
     }
 
@@ -280,13 +280,13 @@ mod tests {
     fn rule_reports_top_level() {
         test_rule(
             "twig-block-line-breaks",
-            r#"{% block my_block %}
+            r"{% block my_block %}
                 hello
             {% endblock %}
             {%block another %}
                 world
-            {% endblock %}"#,
-            expect![[r#"
+            {% endblock %}",
+            expect![[r"
                 help[twig-block-line-breaks]: Wrong line break around block
                   ┌─ ./debug-rule.html.twig:3:27
                   │    
@@ -299,7 +299,7 @@ mod tests {
 
 
 
-            "#]],
+            "]],
         );
     }
 
@@ -307,19 +307,19 @@ mod tests {
     fn rule_fixes_top_level() {
         test_rule_fix(
             "twig-block-line-breaks",
-            r#"{% block my_block %}
+            r"{% block my_block %}
                 hello
             {% endblock %}
             {%block another %}
                 world
-            {% endblock %}"#,
-            expect![[r#"{% block my_block %}
+            {% endblock %}",
+            expect![[r"{% block my_block %}
                 hello
             {% endblock %}
 
             {%block another %}
                 world
-            {% endblock %}"#]],
+            {% endblock %}"]],
         );
     }
 
@@ -371,7 +371,7 @@ mod tests {
     fn rule_reports_together_with_comments() {
         test_rule(
             "twig-block-line-breaks",
-            r#"{# @deprecated tag:v6.7.0 - Block will be removed. #}
+            r"{# @deprecated tag:v6.7.0 - Block will be removed. #}
 {% block component_address_address_editor_modal_inner %}
     {# @deprecated tag:v6.7.0 - Block will be removed. #}
     {% block component_address_address_editor_modal_accordion_overview %}
@@ -382,8 +382,8 @@ mod tests {
             {% endblock %}
         {% endif %}
     {% endblock %}
-{% endblock %}"#,
-            expect![[r#""#]],
+{% endblock %}",
+            expect![[r""]],
         );
     }
 
@@ -391,7 +391,7 @@ mod tests {
     fn rule_does_not_fix_nesting_together_with_comments() {
         test_rule_does_not_fix(
             "twig-block-line-breaks",
-            r#"{# @deprecated tag:v6.7.0 - Block will be removed. #}
+            r"{# @deprecated tag:v6.7.0 - Block will be removed. #}
 {% block component_address_address_editor_modal_inner %}
     {# @deprecated tag:v6.7.0 - Block will be removed. #}
     {% block component_address_address_editor_modal_accordion_overview %}
@@ -402,8 +402,8 @@ mod tests {
             {% endblock %}
         {% endif %}
     {% endblock %}
-{% endblock %}"#,
-            expect![[r#"{# @deprecated tag:v6.7.0 - Block will be removed. #}
+{% endblock %}",
+            expect![[r"{# @deprecated tag:v6.7.0 - Block will be removed. #}
 {% block component_address_address_editor_modal_inner %}
     {# @deprecated tag:v6.7.0 - Block will be removed. #}
     {% block component_address_address_editor_modal_accordion_overview %}
@@ -414,7 +414,7 @@ mod tests {
             {% endblock %}
         {% endif %}
     {% endblock %}
-{% endblock %}"#]],
+{% endblock %}"]],
         );
     }
 
@@ -422,7 +422,7 @@ mod tests {
     fn rule_does_not_report_trivia_sensitive() {
         test_rule(
             "twig-block-line-breaks",
-            r#"<pre>
+            r"<pre>
     {% block inner_a %}
         hello
     {% endblock %}
@@ -469,8 +469,8 @@ mod tests {
     {% block inner_b %}
         world
     {% endblock %}
-</div>"#,
-            expect![[r#"
+</div>",
+            expect![[r"
                 help[twig-block-line-breaks]: Wrong line break around block
                    ┌─ ./debug-rule.html.twig:44:19
                    │    
@@ -483,7 +483,7 @@ mod tests {
 
 
 
-            "#]],
+            "]],
         );
     }
 
@@ -495,7 +495,7 @@ mod tests {
                 <div class="{% block my_string_block %}hello{% endblock %}">
                 </div>
         "#,
-            expect![r#""#],
+            expect![r""],
         );
     }
 }

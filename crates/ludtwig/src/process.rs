@@ -82,10 +82,7 @@ fn run_analysis(
     // apply suggestions if needed
     let (file_context, rule_result_context) = if apply_suggestions {
         let (file_context, rule_result_context, dirty, iterations) =
-            match iteratively_apply_suggestions(file_context, rule_result_context) {
-                Ok(val) => val,
-                Err(e) => return Err(e),
-            };
+            iteratively_apply_suggestions(file_context, rule_result_context)?;
         if dirty {
             match fs::write(&file_context.file_path, &file_context.source_code) {
                 Ok(()) => {}
