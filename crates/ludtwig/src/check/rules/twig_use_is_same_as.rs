@@ -48,7 +48,7 @@ mod tests {
         test_rule(
             "twig-use-is-same-as",
             "{% if a === 5 %}hello{% endif %}",
-            expect![[r#"
+            expect![[r"
                 error[twig-use-is-same-as]: === is not a valid twig operator
                   ┌─ ./debug-rule.html.twig:1:9
                   │
@@ -58,7 +58,7 @@ mod tests {
                   │         Try this instead: is same as(5)
                   │         This is not a valid Twig operator, try 'is same as(condition)' instead
 
-            "#]],
+            "]],
         );
     }
 

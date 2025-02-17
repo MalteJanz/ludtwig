@@ -25,7 +25,7 @@ static HTML_RAW_TEXT_ELEMENTS: &[&str] = &["script", "style", "textarea", "title
 
 pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
     if parser.at(T!["<"])
-        && parser.peek_nth_token(1).map_or(false, |t| {
+        && parser.peek_nth_token(1).is_some_and(|t| {
             t.kind != T![ws] && t.kind != T![number] && !GENERAL_RECOVERY_SET.contains(&t.kind)
         })
     {
@@ -183,16 +183,9 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
     let tag_name_tokentype = parser.peek_token().map_or(SyntaxKind::TK_WORD, |t| t.kind);
     let mut twig_component_name: Option<String> = None;
 
-    if tag_name_lowercase == "twig"
-        && parser
-            .peek_nth_token(1)
-            .map_or(false, |t| t.kind == T![":"])
-    {
+    if tag_name_lowercase == "twig" && parser.peek_nth_token(1).is_some_and(|t| t.kind == T![":"]) {
         // possible twig component (e.g. <twig:Alert>)
-        if parser
-            .peek_nth_token(2)
-            .map_or(false, |t| t.kind == T![word])
-        {
+        if parser.peek_nth_token(2).is_some_and(|t| t.kind == T![word]) {
             twig_component_name = parser.peek_nth_token(2).map(|t| t.text.to_owned());
             parser.bump_next_n_as(3, T![word]);
         } else {
@@ -709,14 +702,14 @@ mod tests {
     #[test]
     fn parse_html_element_with_cutoff_closing_tag() {
         check_parse(
-            r#"<div>
+            r"<div>
             {% block a %}
             <p>
                 hello
             {% endblock %}
             <span>world</span>
             </p>
-            </div>"#,
+            </div>",
             expect![[r#"
                 ROOT@0..163
                   HTML_TAG@0..163
@@ -1958,7 +1951,7 @@ mod tests {
     #[test]
     fn parse_html_void_element_self_closing() {
         check_parse(
-            r#"<hr/>"#,
+            r"<hr/>",
             expect![[r#"
                 ROOT@0..5
                   HTML_TAG@0..5
@@ -2420,7 +2413,7 @@ mod tests {
     #[test]
     fn parse_inline_style_tag() {
         check_parse(
-            r#"<style>
+            r"<style>
             body {
                 font-family: Arial, sans-serif;
                 line-height: 1.6;
@@ -2441,7 +2434,7 @@ mod tests {
             code {
                 white-space: pre;
             }
-            </style>"#,
+            </style>",
             expect![[r##"
                 ROOT@0..608
                   HTML_TAG@0..608

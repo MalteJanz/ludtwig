@@ -42,7 +42,7 @@ mod tests {
         test_rule(
             "twig-logic-and",
             "{% if a == 5 && b %}hello{% endif %}",
-            expect![[r#"
+            expect![[r"
                 error[twig-logic-and]: '&&' is not a valid twig operator
                   ┌─ ./debug-rule.html.twig:1:14
                   │
@@ -52,7 +52,7 @@ mod tests {
                   │              help: change this operator
                   │              Try this operator instead: and
 
-            "#]],
+            "]],
         );
     }
 

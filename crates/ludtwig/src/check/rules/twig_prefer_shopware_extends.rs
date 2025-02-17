@@ -44,7 +44,7 @@ mod tests {
         test_rule(
             "twig-prefer-shopware-extends",
             "{% extends foo %}",
-            expect![[r#"
+            expect![[r"
                 warning[twig-prefer-shopware-extends]: prefer 'sw_extends' over 'extends' in shopware
                   ┌─ ./debug-rule.html.twig:1:1
                   │
@@ -54,7 +54,7 @@ mod tests {
                   │ │  Try this keyword instead: sw_extends
                   │ change this 'extends' to 'sw_extends'
 
-            "#]],
+            "]],
         );
     }
 

@@ -119,7 +119,7 @@ mod tests {
     fn rule_reports() {
         test_rule(
             "twig-block-duplicate",
-            r#"
+            r"
             {% block foo %}
             {% endblock %}
 
@@ -131,8 +131,8 @@ mod tests {
             {% block second_duplicate %}
                 {% block foo %}
                 {% endblock %}
-            {% endblock %}"#,
-            expect![[r#"
+            {% endblock %}",
+            expect![[r"
                 error[twig-block-duplicate]: block name duplicate
                   ┌─ ./debug-rule.html.twig:6:26
                   │
@@ -151,7 +151,7 @@ mod tests {
                 11 │                 {% block foo %}
                    │                          ^^^ duplicate block 'foo'
 
-            "#]],
+            "]],
         );
     }
 
@@ -159,7 +159,7 @@ mod tests {
     fn rule_does_not_report() {
         test_rule(
             "twig-block-duplicate",
-            r#"
+            r"
             {% block foo %}
             {% endblock %}
 
@@ -177,8 +177,8 @@ mod tests {
             {% block third_duplicate %}
                 {% block foo %}
                 {% endblock %}
-            {% endblock %}"#,
-            expect![[r#"
+            {% endblock %}",
+            expect![[r"
                 error[twig-block-duplicate]: block name duplicate
                   ┌─ ./debug-rule.html.twig:6:26
                   │
@@ -197,7 +197,7 @@ mod tests {
                 17 │                 {% block foo %}
                    │                          ^^^ duplicate block 'foo'
 
-            "#]],
+            "]],
         );
     }
 }

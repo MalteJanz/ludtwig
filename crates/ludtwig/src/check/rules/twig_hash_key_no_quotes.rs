@@ -72,8 +72,8 @@ mod tests {
     fn rule_reports() {
         test_rule(
             "twig-hash-key-no-quotes",
-            r#"{% set v = { 'myKey': 42 } %}"#,
-            expect![[r#"
+            r"{% set v = { 'myKey': 42 } %}",
+            expect![[r"
                 help[twig-hash-key-no-quotes]: unnecessary quotation
                   ┌─ ./debug-rule.html.twig:1:14
                   │
@@ -84,7 +84,7 @@ mod tests {
                   │              help: remove quotation
                   │              remove this quote: 
 
-            "#]],
+            "]],
         );
     }
 
@@ -92,8 +92,8 @@ mod tests {
     fn rule_not_reports() {
         test_rule(
             "twig-hash-key-no-quotes",
-            r#"{% set v = { 'my-key': 42 } %}"#,
-            expect![[r#""#]],
+            r"{% set v = { 'my-key': 42 } %}",
+            expect![[r""]],
         );
     }
 
@@ -101,8 +101,8 @@ mod tests {
     fn rule_fixes() {
         test_rule_fix(
             "twig-hash-key-no-quotes",
-            r#"{% set v = { 'myKey': 42 } %}"#,
-            expect![r#"{% set v = { myKey: 42 } %}"#],
+            r"{% set v = { 'myKey': 42 } %}",
+            expect![r"{% set v = { myKey: 42 } %}"],
         );
     }
 

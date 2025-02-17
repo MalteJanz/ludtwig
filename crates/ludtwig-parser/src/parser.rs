@@ -123,7 +123,7 @@ impl<'source> Parser<'source> {
     }
 
     pub(crate) fn at_set(&mut self, set: &[SyntaxKind]) -> bool {
-        self.peek().map_or(false, |k| set.contains(&k))
+        self.peek().is_some_and(|k| set.contains(&k))
     }
 
     pub(crate) fn at(&mut self, kind: SyntaxKind) -> bool {

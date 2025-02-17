@@ -16,10 +16,10 @@ impl Rule for RuleHtmlStringQuotation {
         let correct_quote = ctx.config().format.html_quotation.corresponding_char();
         let opening_is_fine = html_string
             .get_opening_quote()
-            .map_or(false, |t| t.text().starts_with(correct_quote));
+            .is_some_and(|t| t.text().starts_with(correct_quote));
         let closing_is_fine = html_string
             .get_closing_quote()
-            .map_or(false, |t| t.text().starts_with(correct_quote));
+            .is_some_and(|t| t.text().starts_with(correct_quote));
 
         if !opening_is_fine || !closing_is_fine {
             // invalid quotation
@@ -90,7 +90,7 @@ mod tests {
     fn rule_reports() {
         test_rule(
             "html-string-quotation",
-            r#"<div class='a'></div>"#,
+            r"<div class='a'></div>",
             expect![[r#"
                 help[html-string-quotation]: wrong quotation
                   ┌─ ./debug-rule.html.twig:1:12
@@ -126,7 +126,7 @@ mod tests {
     fn rule_does_report_strings_without_quotes() {
         test_rule(
             "html-string-quotation",
-            r#"<div class=a></div>"#,
+            r"<div class=a></div>",
             expect![[r#"
                 help[html-string-quotation]: wrong quotation
                   ┌─ ./debug-rule.html.twig:1:12
@@ -145,7 +145,7 @@ mod tests {
     fn rule_fixes() {
         test_rule_fix(
             "html-string-quotation",
-            r#"<div class='a'></div>"#,
+            r"<div class='a'></div>",
             expect![r#"<div class="a"></div>"#],
         );
     }
@@ -154,7 +154,7 @@ mod tests {
     fn rule_fixes_no_quotation() {
         test_rule_fix(
             "html-string-quotation",
-            r#"<div class=a required></div>"#,
+            r"<div class=a required></div>",
             expect![r#"<div class="a" required></div>"#],
         );
     }

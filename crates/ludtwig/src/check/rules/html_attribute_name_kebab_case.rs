@@ -195,7 +195,7 @@ mod tests {
         test_rule(
             "html-attribute-name-kebab-case",
             "<custom aBc/>",
-            expect![[r#"
+            expect![[r"
                 help[html-attribute-name-kebab-case]: Attribute name is not written in kebab-case
                   ┌─ ./debug-rule.html.twig:1:9
                   │
@@ -205,7 +205,7 @@ mod tests {
                   │         help: rename this attribute in kebab-case
                   │         Try this name instead: a-bc
 
-            "#]],
+            "]],
         );
     }
 

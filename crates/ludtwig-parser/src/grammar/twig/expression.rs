@@ -257,7 +257,7 @@ fn parse_paren_expression(parser: &mut Parser) -> (Marker, bool) {
     // first check for non existent unary expression token to be a arrow function
     if parser
         .peek_token()
-        .map_or(false, |t| t.kind.unary_binding_power().is_none())
+        .is_some_and(|t| t.kind.unary_binding_power().is_none())
     {
         // check for a simple name literal
         if let Some(mut lit_m) = parse_twig_name(parser) {
@@ -325,6 +325,7 @@ fn parse_unary_expression(parser: &mut Parser) -> CompletedMarker {
     parser.complete(m, SyntaxKind::TWIG_UNARY_EXPRESSION)
 }
 
+#[allow(clippy::too_many_lines)]
 #[cfg(test)]
 mod tests {
     use expect_test::expect;
@@ -1065,7 +1066,7 @@ mod tests {
     #[test]
     fn parse_twig_expression_is_even() {
         check_parse(
-            r#"{{ var is even }}"#,
+            r"{{ var is even }}",
             expect![[r#"
             ROOT@0..17
               TWIG_VAR@0..17
@@ -1090,7 +1091,7 @@ mod tests {
     #[test]
     fn parse_twig_expression_is_same_as() {
         check_parse(
-            r#"{{ foo.attribute is same as(false) }}"#,
+            r"{{ foo.attribute is same as(false) }}",
             expect![[r#"
                 ROOT@0..37
                   TWIG_VAR@0..37
@@ -1129,7 +1130,7 @@ mod tests {
     #[test]
     fn parse_twig_expression_is_divisible_by() {
         check_parse(
-            r#"{{ foo.attribute is divisible by(false) }}"#,
+            r"{{ foo.attribute is divisible by(false) }}",
             expect![[r#"
                 ROOT@0..42
                   TWIG_VAR@0..42
@@ -1169,7 +1170,7 @@ mod tests {
     fn parse_twig_unary_filter() {
         // The abs filter should apply to '5' and is then negated
         check_parse(
-            r#"{{ -5|abs }}"#,
+            r"{{ -5|abs }}",
             expect![[r#"
                 ROOT@0..12
                   TWIG_VAR@0..12
@@ -1196,7 +1197,7 @@ mod tests {
     fn parse_twig_unary_parentheses_filter() {
         // The abs filter should apply to '-5'
         check_parse(
-            r#"{{ (-5)|abs }}"#,
+            r"{{ (-5)|abs }}",
             expect![[r#"
                 ROOT@0..14
                   TWIG_VAR@0..14
@@ -1226,7 +1227,7 @@ mod tests {
     #[test]
     fn parse_twig_parenthesis_expression_filter() {
         check_parse(
-            r#"{{ ('a' ~ 'b')|trim }}"#,
+            r"{{ ('a' ~ 'b')|trim }}",
             expect![[r#"
                 ROOT@0..22
                   TWIG_VAR@0..22
@@ -1267,7 +1268,7 @@ mod tests {
     #[test]
     fn parse_twig_parenthesis_expression_multiple_filters() {
         check_parse(
-            r#"{{ ('a' ~ 'b')|trim|escape }}"#,
+            r"{{ ('a' ~ 'b')|trim|escape }}",
             expect![[r#"
                 ROOT@0..29
                   TWIG_VAR@0..29
@@ -1314,7 +1315,7 @@ mod tests {
     #[test]
     fn parse_twig_filter_accessor_plus_one() {
         check_parse(
-            r#"{{ thumbnails|first.width + 1 }}"#,
+            r"{{ thumbnails|first.width + 1 }}",
             expect![[r#"
             ROOT@0..32
               TWIG_VAR@0..32
@@ -1351,7 +1352,7 @@ mod tests {
     #[test]
     fn parse_twig_array_declartion_and_index() {
         check_parse(
-            r#"{{ [0, 1][0] }}"#,
+            r"{{ [0, 1][0] }}",
             expect![[r#"
                 ROOT@0..15
                   TWIG_VAR@0..15
@@ -1386,7 +1387,7 @@ mod tests {
     #[test]
     fn parse_twig_paren_expression_with_ternary() {
         check_parse(
-            r#"{% set value = (shippingMethod.media.translated.alt ?: shippingMethod.translated.name) %}"#,
+            r"{% set value = (shippingMethod.media.translated.alt ?: shippingMethod.translated.name) %}",
             expect![[r#"
                 ROOT@0..89
                   TWIG_SET@0..89
@@ -1455,7 +1456,7 @@ mod tests {
     #[test]
     fn parse_twig_paren_expression_with_post_operator_and_addition() {
         check_parse(
-            r#"{% if (product.price + 1 > 1) %} okey {% endif %}"#,
+            r"{% if (product.price + 1 > 1) %} okey {% endif %}",
             expect![[r#"
                 ROOT@0..49
                   TWIG_IF@0..49
@@ -1511,7 +1512,7 @@ mod tests {
     #[test]
     fn parse_twig_paren_expression_complex() {
         check_parse(
-            r#"{% set isDiscount = (not lineItem.good and lineItem.price.totalPrice <= 0) or lineItem.type == DISCOUNT_LINE_ITEM_TYPE %}"#,
+            r"{% set isDiscount = (not lineItem.good and lineItem.price.totalPrice <= 0) or lineItem.type == DISCOUNT_LINE_ITEM_TYPE %}",
             expect![[r#"
                 ROOT@0..121
                   TWIG_SET@0..121
@@ -1601,7 +1602,7 @@ mod tests {
     #[test]
     fn parse_twig_paren_expression_nested_in_binary() {
         check_parse(
-            r#"{% set sizes = (theme_config('breakpoint.sm') - 1) ~ 'px' %}"#,
+            r"{% set sizes = (theme_config('breakpoint.sm') - 1) ~ 'px' %}",
             expect![[r#"
                 ROOT@0..60
                   TWIG_SET@0..60
@@ -1663,12 +1664,12 @@ mod tests {
     #[test]
     fn parse_twig_paren_expression_inside_hash() {
         check_parse(
-            r#"{% set sizes = {
+            r"{% set sizes = {
                 xs: (theme_config('breakpoint.sm') - 1) ~ 'px',
                 sm: (theme_config('breakpoint.md') - 1) ~'px',
                 md: ((theme_config('breakpoint.lg') - 1) / columns)|round(0, 'ceil') ~'px',
                 lg: ((theme_config('breakpoint.xl') - 1) / columns)|round(0, 'ceil') ~'px'
-            } %}"#,
+            } %}",
             expect![[r#"
                 ROOT@0..343
                   TWIG_SET@0..343

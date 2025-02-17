@@ -276,7 +276,7 @@ impl RuleIndentation {
         ) && (indent_block_children
             || !n
                 .parent()
-                .map_or(false, |p| p.kind() == SyntaxKind::TWIG_BLOCK))
+                .is_some_and(|p| p.kind() == SyntaxKind::TWIG_BLOCK))
         {
             match walk_mode {
                 WalkMode::Enter => {
@@ -335,12 +335,12 @@ mod tests {
     fn rule_reports() {
         test_rule(
             "indentation",
-            r#"{% block outer %}
+            r"{% block outer %}
                 <div>
         inner
                       </div>
-                  {% endblock %}"#,
-            expect![[r#"
+                  {% endblock %}",
+            expect![[r"
                 help[indentation]: Wrong indentation
                   ┌─ ./debug-rule.html.twig:2:1
                   │
@@ -368,7 +368,7 @@ mod tests {
                   │ Found 18 spaces and 0 tabs but expected indentation of 0 spaces here
                   │ Change indentation to 0 spaces: 
 
-            "#]],
+            "]],
         );
     }
 
@@ -376,7 +376,7 @@ mod tests {
     fn rule_does_not_report_trivia_sensitive() {
         test_rule(
             "indentation",
-            r#"<pre>
+            r"<pre>
         hello
         
         
@@ -406,8 +406,8 @@ mod tests {
             </textarea>
     <div>
         wrong
-</div>"#,
-            expect![[r#"
+</div>",
+            expect![[r"
                 help[indentation]: Wrong indentation
                    ┌─ ./debug-rule.html.twig:29:1
                    │
@@ -426,7 +426,7 @@ mod tests {
                    │ Found 8 spaces and 0 tabs but expected indentation of 4 spaces here
                    │ Change indentation to 4 spaces:     
 
-            "#]],
+            "]],
         );
     }
 
@@ -434,17 +434,17 @@ mod tests {
     fn rule_fixes() {
         test_rule_fix(
             "indentation",
-            r#"{% block outer %}
+            r"{% block outer %}
                 <div>
         inner
                       </div>
-                  {% endblock %}"#,
-            expect![[r#"
+                  {% endblock %}",
+            expect![[r"
                 {% block outer %}
                     <div>
                         inner
                     </div>
-                {% endblock %}"#]],
+                {% endblock %}"]],
         );
     }
 
@@ -472,13 +472,13 @@ mod tests {
     fn rule_ignores() {
         test_rule(
             "indentation",
-            r#"{% block outer %}
+            r"{% block outer %}
     {# ludtwig-ignore indentation #}
     <div>
     inner
     </div>
-{% endblock %}"#,
-            expect![[r#""#]],
+{% endblock %}",
+            expect![[r""]],
         );
     }
 }

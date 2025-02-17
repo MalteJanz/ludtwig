@@ -48,7 +48,7 @@ mod tests {
         test_rule(
             "twig-use-is-not-same-as",
             "{% if test !== false %}{% endif %}",
-            expect![[r#"
+            expect![[r"
                 error[twig-use-is-not-same-as]: !== is not a valid twig operator
                   ┌─ ./debug-rule.html.twig:1:12
                   │
@@ -58,7 +58,7 @@ mod tests {
                   │            Try this instead: is not same as(false)
                   │            This is not a valid Twig operator, try 'is not same as(condition)' instead
 
-            "#]],
+            "]],
         );
     }
 
