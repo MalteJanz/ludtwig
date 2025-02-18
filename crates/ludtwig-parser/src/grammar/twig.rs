@@ -141,7 +141,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_twig_component_call() {
+    fn parse_twig_function_call() {
         check_parse(
             "{{ component('Alert', { message: 'Hello Twig Components!' }) }}",
             expect![[r#"
