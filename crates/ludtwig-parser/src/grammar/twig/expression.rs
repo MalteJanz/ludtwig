@@ -1,3 +1,4 @@
+use crate::T;
 use crate::grammar::parse_many;
 use crate::grammar::twig::literal::{
     parse_postfix_operators, parse_twig_arrow_function, parse_twig_function, parse_twig_literal,
@@ -6,7 +7,6 @@ use crate::grammar::twig::literal::{
 use crate::parser::event::CompletedMarker;
 use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
-use crate::T;
 
 use super::Marker;
 

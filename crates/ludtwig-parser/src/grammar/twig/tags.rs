@@ -1,16 +1,16 @@
 //! Twig Tag parsing (anything between {% ... %})
 
+use crate::T;
 use crate::grammar::twig::expression::parse_twig_expression;
 use crate::grammar::twig::literal::{
     parse_twig_filter, parse_twig_function_argument, parse_twig_hash, parse_twig_name,
     parse_twig_string,
 };
-use crate::grammar::twig::shopware::{parse_shopware_twig_block_statement, BlockParseResult};
-use crate::grammar::{parse_many, ParseFunction};
+use crate::grammar::twig::shopware::{BlockParseResult, parse_shopware_twig_block_statement};
+use crate::grammar::{ParseFunction, parse_many};
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
-use crate::T;
 
 /// Checks if the parser is at an twig ending / delimiter tag like
 /// `endblock` or `elseif` which should be caught by html body parsers to stop parsing early
@@ -5543,10 +5543,10 @@ mod tests {
     #[test]
     fn parse_twig_non_html_component_call() {
         check_parse(
-            r#"{% component Alert with {type: 'success'} %}
+            r"{% component Alert with {type: 'success'} %}
     {% block content %}<div>Congrats!</div>{% endblock %}
     {% block footer %}... footer content{% endblock %}
-{% endcomponent %}"#,
+{% endcomponent %}",
             expect![[r#"
                 ROOT@0..176
                   TWIG_COMPONENT@0..176
@@ -5648,10 +5648,10 @@ mod tests {
     #[test]
     fn parse_twig_non_html_component_call_no_with() {
         check_parse(
-            r#"{% component Alert %}
+            r"{% component Alert %}
     {% block content %}<div>Congrats!</div>{% endblock %}
     {% block footer %}... footer content{% endblock %}
-{% endcomponent %}"#,
+{% endcomponent %}",
             expect![[r#"
                 ROOT@0..153
                   TWIG_COMPONENT@0..153
@@ -5735,9 +5735,9 @@ mod tests {
     #[test]
     fn parse_twig_non_html_component_call_no_name() {
         check_parse(
-            r#"{% component %}
+            r"{% component %}
             <div>Congrats!</div>
-{% endcomponent %}"#,
+{% endcomponent %}",
             expect![[r#"
                 ROOT@0..67
                   TWIG_COMPONENT@0..67

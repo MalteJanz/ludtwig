@@ -1,5 +1,5 @@
-use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext};
 use crate::Severity;
+use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext};
 use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveFileIgnore};
 use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxNode};
 

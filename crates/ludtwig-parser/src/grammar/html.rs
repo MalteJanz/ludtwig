@@ -1,9 +1,9 @@
-use crate::grammar::twig::{at_twig_termination_tag, parse_any_twig, parse_twig_var_statement};
-use crate::grammar::{parse_any_element, parse_ludtwig_directive, parse_many, ParseFunction};
-use crate::parser::event::{CompletedMarker, Marker};
-use crate::parser::{ParseErrorBuilder, Parser, GENERAL_RECOVERY_SET};
-use crate::syntax::untyped::SyntaxKind;
 use crate::T;
+use crate::grammar::twig::{at_twig_termination_tag, parse_any_twig, parse_twig_var_statement};
+use crate::grammar::{ParseFunction, parse_any_element, parse_ludtwig_directive, parse_many};
+use crate::parser::event::{CompletedMarker, Marker};
+use crate::parser::{GENERAL_RECOVERY_SET, ParseErrorBuilder, Parser};
+use crate::syntax::untyped::SyntaxKind;
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -56,7 +56,7 @@ fn parse_html_doctype(parser: &mut Parser) -> CompletedMarker {
 fn parse_html_text(parser: &mut Parser) -> Option<CompletedMarker> {
     fn parser_at_less_than_non_word(p: &mut Parser) -> bool {
         p.at(T!["<"])
-            && p.peek_nth_token(1).map_or(true, |t| {
+            && p.peek_nth_token(1).is_none_or(|t| {
                 t.kind == T![ws] || t.kind == T![number] || GENERAL_RECOVERY_SET.contains(&t.kind)
             })
     }
@@ -1825,8 +1825,8 @@ mod tests {
     }
 
     #[test]
-    fn parse_html_attribute_name_as_twig_var_expression_and_value_as_string_with_twig_var_expression(
-    ) {
+    fn parse_html_attribute_name_as_twig_var_expression_and_value_as_string_with_twig_var_expression()
+     {
         check_parse(
             r##"<div {{ dataBsTargetAttr }}="#{{ filterItemId }}">hello</div>"##,
             expect![[r##"

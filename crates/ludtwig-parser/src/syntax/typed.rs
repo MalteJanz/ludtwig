@@ -7,16 +7,16 @@
 //! An overview of the syntax tree concept can be found
 //! at the [crate level documentation](crate#syntax-trees).
 
-pub use rowan::ast::support;
+use rowan::NodeOrToken;
 pub use rowan::ast::AstChildren;
 pub use rowan::ast::AstNode;
-use rowan::NodeOrToken;
+pub use rowan::ast::support;
 use std::fmt::{Debug, Display, Formatter};
 
 use crate::T;
 
 use super::untyped::{
-    debug_tree, SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken, TemplateLanguage,
+    SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken, TemplateLanguage, debug_tree,
 };
 
 /// So far, we've been working with a homogeneous untyped tree.
