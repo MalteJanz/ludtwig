@@ -1,5 +1,10 @@
 # NEXT-VERSION
 
+# v0.10.0
+
+- Bumped version of `ludtwig-parser` to `0.7.0`, which includes more parsing support (e.g. arrow functions, symfony
+  twig components and Drupal's `trans` tags) as well as some bug fixes
+
 # v0.9.0
 
 - [#88](https://github.com/MalteJanz/ludtwig/issues/88) [BREAKING] Removed rule `unkown-token` because it is a debugging
