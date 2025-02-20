@@ -556,6 +556,17 @@ ast_node!(
     SyntaxKind::TWIG_CACHE_STARTING_BLOCK
 );
 ast_node!(TwigCacheEndingBlock, SyntaxKind::TWIG_CACHE_ENDING_BLOCK);
+ast_node!(TwigProps, SyntaxKind::TWIG_PROPS);
+ast_node!(TwigPropDeclaration, SyntaxKind::TWIG_PROP_DECLARATION);
+ast_node!(TwigComponent, SyntaxKind::TWIG_COMPONENT);
+ast_node!(
+    TwigComponentStartingBlock,
+    SyntaxKind::TWIG_COMPONENT_STARTING_BLOCK
+);
+ast_node!(
+    TwigComponentEndingBlock,
+    SyntaxKind::TWIG_COMPONENT_ENDING_BLOCK
+);
 ast_node!(ShopwareTwigExtends, SyntaxKind::SHOPWARE_TWIG_SW_EXTENDS);
 ast_node!(ShopwareTwigInclude, SyntaxKind::SHOPWARE_TWIG_SW_INCLUDE);
 ast_node!(

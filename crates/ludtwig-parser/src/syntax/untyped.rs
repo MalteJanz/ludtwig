@@ -244,6 +244,12 @@ pub enum SyntaxKind {
     TK_TTL,
     #[token("tags")]
     TK_TAGS,
+    #[token("props")]
+    TK_PROPS,
+    #[token("component")]
+    TK_COMPONENT,
+    #[token("endcomponent")]
+    TK_ENDCOMPONENT,
     /* twig operators */
     #[token("not")]
     TK_NOT,
@@ -454,6 +460,13 @@ pub enum SyntaxKind {
     TWIG_CACHE_TAGS,
     TWIG_CACHE_STARTING_BLOCK,
     TWIG_CACHE_ENDING_BLOCK,
+    // twig props
+    TWIG_PROPS,
+    TWIG_PROP_DECLARATION,
+    // twig component
+    TWIG_COMPONENT,
+    TWIG_COMPONENT_STARTING_BLOCK,
+    TWIG_COMPONENT_ENDING_BLOCK,
 
     // Drupal Trans
     TWIG_TRANS,
@@ -598,6 +611,9 @@ macro_rules! T {
     ["endwith"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDWITH };
     ["ttl"] => { $crate::syntax::untyped::SyntaxKind::TK_TTL };
     ["tags"] => { $crate::syntax::untyped::SyntaxKind::TK_TAGS };
+    ["props"] => { $crate::syntax::untyped::SyntaxKind::TK_PROPS };
+    ["component"] => { $crate::syntax::untyped::SyntaxKind::TK_COMPONENT };
+    ["endcomponent"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDCOMPONENT };
     ["not"] => { $crate::syntax::untyped::SyntaxKind::TK_NOT };
     ["or"] => { $crate::syntax::untyped::SyntaxKind::TK_OR };
     ["and"] => { $crate::syntax::untyped::SyntaxKind::TK_AND };
@@ -752,6 +768,9 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_ENDWITH => "endwith",
             SyntaxKind::TK_TTL => "ttl",
             SyntaxKind::TK_TAGS => "tags",
+            SyntaxKind::TK_PROPS => "props",
+            SyntaxKind::TK_COMPONENT => "component",
+            SyntaxKind::TK_ENDCOMPONENT => "endcomponent",
             SyntaxKind::TK_NOT => "not",
             SyntaxKind::TK_OR => "or",
             SyntaxKind::TK_AND => "and",

@@ -256,6 +256,9 @@ mod tests {
         add("endwith", T!["endwith"]);
         add("ttl", T!["ttl"]);
         add("tags", T!["tags"]);
+        add("props", T!["props"]);
+        add("component", T!["component"]);
+        add("endcomponent", T!["endcomponent"]);
         add("not", T!["not"]);
         add("or", T!["or"]);
         add("and", T!["and"]);
@@ -835,6 +838,21 @@ mod tests {
     #[test]
     fn lex_tags() {
         check_token("tags", T!["tags"]);
+    }
+
+    #[test]
+    fn lex_props() {
+        check_token("props", T!["props"]);
+    }
+
+    #[test]
+    fn lex_component() {
+        check_token("component", T!["component"]);
+    }
+
+    #[test]
+    fn lex_endcomponent() {
+        check_token("endcomponent", T!["endcomponent"]);
     }
 
     #[test]

@@ -174,7 +174,7 @@ fn parse_twig_boolean(parser: &mut Parser) -> CompletedMarker {
     parser.complete(m, SyntaxKind::TWIG_LITERAL_BOOLEAN)
 }
 
-fn parse_twig_hash(parser: &mut Parser) -> CompletedMarker {
+pub(crate) fn parse_twig_hash(parser: &mut Parser) -> CompletedMarker {
     debug_assert!(parser.at(T!["{"]));
     let m = parser.start();
     parser.bump();

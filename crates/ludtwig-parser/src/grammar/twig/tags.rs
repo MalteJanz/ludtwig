@@ -2,7 +2,8 @@
 
 use crate::grammar::twig::expression::parse_twig_expression;
 use crate::grammar::twig::literal::{
-    parse_twig_filter, parse_twig_function_argument, parse_twig_name, parse_twig_string,
+    parse_twig_filter, parse_twig_function_argument, parse_twig_hash, parse_twig_name,
+    parse_twig_string,
 };
 use crate::grammar::twig::shopware::{parse_shopware_twig_block_statement, BlockParseResult};
 use crate::grammar::{parse_many, ParseFunction};
@@ -86,6 +87,10 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_cache(parser, m, child_parser))
     } else if parser.at(T!["trans"]) {
         Some(parse_twig_trans(parser, m, child_parser))
+    } else if parser.at(T!["component"]) {
+        Some(parse_twig_component(parser, m, child_parser))
+    } else if parser.at(T!["props"]) {
+        Some(parse_twig_props(parser, m))
     } else {
         match parse_shopware_twig_block_statement(parser, m, child_parser) {
             BlockParseResult::NothingFound(m) => {
@@ -1082,6 +1087,93 @@ fn parse_twig_trans(
     parser.complete(end_block_m, SyntaxKind::TWIG_TRANS_ENDING_BLOCK);
 
     parser.complete(wrapper_m, SyntaxKind::TWIG_TRANS)
+}
+
+fn parse_twig_props(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+    // example:
+    // {% props icon = null, type = 'primary' %}
+
+    debug_assert!(parser.at(T!["props"]));
+    parser.bump();
+
+    parse_many(
+        parser,
+        |p| p.at_set(&[T!["%}"], T![","], T!["="], T!["</"]]),
+        |p| {
+            let m = p.start();
+            if parse_twig_name(p).is_none() {
+                p.add_error(ParseErrorBuilder::new("twig variable name"));
+            }
+
+            p.expect(T!["="], &[T![","], T!["%}"], T!["</"]]);
+
+            if parse_twig_expression(p).is_none() {
+                p.add_error(ParseErrorBuilder::new("twig expression"));
+            }
+            p.complete(m, SyntaxKind::TWIG_PROP_DECLARATION);
+
+            if p.at(T![","]) {
+                p.bump();
+            } else if !p.at(T!["%}"]) {
+                p.add_error(ParseErrorBuilder::new(","));
+            }
+        },
+    );
+
+    parser.expect(T!["%}"], &[T!["</"]]);
+    parser.complete(outer, SyntaxKind::TWIG_PROPS)
+}
+
+fn parse_twig_component(
+    parser: &mut Parser,
+    outer: Marker,
+    child_parser: ParseFunction,
+) -> CompletedMarker {
+    // example:
+    // {% component Alert with {type: 'success'} %}
+    //     {% block content %}<div>Congrats!</div>{% endblock %}
+    //     {% block footer %}... footer content{% endblock %}
+    // {% endcomponent %}
+
+    debug_assert!(parser.at(T!["component"]));
+    parser.bump();
+
+    if parse_twig_name(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new("component name"));
+    }
+
+    if parser.at(T!["with"]) {
+        parser.bump();
+
+        if parser.at(T!["{"]) {
+            parse_twig_hash(parser);
+        } else {
+            parser.add_error(ParseErrorBuilder::new("twig hash/object"));
+        }
+    }
+
+    parser.expect(T!["%}"], &[T!["endcomponent"], T!["%}"], T!["</"]]);
+    let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_COMPONENT_STARTING_BLOCK);
+    let wrapper_m = parser.precede(wrapper_m);
+
+    // parse all the children except endcomponent
+    let body_m = parser.start();
+    parse_many(
+        parser,
+        |p| p.at_following(&[T!["{%"], T!["endcomponent"]]),
+        |p| {
+            child_parser(p);
+        },
+    );
+    parser.complete(body_m, SyntaxKind::BODY);
+
+    let end_block_m = parser.start();
+    parser.expect(T!["{%"], &[T!["endcomponent"], T!["%}"], T!["</"]]);
+    parser.expect(T!["endcomponent"], &[T!["%}"], T!["</"]]);
+    parser.expect(T!["%}"], &[T!["</"]]);
+    parser.complete(end_block_m, SyntaxKind::TWIG_COMPONENT_ENDING_BLOCK);
+
+    parser.complete(wrapper_m, SyntaxKind::TWIG_COMPONENT)
 }
 
 #[cfg(test)]
@@ -5230,6 +5322,456 @@ mod tests {
                     TK_ENDTRANS@27..35 "endtrans"
                     TK_WHITESPACE@35..36 " "
                     TK_PERCENT_CURLY@36..38 "%}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_props_declaration() {
+        check_parse(
+            "{% props icon = null, type = 'primary' %}",
+            expect![[r#"
+                ROOT@0..41
+                  TWIG_PROPS@0..41
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_PROPS@3..8 "props"
+                    TWIG_PROP_DECLARATION@8..20
+                      TWIG_LITERAL_NAME@8..13
+                        TK_WHITESPACE@8..9 " "
+                        TK_WORD@9..13 "icon"
+                      TK_WHITESPACE@13..14 " "
+                      TK_EQUAL@14..15 "="
+                      TWIG_EXPRESSION@15..20
+                        TWIG_LITERAL_NULL@15..20
+                          TK_WHITESPACE@15..16 " "
+                          TK_NULL@16..20 "null"
+                    TK_COMMA@20..21 ","
+                    TWIG_PROP_DECLARATION@21..38
+                      TWIG_LITERAL_NAME@21..26
+                        TK_WHITESPACE@21..22 " "
+                        TK_WORD@22..26 "type"
+                      TK_WHITESPACE@26..27 " "
+                      TK_EQUAL@27..28 "="
+                      TWIG_EXPRESSION@28..38
+                        TWIG_LITERAL_STRING@28..38
+                          TK_WHITESPACE@28..29 " "
+                          TK_SINGLE_QUOTES@29..30 "'"
+                          TWIG_LITERAL_STRING_INNER@30..37
+                            TK_WORD@30..37 "primary"
+                          TK_SINGLE_QUOTES@37..38 "'"
+                    TK_WHITESPACE@38..39 " "
+                    TK_PERCENT_CURLY@39..41 "%}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_full_twig_component_declaration() {
+        check_parse(
+            r#"{% props icon = null, type = 'primary' %}
+
+<button {{ attributes.defaults({class: 'btn btn-'~type}) }}>
+    {% block content %}{% endblock %}
+    {% if icon %}
+        <span class="fa-solid fa-{{ icon }}"></span>
+    {% endif %}
+</button>"#,
+            expect![[r#"
+                ROOT@0..238
+                  TWIG_PROPS@0..41
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_PROPS@3..8 "props"
+                    TWIG_PROP_DECLARATION@8..20
+                      TWIG_LITERAL_NAME@8..13
+                        TK_WHITESPACE@8..9 " "
+                        TK_WORD@9..13 "icon"
+                      TK_WHITESPACE@13..14 " "
+                      TK_EQUAL@14..15 "="
+                      TWIG_EXPRESSION@15..20
+                        TWIG_LITERAL_NULL@15..20
+                          TK_WHITESPACE@15..16 " "
+                          TK_NULL@16..20 "null"
+                    TK_COMMA@20..21 ","
+                    TWIG_PROP_DECLARATION@21..38
+                      TWIG_LITERAL_NAME@21..26
+                        TK_WHITESPACE@21..22 " "
+                        TK_WORD@22..26 "type"
+                      TK_WHITESPACE@26..27 " "
+                      TK_EQUAL@27..28 "="
+                      TWIG_EXPRESSION@28..38
+                        TWIG_LITERAL_STRING@28..38
+                          TK_WHITESPACE@28..29 " "
+                          TK_SINGLE_QUOTES@29..30 "'"
+                          TWIG_LITERAL_STRING_INNER@30..37
+                            TK_WORD@30..37 "primary"
+                          TK_SINGLE_QUOTES@37..38 "'"
+                    TK_WHITESPACE@38..39 " "
+                    TK_PERCENT_CURLY@39..41 "%}"
+                  HTML_TAG@41..238
+                    HTML_STARTING_TAG@41..103
+                      TK_LINE_BREAK@41..43 "\n\n"
+                      TK_LESS_THAN@43..44 "<"
+                      TK_WORD@44..50 "button"
+                      HTML_ATTRIBUTE_LIST@50..102
+                        HTML_ATTRIBUTE@50..102
+                          TWIG_VAR@50..102
+                            TK_WHITESPACE@50..51 " "
+                            TK_OPEN_CURLY_CURLY@51..53 "{{"
+                            TWIG_EXPRESSION@53..99
+                              TWIG_FUNCTION_CALL@53..99
+                                TWIG_OPERAND@53..73
+                                  TWIG_ACCESSOR@53..73
+                                    TWIG_OPERAND@53..64
+                                      TWIG_LITERAL_NAME@53..64
+                                        TK_WHITESPACE@53..54 " "
+                                        TK_WORD@54..64 "attributes"
+                                    TK_DOT@64..65 "."
+                                    TWIG_OPERAND@65..73
+                                      TWIG_LITERAL_NAME@65..73
+                                        TK_WORD@65..73 "defaults"
+                                TWIG_ARGUMENTS@73..99
+                                  TK_OPEN_PARENTHESIS@73..74 "("
+                                  TWIG_EXPRESSION@74..98
+                                    TWIG_LITERAL_HASH@74..98
+                                      TK_OPEN_CURLY@74..75 "{"
+                                      TWIG_LITERAL_HASH_ITEMS@75..97
+                                        TWIG_LITERAL_HASH_PAIR@75..97
+                                          TWIG_LITERAL_HASH_KEY@75..80
+                                            TK_WORD@75..80 "class"
+                                          TK_COLON@80..81 ":"
+                                          TWIG_EXPRESSION@81..97
+                                            TWIG_BINARY_EXPRESSION@81..97
+                                              TWIG_EXPRESSION@81..92
+                                                TWIG_LITERAL_STRING@81..92
+                                                  TK_WHITESPACE@81..82 " "
+                                                  TK_SINGLE_QUOTES@82..83 "'"
+                                                  TWIG_LITERAL_STRING_INNER@83..91
+                                                    TK_WORD@83..86 "btn"
+                                                    TK_WHITESPACE@86..87 " "
+                                                    TK_WORD@87..91 "btn-"
+                                                  TK_SINGLE_QUOTES@91..92 "'"
+                                              TK_TILDE@92..93 "~"
+                                              TWIG_EXPRESSION@93..97
+                                                TWIG_LITERAL_NAME@93..97
+                                                  TK_WORD@93..97 "type"
+                                      TK_CLOSE_CURLY@97..98 "}"
+                                  TK_CLOSE_PARENTHESIS@98..99 ")"
+                            TK_WHITESPACE@99..100 " "
+                            TK_CLOSE_CURLY_CURLY@100..102 "}}"
+                      TK_GREATER_THAN@102..103 ">"
+                    BODY@103..228
+                      TWIG_BLOCK@103..141
+                        TWIG_STARTING_BLOCK@103..127
+                          TK_LINE_BREAK@103..104 "\n"
+                          TK_WHITESPACE@104..108 "    "
+                          TK_CURLY_PERCENT@108..110 "{%"
+                          TK_WHITESPACE@110..111 " "
+                          TK_BLOCK@111..116 "block"
+                          TK_WHITESPACE@116..117 " "
+                          TK_WORD@117..124 "content"
+                          TK_WHITESPACE@124..125 " "
+                          TK_PERCENT_CURLY@125..127 "%}"
+                        BODY@127..127
+                        TWIG_ENDING_BLOCK@127..141
+                          TK_CURLY_PERCENT@127..129 "{%"
+                          TK_WHITESPACE@129..130 " "
+                          TK_ENDBLOCK@130..138 "endblock"
+                          TK_WHITESPACE@138..139 " "
+                          TK_PERCENT_CURLY@139..141 "%}"
+                      TWIG_IF@141..228
+                        TWIG_IF_BLOCK@141..159
+                          TK_LINE_BREAK@141..142 "\n"
+                          TK_WHITESPACE@142..146 "    "
+                          TK_CURLY_PERCENT@146..148 "{%"
+                          TK_WHITESPACE@148..149 " "
+                          TK_IF@149..151 "if"
+                          TWIG_EXPRESSION@151..156
+                            TWIG_LITERAL_NAME@151..156
+                              TK_WHITESPACE@151..152 " "
+                              TK_WORD@152..156 "icon"
+                          TK_WHITESPACE@156..157 " "
+                          TK_PERCENT_CURLY@157..159 "%}"
+                        BODY@159..212
+                          HTML_TAG@159..212
+                            HTML_STARTING_TAG@159..205
+                              TK_LINE_BREAK@159..160 "\n"
+                              TK_WHITESPACE@160..168 "        "
+                              TK_LESS_THAN@168..169 "<"
+                              TK_WORD@169..173 "span"
+                              HTML_ATTRIBUTE_LIST@173..204
+                                HTML_ATTRIBUTE@173..204
+                                  TK_WHITESPACE@173..174 " "
+                                  TK_WORD@174..179 "class"
+                                  TK_EQUAL@179..180 "="
+                                  HTML_STRING@180..204
+                                    TK_DOUBLE_QUOTES@180..181 "\""
+                                    HTML_STRING_INNER@181..203
+                                      TK_WORD@181..189 "fa-solid"
+                                      TK_WHITESPACE@189..190 " "
+                                      TK_WORD@190..193 "fa-"
+                                      TWIG_VAR@193..203
+                                        TK_OPEN_CURLY_CURLY@193..195 "{{"
+                                        TWIG_EXPRESSION@195..200
+                                          TWIG_LITERAL_NAME@195..200
+                                            TK_WHITESPACE@195..196 " "
+                                            TK_WORD@196..200 "icon"
+                                        TK_WHITESPACE@200..201 " "
+                                        TK_CLOSE_CURLY_CURLY@201..203 "}}"
+                                    TK_DOUBLE_QUOTES@203..204 "\""
+                              TK_GREATER_THAN@204..205 ">"
+                            BODY@205..205
+                            HTML_ENDING_TAG@205..212
+                              TK_LESS_THAN_SLASH@205..207 "</"
+                              TK_WORD@207..211 "span"
+                              TK_GREATER_THAN@211..212 ">"
+                        TWIG_ENDIF_BLOCK@212..228
+                          TK_LINE_BREAK@212..213 "\n"
+                          TK_WHITESPACE@213..217 "    "
+                          TK_CURLY_PERCENT@217..219 "{%"
+                          TK_WHITESPACE@219..220 " "
+                          TK_ENDIF@220..225 "endif"
+                          TK_WHITESPACE@225..226 " "
+                          TK_PERCENT_CURLY@226..228 "%}"
+                    HTML_ENDING_TAG@228..238
+                      TK_LINE_BREAK@228..229 "\n"
+                      TK_LESS_THAN_SLASH@229..231 "</"
+                      TK_WORD@231..237 "button"
+                      TK_GREATER_THAN@237..238 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_non_html_component_call() {
+        check_parse(
+            r#"{% component Alert with {type: 'success'} %}
+    {% block content %}<div>Congrats!</div>{% endblock %}
+    {% block footer %}... footer content{% endblock %}
+{% endcomponent %}"#,
+            expect![[r#"
+                ROOT@0..176
+                  TWIG_COMPONENT@0..176
+                    TWIG_COMPONENT_STARTING_BLOCK@0..44
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_COMPONENT@3..12 "component"
+                      TWIG_LITERAL_NAME@12..18
+                        TK_WHITESPACE@12..13 " "
+                        TK_WORD@13..18 "Alert"
+                      TK_WHITESPACE@18..19 " "
+                      TK_WITH@19..23 "with"
+                      TWIG_LITERAL_HASH@23..41
+                        TK_WHITESPACE@23..24 " "
+                        TK_OPEN_CURLY@24..25 "{"
+                        TWIG_LITERAL_HASH_ITEMS@25..40
+                          TWIG_LITERAL_HASH_PAIR@25..40
+                            TWIG_LITERAL_HASH_KEY@25..29
+                              TK_WORD@25..29 "type"
+                            TK_COLON@29..30 ":"
+                            TWIG_EXPRESSION@30..40
+                              TWIG_LITERAL_STRING@30..40
+                                TK_WHITESPACE@30..31 " "
+                                TK_SINGLE_QUOTES@31..32 "'"
+                                TWIG_LITERAL_STRING_INNER@32..39
+                                  TK_WORD@32..39 "success"
+                                TK_SINGLE_QUOTES@39..40 "'"
+                        TK_CLOSE_CURLY@40..41 "}"
+                      TK_WHITESPACE@41..42 " "
+                      TK_PERCENT_CURLY@42..44 "%}"
+                    BODY@44..157
+                      TWIG_BLOCK@44..102
+                        TWIG_STARTING_BLOCK@44..68
+                          TK_LINE_BREAK@44..45 "\n"
+                          TK_WHITESPACE@45..49 "    "
+                          TK_CURLY_PERCENT@49..51 "{%"
+                          TK_WHITESPACE@51..52 " "
+                          TK_BLOCK@52..57 "block"
+                          TK_WHITESPACE@57..58 " "
+                          TK_WORD@58..65 "content"
+                          TK_WHITESPACE@65..66 " "
+                          TK_PERCENT_CURLY@66..68 "%}"
+                        BODY@68..88
+                          HTML_TAG@68..88
+                            HTML_STARTING_TAG@68..73
+                              TK_LESS_THAN@68..69 "<"
+                              TK_WORD@69..72 "div"
+                              HTML_ATTRIBUTE_LIST@72..72
+                              TK_GREATER_THAN@72..73 ">"
+                            BODY@73..82
+                              HTML_TEXT@73..82
+                                TK_WORD@73..81 "Congrats"
+                                TK_EXCLAMATION_MARK@81..82 "!"
+                            HTML_ENDING_TAG@82..88
+                              TK_LESS_THAN_SLASH@82..84 "</"
+                              TK_WORD@84..87 "div"
+                              TK_GREATER_THAN@87..88 ">"
+                        TWIG_ENDING_BLOCK@88..102
+                          TK_CURLY_PERCENT@88..90 "{%"
+                          TK_WHITESPACE@90..91 " "
+                          TK_ENDBLOCK@91..99 "endblock"
+                          TK_WHITESPACE@99..100 " "
+                          TK_PERCENT_CURLY@100..102 "%}"
+                      TWIG_BLOCK@102..157
+                        TWIG_STARTING_BLOCK@102..125
+                          TK_LINE_BREAK@102..103 "\n"
+                          TK_WHITESPACE@103..107 "    "
+                          TK_CURLY_PERCENT@107..109 "{%"
+                          TK_WHITESPACE@109..110 " "
+                          TK_BLOCK@110..115 "block"
+                          TK_WHITESPACE@115..116 " "
+                          TK_WORD@116..122 "footer"
+                          TK_WHITESPACE@122..123 " "
+                          TK_PERCENT_CURLY@123..125 "%}"
+                        BODY@125..143
+                          HTML_TEXT@125..143
+                            TK_DOUBLE_DOT@125..127 ".."
+                            TK_DOT@127..128 "."
+                            TK_WHITESPACE@128..129 " "
+                            TK_WORD@129..135 "footer"
+                            TK_WHITESPACE@135..136 " "
+                            TK_WORD@136..143 "content"
+                        TWIG_ENDING_BLOCK@143..157
+                          TK_CURLY_PERCENT@143..145 "{%"
+                          TK_WHITESPACE@145..146 " "
+                          TK_ENDBLOCK@146..154 "endblock"
+                          TK_WHITESPACE@154..155 " "
+                          TK_PERCENT_CURLY@155..157 "%}"
+                    TWIG_COMPONENT_ENDING_BLOCK@157..176
+                      TK_LINE_BREAK@157..158 "\n"
+                      TK_CURLY_PERCENT@158..160 "{%"
+                      TK_WHITESPACE@160..161 " "
+                      TK_ENDCOMPONENT@161..173 "endcomponent"
+                      TK_WHITESPACE@173..174 " "
+                      TK_PERCENT_CURLY@174..176 "%}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_non_html_component_call_no_with() {
+        check_parse(
+            r#"{% component Alert %}
+    {% block content %}<div>Congrats!</div>{% endblock %}
+    {% block footer %}... footer content{% endblock %}
+{% endcomponent %}"#,
+            expect![[r#"
+                ROOT@0..153
+                  TWIG_COMPONENT@0..153
+                    TWIG_COMPONENT_STARTING_BLOCK@0..21
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_COMPONENT@3..12 "component"
+                      TWIG_LITERAL_NAME@12..18
+                        TK_WHITESPACE@12..13 " "
+                        TK_WORD@13..18 "Alert"
+                      TK_WHITESPACE@18..19 " "
+                      TK_PERCENT_CURLY@19..21 "%}"
+                    BODY@21..134
+                      TWIG_BLOCK@21..79
+                        TWIG_STARTING_BLOCK@21..45
+                          TK_LINE_BREAK@21..22 "\n"
+                          TK_WHITESPACE@22..26 "    "
+                          TK_CURLY_PERCENT@26..28 "{%"
+                          TK_WHITESPACE@28..29 " "
+                          TK_BLOCK@29..34 "block"
+                          TK_WHITESPACE@34..35 " "
+                          TK_WORD@35..42 "content"
+                          TK_WHITESPACE@42..43 " "
+                          TK_PERCENT_CURLY@43..45 "%}"
+                        BODY@45..65
+                          HTML_TAG@45..65
+                            HTML_STARTING_TAG@45..50
+                              TK_LESS_THAN@45..46 "<"
+                              TK_WORD@46..49 "div"
+                              HTML_ATTRIBUTE_LIST@49..49
+                              TK_GREATER_THAN@49..50 ">"
+                            BODY@50..59
+                              HTML_TEXT@50..59
+                                TK_WORD@50..58 "Congrats"
+                                TK_EXCLAMATION_MARK@58..59 "!"
+                            HTML_ENDING_TAG@59..65
+                              TK_LESS_THAN_SLASH@59..61 "</"
+                              TK_WORD@61..64 "div"
+                              TK_GREATER_THAN@64..65 ">"
+                        TWIG_ENDING_BLOCK@65..79
+                          TK_CURLY_PERCENT@65..67 "{%"
+                          TK_WHITESPACE@67..68 " "
+                          TK_ENDBLOCK@68..76 "endblock"
+                          TK_WHITESPACE@76..77 " "
+                          TK_PERCENT_CURLY@77..79 "%}"
+                      TWIG_BLOCK@79..134
+                        TWIG_STARTING_BLOCK@79..102
+                          TK_LINE_BREAK@79..80 "\n"
+                          TK_WHITESPACE@80..84 "    "
+                          TK_CURLY_PERCENT@84..86 "{%"
+                          TK_WHITESPACE@86..87 " "
+                          TK_BLOCK@87..92 "block"
+                          TK_WHITESPACE@92..93 " "
+                          TK_WORD@93..99 "footer"
+                          TK_WHITESPACE@99..100 " "
+                          TK_PERCENT_CURLY@100..102 "%}"
+                        BODY@102..120
+                          HTML_TEXT@102..120
+                            TK_DOUBLE_DOT@102..104 ".."
+                            TK_DOT@104..105 "."
+                            TK_WHITESPACE@105..106 " "
+                            TK_WORD@106..112 "footer"
+                            TK_WHITESPACE@112..113 " "
+                            TK_WORD@113..120 "content"
+                        TWIG_ENDING_BLOCK@120..134
+                          TK_CURLY_PERCENT@120..122 "{%"
+                          TK_WHITESPACE@122..123 " "
+                          TK_ENDBLOCK@123..131 "endblock"
+                          TK_WHITESPACE@131..132 " "
+                          TK_PERCENT_CURLY@132..134 "%}"
+                    TWIG_COMPONENT_ENDING_BLOCK@134..153
+                      TK_LINE_BREAK@134..135 "\n"
+                      TK_CURLY_PERCENT@135..137 "{%"
+                      TK_WHITESPACE@137..138 " "
+                      TK_ENDCOMPONENT@138..150 "endcomponent"
+                      TK_WHITESPACE@150..151 " "
+                      TK_PERCENT_CURLY@151..153 "%}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_non_html_component_call_no_name() {
+        check_parse(
+            r#"{% component %}
+            <div>Congrats!</div>
+{% endcomponent %}"#,
+            expect![[r#"
+                ROOT@0..67
+                  TWIG_COMPONENT@0..67
+                    TWIG_COMPONENT_STARTING_BLOCK@0..15
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_COMPONENT@3..12 "component"
+                      TK_WHITESPACE@12..13 " "
+                      TK_PERCENT_CURLY@13..15 "%}"
+                    BODY@15..48
+                      HTML_TAG@15..48
+                        HTML_STARTING_TAG@15..33
+                          TK_LINE_BREAK@15..16 "\n"
+                          TK_WHITESPACE@16..28 "            "
+                          TK_LESS_THAN@28..29 "<"
+                          TK_WORD@29..32 "div"
+                          HTML_ATTRIBUTE_LIST@32..32
+                          TK_GREATER_THAN@32..33 ">"
+                        BODY@33..42
+                          HTML_TEXT@33..42
+                            TK_WORD@33..41 "Congrats"
+                            TK_EXCLAMATION_MARK@41..42 "!"
+                        HTML_ENDING_TAG@42..48
+                          TK_LESS_THAN_SLASH@42..44 "</"
+                          TK_WORD@44..47 "div"
+                          TK_GREATER_THAN@47..48 ">"
+                    TWIG_COMPONENT_ENDING_BLOCK@48..67
+                      TK_LINE_BREAK@48..49 "\n"
+                      TK_CURLY_PERCENT@49..51 "{%"
+                      TK_WHITESPACE@51..52 " "
+                      TK_ENDCOMPONENT@52..64 "endcomponent"
+                      TK_WHITESPACE@64..65 " "
+                      TK_PERCENT_CURLY@65..67 "%}"
+                error at 13..15: expected component name but found %}"#]],
         );
     }
 }
