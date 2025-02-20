@@ -6,6 +6,7 @@
 - [#128](https://github.com/MalteJanz/ludtwig/pull/128) Fixed parsing of non self closing twig component HTML tags
 - [#138](https://github.com/MalteJanz/ludtwig/pull/138) Added parsing support for `{% trans %}...{% endtrans %}` syntax,
   commonly found in Drupal projects
+- [#141](https://github.com/MalteJanz/ludtwig/pull/141) Added remaining syntax support for symfony twig components
 
 # v0.6.0
 
