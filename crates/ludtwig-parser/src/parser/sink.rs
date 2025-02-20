@@ -61,17 +61,19 @@ impl<'source> Sink<'source> {
                     while let Some(fp) = forward_parent {
                         idx += fp;
 
-                        forward_parent = if let Event::StartNode {
-                            kind,
-                            forward_parent,
-                        } =
-                            mem::replace(&mut self.events[idx], Event::Placeholder)
-                        {
-                            forward_kinds.push(kind);
-                            forward_parent
-                        } else {
-                            unreachable!()
-                        };
+                        forward_parent =
+                            match mem::replace(&mut self.events[idx], Event::Placeholder) {
+                                Event::StartNode {
+                                    kind,
+                                    forward_parent,
+                                } => {
+                                    forward_kinds.push(kind);
+                                    forward_parent
+                                }
+                                _ => {
+                                    unreachable!()
+                                }
+                            };
                     }
 
                     // create the start nodes (in reverse order, because forward parents come first)
@@ -145,8 +147,8 @@ impl<'source> Sink<'source> {
 mod tests {
     use expect_test::expect;
 
-    use crate::syntax::untyped::{debug_tree, SyntaxKind, SyntaxNode};
     use crate::T;
+    use crate::syntax::untyped::{SyntaxKind, SyntaxNode, debug_tree};
 
     use super::*;
 

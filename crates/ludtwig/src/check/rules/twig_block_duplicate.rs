@@ -37,23 +37,24 @@ impl Rule for RuleTwigBlockDuplicate {
                     let Some(name) = block.name() else {
                         continue;
                     };
-                    if let Some(first_definition) =
-                        block_table.get(name.text()).and_then(TwigBlock::name)
-                    {
-                        check_results.push(
-                            self.create_result(Severity::Error, "block name duplicate")
-                                .primary_note(
-                                    name.text_range(),
-                                    format!("duplicate block '{}'", name.text()),
-                                )
-                                .secondary_note(
-                                    first_definition.text_range(),
-                                    "first defined here",
-                                ),
-                        );
-                    } else {
-                        // found new unique block definition
-                        block_table.insert(name.text().to_owned(), block);
+                    match block_table.get(name.text()).and_then(TwigBlock::name) {
+                        Some(first_definition) => {
+                            check_results.push(
+                                self.create_result(Severity::Error, "block name duplicate")
+                                    .primary_note(
+                                        name.text_range(),
+                                        format!("duplicate block '{}'", name.text()),
+                                    )
+                                    .secondary_note(
+                                        first_definition.text_range(),
+                                        "first defined here",
+                                    ),
+                            );
+                        }
+                        _ => {
+                            // found new unique block definition
+                            block_table.insert(name.text().to_owned(), block);
+                        }
                     }
                 }
                 WalkEvent::Leave(element) => {

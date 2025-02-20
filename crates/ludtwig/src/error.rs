@@ -28,10 +28,16 @@ impl Display for FileProcessingError {
                 write!(f, "file {} can't be written", path.to_string_lossy())
             }
             FileProcessingError::MaxApplyIteration => {
-                write!(f, "max suggestion apply iteration encountered. This may be caused by fighting rules (programmer error) or too many conflicting suggestions at once")
+                write!(
+                    f,
+                    "max suggestion apply iteration encountered. This may be caused by fighting rules (programmer error) or too many conflicting suggestions at once"
+                )
             }
             FileProcessingError::OverlappingSuggestionInSingleRule { rule_name } => {
-                write!(f, "Suggestion collision inside the same rule, check rule {rule_name} or write bug report - this is a programmer error")
+                write!(
+                    f,
+                    "Suggestion collision inside the same rule, check rule {rule_name} or write bug report - this is a programmer error"
+                )
             }
         }
     }

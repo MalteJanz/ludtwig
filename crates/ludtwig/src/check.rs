@@ -9,13 +9,13 @@ use ludtwig_parser::syntax::typed;
 use ludtwig_parser::syntax::typed::{
     AstNode, HtmlStringInner, HtmlTag, LudtwigDirectiveIgnore, TwigLiteralStringInner,
 };
-use ludtwig_parser::syntax::untyped::{debug_tree, SyntaxElement, SyntaxToken, WalkEvent};
+use ludtwig_parser::syntax::untyped::{SyntaxElement, SyntaxToken, WalkEvent, debug_tree};
 
+use crate::ProcessingEvent;
 use crate::check::rule::{
     CheckResult, CheckSuggestion, RuleRunContext, Severity, TreeTraversalContext,
 };
 use crate::process::FileContext;
-use crate::ProcessingEvent;
 
 pub mod rule;
 pub mod rules;
@@ -85,8 +85,8 @@ pub fn run_rules(file_context: &FileContext) -> Vec<CheckResult> {
                         if typed::Error::can_cast(n.kind()) {
                             preorder.skip_subtree();
                             continue; // Skip error nodes in rules because they should have
-                                      // corresponding parser error messages in most cases and can contain
-                                      // malformed code
+                            // corresponding parser error messages in most cases and can contain
+                            // malformed code
                         }
 
                         // adjust traversal context when entering special nodes

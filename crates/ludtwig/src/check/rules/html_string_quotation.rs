@@ -57,25 +57,31 @@ pub fn make_changed_quotes_suggestion_if_possible(
     }
 
     // opening quote
-    if let Some(quote) = twig_string.get_opening_quote() {
-        result = result.suggestion(quote.text_range(), correct_quote, "Try this quote instead");
-    } else {
-        result = result.suggestion(
-            TextRange::at(inner.syntax().text_range().start(), TextSize::from(0)),
-            correct_quote,
-            "Try this quote instead",
-        );
+    match twig_string.get_opening_quote() {
+        Some(quote) => {
+            result = result.suggestion(quote.text_range(), correct_quote, "Try this quote instead");
+        }
+        _ => {
+            result = result.suggestion(
+                TextRange::at(inner.syntax().text_range().start(), TextSize::from(0)),
+                correct_quote,
+                "Try this quote instead",
+            );
+        }
     }
 
     // closing quote
-    if let Some(quote) = twig_string.get_closing_quote() {
-        result = result.suggestion(quote.text_range(), correct_quote, "Try this quote instead");
-    } else {
-        result = result.suggestion(
-            TextRange::at(inner.syntax().text_range().end(), TextSize::from(0)),
-            correct_quote,
-            "Try this quote instead",
-        );
+    match twig_string.get_closing_quote() {
+        Some(quote) => {
+            result = result.suggestion(quote.text_range(), correct_quote, "Try this quote instead");
+        }
+        _ => {
+            result = result.suggestion(
+                TextRange::at(inner.syntax().text_range().end(), TextSize::from(0)),
+                correct_quote,
+                "Try this quote instead",
+            );
+        }
     }
 
     result

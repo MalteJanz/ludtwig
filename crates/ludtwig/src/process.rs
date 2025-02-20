@@ -4,15 +4,15 @@ use std::path::PathBuf;
 
 use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
 
-use ludtwig_parser::syntax::untyped::SyntaxNode;
 use ludtwig_parser::ParseError;
+use ludtwig_parser::syntax::untyped::SyntaxNode;
 
+use crate::CliContext;
 use crate::check::rule::{CheckResult, CheckSuggestion, Rule};
 use crate::check::rules::get_file_active_rule_definitions;
 use crate::check::{get_rule_context_suggestions, produce_diagnostics, run_rules};
 use crate::error::FileProcessingError;
 use crate::output::ProcessingEvent;
-use crate::CliContext;
 
 /// The context for a single file.
 #[derive(Debug)]
@@ -90,7 +90,7 @@ fn run_analysis(
                     return Err(FileProcessingError::FileWrite {
                         path: file_context.file_path,
                         io_error: e,
-                    })
+                    });
                 }
             };
             println!(

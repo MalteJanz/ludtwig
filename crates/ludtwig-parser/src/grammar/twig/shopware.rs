@@ -1,10 +1,10 @@
+use crate::T;
 use crate::grammar::twig::expression::parse_twig_expression;
 use crate::grammar::twig::literal::parse_twig_string;
-use crate::grammar::{parse_many, ParseFunction};
+use crate::grammar::{ParseFunction, parse_many};
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
-use crate::T;
 
 pub(crate) enum BlockParseResult {
     Successful(CompletedMarker),

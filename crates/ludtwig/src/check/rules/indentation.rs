@@ -274,9 +274,8 @@ impl RuleIndentation {
                 | SyntaxKind::TWIG_LITERAL_ARRAY_INNER
                 | SyntaxKind::TWIG_LITERAL_HASH_ITEMS
         ) && (indent_block_children
-            || !n
-                .parent()
-                .is_some_and(|p| p.kind() == SyntaxKind::TWIG_BLOCK))
+            || n.parent()
+                .is_none_or(|p| p.kind() != SyntaxKind::TWIG_BLOCK))
         {
             match walk_mode {
                 WalkMode::Enter => {
