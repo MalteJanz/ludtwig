@@ -2,8 +2,8 @@ use std::env;
 use std::fmt::{Display, Formatter};
 use std::path::{Path, PathBuf};
 
-use figment::providers::{Env, Format as FigFormat, Toml};
 use figment::Figment;
+use figment::providers::{Env, Format as FigFormat, Toml};
 use regex::Regex;
 use serde::Deserialize;
 
@@ -158,8 +158,10 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
 
     if opts.create_config {
         if Path::exists(config_path.as_ref()) {
-            println!("The configuration file already exists at the location {config_path:?}. \
-            Try choosing a different location with '-c my-path' or make a backup of your current config file (rename it).");
+            println!(
+                "The configuration file already exists at the location {config_path:?}. \
+            Try choosing a different location with '-c my-path' or make a backup of your current config file (rename it)."
+            );
             std::process::exit(1);
         }
 

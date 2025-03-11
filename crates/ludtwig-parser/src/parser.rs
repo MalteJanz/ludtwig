@@ -10,8 +10,8 @@ use crate::lexer::Token;
 use crate::parser::event::{CompletedMarker, EventCollection, Marker};
 use crate::parser::sink::Sink;
 use crate::parser::source::Source;
-use crate::syntax::untyped::{debug_tree, SyntaxKind, SyntaxNode};
-use crate::{lex, T};
+use crate::syntax::untyped::{SyntaxKind, SyntaxNode, debug_tree};
+use crate::{T, lex};
 
 pub(crate) mod event;
 mod parse_error;

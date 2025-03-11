@@ -47,7 +47,7 @@ impl Rule for RuleTwigBlockLineBreaks {
         });
 
         // early return if parent is the root and there is no prev sibling
-        if block.syntax().parent().map_or(true, |may_be_body| {
+        if block.syntax().parent().is_none_or(|may_be_body| {
             matches!(may_be_body.kind(), SyntaxKind::ROOT) && real_prev_sibling.is_none()
         }) {
             return None;
@@ -82,7 +82,7 @@ impl Rule for RuleTwigBlockLineBreaks {
             .and_then(|t| t.next_token())
             .filter(|_| {
                 // if next real sibling (excluding comment) is a block, return no token, because that block will handle the line breaks
-                !real_next_sibling.is_some_and(|n| n.kind() == SyntaxKind::TWIG_BLOCK)
+                real_next_sibling.is_none_or(|n| n.kind() != SyntaxKind::TWIG_BLOCK)
             });
 
         let expected_line_break = ctx.config().format.line_ending.corresponding_string();

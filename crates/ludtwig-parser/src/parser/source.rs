@@ -89,7 +89,7 @@ impl<'source> Source<'source> {
                     if token.kind == *set_kind
                         && set_content.map_or(true, |content| content == token.text) =>
                 {
-                    continue
+                    continue;
                 }
                 (None | Some(_), None) => return true,
                 _ => return false,

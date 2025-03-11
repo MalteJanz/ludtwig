@@ -1,9 +1,9 @@
+use crate::T;
 use crate::grammar::html::parse_any_html;
 use crate::grammar::twig::parse_any_twig;
 use crate::parser::event::{CompletedMarker, Marker};
 use crate::parser::{ParseErrorBuilder, Parser};
 use crate::syntax::untyped::SyntaxKind;
-use crate::T;
 
 mod html;
 mod twig;
@@ -47,7 +47,7 @@ where
             // parser.add_error(ParseErrorBuilder::new("not this unknown token"));
             // let error_m = parser.start();
             parser.bump(); // skip / ignore unknown tokens
-                           // parser.complete(error_m, SyntaxKind::ERROR);
+        // parser.complete(error_m, SyntaxKind::ERROR);
         } else if parser.at_end() || early_exit_closure(parser) || {
             child_parser(parser);
             parser.get_pos() == parser_pos
@@ -97,7 +97,7 @@ mod tests {
     use crate::lex;
     use expect_test::expect;
 
-    use crate::parser::{check_parse, Parser};
+    use crate::parser::{Parser, check_parse};
     use crate::syntax::untyped::SyntaxKind;
 
     #[test]
