@@ -1,8 +1,8 @@
 use crate::check::rule::{CheckResult, RuleExt, RuleRunContext};
 use crate::{Rule, Severity};
+use ludtwig_parser::T;
 use ludtwig_parser::syntax::typed::{AstNode, TwigBinaryExpression};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
-use ludtwig_parser::T;
 
 pub struct RuleTwigUseIsNotSameAs;
 
