@@ -36,8 +36,6 @@ pub(crate) struct Token<'source> {
     pub(crate) range: TextRange,
 }
 
-// ToDo: might be able to remove this annotation in future rust-analyzer version
-#[allow(clippy::needless_lifetimes)]
 impl<'source> Token<'source> {
     #[cfg(test)]
     pub(crate) fn new(kind: SyntaxKind, text: &'source str, range: TextRange) -> Self {
