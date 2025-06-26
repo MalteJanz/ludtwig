@@ -130,6 +130,7 @@ pub const DEFAULT_RAW_CONFIG: &str = include_str!("../ludtwig-config.toml");
 pub const LUDTWIG_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 impl Config {
+    #[allow(clippy::result_large_err)]
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, figment::Error> {
         let config: Config = Figment::new()
             // first read the raw config from memory (for default values)
@@ -158,8 +159,8 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
 
     if opts.create_config {
         if Path::exists(config_path.as_ref()) {
-            println!("The configuration file already exists at the location {config_path:?}. \
-            Try choosing a different location with '-c my-path' or make a backup of your current config file (rename it).");
+            println!("The configuration file already exists at the location {}. \
+            Try choosing a different location with '-c my-path' or make a backup of your current config file (rename it).", config_path.display());
             std::process::exit(1);
         }
 

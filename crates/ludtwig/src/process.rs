@@ -90,12 +90,13 @@ fn run_analysis(
                     return Err(FileProcessingError::FileWrite {
                         path: file_context.file_path,
                         io_error: e,
-                    })
+                    });
                 }
-            };
+            }
             println!(
-                "fixed {:?} in {} iterations",
-                &file_context.file_path, iterations
+                "fixed {} in {} iterations",
+                &file_context.file_path.display(),
+                iterations
             );
         }
 
