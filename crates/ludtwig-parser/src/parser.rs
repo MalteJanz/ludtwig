@@ -107,14 +107,14 @@ impl<'source> Parser<'source> {
         self.source.peek_kind()
     }
 
-    pub(crate) fn peek_token(&mut self) -> Option<&Token> {
+    pub(crate) fn peek_token(&mut self) -> Option<&Token<'_>> {
         self.source.peek_token()
     }
 
     /// Lookahead is expensive!
     /// This lookahead doesn't skip further trivia tokens and is only there for combining the next n lexer tokens!
     /// for n of zero use `peek_token` instead!
-    pub(crate) fn peek_nth_token(&mut self, n: usize) -> Option<&Token> {
+    pub(crate) fn peek_nth_token(&mut self, n: usize) -> Option<&Token<'_>> {
         self.source.peek_nth_token(n)
     }
 
@@ -145,7 +145,7 @@ impl<'source> Parser<'source> {
     }
 
     #[track_caller]
-    pub(crate) fn bump(&mut self) -> &Token {
+    pub(crate) fn bump(&mut self) -> &Token<'_> {
         let consumed = self
             .source
             .next_token()
@@ -166,7 +166,7 @@ impl<'source> Parser<'source> {
     }
 
     #[track_caller]
-    pub(crate) fn bump_as(&mut self, kind: SyntaxKind) -> Token {
+    pub(crate) fn bump_as(&mut self, kind: SyntaxKind) -> Token<'_> {
         let consumed = self
             .source
             .next_token()
@@ -182,7 +182,7 @@ impl<'source> Parser<'source> {
     }
 
     #[track_caller]
-    pub(crate) fn bump_next_n_as(&mut self, n: usize, kind: SyntaxKind) -> Vec<&Token> {
+    pub(crate) fn bump_next_n_as(&mut self, n: usize, kind: SyntaxKind) -> Vec<&Token<'_>> {
         let consumed = self.source.next_n_tokens(n);
         assert_eq!(
             consumed.len(),
@@ -199,7 +199,7 @@ impl<'source> Parser<'source> {
         &mut self,
         kind: SyntaxKind,
         recovery_set: &[SyntaxKind],
-    ) -> Option<&Token> {
+    ) -> Option<&Token<'_>> {
         if self.at(kind) {
             Some(self.bump())
         } else {
@@ -222,7 +222,7 @@ impl<'source> Parser<'source> {
         &mut self,
         expected_kind: Option<SyntaxKind>,
         recovery_set: &[SyntaxKind],
-    ) -> Option<&Token> {
+    ) -> Option<&Token<'_>> {
         if self.at_end() || self.at_set(GENERAL_RECOVERY_SET) || self.at_set(recovery_set) {
             return None;
         }
