@@ -1,5 +1,7 @@
 # NEXT-VERSION
 
+- Added new rule `twig-json-encode-escape-js` to avoid using `| raw` after `json_encode` and suggest using `| escape('js')` instead.
+
 # v0.10.0
 
 - Bumped version of `ludtwig-parser` to `0.7.0`, which includes more parsing support (e.g. arrow functions, symfony

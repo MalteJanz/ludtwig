@@ -46,6 +46,7 @@ active-rules = [
     "twig-use-is-not-same-as",
     "twig-prefer-shopware-extends",
     "twig-block-duplicate",
+    "twig-json-encode-escape-js",
 ]
 
 [format]
