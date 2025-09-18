@@ -1,4 +1,4 @@
-use ludtwig_parser::syntax::typed::{support, AstNode, TwigFilter, TwigLiteralName, TwigOperand};
+use ludtwig_parser::syntax::typed::{support, AstNode, TwigFilter, TwigLiteralName};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 
 use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
@@ -13,25 +13,24 @@ impl Rule for RuleTwigJsonEncodeEscapeJs {
     fn check_node(&self, node: SyntaxNode, _ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
         let filter = TwigFilter::cast(node)?;
 
-        // Identify the current (right-most) filter name for this TWIG_FILTER node
-        let right_operand: TwigOperand = support::children(&filter.syntax()).nth(1)?;
+        let right_operand = filter.filter()?;
         let right_name_node: TwigLiteralName = support::child(right_operand.syntax())?;
         let right_name_token = right_name_node.get_name()?;
         let right_name = right_name_token.text();
 
-        // Trigger only when the current filter is `raw`
         if right_name != "raw" {
             return None;
         }
 
-        // Walk nested filter chain leftwards and check if any filter is `json_encode`
         if !chain_contains_json_encode(&filter) {
             return None;
         }
 
-        // Report and suggest replacing `raw` with `escape('js')`
         let result = self
-            .create_result(Severity::Error, "avoid raw after json_encode; use escape('js')")
+            .create_result(
+                Severity::Warning,
+                "avoid raw after json_encode; use escape('js')",
+            )
             .primary_note(
                 right_name_token.text_range(),
                 "help: replace 'raw' with escape('js')",
@@ -46,11 +45,11 @@ impl Rule for RuleTwigJsonEncodeEscapeJs {
     }
 }
 
+/// Walk nested filter chain leftwards and check if any filter is `json_encode`.
 fn chain_contains_json_encode(filter: &TwigFilter) -> bool {
     let mut current = filter.clone();
     loop {
-        // Check current TWIG_FILTER's right-hand filter name
-        if let Some(right_operand) = support::children::<TwigOperand>(&current.syntax()).nth(1) {
+        if let Some(right_operand) = current.filter() {
             if let Some(name_node) = support::child::<TwigLiteralName>(right_operand.syntax()) {
                 if name_node
                     .get_name()
@@ -61,8 +60,7 @@ fn chain_contains_json_encode(filter: &TwigFilter) -> bool {
             }
         }
 
-        // Step into the left side; if it's another TWIG_FILTER, continue; otherwise stop
-        if let Some(left_operand) = support::children::<TwigOperand>(&current.syntax()).next() {
+        if let Some(left_operand) = current.operand() {
             if let Some(inner) = support::child::<TwigFilter>(left_operand.syntax()) {
                 current = inner;
                 continue;
@@ -77,10 +75,27 @@ fn chain_contains_json_encode(filter: &TwigFilter) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::check::rules::test::{
-        test_rule_does_not_fix, test_rule_fix,
-    };
+    use crate::check::rules::test::{test_rule, test_rule_does_not_fix, test_rule_fix};
     use expect_test::expect;
+
+    #[test]
+    fn test_rule_report() {
+        test_rule(
+            "twig-json-encode-escape-js",
+            "{{ a|json_encode|raw }}",
+            expect![[r#"
+                warning[twig-json-encode-escape-js]: avoid raw after json_encode; use escape('js')
+                  ┌─ ./debug-rule.html.twig:1:18
+                  │
+                1 │ {{ a|json_encode|raw }}
+                  │                  ^^^
+                  │                  │
+                  │                  help: replace 'raw' with escape('js')
+                  │                  Try this filter instead: escape('js')
+
+            "#]],
+        );
+    }
 
     #[test]
     fn fixes_simple_chain() {
@@ -136,5 +151,3 @@ mod tests {
         );
     }
 }
-
-

@@ -456,10 +456,38 @@ ast_node!(
 ast_node!(TwigOperand, SyntaxKind::TWIG_OPERAND);
 ast_node!(TwigAccessor, SyntaxKind::TWIG_ACCESSOR);
 ast_node!(TwigFilter, SyntaxKind::TWIG_FILTER);
+impl TwigFilter {
+    /// The expression on the left side of the pipe `|`.
+    #[must_use]
+    pub fn operand(&self) -> Option<TwigOperand> {
+        support::child(&self.syntax)
+    }
+
+    /// The filter on the right side of the pipe `|`.
+    /// This can be a `TwigLiteralName` or a `TwigFunctionCall` inside the returned `TwigOperand`.
+    #[must_use]
+    pub fn filter(&self) -> Option<TwigOperand> {
+        support::children(&self.syntax).nth(1)
+    }
+}
 ast_node!(TwigIndexLookup, SyntaxKind::TWIG_INDEX_LOOKUP);
 ast_node!(TwigIndex, SyntaxKind::TWIG_INDEX);
 ast_node!(TwigIndexRange, SyntaxKind::TWIG_INDEX_RANGE);
 ast_node!(TwigFunctionCall, SyntaxKind::TWIG_FUNCTION_CALL);
+impl TwigFunctionCall {
+    /// The name of the function being called.
+    /// This is an operand which should contain a `TwigLiteralName`.
+    #[must_use]
+    pub fn name_operand(&self) -> Option<TwigOperand> {
+        support::child(&self.syntax)
+    }
+
+    /// The arguments of the function call.
+    #[must_use]
+    pub fn arguments(&self) -> Option<TwigArguments> {
+        support::child(&self.syntax)
+    }
+}
 ast_node!(TwigArrowFunction, SyntaxKind::TWIG_ARROW_FUNCTION);
 ast_node!(TwigArguments, SyntaxKind::TWIG_ARGUMENTS);
 ast_node!(TwigNamedArgument, SyntaxKind::TWIG_NAMED_ARGUMENT);

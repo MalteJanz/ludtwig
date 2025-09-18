@@ -42,11 +42,11 @@ active-rules = [
     "twig-string-quotation",
     "html-string-quotation",
     "twig-hash-key-no-quotes",
-    "twig-json-encode-escape-js",
     "twig-use-is-same-as",
     "twig-use-is-not-same-as",
     "twig-prefer-shopware-extends",
     "twig-block-duplicate",
+    "twig-json-encode-escape-js",
 ]
 
 [format]
