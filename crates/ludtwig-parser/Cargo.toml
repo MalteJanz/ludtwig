@@ -27,4 +27,4 @@ expect-test = "1.5.1"
 [dependencies]
 rowan = "0.16.1"
 logos = "0.15.1"
-regex = "1.11.3"
+regex = "1.12.2"
