@@ -178,19 +178,39 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
     let starting_tag_m = parser.start();
     parser.bump();
 
-    let tag_name = parser.peek_token().map_or("", |t| t.text).to_owned();
-    let tag_name_lowercase = tag_name.to_ascii_lowercase();
-    let tag_name_tokentype = parser.peek_token().map_or(SyntaxKind::TK_WORD, |t| t.kind);
-    let mut twig_component_name: Option<String> = None;
+    // Support three kinds of tag names:
+    // 1. Normal HTML tag names (single TK_WORD) matching HTML_TAG_NAME_REGEX
+    // 2. Twig component names <twig:Component> - handled as separate tokens
+    // 3. Generic namespaced tag names <prefix:name> - also separate tokens
+    let first_token_text = parser.peek_token().map_or("", |t| t.text).to_owned();
+    let first_token_kind = parser.peek_token().map_or(SyntaxKind::TK_WORD, |t| t.kind);
+    let mut tag_name = first_token_text.clone();
+    let mut tag_name_lowercase = tag_name.to_ascii_lowercase();
+    let tag_name_tokentype = first_token_kind; // The kind of the first part (always TK_WORD)
+    let mut twig_component_name: Option<String> = None; // Holds component part for twig components
+    let mut namespaced_tag: Option<(String, String)> = None; // Holds (prefix, local) for generic namespaced tags
 
     if tag_name_lowercase == "twig" && parser.peek_nth_token(1).is_some_and(|t| t.kind == T![":"]) {
         // possible twig component (e.g. <twig:Alert>)
         if parser.peek_nth_token(2).is_some_and(|t| t.kind == T![word]) {
             twig_component_name = parser.peek_nth_token(2).map(|t| t.text.to_owned());
+            tag_name = format!("twig:{}", twig_component_name.as_ref().unwrap());
+            tag_name_lowercase = tag_name.to_ascii_lowercase();
             parser.bump_next_n_as(3, T![word]);
         } else {
             parser.add_error(ParseErrorBuilder::new("Twig component name"));
         }
+    } else if parser.peek_token().is_some_and(|t| t.kind == T![word])
+        && parser.peek_nth_token(1).is_some_and(|t| t.kind == T![":"])
+        && parser.peek_nth_token(2).is_some_and(|t| t.kind == T![word])
+    {
+        // generic namespaced tag (e.g. <g:price>) - three separate tokens
+        let prefix = first_token_text;
+        let local = parser.peek_nth_token(2).unwrap().text.to_owned();
+        namespaced_tag = Some((prefix.clone(), local.clone()));
+        tag_name = format!("{prefix}:{local}");
+        tag_name_lowercase = tag_name.to_ascii_lowercase();
+        parser.bump_next_n_as(3, T![word]);
     } else if HTML_TAG_NAME_REGEX.is_match(&tag_name) {
         // normal html tag name
         parser.bump_as(T![word]);
@@ -240,20 +260,37 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
         parse_many(
             parser,
             |p| {
-                if p.at_following_content(&[
-                    (T!["</"], None),
-                    (tag_name_tokentype, Some(&tag_name)),
-                ]) {
-                    matching_end_tag_encountered = true;
-                    return true; // found matching closing tag
+                // Single part tag name
+                if twig_component_name.is_none() && namespaced_tag.is_none() {
+                    if p.at_following_content(&[
+                        (T!["</"], None),
+                        (tag_name_tokentype, Some(&tag_name)),
+                    ]) {
+                        matching_end_tag_encountered = true;
+                        return true; // found matching closing tag
+                    }
                 }
 
+                // Twig component tag name (separate tokens)
                 if let Some(component_name) = &twig_component_name {
                     if p.at_following_content(&[
                         (T!["</"], None),
                         (T![word], Some("twig")),
                         (T![":"], None),
                         (T![word], Some(component_name)),
+                    ]) {
+                        matching_end_tag_encountered = true;
+                        return true; // found matching closing tag
+                    }
+                }
+
+                // Generic namespaced tag name (separate tokens)
+                if let Some((prefix, local)) = &namespaced_tag {
+                    if p.at_following_content(&[
+                        (T!["</"], None),
+                        (T![word], Some(prefix)),
+                        (T![":"], None),
+                        (T![word], Some(local)),
                     ]) {
                         matching_end_tag_encountered = true;
                         return true; // found matching closing tag
@@ -277,20 +314,29 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
     let end_tag_m = parser.start();
     if matching_end_tag_encountered {
         // found matching closing tag
-        parser.expect(T!["</"], &[tag_name_tokentype, T![">"]]);
-
-        if twig_component_name.is_some() {
+        if twig_component_name.is_none() && namespaced_tag.is_none() {
+            // Regular tag (single TK_WORD)
+            parser.expect(T!["</"], &[tag_name_tokentype, T![">"]]);
+            if parser.at(tag_name_tokentype) {
+                parser.bump_as(T![word]);
+            } else {
+                parser.add_error(ParseErrorBuilder::new(format!(
+                    "{tag_name} as ending tag name"
+                )));
+                parser.recover(&[T![">"]]);
+            }
+            parser.expect(T![">"], &[]);
+        } else if let Some(_component_name) = &twig_component_name {
+            // Twig component (separate tokens)
+            parser.expect(T!["</"], &[T![word], T![":"], T![word], T![">"]]);
             parser.bump_next_n_as(3, T![word]);
-        } else if parser.at(tag_name_tokentype) {
-            parser.bump_as(T![word]);
-        } else {
-            parser.add_error(ParseErrorBuilder::new(format!(
-                "{tag_name} as ending tag name"
-            )));
-            parser.recover(&[T![">"]]);
+            parser.expect(T![">"], &[]);
+        } else if let Some((_prefix, _local)) = &namespaced_tag {
+            // Generic namespaced tag (separate tokens)
+            parser.expect(T!["</"], &[T![word], T![":"], T![word], T![">"]]);
+            parser.bump_next_n_as(3, T![word]);
+            parser.expect(T![">"], &[]);
         }
-
-        parser.expect(T![">"], &[]);
     } else {
         // no matching end tag found!
         parser.add_error(ParseErrorBuilder::new(format!("</{tag_name}> ending tag")));
@@ -2790,6 +2836,72 @@ mod tests {
                       TK_LESS_THAN_SLASH@29..31 "</"
                       TK_WORD@31..36 "title"
                       TK_GREATER_THAN@36..37 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_namespaced_html_tag() {
+        check_parse(
+            "<g:price>12.99</g:price>",
+            expect![[r#"
+                ROOT@0..24
+                  HTML_TAG@0..24
+                    HTML_STARTING_TAG@0..9
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..8 "g:price"
+                      HTML_ATTRIBUTE_LIST@8..8
+                      TK_GREATER_THAN@8..9 ">"
+                    BODY@9..14
+                      HTML_TEXT@9..14
+                        TK_NUMBER@9..14 "12.99"
+                    HTML_ENDING_TAG@14..24
+                      TK_LESS_THAN_SLASH@14..16 "</"
+                      TK_WORD@16..23 "g:price"
+                      TK_GREATER_THAN@23..24 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_namespaced_html_tag_with_underscore() {
+        check_parse(
+            "<g:sale_price>12.99</g:sale_price>",
+            expect![[r#"
+                ROOT@0..34
+                  HTML_TAG@0..34
+                    HTML_STARTING_TAG@0..14
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..13 "g:sale_price"
+                      HTML_ATTRIBUTE_LIST@13..13
+                      TK_GREATER_THAN@13..14 ">"
+                    BODY@14..19
+                      HTML_TEXT@14..19
+                        TK_NUMBER@14..19 "12.99"
+                    HTML_ENDING_TAG@19..34
+                      TK_LESS_THAN_SLASH@19..21 "</"
+                      TK_WORD@21..33 "g:sale_price"
+                      TK_GREATER_THAN@33..34 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_namespaced_html_tag_complex() {
+        check_parse(
+            "<my_ns:some_tag_123>content</my_ns:some_tag_123>",
+            expect![[r#"
+                ROOT@0..48
+                  HTML_TAG@0..48
+                    HTML_STARTING_TAG@0..20
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..19 "my_ns:some_tag_123"
+                      HTML_ATTRIBUTE_LIST@19..19
+                      TK_GREATER_THAN@19..20 ">"
+                    BODY@20..27
+                      HTML_TEXT@20..27
+                        TK_WORD@20..27 "content"
+                    HTML_ENDING_TAG@27..48
+                      TK_LESS_THAN_SLASH@27..29 "</"
+                      TK_WORD@29..47 "my_ns:some_tag_123"
+                      TK_GREATER_THAN@47..48 ">""#]],
         );
     }
 }

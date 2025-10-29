@@ -1052,4 +1052,26 @@ mod tests {
     fn lex_ludtwig_ignore() {
         check_token("ludtwig-ignore", T!["ludtwig-ignore"]);
     }
+
+    #[test]
+    fn lex_namespaced_tag() {
+        let results = lex("<g:price>");
+        let syntax_kinds: Vec<SyntaxKind> = results.into_iter().map(|t| t.kind).collect();
+
+        assert_eq!(
+            syntax_kinds,
+            vec![T!["<"], T![word], T![":"], T![word], T![">"]]
+        );
+    }
+
+    #[test]
+    fn lex_namespaced_tag_with_underscore() {
+        let results = lex("<g:sale_price>");
+        let syntax_kinds: Vec<SyntaxKind> = results.into_iter().map(|t| t.kind).collect();
+
+        assert_eq!(
+            syntax_kinds,
+            vec![T!["<"], T![word], T![":"], T![word], T![">"]]
+        );
+    }
 }
