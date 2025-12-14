@@ -677,6 +677,22 @@ mod tests {
     }
 
     #[test]
+    fn parse_twig_expression_not_identifier() {
+        check_parse(
+            "{{ not initialCountryId }}",
+            expect![[r#"
+                ROOT@0..26
+                  TWIG_VAR@0..26
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TK_WORD@2..23 "initialCountryId"
+                    TK_WHITESPACE@23..24 " "
+                    TK_CLOSE_CURLY_CURLY@24..26 "}}"
+                error at 3..9: expected twig expression but found not in
+                error at 3..9: expected }} but found not in"#]],
+        );
+    }
+
+    #[test]
     fn parse_twig_expression_negative_not_in() {
         check_parse(
             "{{ -n not in [1] }}",
@@ -1108,6 +1124,60 @@ mod tests {
                               TK_CLOSE_PARENTHESIS@33..34 ")"
                     TK_WHITESPACE@34..35 " "
                     TK_CLOSE_CURLY_CURLY@35..37 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_expression_special_is_identifier() {
+        check_parse(
+            "{{ isBlue }}",
+            expect![[r#"
+                ROOT@0..12
+                  TWIG_VAR@0..12
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..9
+                      TWIG_LITERAL_NAME@2..9
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..9 "isBlue"
+                    TK_WHITESPACE@9..10 " "
+                    TK_CLOSE_CURLY_CURLY@10..12 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_expression_special_is_not_identifier() {
+        check_parse(
+            "{{ blue is notRed }}",
+            expect![[r#"
+                ROOT@0..20
+                  TWIG_VAR@0..20
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..17
+                      TWIG_BINARY_EXPRESSION@2..17
+                        TWIG_EXPRESSION@2..7
+                          TWIG_LITERAL_NAME@2..7
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..7 "blue"
+                        TK_WHITESPACE@7..8 " "
+                    TK_WHITESPACE@17..18 " "
+                    TK_CLOSE_CURLY_CURLY@18..20 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_expression_special_not_identifier() {
+        check_parse(
+            "{{ notRed }}",
+            expect![[r#"
+                ROOT@0..12
+                  TWIG_VAR@0..12
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..9
+                      TWIG_LITERAL_NAME@2..9
+                        TK_WHITESPACE@2..3 " "
+                        TK_WORD@3..9 "notRed"
+                    TK_WHITESPACE@9..10 " "
+                    TK_CLOSE_CURLY_CURLY@10..12 "}}""#]],
         );
     }
 
