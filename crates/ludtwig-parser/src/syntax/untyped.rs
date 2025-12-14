@@ -115,7 +115,7 @@ pub enum SyntaxKind {
     TK_LESS_THAN_SLASH,
     #[token("<!")]
     TK_LESS_THAN_EXCLAMATION_MARK,
-    #[token("DOCTYPE", ignore(ascii_case))]
+    #[token("DOCTYPE", ignore(case))]
     TK_DOCTYPE,
     #[token(">")]
     TK_GREATER_THAN,
@@ -164,9 +164,9 @@ pub enum SyntaxKind {
     #[token("#")]
     TK_HASHTAG,
 
-    #[token("true", ignore(ascii_case))]
+    #[token("true", ignore(case))]
     TK_TRUE,
-    #[token("false", ignore(ascii_case))]
+    #[token("false", ignore(case))]
     TK_FALSE,
 
     /* twig tag tokens */
@@ -253,6 +253,8 @@ pub enum SyntaxKind {
     /* twig operators */
     #[token("not")]
     TK_NOT,
+    #[token("not in")]
+    TK_NOT_IN,
     #[token("or")]
     TK_OR,
     #[token("and")]
@@ -273,6 +275,8 @@ pub enum SyntaxKind {
     TK_ENDS_WITH,
     #[token("is")]
     TK_IS,
+    #[token("is not")]
+    TK_IS_NOT,
     /* twig tests */
     #[token("even")]
     TK_EVEN,
@@ -284,9 +288,9 @@ pub enum SyntaxKind {
     TK_SAME_AS,
     #[token("as")]
     TK_AS,
-    #[token("none", ignore(ascii_case))]
+    #[token("none", ignore(case))]
     TK_NONE,
-    #[token("null", ignore(ascii_case))]
+    #[token("null", ignore(case))]
     TK_NULL,
     #[token("divisible by")]
     TK_DIVISIBLE_BY,
@@ -339,9 +343,9 @@ pub enum SyntaxKind {
     TK_STYLE,
 
     /* special tokens */
-    #[token("ludtwig-ignore-file", ignore(ascii_case))]
+    #[token("ludtwig-ignore-file", ignore(case))]
     TK_LUDTWIG_IGNORE_FILE,
-    #[token("ludtwig-ignore", ignore(ascii_case))]
+    #[token("ludtwig-ignore", ignore(case))]
     TK_LUDTWIG_IGNORE,
     TK_UNKNOWN, // contains invalid / unrecognized syntax (used for error recovery).
 
@@ -615,6 +619,7 @@ macro_rules! T {
     ["component"] => { $crate::syntax::untyped::SyntaxKind::TK_COMPONENT };
     ["endcomponent"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDCOMPONENT };
     ["not"] => { $crate::syntax::untyped::SyntaxKind::TK_NOT };
+    ["not in"] => { $crate::syntax::untyped::SyntaxKind::TK_NOT_IN };
     ["or"] => { $crate::syntax::untyped::SyntaxKind::TK_OR };
     ["and"] => { $crate::syntax::untyped::SyntaxKind::TK_AND };
     ["b-or"] => { $crate::syntax::untyped::SyntaxKind::TK_BINARY_OR };
@@ -625,6 +630,7 @@ macro_rules! T {
     ["starts with"] => { $crate::syntax::untyped::SyntaxKind::TK_STARTS_WITH };
     ["ends with"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDS_WITH };
     ["is"] => { $crate::syntax::untyped::SyntaxKind::TK_IS };
+    ["is not"] => { $crate::syntax::untyped::SyntaxKind::TK_IS_NOT };
     ["even"] => { $crate::syntax::untyped::SyntaxKind::TK_EVEN };
     ["odd"] => { $crate::syntax::untyped::SyntaxKind::TK_ODD };
     ["defined"] => { $crate::syntax::untyped::SyntaxKind::TK_DEFINED };
@@ -772,6 +778,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_COMPONENT => "component",
             SyntaxKind::TK_ENDCOMPONENT => "endcomponent",
             SyntaxKind::TK_NOT => "not",
+            SyntaxKind::TK_NOT_IN => "not in",
             SyntaxKind::TK_OR => "or",
             SyntaxKind::TK_AND => "and",
             SyntaxKind::TK_BINARY_OR => "b-or",
@@ -782,6 +789,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_STARTS_WITH => "starts with",
             SyntaxKind::TK_ENDS_WITH => "ends with",
             SyntaxKind::TK_IS => "is",
+            SyntaxKind::TK_IS_NOT => "is not",
             SyntaxKind::TK_EVEN => "even",
             SyntaxKind::TK_ODD => "odd",
             SyntaxKind::TK_DEFINED => "defined",

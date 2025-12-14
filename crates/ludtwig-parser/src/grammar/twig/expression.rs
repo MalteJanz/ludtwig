@@ -48,6 +48,7 @@ pub(crate) static TWIG_EXPRESSION_RECOVERY_SET: &[SyntaxKind] = &[
     T![">="],
     T!["<="],
     T!["not"],
+    T!["not in"],
     T!["in"],
     T!["matches"],
     T!["starts with"],
@@ -63,6 +64,7 @@ pub(crate) static TWIG_EXPRESSION_RECOVERY_SET: &[SyntaxKind] = &[
     T!["//"],
     T!["%"],
     T!["is"],
+    T!["is not"],
     T!["**"],
     T!["??"],
 ];
@@ -101,8 +103,8 @@ impl Operator for SyntaxKind {
             | T![">"]
             | T![">="]
             | T!["<="]
-            | T!["not"] // hack for 'not in' operator 'not' alone is not a binary operator!
             | T!["in"]
+            | T!["not in"]
             | T!["matches"]
             | T!["starts with"]
             | T!["ends with"]
@@ -112,7 +114,7 @@ impl Operator for SyntaxKind {
             T!["+"] | T!["-"] => Some((30, 31)),
             T!["~"] => Some((40, 41)),
             T!["*"] | T!["/"] | T!["//"] | T!["%"] => Some((60, 61)),
-            T!["is"] => Some((100, 101)),
+            T!["is"] | T!["is not"] => Some((100, 101)),
             // right associative
             T!["**"] => Some((121, 120)),
             T!["??"] => Some((151, 150)),
@@ -158,18 +160,8 @@ pub(crate) fn parse_twig_expression_binding_power_rhs(
             break;
         }
 
-        // 'not' alone is not a binary expression!
-        if parser.at(T!["not"]) && !parser.at_following(&[T!["not"], T!["in"]]) {
-            break;
-        }
-
         // Eat the operator’s token.
-        let eaten_kind = parser.bump().kind;
-        if (eaten_kind == T!["not"] && parser.at(T!["in"]))
-            || (eaten_kind == T!["is"] && parser.at(T!["not"]))
-        {
-            parser.bump(); // eat 'in' / 'not' too
-        }
+        parser.bump();
         is_binary = true;
 
         // recurse
@@ -610,9 +602,7 @@ mod tests {
                                 TK_WHITESPACE@6..7 " "
                                 TK_WORD@7..8 "a"
                             TK_WHITESPACE@8..9 " "
-                            TK_IS@9..11 "is"
-                            TK_WHITESPACE@11..12 " "
-                            TK_NOT@12..15 "not"
+                            TK_IS_NOT@9..15 "is not"
                             TWIG_EXPRESSION@15..20
                               TWIG_LITERAL_NAME@15..20
                                 TK_WHITESPACE@15..16 " "
@@ -641,9 +631,7 @@ mod tests {
                                 TK_WHITESPACE@6..7 " "
                                 TK_WORD@7..8 "a"
                         TK_WHITESPACE@8..9 " "
-                        TK_NOT@9..12 "not"
-                        TK_WHITESPACE@12..13 " "
-                        TK_IN@13..15 "in"
+                        TK_NOT_IN@9..15 "not in"
                         TWIG_EXPRESSION@15..23
                           TWIG_LITERAL_ARRAY@15..23
                             TK_WHITESPACE@15..16 " "
@@ -673,9 +661,7 @@ mod tests {
                             TK_WHITESPACE@2..3 " "
                             TK_WORD@3..4 "a"
                         TK_WHITESPACE@4..5 " "
-                        TK_NOT@5..8 "not"
-                        TK_WHITESPACE@8..9 " "
-                        TK_IN@9..11 "in"
+                        TK_NOT_IN@5..11 "not in"
                         TWIG_EXPRESSION@11..15
                           TWIG_LITERAL_ARRAY@11..15
                             TK_WHITESPACE@11..12 " "
@@ -708,9 +694,7 @@ mod tests {
                               TWIG_LITERAL_NAME@4..5
                                 TK_WORD@4..5 "n"
                         TK_WHITESPACE@5..6 " "
-                        TK_NOT@6..9 "not"
-                        TK_WHITESPACE@9..10 " "
-                        TK_IN@10..12 "in"
+                        TK_NOT_IN@6..12 "not in"
                         TWIG_EXPRESSION@12..16
                           TWIG_LITERAL_ARRAY@12..16
                             TK_WHITESPACE@12..13 " "
