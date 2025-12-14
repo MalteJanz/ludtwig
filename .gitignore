@@ -1,12 +1,10 @@
-/target
-**/target
 .idea
-**/.idea
 .vscode
-**/.vscode
-**/output
-**/fixtures
-**/.DS_Store
+
+.DS_Store
+
+target
+
 fuzz/corpus
 fuzz/artifacts
 /demo

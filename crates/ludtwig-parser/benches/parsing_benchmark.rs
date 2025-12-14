@@ -1,21 +1,10 @@
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
 use ludtwig_parser::parse;
 use std::fs;
-
-fn parsing_synthetic_minimal_benchmark(c: &mut Criterion) {
-    let input = fs::read_to_string("./fixtures/synthetic-minimal.html.twig")
-        .expect("can't find fixtures/synthetic-minimal.html.twig in project folder");
-
-    c.bench_function("parsing synthetic-minimal.html.twig", |b| {
-        b.iter(|| {
-            let result = parse(&input);
-            black_box(result)
-        })
-    });
-}
+use std::hint::black_box;
 
 fn parsing_complex_benchmark(c: &mut Criterion) {
-    let input = fs::read_to_string("./fixtures/complex.html.twig")
+    let input = fs::read_to_string("../../fixtures/complex.html.twig")
         .expect("can't find fixtures/complex.html.twig in project folder");
 
     c.bench_function("parsing complex.html.twig", |b| {
@@ -27,10 +16,10 @@ fn parsing_complex_benchmark(c: &mut Criterion) {
 }
 
 fn parsing_complex_failing_benchmark(c: &mut Criterion) {
-    let input = fs::read_to_string("./fixtures/complex-failing.html.twig")
-        .expect("can't find fixtures/complex-failing.html.twig in project folder");
+    let input = fs::read_to_string("../../fixtures/complex-syntax-error.html.twig")
+        .expect("can't find fixtures/complex-syntax-error.html.twig in project folder");
 
-    c.bench_function("parsing complex-failing.html.twig", |b| {
+    c.bench_function("parsing complex-syntax-error.html.twig", |b| {
         b.iter(|| {
             let result = parse(&input);
             black_box(result)
@@ -40,7 +29,6 @@ fn parsing_complex_failing_benchmark(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    parsing_synthetic_minimal_benchmark,
     parsing_complex_benchmark,
     parsing_complex_failing_benchmark
 );

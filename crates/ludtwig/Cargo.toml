@@ -15,13 +15,13 @@ rust-version = "1.85.0"
 
 [dependencies]
 ludtwig-parser = { path = "../ludtwig-parser", version = "0.7.0" }
-clap = { version = "4.5.51", features = ["derive"] }
+clap = { version = "4.5.53", features = ["derive"] }
 rayon = "1.11.0"
 ignore = "0.4.25"
 figment = { version = "0.10.19", features = ["toml", "env"] }
 serde = { version = "1.0.228", features = ["derive"] }
 regex = "1.12.2"
-codespan-reporting = "0.12.0"
+codespan-reporting = "0.13.1"
 
 [dev-dependencies]
 expect-test = "1.5.1"
