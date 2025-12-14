@@ -5,7 +5,7 @@ updates:
   - package-ecosystem: "cargo"
     directory: "."
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     groups:
       dependencies:
         applies-to: version-updates

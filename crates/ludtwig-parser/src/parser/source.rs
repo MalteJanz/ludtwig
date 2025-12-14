@@ -38,7 +38,7 @@ impl<'source> Source<'source> {
         self.peek_kind_raw()
     }
 
-    pub(super) fn peek_token(&mut self) -> Option<&Token> {
+    pub(super) fn peek_token(&mut self) -> Option<&Token<'_>> {
         self.eat_trivia();
         self.peek_token_raw()
     }
@@ -46,7 +46,7 @@ impl<'source> Source<'source> {
     /// Lookahead is expensive!
     /// This lookahead doesn't skip further trivia tokens and is only there for combining the next n lexer tokens!
     /// for n of zero use `peek_token` instead!
-    pub(super) fn peek_nth_token(&mut self, n: usize) -> Option<&Token> {
+    pub(super) fn peek_nth_token(&mut self, n: usize) -> Option<&Token<'_>> {
         self.eat_trivia();
         self.tokens[self.cursor..].get(n)
     }
@@ -119,7 +119,7 @@ impl<'source> Source<'source> {
         self.peek_token_raw().map(|Token { kind, .. }| *kind)
     }
 
-    fn peek_token_raw(&self) -> Option<&Token> {
+    fn peek_token_raw(&self) -> Option<&Token<'_>> {
         self.tokens.get(self.cursor)
     }
 }

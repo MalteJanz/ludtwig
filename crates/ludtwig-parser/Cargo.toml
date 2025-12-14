@@ -21,10 +21,10 @@ name = "parsing_benchmark"
 harness = false
 
 [dev-dependencies]
-criterion = "0.5.1"
+criterion = "0.7.0"
 expect-test = "1.5.1"
 
 [dependencies]
 rowan = "0.16.1"
-logos = "0.15.0"
-regex = "1.11.1"
+logos = "0.15.1"
+regex = "1.12.2"

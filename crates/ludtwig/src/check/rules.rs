@@ -9,6 +9,7 @@ use crate::check::rules::twig_block_duplicate::RuleTwigBlockDuplicate;
 use crate::check::rules::twig_block_line_breaks::RuleTwigBlockLineBreaks;
 use crate::check::rules::twig_block_name_snake_case::RuleTwigBlockNameSnakeCase;
 use crate::check::rules::twig_hash_key_no_quotes::RuleTwigHashKeyNoQuotes;
+use crate::check::rules::twig_json_encode_escape_js::RuleTwigJsonEncodeEscapeJs;
 use crate::check::rules::twig_logic_and::RuleTwigLogicAnd;
 use crate::check::rules::twig_logic_or::RuleTwigLogicOr;
 use crate::check::rules::twig_prefer_shopware_extends::RuleTwigPreferShopwareExtends;
@@ -29,6 +30,7 @@ mod twig_block_duplicate;
 mod twig_block_line_breaks;
 mod twig_block_name_snake_case;
 mod twig_hash_key_no_quotes;
+mod twig_json_encode_escape_js;
 mod twig_logic_and;
 mod twig_logic_or;
 mod twig_prefer_shopware_extends;
@@ -55,6 +57,7 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleTwigUseIsSameAs,
     &RuleTwigUseIsNotSameAs,
     &RuleTwigBlockDuplicate,
+    &RuleTwigJsonEncodeEscapeJs,
 ];
 
 /// Get active rule definitions based on config

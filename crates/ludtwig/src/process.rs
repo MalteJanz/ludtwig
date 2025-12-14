@@ -92,10 +92,11 @@ fn run_analysis(
                         io_error: e,
                     });
                 }
-            };
+            }
             println!(
-                "fixed {:?} in {} iterations",
-                &file_context.file_path, iterations
+                "fixed {} in {} iterations",
+                &file_context.file_path.display(),
+                iterations
             );
         }
 

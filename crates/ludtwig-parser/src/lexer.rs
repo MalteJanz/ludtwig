@@ -4,7 +4,7 @@ use crate::syntax::untyped::{SyntaxKind, TextRange, TextSize};
 
 /// Lex the source code into a Vec of tokens with their corresponding span (position in source code).
 /// These tokens are produced by a dumb lexer and don't have any meaning / semantic attached to them.
-pub(crate) fn lex(source: &str) -> Vec<Token> {
+pub(crate) fn lex(source: &str) -> Vec<Token<'_>> {
     let mut lexer = SyntaxKind::lexer(source);
     let mut result = vec![];
 
@@ -36,8 +36,6 @@ pub(crate) struct Token<'source> {
     pub(crate) range: TextRange,
 }
 
-// ToDo: might be able to remove this annotation in future rust-analyzer version
-#[allow(clippy::needless_lifetimes)]
 impl<'source> Token<'source> {
     #[cfg(test)]
     pub(crate) fn new(kind: SyntaxKind, text: &'source str, range: TextRange) -> Self {
