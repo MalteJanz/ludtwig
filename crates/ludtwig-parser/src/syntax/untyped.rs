@@ -14,7 +14,7 @@
 //! An overview of the syntax tree concept can be found
 //! at the [crate level documentation](crate#syntax-trees).
 
-use logos::Logos;
+use logos::{Lexer, Logos};
 pub use rowan::Direction;
 // `GreenNode` is an immutable tree, which is cheap to change,
 // but doesn't contain offsets and parent pointers.
@@ -115,7 +115,7 @@ pub enum SyntaxKind {
     TK_LESS_THAN_SLASH,
     #[token("<!")]
     TK_LESS_THAN_EXCLAMATION_MARK,
-    #[token("DOCTYPE", ignore(ascii_case))]
+    #[token("DOCTYPE", ignore(case))]
     TK_DOCTYPE,
     #[token(">")]
     TK_GREATER_THAN,
@@ -164,9 +164,9 @@ pub enum SyntaxKind {
     #[token("#")]
     TK_HASHTAG,
 
-    #[token("true", ignore(ascii_case))]
+    #[token("true", ignore(case))]
     TK_TRUE,
-    #[token("false", ignore(ascii_case))]
+    #[token("false", ignore(case))]
     TK_FALSE,
 
     /* twig tag tokens */
@@ -251,8 +251,9 @@ pub enum SyntaxKind {
     #[token("endcomponent")]
     TK_ENDCOMPONENT,
     /* twig operators */
-    #[token("not")]
+    #[token("not", cb_not)]
     TK_NOT,
+    TK_NOT_IN,
     #[token("or")]
     TK_OR,
     #[token("and")]
@@ -271,8 +272,9 @@ pub enum SyntaxKind {
     TK_STARTS_WITH,
     #[token("ends with")]
     TK_ENDS_WITH,
-    #[token("is")]
+    #[token("is", cb_is)]
     TK_IS,
+    TK_IS_NOT,
     /* twig tests */
     #[token("even")]
     TK_EVEN,
@@ -284,9 +286,9 @@ pub enum SyntaxKind {
     TK_SAME_AS,
     #[token("as")]
     TK_AS,
-    #[token("none", ignore(ascii_case))]
+    #[token("none", ignore(case))]
     TK_NONE,
-    #[token("null", ignore(ascii_case))]
+    #[token("null", ignore(case))]
     TK_NULL,
     #[token("divisible by")]
     TK_DIVISIBLE_BY,
@@ -339,9 +341,9 @@ pub enum SyntaxKind {
     TK_STYLE,
 
     /* special tokens */
-    #[token("ludtwig-ignore-file", ignore(ascii_case))]
+    #[token("ludtwig-ignore-file", ignore(case))]
     TK_LUDTWIG_IGNORE_FILE,
-    #[token("ludtwig-ignore", ignore(ascii_case))]
+    #[token("ludtwig-ignore", ignore(case))]
     TK_LUDTWIG_IGNORE,
     TK_UNKNOWN, // contains invalid / unrecognized syntax (used for error recovery).
 
@@ -510,6 +512,38 @@ pub enum SyntaxKind {
     ROOT, // top-level node: list of elements inside the template (must be last item of enum for safety check!)
 }
 
+/// workaround to properly lex 'not insider' to TK_NOT + TK_WS + TK_WORD instead of TK_NOT_IN + TK_WORD
+fn cb_not(lexer: &mut Lexer<'_, SyntaxKind>) -> SyntaxKind {
+    const SUFFIX: &str = " in";
+    if lexer.remainder().starts_with(SUFFIX) {
+        let after = lexer.remainder().get(SUFFIX.len()..);
+        if after.is_none_or(|s| s.starts_with([' ', '\t', '\n']) || s.is_empty()) {
+            lexer.bump(SUFFIX.len());
+            SyntaxKind::TK_NOT_IN
+        } else {
+            SyntaxKind::TK_NOT
+        }
+    } else {
+        SyntaxKind::TK_NOT
+    }
+}
+
+/// workaround to properly lex 'is nothing' to TK_IS + TK_WS + TK_WORD instead of TK_IS_NOT + TK_WORD
+fn cb_is(lexer: &mut Lexer<'_, SyntaxKind>) -> SyntaxKind {
+    const SUFFIX: &str = " not";
+    if lexer.remainder().starts_with(SUFFIX) {
+        let after = lexer.remainder().get(SUFFIX.len()..);
+        if after.is_none_or(|s| s.starts_with([' ', '\t', '\n']) || s.is_empty()) {
+            lexer.bump(SUFFIX.len());
+            SyntaxKind::TK_IS_NOT
+        } else {
+            SyntaxKind::TK_IS
+        }
+    } else {
+        SyntaxKind::TK_IS
+    }
+}
+
 #[macro_export]
 macro_rules! T {
     [ws] => { $crate::syntax::untyped::SyntaxKind::TK_WHITESPACE };
@@ -615,6 +649,7 @@ macro_rules! T {
     ["component"] => { $crate::syntax::untyped::SyntaxKind::TK_COMPONENT };
     ["endcomponent"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDCOMPONENT };
     ["not"] => { $crate::syntax::untyped::SyntaxKind::TK_NOT };
+    ["not in"] => { $crate::syntax::untyped::SyntaxKind::TK_NOT_IN };
     ["or"] => { $crate::syntax::untyped::SyntaxKind::TK_OR };
     ["and"] => { $crate::syntax::untyped::SyntaxKind::TK_AND };
     ["b-or"] => { $crate::syntax::untyped::SyntaxKind::TK_BINARY_OR };
@@ -625,6 +660,7 @@ macro_rules! T {
     ["starts with"] => { $crate::syntax::untyped::SyntaxKind::TK_STARTS_WITH };
     ["ends with"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDS_WITH };
     ["is"] => { $crate::syntax::untyped::SyntaxKind::TK_IS };
+    ["is not"] => { $crate::syntax::untyped::SyntaxKind::TK_IS_NOT };
     ["even"] => { $crate::syntax::untyped::SyntaxKind::TK_EVEN };
     ["odd"] => { $crate::syntax::untyped::SyntaxKind::TK_ODD };
     ["defined"] => { $crate::syntax::untyped::SyntaxKind::TK_DEFINED };
@@ -772,6 +808,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_COMPONENT => "component",
             SyntaxKind::TK_ENDCOMPONENT => "endcomponent",
             SyntaxKind::TK_NOT => "not",
+            SyntaxKind::TK_NOT_IN => "not in",
             SyntaxKind::TK_OR => "or",
             SyntaxKind::TK_AND => "and",
             SyntaxKind::TK_BINARY_OR => "b-or",
@@ -782,6 +819,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_STARTS_WITH => "starts with",
             SyntaxKind::TK_ENDS_WITH => "ends with",
             SyntaxKind::TK_IS => "is",
+            SyntaxKind::TK_IS_NOT => "is not",
             SyntaxKind::TK_EVEN => "even",
             SyntaxKind::TK_ODD => "odd",
             SyntaxKind::TK_DEFINED => "defined",
