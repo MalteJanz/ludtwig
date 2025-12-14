@@ -128,8 +128,7 @@ impl RuleIndentation {
     ) -> Vec<CheckResult> {
         let indent_char = ctx.config().format.indentation_mode.corresponding_char();
         let indent_char_count = ctx.config().format.indentation_count;
-        let expected_str = std::iter::repeat(indent_char)
-            .take(indentation_level * indent_char_count as usize)
+        let expected_str = std::iter::repeat_n(indent_char, indentation_level * indent_char_count as usize)
             .chain(" ".repeat(indentation_substeps).chars())
             .collect::<String>();
 

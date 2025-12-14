@@ -87,7 +87,7 @@ impl<'source> Source<'source> {
             match (tokens_iter.next(), set_iter.next()) {
                 (Some(token), Some((set_kind, set_content)))
                     if token.kind == *set_kind
-                        && set_content.map_or(true, |content| content == token.text) =>
+                        && set_content.is_none_or(|content| content == token.text) =>
                 {
                     continue;
                 }
