@@ -203,7 +203,7 @@ pub fn produce_diagnostics(
             .with_message("visualization of the syntax tree (inspect cli option is active)")
             .with_notes(vec![debug_tree(&file_context.tree_root)]);
 
-        term::emit(buffer, &config, &files, &diagnostic).unwrap();
+        term::emit_to_write_style(buffer, &config, &files, &diagnostic).unwrap();
     }
 
     // run through the parser errors
@@ -216,7 +216,7 @@ pub fn produce_diagnostics(
             .with_message("The parser encountered a syntax error")
             .with_labels(vec![label]);
 
-        term::emit(buffer, &config, &files, &diagnostic).unwrap();
+        term::emit_to_write_style(buffer, &config, &files, &diagnostic).unwrap();
     }
 
     // run through the rule check results
@@ -257,6 +257,6 @@ pub fn produce_diagnostics(
             .with_message(result.message)
             .with_labels(labels);
 
-        term::emit(buffer, &config, &files, &diagnostic).unwrap();
+        term::emit_to_write_style(buffer, &config, &files, &diagnostic).unwrap();
     }
 }
