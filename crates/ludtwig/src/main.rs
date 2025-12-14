@@ -13,7 +13,7 @@ use ignore::types::TypesBuilder;
 use ignore::{WalkBuilder, WalkState};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::thread;
 
 mod check;
@@ -192,7 +192,7 @@ fn handle_input_paths(paths: Vec<PathBuf>, cli_context: CliContext) {
                 };
 
                 // filter out directories
-                if entry.file_type().map_or(true, |t| t.is_dir()) {
+                if entry.file_type().is_none_or(|t| t.is_dir()) {
                     return WalkState::Continue;
                 }
 

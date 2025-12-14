@@ -1,6 +1,6 @@
+use ludtwig_parser::T;
 use ludtwig_parser::syntax::typed::{AstNode, TwigBinaryExpression};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
-use ludtwig_parser::T;
 
 use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 

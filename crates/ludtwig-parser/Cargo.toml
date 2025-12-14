@@ -8,8 +8,8 @@ documentation = "https://docs.rs/ludtwig-parser"
 version = "0.7.0"
 authors = ["Malte Janz <service.malte.j@protonmail.com>"]
 license = "MIT"
-edition = "2021"
-rust-version = "1.80.0"
+edition = "2024"
+rust-version = "1.85.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

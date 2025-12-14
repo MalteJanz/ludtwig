@@ -128,10 +128,10 @@ impl RuleIndentation {
     ) -> Vec<CheckResult> {
         let indent_char = ctx.config().format.indentation_mode.corresponding_char();
         let indent_char_count = ctx.config().format.indentation_count;
-        let expected_str = std::iter::repeat(indent_char)
-            .take(indentation_level * indent_char_count as usize)
-            .chain(" ".repeat(indentation_substeps).chars())
-            .collect::<String>();
+        let expected_str =
+            std::iter::repeat_n(indent_char, indentation_level * indent_char_count as usize)
+                .chain(" ".repeat(indentation_substeps).chars())
+                .collect::<String>();
 
         let substeps_expectation_notice = if indentation_substeps > 0 {
             format!(" (+{indentation_substeps} spaces)")
@@ -274,9 +274,8 @@ impl RuleIndentation {
                 | SyntaxKind::TWIG_LITERAL_ARRAY_INNER
                 | SyntaxKind::TWIG_LITERAL_HASH_ITEMS
         ) && (indent_block_children
-            || !n
-                .parent()
-                .is_some_and(|p| p.kind() == SyntaxKind::TWIG_BLOCK))
+            || n.parent()
+                .is_none_or(|p| p.kind() != SyntaxKind::TWIG_BLOCK))
         {
             match walk_mode {
                 WalkMode::Enter => {

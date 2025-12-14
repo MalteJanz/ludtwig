@@ -53,8 +53,8 @@ impl<'source> Token<'source> {
 
 #[cfg(test)]
 mod tests {
-    use crate::syntax::untyped::TextLen;
     use crate::T;
+    use crate::syntax::untyped::TextLen;
 
     use super::*;
 

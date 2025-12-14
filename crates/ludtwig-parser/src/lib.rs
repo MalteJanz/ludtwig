@@ -107,9 +107,9 @@
 //! ```
 //!
 
-pub use parser::parse;
 pub use parser::Parse;
 pub use parser::ParseError;
+pub use parser::parse;
 
 use crate::lexer::lex;
 

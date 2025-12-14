@@ -1,4 +1,4 @@
-use ludtwig_parser::syntax::typed::{support, AstNode, TwigFilter, TwigLiteralName};
+use ludtwig_parser::syntax::typed::{AstNode, TwigFilter, TwigLiteralName, support};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 
 use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};

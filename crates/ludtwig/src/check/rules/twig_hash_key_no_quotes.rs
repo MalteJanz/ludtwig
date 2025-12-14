@@ -1,6 +1,6 @@
-use ludtwig_parser::syntax::typed::{support, AstNode, TwigLiteralHashKey, TwigLiteralString};
-use ludtwig_parser::syntax::untyped::{SyntaxNode, SyntaxNodeExt, TextRange, TextSize};
 use ludtwig_parser::TWIG_NAME_REGEX;
+use ludtwig_parser::syntax::typed::{AstNode, TwigLiteralHashKey, TwigLiteralString, support};
+use ludtwig_parser::syntax::untyped::{SyntaxNode, SyntaxNodeExt, TextRange, TextSize};
 
 use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 

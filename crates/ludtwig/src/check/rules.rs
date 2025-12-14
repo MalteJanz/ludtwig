@@ -1,3 +1,4 @@
+use crate::Config;
 use crate::check::rule::Rule;
 use crate::check::rules::html_attribute_name_kebab_case::RuleHtmlAttributeNameKebabCase;
 use crate::check::rules::html_string_quotation::RuleHtmlStringQuotation;
@@ -17,7 +18,6 @@ use crate::check::rules::twig_use_is_not_same_as::RuleTwigUseIsNotSameAs;
 use crate::check::rules::twig_use_is_same_as::RuleTwigUseIsSameAs;
 use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
 use crate::error::ConfigurationError;
-use crate::Config;
 use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveFileIgnore};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 
@@ -135,7 +135,7 @@ pub fn get_file_active_rule_definitions(
 pub mod test {
     use std::path::PathBuf;
     use std::sync::mpsc::Receiver;
-    use std::sync::{mpsc, Arc};
+    use std::sync::{Arc, mpsc};
 
     use codespan_reporting::term::termcolor::Buffer;
 
@@ -146,7 +146,7 @@ pub mod test {
     use crate::check::rule::CheckResult;
     use crate::check::rules::RULE_DEFINITIONS;
     use crate::check::run_rules;
-    use crate::process::{iteratively_apply_suggestions, FileContext};
+    use crate::process::{FileContext, iteratively_apply_suggestions};
     use crate::{CliContext, CliSharedData, Config, ProcessingEvent};
 
     fn debug_rule(
