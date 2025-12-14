@@ -14,7 +14,7 @@
 //! An overview of the syntax tree concept can be found
 //! at the [crate level documentation](crate#syntax-trees).
 
-use logos::Logos;
+use logos::{Lexer, Logos};
 pub use rowan::Direction;
 // `GreenNode` is an immutable tree, which is cheap to change,
 // but doesn't contain offsets and parent pointers.
@@ -251,9 +251,8 @@ pub enum SyntaxKind {
     #[token("endcomponent")]
     TK_ENDCOMPONENT,
     /* twig operators */
-    #[token("not")]
+    #[token("not", cb_not)]
     TK_NOT,
-    #[token("not in")]
     TK_NOT_IN,
     #[token("or")]
     TK_OR,
@@ -273,9 +272,8 @@ pub enum SyntaxKind {
     TK_STARTS_WITH,
     #[token("ends with")]
     TK_ENDS_WITH,
-    #[token("is")]
+    #[token("is", cb_is)]
     TK_IS,
-    #[token("is not")]
     TK_IS_NOT,
     /* twig tests */
     #[token("even")]
@@ -512,6 +510,38 @@ pub enum SyntaxKind {
     ERROR, // syntax node which wraps invalid syntax
     /// SAFETY: this must be the last enum element for u16 conversion!
     ROOT, // top-level node: list of elements inside the template (must be last item of enum for safety check!)
+}
+
+/// workaround to properly lex 'not insider' to TK_NOT + TK_WS + TK_WORD instead of TK_NOT_IN + TK_WORD
+fn cb_not(lexer: &mut Lexer<'_, SyntaxKind>) -> SyntaxKind {
+    const SUFFIX: &str = " in";
+    if lexer.remainder().starts_with(SUFFIX) {
+        let after = lexer.remainder().get(SUFFIX.len()..);
+        if after.is_none_or(|s| s.starts_with([' ', '\t', '\n']) || s.is_empty()) {
+            lexer.bump(SUFFIX.len());
+            SyntaxKind::TK_NOT_IN
+        } else {
+            SyntaxKind::TK_NOT
+        }
+    } else {
+        SyntaxKind::TK_NOT
+    }
+}
+
+/// workaround to properly lex 'is nothing' to TK_IS + TK_WS + TK_WORD instead of TK_IS_NOT + TK_WORD
+fn cb_is(lexer: &mut Lexer<'_, SyntaxKind>) -> SyntaxKind {
+    const SUFFIX: &str = " not";
+    if lexer.remainder().starts_with(SUFFIX) {
+        let after = lexer.remainder().get(SUFFIX.len()..);
+        if after.is_none_or(|s| s.starts_with([' ', '\t', '\n']) || s.is_empty()) {
+            lexer.bump(SUFFIX.len());
+            SyntaxKind::TK_IS_NOT
+        } else {
+            SyntaxKind::TK_IS
+        }
+    } else {
+        SyntaxKind::TK_IS
+    }
 }
 
 #[macro_export]

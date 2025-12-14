@@ -684,11 +684,16 @@ mod tests {
                 ROOT@0..26
                   TWIG_VAR@0..26
                     TK_OPEN_CURLY_CURLY@0..2 "{{"
-                    TK_WORD@2..23 "initialCountryId"
+                    TWIG_EXPRESSION@2..23
+                      TWIG_UNARY_EXPRESSION@2..23
+                        TK_WHITESPACE@2..3 " "
+                        TK_NOT@3..6 "not"
+                        TWIG_EXPRESSION@6..23
+                          TWIG_LITERAL_NAME@6..23
+                            TK_WHITESPACE@6..7 " "
+                            TK_WORD@7..23 "initialCountryId"
                     TK_WHITESPACE@23..24 " "
-                    TK_CLOSE_CURLY_CURLY@24..26 "}}"
-                error at 3..9: expected twig expression but found not in
-                error at 3..9: expected }} but found not in"#]],
+                    TK_CLOSE_CURLY_CURLY@24..26 "}}""#]],
         );
     }
 
@@ -1159,6 +1164,11 @@ mod tests {
                             TK_WHITESPACE@2..3 " "
                             TK_WORD@3..7 "blue"
                         TK_WHITESPACE@7..8 " "
+                        TK_IS@8..10 "is"
+                        TWIG_EXPRESSION@10..17
+                          TWIG_LITERAL_NAME@10..17
+                            TK_WHITESPACE@10..11 " "
+                            TK_WORD@11..17 "notRed"
                     TK_WHITESPACE@17..18 " "
                     TK_CLOSE_CURLY_CURLY@18..20 "}}""#]],
         );
