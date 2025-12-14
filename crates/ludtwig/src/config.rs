@@ -159,8 +159,11 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
 
     if opts.create_config {
         if Path::exists(config_path.as_ref()) {
-            println!("The configuration file already exists at the location {}. \
-            Try choosing a different location with '-c my-path' or make a backup of your current config file (rename it).", config_path.display());
+            println!(
+                "The configuration file already exists at the location {}. \
+            Try choosing a different location with '-c my-path' or make a backup of your current config file (rename it).",
+                config_path.display()
+            );
             std::process::exit(1);
         }
 
