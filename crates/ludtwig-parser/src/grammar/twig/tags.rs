@@ -1091,7 +1091,7 @@ fn parse_twig_trans(
 
 fn parse_twig_props(parser: &mut Parser, outer: Marker) -> CompletedMarker {
     // example:
-    // {% props icon = null, type = 'primary' %}
+    // {% props icon, type = 'primary' %}
 
     debug_assert!(parser.at(T!["props"]));
     parser.bump();
@@ -1105,11 +1105,14 @@ fn parse_twig_props(parser: &mut Parser, outer: Marker) -> CompletedMarker {
                 p.add_error(ParseErrorBuilder::new("twig variable name"));
             }
 
-            p.expect(T!["="], &[T![","], T!["%}"], T!["</"]]);
+            if p.at(T!["="]) {
+                p.bump();
 
-            if parse_twig_expression(p).is_none() {
-                p.add_error(ParseErrorBuilder::new("twig expression"));
+                if parse_twig_expression(p).is_none() {
+                    p.add_error(ParseErrorBuilder::new("twig expression"));
+                }
             }
+
             p.complete(m, SyntaxKind::TWIG_PROP_DECLARATION);
 
             if p.at(T![","]) {
@@ -5326,39 +5329,33 @@ mod tests {
     #[test]
     fn parse_twig_props_declaration() {
         check_parse(
-            "{% props icon = null, type = 'primary' %}",
+            "{% props icon, type = 'primary' %}",
             expect![[r#"
-                ROOT@0..41
-                  TWIG_PROPS@0..41
+                ROOT@0..34
+                  TWIG_PROPS@0..34
                     TK_CURLY_PERCENT@0..2 "{%"
                     TK_WHITESPACE@2..3 " "
                     TK_PROPS@3..8 "props"
-                    TWIG_PROP_DECLARATION@8..20
+                    TWIG_PROP_DECLARATION@8..13
                       TWIG_LITERAL_NAME@8..13
                         TK_WHITESPACE@8..9 " "
                         TK_WORD@9..13 "icon"
-                      TK_WHITESPACE@13..14 " "
-                      TK_EQUAL@14..15 "="
-                      TWIG_EXPRESSION@15..20
-                        TWIG_LITERAL_NULL@15..20
-                          TK_WHITESPACE@15..16 " "
-                          TK_NULL@16..20 "null"
-                    TK_COMMA@20..21 ","
-                    TWIG_PROP_DECLARATION@21..38
-                      TWIG_LITERAL_NAME@21..26
-                        TK_WHITESPACE@21..22 " "
-                        TK_WORD@22..26 "type"
-                      TK_WHITESPACE@26..27 " "
-                      TK_EQUAL@27..28 "="
-                      TWIG_EXPRESSION@28..38
-                        TWIG_LITERAL_STRING@28..38
-                          TK_WHITESPACE@28..29 " "
-                          TK_SINGLE_QUOTES@29..30 "'"
-                          TWIG_LITERAL_STRING_INNER@30..37
-                            TK_WORD@30..37 "primary"
-                          TK_SINGLE_QUOTES@37..38 "'"
-                    TK_WHITESPACE@38..39 " "
-                    TK_PERCENT_CURLY@39..41 "%}""#]],
+                    TK_COMMA@13..14 ","
+                    TWIG_PROP_DECLARATION@14..31
+                      TWIG_LITERAL_NAME@14..19
+                        TK_WHITESPACE@14..15 " "
+                        TK_WORD@15..19 "type"
+                      TK_WHITESPACE@19..20 " "
+                      TK_EQUAL@20..21 "="
+                      TWIG_EXPRESSION@21..31
+                        TWIG_LITERAL_STRING@21..31
+                          TK_WHITESPACE@21..22 " "
+                          TK_SINGLE_QUOTES@22..23 "'"
+                          TWIG_LITERAL_STRING_INNER@23..30
+                            TK_WORD@23..30 "primary"
+                          TK_SINGLE_QUOTES@30..31 "'"
+                    TK_WHITESPACE@31..32 " "
+                    TK_PERCENT_CURLY@32..34 "%}""#]],
         );
     }
 
