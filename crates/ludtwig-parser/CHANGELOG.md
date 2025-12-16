@@ -4,6 +4,8 @@
   rust edition to 2024
 - [#168](https://github.com/MalteJanz/ludtwig/pull/168) Properly handle 'not in'
   and 'is not' as independent tokens and simplify parsing logic accordingly
+- [#169](https://github.com/MalteJanz/ludtwig/pull/169) Fix parsing errors for twig prop declarations without default value like
+  `{% props icon %}`
 
 # v0.7.0
 
