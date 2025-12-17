@@ -6,6 +6,8 @@
   and 'is not' as independent tokens and simplify parsing logic accordingly
 - [#169](https://github.com/MalteJanz/ludtwig/pull/169) Fix parsing errors for twig prop declarations without default value like
   `{% props icon %}`
+- [#170](https://github.com/MalteJanz/ludtwig/pull/170) Fix parsing errors for twig components that are namespaced, for example
+  `<twig:my:namespaced:component />`
 
 # v0.7.0
 
