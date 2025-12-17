@@ -49,6 +49,9 @@ pub enum SyntaxKind {
     /// special case: allows a single underscore as a valid word
     #[regex(r"([a-zA-Z]|([@\#_\$][a-zA-Z])|_)[a-zA-Z0-9_\-]*")]
     TK_WORD,
+    /// matches namespaced twig component names like 'twig:my:component'
+    #[regex(r"twig(\:[a-zA-Z0-9_\-]+)+")]
+    TK_TWIG_COMPONENT_NAME,
     /// a valid twig number
     #[regex(r"[0-9]+(\.[0-9]+)?([Ee][\+\-][0-9]+)?")]
     TK_NUMBER,
@@ -549,6 +552,7 @@ macro_rules! T {
     [ws] => { $crate::syntax::untyped::SyntaxKind::TK_WHITESPACE };
     [lb] => { $crate::syntax::untyped::SyntaxKind::TK_LINE_BREAK };
     [word] => { $crate::syntax::untyped::SyntaxKind::TK_WORD };
+    [twig component name] => { $crate::syntax::untyped::SyntaxKind::TK_TWIG_COMPONENT_NAME };
     [number] => { $crate::syntax::untyped::SyntaxKind::TK_NUMBER };
     [html escape character] => { $crate::syntax::untyped::SyntaxKind::TK_HTML_ESCAPE_CHARACTER };
     [unknown] => { $crate::syntax::untyped::SyntaxKind::TK_UNKNOWN };
@@ -709,6 +713,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_WHITESPACE => "whitespace",
             SyntaxKind::TK_LINE_BREAK => "line break",
             SyntaxKind::TK_WORD => "word",
+            SyntaxKind::TK_TWIG_COMPONENT_NAME => "twig component name",
             SyntaxKind::TK_NUMBER => "number",
             SyntaxKind::TK_HTML_ESCAPE_CHARACTER => "html escape character",
             SyntaxKind::TK_DOT => ".",

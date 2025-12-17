@@ -181,16 +181,9 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
     let tag_name = parser.peek_token().map_or("", |t| t.text).to_owned();
     let tag_name_lowercase = tag_name.to_ascii_lowercase();
     let tag_name_tokentype = parser.peek_token().map_or(SyntaxKind::TK_WORD, |t| t.kind);
-    let mut twig_component_name: Option<String> = None;
 
-    if tag_name_lowercase == "twig" && parser.peek_nth_token(1).is_some_and(|t| t.kind == T![":"]) {
-        // possible twig component (e.g. <twig:Alert>)
-        if parser.peek_nth_token(2).is_some_and(|t| t.kind == T![word]) {
-            twig_component_name = parser.peek_nth_token(2).map(|t| t.text.to_owned());
-            parser.bump_next_n_as(3, T![word]);
-        } else {
-            parser.add_error(ParseErrorBuilder::new("Twig component name"));
-        }
+    if tag_name_tokentype == T![twig component name] {
+        parser.bump();
     } else if HTML_TAG_NAME_REGEX.is_match(&tag_name) {
         // normal html tag name
         parser.bump_as(T![word]);
@@ -248,18 +241,6 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
                     return true; // found matching closing tag
                 }
 
-                if let Some(component_name) = &twig_component_name {
-                    if p.at_following_content(&[
-                        (T!["</"], None),
-                        (T![word], Some("twig")),
-                        (T![":"], None),
-                        (T![word], Some(component_name)),
-                    ]) {
-                        matching_end_tag_encountered = true;
-                        return true; // found matching closing tag
-                    }
-                }
-
                 if at_twig_termination_tag(p) {
                     return true; // endblock in the wild may mean this tag has a missing closing tag
                 }
@@ -279,8 +260,8 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
         // found matching closing tag
         parser.expect(T!["</"], &[tag_name_tokentype, T![">"]]);
 
-        if twig_component_name.is_some() {
-            parser.bump_next_n_as(3, T![word]);
+        if parser.at(T![twig component name]) {
+            parser.bump();
         } else if parser.at(tag_name_tokentype) {
             parser.bump_as(T![word]);
         } else {
@@ -2183,7 +2164,7 @@ mod tests {
                   HTML_TAG@0..52
                     HTML_STARTING_TAG@0..52
                       TK_LESS_THAN@0..1 "<"
-                      TK_WORD@1..11 "twig:Alert"
+                      TK_TWIG_COMPONENT_NAME@1..11 "twig:Alert"
                       HTML_ATTRIBUTE_LIST@11..49
                         HTML_ATTRIBUTE@11..49
                           TK_WHITESPACE@11..12 " "
@@ -2219,7 +2200,7 @@ mod tests {
                   HTML_TAG@0..57
                     HTML_STARTING_TAG@0..32
                       TK_LESS_THAN@0..1 "<"
-                      TK_WORD@1..14 "twig:swButton"
+                      TK_TWIG_COMPONENT_NAME@1..14 "twig:swButton"
                       HTML_ATTRIBUTE_LIST@14..31
                         HTML_ATTRIBUTE@14..31
                           TK_WHITESPACE@14..15 " "
@@ -2238,8 +2219,39 @@ mod tests {
                         TK_WORD@35..41 "button"
                     HTML_ENDING_TAG@41..57
                       TK_LESS_THAN_SLASH@41..43 "</"
-                      TK_WORD@43..56 "twig:swButton"
+                      TK_TWIG_COMPONENT_NAME@43..56 "twig:swButton"
                       TK_GREATER_THAN@56..57 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_component_namespaced_tag() {
+        check_parse(
+            r#"<twig:Sw:Product:WishlistButton :messageParam="variable">hello</twig:Sw:Product:WishlistButton>"#,
+            expect![[r#"
+                ROOT@0..95
+                  HTML_TAG@0..95
+                    HTML_STARTING_TAG@0..57
+                      TK_LESS_THAN@0..1 "<"
+                      TK_TWIG_COMPONENT_NAME@1..31 "twig:Sw:Product:Wishl ..."
+                      HTML_ATTRIBUTE_LIST@31..56
+                        HTML_ATTRIBUTE@31..56
+                          TK_WHITESPACE@31..32 " "
+                          TK_WORD@32..45 ":messageParam"
+                          TK_EQUAL@45..46 "="
+                          HTML_STRING@46..56
+                            TK_DOUBLE_QUOTES@46..47 "\""
+                            HTML_STRING_INNER@47..55
+                              TK_WORD@47..55 "variable"
+                            TK_DOUBLE_QUOTES@55..56 "\""
+                      TK_GREATER_THAN@56..57 ">"
+                    BODY@57..62
+                      HTML_TEXT@57..62
+                        TK_WORD@57..62 "hello"
+                    HTML_ENDING_TAG@62..95
+                      TK_LESS_THAN_SLASH@62..64 "</"
+                      TK_TWIG_COMPONENT_NAME@64..94 "twig:Sw:Product:Wishl ..."
+                      TK_GREATER_THAN@94..95 ">""#]],
         );
     }
 
@@ -2252,7 +2264,7 @@ mod tests {
                   HTML_TAG@0..100
                     HTML_STARTING_TAG@0..29
                       TK_LESS_THAN@0..1 "<"
-                      TK_WORD@1..12 "twig:swCard"
+                      TK_TWIG_COMPONENT_NAME@1..12 "twig:swCard"
                       HTML_ATTRIBUTE_LIST@12..28
                         HTML_ATTRIBUTE@12..28
                           TK_WHITESPACE@12..13 " "
@@ -2268,7 +2280,7 @@ mod tests {
                       HTML_TAG@29..86
                         HTML_STARTING_TAG@29..62
                           TK_LESS_THAN@29..30 "<"
-                          TK_WORD@30..43 "twig:swButton"
+                          TK_TWIG_COMPONENT_NAME@30..43 "twig:swButton"
                           HTML_ATTRIBUTE_LIST@43..61
                             HTML_ATTRIBUTE@43..61
                               TK_WHITESPACE@43..44 " "
@@ -2287,11 +2299,11 @@ mod tests {
                             TK_WORD@68..70 "me"
                         HTML_ENDING_TAG@70..86
                           TK_LESS_THAN_SLASH@70..72 "</"
-                          TK_WORD@72..85 "twig:swButton"
+                          TK_TWIG_COMPONENT_NAME@72..85 "twig:swButton"
                           TK_GREATER_THAN@85..86 ">"
                     HTML_ENDING_TAG@86..100
                       TK_LESS_THAN_SLASH@86..88 "</"
-                      TK_WORD@88..99 "twig:swCard"
+                      TK_TWIG_COMPONENT_NAME@88..99 "twig:swCard"
                       TK_GREATER_THAN@99..100 ">""#]],
         );
     }

@@ -159,6 +159,7 @@ mod tests {
         // add every token here (except ws)
         add("\n", T![lb]);
         add("word", T![word]);
+        add("twig:my:component:name", T![twig component name]);
         add("42.3", T![number]);
         add("&#10;", T![html escape character]);
         add(".", T!["."]);
@@ -339,6 +340,18 @@ mod tests {
         check_regex("blocks", T![word], "word");
         check_regex("_blank", T![word], "word");
         check_regex("$special", T![word], "word");
+    }
+
+    #[test]
+    fn lex_twig_component_name() {
+        check_regex("twig:a", T![twig component name], "twig component name");
+        check_regex(
+            "twig:a:b:c:d",
+            T![twig component name],
+            "twig component name",
+        );
+        // should not match
+        check_regex("twig", T![word], "word");
     }
 
     #[test]
