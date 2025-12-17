@@ -2120,23 +2120,22 @@ mod tests {
         check_parse(
             r#"<source srcset="...">"#,
             expect![[r#"
-            ROOT@0..21
-              HTML_TAG@0..21
-                HTML_STARTING_TAG@0..21
-                  TK_LESS_THAN@0..1 "<"
-                  TK_WORD@1..7 "source"
-                  HTML_ATTRIBUTE_LIST@7..20
-                    HTML_ATTRIBUTE@7..20
-                      TK_WHITESPACE@7..8 " "
-                      TK_WORD@8..14 "srcset"
-                      TK_EQUAL@14..15 "="
-                      HTML_STRING@15..20
-                        TK_DOUBLE_QUOTES@15..16 "\""
-                        HTML_STRING_INNER@16..19
-                          TK_DOUBLE_DOT@16..18 ".."
-                          TK_DOT@18..19 "."
-                        TK_DOUBLE_QUOTES@19..20 "\""
-                  TK_GREATER_THAN@20..21 ">""#]],
+                ROOT@0..21
+                  HTML_TAG@0..21
+                    HTML_STARTING_TAG@0..21
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..7 "source"
+                      HTML_ATTRIBUTE_LIST@7..20
+                        HTML_ATTRIBUTE@7..20
+                          TK_WHITESPACE@7..8 " "
+                          TK_WORD@8..14 "srcset"
+                          TK_EQUAL@14..15 "="
+                          HTML_STRING@15..20
+                            TK_DOUBLE_QUOTES@15..16 "\""
+                            HTML_STRING_INNER@16..19
+                              TK_TRIPLE_DOT@16..19 "..."
+                            TK_DOUBLE_QUOTES@19..20 "\""
+                      TK_GREATER_THAN@20..21 ">""#]],
         );
     }
 

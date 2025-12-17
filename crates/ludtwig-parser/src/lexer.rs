@@ -164,6 +164,7 @@ mod tests {
         add("&#10;", T![html escape character]);
         add(".", T!["."]);
         add("..", T![".."]);
+        add("...", T!["..."]);
         add(",", T![","]);
         add(":", T![":"]);
         add(";", T![";"]);
@@ -396,6 +397,11 @@ mod tests {
     #[test]
     fn lex_double_dot() {
         check_token("..", T![".."]);
+    }
+
+    #[test]
+    fn lex_triple_dot() {
+        check_token("...", T!["..."]);
     }
 
     #[test]
