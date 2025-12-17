@@ -8,6 +8,7 @@
   `{% props icon %}`
 - [#170](https://github.com/MalteJanz/ludtwig/pull/170) Fix parsing errors for twig components that are namespaced, for example
   `<twig:my:namespaced:component />`
+- [#171](https://github.com/MalteJanz/ludtwig/pull/171) Add support for twig spread `...` operator
 
 # v0.7.0
 

@@ -62,6 +62,8 @@ pub enum SyntaxKind {
     TK_DOT,
     #[token("..")]
     TK_DOUBLE_DOT,
+    #[token("...")]
+    TK_TRIPLE_DOT,
     #[token(",")]
     TK_COMMA,
     #[token(":")]
@@ -558,6 +560,7 @@ macro_rules! T {
     [unknown] => { $crate::syntax::untyped::SyntaxKind::TK_UNKNOWN };
     ["."] => { $crate::syntax::untyped::SyntaxKind::TK_DOT };
     [".."] => { $crate::syntax::untyped::SyntaxKind::TK_DOUBLE_DOT };
+    ["..."] => { $crate::syntax::untyped::SyntaxKind::TK_TRIPLE_DOT };
     [","] => { $crate::syntax::untyped::SyntaxKind::TK_COMMA };
     [":"] => { $crate::syntax::untyped::SyntaxKind::TK_COLON };
     [";"] => { $crate::syntax::untyped::SyntaxKind::TK_SEMICOLON };
@@ -718,6 +721,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_HTML_ESCAPE_CHARACTER => "html escape character",
             SyntaxKind::TK_DOT => ".",
             SyntaxKind::TK_DOUBLE_DOT => "..",
+            SyntaxKind::TK_TRIPLE_DOT => "...",
             SyntaxKind::TK_COMMA => ",",
             SyntaxKind::TK_COLON => ":",
             SyntaxKind::TK_SEMICOLON => ";",

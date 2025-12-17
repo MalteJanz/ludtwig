@@ -56,6 +56,7 @@ pub(crate) static TWIG_EXPRESSION_RECOVERY_SET: &[SyntaxKind] = &[
     T!["==="],
     T!["!=="],
     T![".."],
+    T!["..."],
     T!["+"],
     T!["-"],
     T!["~"],
@@ -127,6 +128,7 @@ impl Operator for SyntaxKind {
         match self {
             T!["not"] => Some(((), 51)),
             T!["+"] | T!["-"] => Some(((), 201)),
+            T!["..."] => Some(((), 211)),
             _ => None,
         }
     }
@@ -232,7 +234,7 @@ fn parse_twig_expression_lhs(parser: &mut Parser) -> Option<CompletedMarker> {
         } else {
             Some(parse_paren_arrow_function(parser, m))
         }
-    } else if parser.at_set(&[T!["-"], T!["+"], T!["not"]]) {
+    } else if parser.at_set(&[T!["-"], T!["+"], T!["not"], T!["..."]]) {
         Some(parse_unary_expression(parser))
     } else {
         // including postfix operators
@@ -302,7 +304,7 @@ fn parse_paren_arrow_function(parser: &mut Parser, m: Marker) -> CompletedMarker
 }
 
 fn parse_unary_expression(parser: &mut Parser) -> CompletedMarker {
-    debug_assert!(parser.at_set(&[T!["-"], T!["+"], T!["not"]]));
+    debug_assert!(parser.at_set(&[T!["-"], T!["+"], T!["not"], T!["..."]]));
 
     let m = parser.start();
     // Eat the operator’s token.
@@ -310,7 +312,7 @@ fn parse_unary_expression(parser: &mut Parser) -> CompletedMarker {
     let ((), right_binding_power) = op_token
         .kind
         .unary_binding_power()
-        .expect("'-', '+' and 'not' should have a binding power");
+        .expect("'-', '+', 'not' and '...' should have a binding power");
 
     parse_twig_expression_binding_power(parser, right_binding_power);
 
@@ -2005,6 +2007,70 @@ mod tests {
                             TK_CLOSE_CURLY@339..340 "}"
                       TK_WHITESPACE@340..341 " "
                       TK_PERCENT_CURLY@341..343 "%}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_spread_operator() {
+        check_parse(
+            r"{{ ...moreNumbers }}",
+            expect![[r#"
+                ROOT@0..20
+                  TWIG_VAR@0..20
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..17
+                      TWIG_UNARY_EXPRESSION@2..17
+                        TK_WHITESPACE@2..3 " "
+                        TK_TRIPLE_DOT@3..6 "..."
+                        TWIG_EXPRESSION@6..17
+                          TWIG_LITERAL_NAME@6..17
+                            TK_WORD@6..17 "moreNumbers"
+                    TK_WHITESPACE@17..18 " "
+                    TK_CLOSE_CURLY_CURLY@18..20 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_spread_operator_in_array() {
+        check_parse(
+            r"{% set numbers = [1, 2, ...moreNumbers] %}",
+            expect![[r#"
+                ROOT@0..42
+                  TWIG_SET@0..42
+                    TWIG_SET_BLOCK@0..42
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_SET@3..6 "set"
+                      TWIG_ASSIGNMENT@6..39
+                        TWIG_LITERAL_NAME@6..14
+                          TK_WHITESPACE@6..7 " "
+                          TK_WORD@7..14 "numbers"
+                        TK_WHITESPACE@14..15 " "
+                        TK_EQUAL@15..16 "="
+                        TWIG_EXPRESSION@16..39
+                          TWIG_LITERAL_ARRAY@16..39
+                            TK_WHITESPACE@16..17 " "
+                            TK_OPEN_SQUARE@17..18 "["
+                            TWIG_LITERAL_ARRAY_INNER@18..38
+                              TWIG_EXPRESSION@18..19
+                                TWIG_LITERAL_NUMBER@18..19
+                                  TK_NUMBER@18..19 "1"
+                              TK_COMMA@19..20 ","
+                              TWIG_EXPRESSION@20..22
+                                TWIG_LITERAL_NUMBER@20..22
+                                  TK_WHITESPACE@20..21 " "
+                                  TK_NUMBER@21..22 "2"
+                              TK_COMMA@22..23 ","
+                              TWIG_EXPRESSION@23..38
+                                TWIG_UNARY_EXPRESSION@23..38
+                                  TK_WHITESPACE@23..24 " "
+                                  TK_TRIPLE_DOT@24..27 "..."
+                                  TWIG_EXPRESSION@27..38
+                                    TWIG_LITERAL_NAME@27..38
+                                      TK_WORD@27..38 "moreNumbers"
+                            TK_CLOSE_SQUARE@38..39 "]"
+                      TK_WHITESPACE@39..40 " "
+                      TK_PERCENT_CURLY@40..42 "%}""#]],
         );
     }
 }

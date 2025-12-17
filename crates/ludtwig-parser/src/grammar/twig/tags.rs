@@ -1675,53 +1675,52 @@ mod tests {
     {% endblock inner_sidebar %}
 {% endblock sidebar %}",
             expect![[r#"
-            ROOT@0..117
-              TWIG_BLOCK@0..117
-                TWIG_STARTING_BLOCK@0..19
-                  TK_CURLY_PERCENT@0..2 "{%"
-                  TK_WHITESPACE@2..3 " "
-                  TK_BLOCK@3..8 "block"
-                  TK_WHITESPACE@8..9 " "
-                  TK_WORD@9..16 "sidebar"
-                  TK_WHITESPACE@16..17 " "
-                  TK_PERCENT_CURLY@17..19 "%}"
-                BODY@19..94
-                  TWIG_BLOCK@19..94
-                    TWIG_STARTING_BLOCK@19..49
-                      TK_LINE_BREAK@19..20 "\n"
-                      TK_WHITESPACE@20..24 "    "
-                      TK_CURLY_PERCENT@24..26 "{%"
-                      TK_WHITESPACE@26..27 " "
-                      TK_BLOCK@27..32 "block"
-                      TK_WHITESPACE@32..33 " "
-                      TK_WORD@33..46 "inner_sidebar"
-                      TK_WHITESPACE@46..47 " "
-                      TK_PERCENT_CURLY@47..49 "%}"
-                    BODY@49..61
-                      HTML_TEXT@49..61
-                        TK_LINE_BREAK@49..50 "\n"
-                        TK_WHITESPACE@50..58 "        "
-                        TK_DOUBLE_DOT@58..60 ".."
-                        TK_DOT@60..61 "."
-                    TWIG_ENDING_BLOCK@61..94
-                      TK_LINE_BREAK@61..62 "\n"
-                      TK_WHITESPACE@62..66 "    "
-                      TK_CURLY_PERCENT@66..68 "{%"
-                      TK_WHITESPACE@68..69 " "
-                      TK_ENDBLOCK@69..77 "endblock"
-                      TK_WHITESPACE@77..78 " "
-                      TK_WORD@78..91 "inner_sidebar"
-                      TK_WHITESPACE@91..92 " "
-                      TK_PERCENT_CURLY@92..94 "%}"
-                TWIG_ENDING_BLOCK@94..117
-                  TK_LINE_BREAK@94..95 "\n"
-                  TK_CURLY_PERCENT@95..97 "{%"
-                  TK_WHITESPACE@97..98 " "
-                  TK_ENDBLOCK@98..106 "endblock"
-                  TK_WHITESPACE@106..107 " "
-                  TK_WORD@107..114 "sidebar"
-                  TK_WHITESPACE@114..115 " "
-                  TK_PERCENT_CURLY@115..117 "%}""#]],
+                ROOT@0..117
+                  TWIG_BLOCK@0..117
+                    TWIG_STARTING_BLOCK@0..19
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_BLOCK@3..8 "block"
+                      TK_WHITESPACE@8..9 " "
+                      TK_WORD@9..16 "sidebar"
+                      TK_WHITESPACE@16..17 " "
+                      TK_PERCENT_CURLY@17..19 "%}"
+                    BODY@19..94
+                      TWIG_BLOCK@19..94
+                        TWIG_STARTING_BLOCK@19..49
+                          TK_LINE_BREAK@19..20 "\n"
+                          TK_WHITESPACE@20..24 "    "
+                          TK_CURLY_PERCENT@24..26 "{%"
+                          TK_WHITESPACE@26..27 " "
+                          TK_BLOCK@27..32 "block"
+                          TK_WHITESPACE@32..33 " "
+                          TK_WORD@33..46 "inner_sidebar"
+                          TK_WHITESPACE@46..47 " "
+                          TK_PERCENT_CURLY@47..49 "%}"
+                        BODY@49..61
+                          HTML_TEXT@49..61
+                            TK_LINE_BREAK@49..50 "\n"
+                            TK_WHITESPACE@50..58 "        "
+                            TK_TRIPLE_DOT@58..61 "..."
+                        TWIG_ENDING_BLOCK@61..94
+                          TK_LINE_BREAK@61..62 "\n"
+                          TK_WHITESPACE@62..66 "    "
+                          TK_CURLY_PERCENT@66..68 "{%"
+                          TK_WHITESPACE@68..69 " "
+                          TK_ENDBLOCK@69..77 "endblock"
+                          TK_WHITESPACE@77..78 " "
+                          TK_WORD@78..91 "inner_sidebar"
+                          TK_WHITESPACE@91..92 " "
+                          TK_PERCENT_CURLY@92..94 "%}"
+                    TWIG_ENDING_BLOCK@94..117
+                      TK_LINE_BREAK@94..95 "\n"
+                      TK_CURLY_PERCENT@95..97 "{%"
+                      TK_WHITESPACE@97..98 " "
+                      TK_ENDBLOCK@98..106 "endblock"
+                      TK_WHITESPACE@106..107 " "
+                      TK_WORD@107..114 "sidebar"
+                      TK_WHITESPACE@114..115 " "
+                      TK_PERCENT_CURLY@115..117 "%}""#]],
         );
     }
 
@@ -1734,54 +1733,53 @@ mod tests {
     {% endblock sidebar %}
 {% endblock sidebar %}",
             expect![[r#"
-            ROOT@0..111
-              TWIG_BLOCK@0..111
-                TWIG_STARTING_BLOCK@0..19
-                  TK_CURLY_PERCENT@0..2 "{%"
-                  TK_WHITESPACE@2..3 " "
-                  TK_BLOCK@3..8 "block"
-                  TK_WHITESPACE@8..9 " "
-                  TK_WORD@9..16 "sidebar"
-                  TK_WHITESPACE@16..17 " "
-                  TK_PERCENT_CURLY@17..19 "%}"
-                BODY@19..88
-                  TWIG_BLOCK@19..88
-                    TWIG_STARTING_BLOCK@19..49
-                      TK_LINE_BREAK@19..20 "\n"
-                      TK_WHITESPACE@20..24 "    "
-                      TK_CURLY_PERCENT@24..26 "{%"
-                      TK_WHITESPACE@26..27 " "
-                      TK_BLOCK@27..32 "block"
-                      TK_WHITESPACE@32..33 " "
-                      TK_WORD@33..46 "inner_sidebar"
-                      TK_WHITESPACE@46..47 " "
-                      TK_PERCENT_CURLY@47..49 "%}"
-                    BODY@49..61
-                      HTML_TEXT@49..61
-                        TK_LINE_BREAK@49..50 "\n"
-                        TK_WHITESPACE@50..58 "        "
-                        TK_DOUBLE_DOT@58..60 ".."
-                        TK_DOT@60..61 "."
-                    TWIG_ENDING_BLOCK@61..88
-                      TK_LINE_BREAK@61..62 "\n"
-                      TK_WHITESPACE@62..66 "    "
-                      TK_CURLY_PERCENT@66..68 "{%"
-                      TK_WHITESPACE@68..69 " "
-                      TK_ENDBLOCK@69..77 "endblock"
-                      TK_WHITESPACE@77..78 " "
-                      TK_WORD@78..85 "sidebar"
-                      TK_WHITESPACE@85..86 " "
-                      TK_PERCENT_CURLY@86..88 "%}"
-                TWIG_ENDING_BLOCK@88..111
-                  TK_LINE_BREAK@88..89 "\n"
-                  TK_CURLY_PERCENT@89..91 "{%"
-                  TK_WHITESPACE@91..92 " "
-                  TK_ENDBLOCK@92..100 "endblock"
-                  TK_WHITESPACE@100..101 " "
-                  TK_WORD@101..108 "sidebar"
-                  TK_WHITESPACE@108..109 " "
-                  TK_PERCENT_CURLY@109..111 "%}"
-            error at 78..85: expected nothing or same twig block name as opening (inner_sidebar) but found word"#]],
+                ROOT@0..111
+                  TWIG_BLOCK@0..111
+                    TWIG_STARTING_BLOCK@0..19
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_BLOCK@3..8 "block"
+                      TK_WHITESPACE@8..9 " "
+                      TK_WORD@9..16 "sidebar"
+                      TK_WHITESPACE@16..17 " "
+                      TK_PERCENT_CURLY@17..19 "%}"
+                    BODY@19..88
+                      TWIG_BLOCK@19..88
+                        TWIG_STARTING_BLOCK@19..49
+                          TK_LINE_BREAK@19..20 "\n"
+                          TK_WHITESPACE@20..24 "    "
+                          TK_CURLY_PERCENT@24..26 "{%"
+                          TK_WHITESPACE@26..27 " "
+                          TK_BLOCK@27..32 "block"
+                          TK_WHITESPACE@32..33 " "
+                          TK_WORD@33..46 "inner_sidebar"
+                          TK_WHITESPACE@46..47 " "
+                          TK_PERCENT_CURLY@47..49 "%}"
+                        BODY@49..61
+                          HTML_TEXT@49..61
+                            TK_LINE_BREAK@49..50 "\n"
+                            TK_WHITESPACE@50..58 "        "
+                            TK_TRIPLE_DOT@58..61 "..."
+                        TWIG_ENDING_BLOCK@61..88
+                          TK_LINE_BREAK@61..62 "\n"
+                          TK_WHITESPACE@62..66 "    "
+                          TK_CURLY_PERCENT@66..68 "{%"
+                          TK_WHITESPACE@68..69 " "
+                          TK_ENDBLOCK@69..77 "endblock"
+                          TK_WHITESPACE@77..78 " "
+                          TK_WORD@78..85 "sidebar"
+                          TK_WHITESPACE@85..86 " "
+                          TK_PERCENT_CURLY@86..88 "%}"
+                    TWIG_ENDING_BLOCK@88..111
+                      TK_LINE_BREAK@88..89 "\n"
+                      TK_CURLY_PERCENT@89..91 "{%"
+                      TK_WHITESPACE@91..92 " "
+                      TK_ENDBLOCK@92..100 "endblock"
+                      TK_WHITESPACE@100..101 " "
+                      TK_WORD@101..108 "sidebar"
+                      TK_WHITESPACE@108..109 " "
+                      TK_PERCENT_CURLY@109..111 "%}"
+                error at 78..85: expected nothing or same twig block name as opening (inner_sidebar) but found word"#]],
         );
     }
 
@@ -3879,8 +3877,7 @@ mod tests {
                       HTML_TEXT@38..46
                         TK_LINE_BREAK@38..39 "\n"
                         TK_WHITESPACE@39..43 "    "
-                        TK_DOUBLE_DOT@43..45 ".."
-                        TK_DOT@45..46 "."
+                        TK_TRIPLE_DOT@43..46 "..."
                     TWIG_EMBED_ENDING_BLOCK@46..61
                       TK_LINE_BREAK@46..47 "\n"
                       TK_CURLY_PERCENT@47..49 "{%"
@@ -3943,8 +3940,7 @@ mod tests {
                       HTML_TEXT@43..51
                         TK_LINE_BREAK@43..44 "\n"
                         TK_WHITESPACE@44..48 "    "
-                        TK_DOUBLE_DOT@48..50 ".."
-                        TK_DOT@50..51 "."
+                        TK_TRIPLE_DOT@48..51 "..."
                     TWIG_EMBED_ENDING_BLOCK@51..66
                       TK_LINE_BREAK@51..52 "\n"
                       TK_CURLY_PERCENT@52..54 "{%"
@@ -3983,8 +3979,7 @@ mod tests {
                       HTML_TEXT@33..41
                         TK_LINE_BREAK@33..34 "\n"
                         TK_WHITESPACE@34..38 "    "
-                        TK_DOUBLE_DOT@38..40 ".."
-                        TK_DOT@40..41 "."
+                        TK_TRIPLE_DOT@38..41 "..."
                     TWIG_EMBED_ENDING_BLOCK@41..56
                       TK_LINE_BREAK@41..42 "\n"
                       TK_CURLY_PERCENT@42..44 "{%"
@@ -4557,8 +4552,7 @@ mod tests {
                       HTML_TEXT@19..27
                         TK_LINE_BREAK@19..20 "\n"
                         TK_WHITESPACE@20..24 "    "
-                        TK_DOUBLE_DOT@24..26 ".."
-                        TK_DOT@26..27 "."
+                        TK_TRIPLE_DOT@24..27 "..."
                     TWIG_MACRO_ENDING_BLOCK@27..48
                       TK_LINE_BREAK@27..28 "\n"
                       TK_CURLY_PERCENT@28..30 "{%"
@@ -4595,8 +4589,7 @@ mod tests {
                       HTML_TEXT@19..27
                         TK_LINE_BREAK@19..20 "\n"
                         TK_WHITESPACE@20..24 "    "
-                        TK_DOUBLE_DOT@24..26 ".."
-                        TK_DOT@26..27 "."
+                        TK_TRIPLE_DOT@24..27 "..."
                     TWIG_MACRO_ENDING_BLOCK@27..46
                       TK_LINE_BREAK@27..28 "\n"
                       TK_CURLY_PERCENT@28..30 "{%"
@@ -4632,8 +4625,7 @@ mod tests {
                       HTML_TEXT@17..25
                         TK_LINE_BREAK@17..18 "\n"
                         TK_WHITESPACE@18..22 "    "
-                        TK_DOUBLE_DOT@22..24 ".."
-                        TK_DOT@24..25 "."
+                        TK_TRIPLE_DOT@22..25 "..."
                     TWIG_MACRO_ENDING_BLOCK@25..46
                       TK_LINE_BREAK@25..26 "\n"
                       TK_CURLY_PERCENT@26..28 "{%"
@@ -4836,8 +4828,7 @@ mod tests {
                       HTML_TEXT@44..52
                         TK_LINE_BREAK@44..45 "\n"
                         TK_WHITESPACE@45..49 "    "
-                        TK_DOUBLE_DOT@49..51 ".."
-                        TK_DOT@51..52 "."
+                        TK_TRIPLE_DOT@49..52 "..."
                     TWIG_WITH_ENDING_BLOCK@52..66
                       TK_LINE_BREAK@52..53 "\n"
                       TK_CURLY_PERCENT@53..55 "{%"
@@ -5618,8 +5609,7 @@ mod tests {
                           TK_PERCENT_CURLY@123..125 "%}"
                         BODY@125..143
                           HTML_TEXT@125..143
-                            TK_DOUBLE_DOT@125..127 ".."
-                            TK_DOT@127..128 "."
+                            TK_TRIPLE_DOT@125..128 "..."
                             TK_WHITESPACE@128..129 " "
                             TK_WORD@129..135 "footer"
                             TK_WHITESPACE@135..136 " "
@@ -5705,8 +5695,7 @@ mod tests {
                           TK_PERCENT_CURLY@100..102 "%}"
                         BODY@102..120
                           HTML_TEXT@102..120
-                            TK_DOUBLE_DOT@102..104 ".."
-                            TK_DOT@104..105 "."
+                            TK_TRIPLE_DOT@102..105 "..."
                             TK_WHITESPACE@105..106 " "
                             TK_WORD@106..112 "footer"
                             TK_WHITESPACE@112..113 " "
