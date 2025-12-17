@@ -1,5 +1,7 @@
 # NEXT-VERSION
 
+# v0.8.0
+
 - [#143](https://github.com/MalteJanz/ludtwig/issues/143) Raised minimum required Rust version to 1.85 and upgraded used
   rust edition to 2024
 - [#168](https://github.com/MalteJanz/ludtwig/pull/168) Properly handle 'not in'

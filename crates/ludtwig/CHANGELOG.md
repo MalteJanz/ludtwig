@@ -1,5 +1,7 @@
 # NEXT-VERSION
 
+# v0.11.0
+
 - Added new rule `twig-json-encode-escape-js` to avoid using `| raw` after `json_encode` and suggest using `| escape('js')` instead.
 - [#143](https://github.com/MalteJanz/ludtwig/issues/143) Raised minimum required Rust version to 1.85 and upgraded used
   rust edition to 2024
