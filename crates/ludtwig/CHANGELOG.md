@@ -3,6 +3,7 @@
 - Added new rule `twig-json-encode-escape-js` to avoid using `| raw` after `json_encode` and suggest using `| escape('js')` instead.
 - [#143](https://github.com/MalteJanz/ludtwig/issues/143) Raised minimum required Rust version to 1.85 and upgraded used
   rust edition to 2024
+- [#170](https://github.com/MalteJanz/ludtwig/pull/170) adjusted `html-attribute-name-kebab-case` rule to not trigger on twig components, as they often use camelCase parameters
 
 # v0.10.0
 

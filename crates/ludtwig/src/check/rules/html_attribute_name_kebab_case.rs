@@ -11,7 +11,13 @@ impl Rule for RuleHtmlAttributeNameKebabCase {
     }
 
     fn check_node(&self, node: SyntaxNode, _ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
-        let attribute_name = HtmlAttribute::cast(node)?.name()?;
+        let attribute = HtmlAttribute::cast(node)?;
+        let attribute_name = attribute.name()?;
+
+        if attribute.html_tag()?.is_twig_component() {
+            return None; // skip this rule for twig components, because they often use camelCase as params
+        }
+
         if !is_valid_alphanumeric_kebab_case(attribute_name.text()) {
             // name is not valid
             let mut result = self
@@ -125,7 +131,7 @@ fn try_make_kebab_case(original: &str) -> Option<String> {
 mod tests {
     use expect_test::expect;
 
-    use crate::check::rules::test::{test_rule, test_rule_fix};
+    use crate::check::rules::test::{test_rule, test_rule_does_not_fix, test_rule_fix};
 
     use super::*;
 
@@ -206,6 +212,15 @@ mod tests {
                   │         Try this name instead: a-bc
 
             "]],
+        );
+    }
+
+    #[test]
+    fn rule_does_not_report() {
+        test_rule_does_not_fix(
+            "html-attribute-name-kebab-case",
+            r#"<twig:namespaced:component :myCamelCaseAttribute="asdf"/>"#,
+            expect![[r#"<twig:namespaced:component :myCamelCaseAttribute="asdf"/>"#]],
         );
     }
 

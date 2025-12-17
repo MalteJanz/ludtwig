@@ -163,6 +163,15 @@ impl HtmlTag {
         }
     }
 
+    /// if the tag is a twig component, e.g. '<twig:my:component />'
+    #[must_use]
+    pub fn is_twig_component(&self) -> bool {
+        match self.starting_tag() {
+            Some(n) => n.is_twig_component(),
+            None => false,
+        }
+    }
+
     #[must_use]
     pub fn starting_tag(&self) -> Option<HtmlStartingTag> {
         support::child(&self.syntax)
@@ -184,7 +193,10 @@ impl HtmlStartingTag {
     /// Name of the tag
     #[must_use]
     pub fn name(&self) -> Option<SyntaxToken> {
-        support::token(&self.syntax, T![word])
+        self.syntax
+            .children_with_tokens()
+            .filter_map(NodeOrToken::into_token)
+            .find(|it| it.kind() == T![word] || it.kind() == T![twig component name])
     }
 
     /// Attributes of the tag
@@ -205,6 +217,12 @@ impl HtmlStartingTag {
             None => None,
         }
     }
+
+    /// if the tag is a twig component, e.g. '<twig:my:component />'
+    #[must_use]
+    pub fn is_twig_component(&self) -> bool {
+        support::token(&self.syntax, T![twig component name]).is_some()
+    }
 }
 
 ast_node!(HtmlAttribute, SyntaxKind::HTML_ATTRIBUTE);
@@ -224,7 +242,8 @@ impl HtmlAttribute {
     /// Parent starting html tag
     #[must_use]
     pub fn html_tag(&self) -> Option<HtmlStartingTag> {
-        match self.syntax.parent() {
+        // first parent is HtmlAttributeList, the parent of that is the tag itself
+        match self.syntax.parent()?.parent() {
             Some(p) => HtmlStartingTag::cast(p),
             None => None,
         }
@@ -236,7 +255,10 @@ impl HtmlEndingTag {
     /// Name of the tag
     #[must_use]
     pub fn name(&self) -> Option<SyntaxToken> {
-        support::token(&self.syntax, T![word])
+        self.syntax
+            .children_with_tokens()
+            .filter_map(NodeOrToken::into_token)
+            .find(|it| it.kind() == T![word] || it.kind() == T![twig component name])
     }
 
     /// Parent complete html tag
@@ -246,6 +268,12 @@ impl HtmlEndingTag {
             Some(p) => HtmlTag::cast(p),
             None => None,
         }
+    }
+
+    /// if the tag is a twig component, e.g. '</twig:my:component>'
+    #[must_use]
+    pub fn is_twig_component(&self) -> bool {
+        support::token(&self.syntax, T![twig component name]).is_some()
     }
 }
 

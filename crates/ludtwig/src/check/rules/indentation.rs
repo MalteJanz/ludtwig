@@ -273,6 +273,7 @@ impl RuleIndentation {
                 | SyntaxKind::TWIG_ARGUMENTS
                 | SyntaxKind::TWIG_LITERAL_ARRAY_INNER
                 | SyntaxKind::TWIG_LITERAL_HASH_ITEMS
+                | SyntaxKind::TWIG_PROP_DECLARATION
         ) && (indent_block_children
             || n.parent()
                 .is_none_or(|p| p.kind() != SyntaxKind::TWIG_BLOCK))
