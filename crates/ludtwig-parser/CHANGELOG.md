@@ -1,5 +1,7 @@
 # NEXT-VERSION
 
+- [#173](https://github.com/MalteJanz/ludtwig/pull/173) Add support for Shopware tokens `sw_use`, `sw_embed`, `sw_from` and `sw_import`.
+
 # v0.8.0
 
 - [#143](https://github.com/MalteJanz/ludtwig/issues/143) Raised minimum required Rust version to 1.85 and upgraded used
