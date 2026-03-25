@@ -344,6 +344,16 @@ pub enum SyntaxKind {
     TK_SW_THUMBNAILS,
     #[token("style")]
     TK_STYLE,
+    #[token("sw_embed")]
+    TK_SW_EMBED,
+    #[token("sw_end_embed")]
+    TK_SW_END_EMBED,
+    #[token("sw_use")]
+    TK_SW_USE,
+    #[token("sw_import")]
+    TK_SW_IMPORT,
+    #[token("sw_from")]
+    TK_SW_FROM,
 
     /* special tokens */
     #[token("ludtwig-ignore-file", ignore(case))]
@@ -697,6 +707,11 @@ macro_rules! T {
     ["sw_icon"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_ICON };
     ["sw_thumbnails"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_THUMBNAILS };
     ["style"] => { $crate::syntax::untyped::SyntaxKind::TK_STYLE };
+    ["sw_embed"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_EMBED };
+    ["sw_end_embed"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_END_EMBED };
+    ["sw_use"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_USE };
+    ["sw_import"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_IMPORT };
+    ["sw_from"] => { $crate::syntax::untyped::SyntaxKind::TK_SW_FROM };
     ["ludtwig-ignore-file"] => { $crate::syntax::untyped::SyntaxKind::TK_LUDTWIG_IGNORE_FILE };
     ["ludtwig-ignore"] => { $crate::syntax::untyped::SyntaxKind::TK_LUDTWIG_IGNORE };
 }
@@ -858,6 +873,11 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_SW_ICON => "sw_icon",
             SyntaxKind::TK_SW_THUMBNAILS => "sw_thumbnails",
             SyntaxKind::TK_STYLE => "style",
+            SyntaxKind::TK_SW_EMBED => "sw_embed",
+            SyntaxKind::TK_SW_END_EMBED => "sw_end_embed",
+            SyntaxKind::TK_SW_USE => "sw_use",
+            SyntaxKind::TK_SW_IMPORT => "sw_import",
+            SyntaxKind::TK_SW_FROM => "sw_from",
             SyntaxKind::TK_LUDTWIG_IGNORE_FILE => "ludtwig-ignore-file",
             SyntaxKind::TK_LUDTWIG_IGNORE => "ludtwig-ignore",
             SyntaxKind::TK_UNKNOWN => "unknown",

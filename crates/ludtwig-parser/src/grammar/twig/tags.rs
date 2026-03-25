@@ -26,6 +26,7 @@ pub(crate) fn at_twig_termination_tag(p: &mut Parser) -> bool {
         || p.at_following(&[T!["{%"], T!["endset"]])
         || p.at_following(&[T!["{%"], T!["endfor"]])
         || p.at_following(&[T!["{%"], T!["endembed"]])
+        || p.at_following(&[T!["{%"], T!["sw_end_embed"]])
         || p.at_following(&[T!["{%"], T!["endapply"]])
         || p.at_following(&[T!["{%"], T!["endautoescape"]])
         || p.at_following(&[T!["{%"], T!["endsandbox"]])
@@ -57,13 +58,13 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_extends(parser, m))
     } else if parser.at(T!["include"]) {
         Some(parse_twig_include(parser, m))
-    } else if parser.at(T!["embed"]) {
+    } else if parser.at_set(&[T!["embed"], T!["sw_embed"]]) {
         Some(parse_twig_embed(parser, m, child_parser))
-    } else if parser.at(T!["use"]) {
+    } else if parser.at_set(&[T!["use"], T!["sw_use"]]) {
         Some(parse_twig_use(parser, m))
-    } else if parser.at(T!["from"]) {
+    } else if parser.at_set(&[T!["from"], T!["sw_from"]]) {
         Some(parse_twig_from(parser, m))
-    } else if parser.at(T!["import"]) {
+    } else if parser.at_set(&[T!["import"], T!["sw_import"]]) {
         Some(parse_twig_import(parser, m))
     } else if parser.at(T!["apply"]) {
         Some(parse_twig_apply(parser, m, child_parser))
@@ -505,7 +506,7 @@ fn parse_twig_apply(
 }
 
 fn parse_twig_import(parser: &mut Parser, outer: Marker) -> CompletedMarker {
-    debug_assert!(parser.at(T!["import"]));
+    debug_assert!(parser.at_set(&[T!["import"], T!["sw_import"]]));
     parser.bump();
 
     if parse_twig_expression(parser).is_none() {
@@ -526,15 +527,20 @@ fn parse_twig_import(parser: &mut Parser, outer: Marker) -> CompletedMarker {
 }
 
 fn parse_twig_from(parser: &mut Parser, outer: Marker) -> CompletedMarker {
-    debug_assert!(parser.at(T!["from"]));
+    debug_assert!(parser.at_set(&[T!["from"], T!["sw_from"]]));
     parser.bump();
 
     if parse_twig_expression(parser).is_none() {
         parser.add_error(ParseErrorBuilder::new("twig expression as template"));
-        parser.recover(&[T!["import"], T!["%}"], T!["</"]]);
+        parser.recover(&[T!["import"], T!["sw_import"], T!["%}"], T!["</"]]);
     }
 
-    parser.expect(T!["import"], &[T!["%}"], T!["</"]]);
+    if parser.at_set(&[T!["import"], T!["sw_import"]]) {
+        parser.bump();
+    } else {
+        parser.add_error(ParseErrorBuilder::new("import or sw_import"));
+        parser.recover(&[T!["%}"], T!["</"]]);
+    }
 
     let mut override_count = 0;
     parse_many(
@@ -580,7 +586,7 @@ fn parse_name_as_name_override(parser: &mut Parser, expected_description: &str) 
 }
 
 fn parse_twig_use(parser: &mut Parser, outer: Marker) -> CompletedMarker {
-    debug_assert!(parser.at(T!["use"]));
+    debug_assert!(parser.at_set(&[T!["use"], T!["sw_use"]]));
     parser.bump();
 
     if parser.at_set(&[T!["\""], T!["'"]]) {
@@ -626,8 +632,15 @@ fn parse_twig_embed(
     outer: Marker,
     child_parser: ParseFunction,
 ) -> CompletedMarker {
-    debug_assert!(parser.at(T!["embed"]));
+    debug_assert!(parser.at_set(&[T!["embed"], T!["sw_embed"]]));
+    let is_sw_embed = parser.at(T!["sw_embed"]);
     parser.bump();
+
+    let expected_end_tag = if is_sw_embed {
+        T!["sw_end_embed"]
+    } else {
+        T!["endembed"]
+    };
 
     // same arguments as include tag
     if parse_twig_expression(parser).is_none() {
@@ -637,6 +650,7 @@ fn parse_twig_embed(
             T!["with"],
             T!["only"],
             T!["endembed"],
+            T!["sw_end_embed"],
             T!["%}"],
             T!["</"],
         ]);
@@ -651,7 +665,13 @@ fn parse_twig_embed(
         parser.bump();
         if parse_twig_expression(parser).is_none() {
             parser.add_error(ParseErrorBuilder::new("twig expression as with value"));
-            parser.recover(&[T!["only"], T!["endembed"], T!["%}"], T!["</"]]);
+            parser.recover(&[
+                T!["only"],
+                T!["endembed"],
+                T!["sw_end_embed"],
+                T!["%}"],
+                T!["</"],
+            ]);
         }
         parser.complete(with_value_m, SyntaxKind::TWIG_INCLUDE_WITH);
     }
@@ -660,7 +680,10 @@ fn parse_twig_embed(
         parser.bump();
     }
 
-    parser.expect(T!["%}"], &[T!["endembed"], T!["%}"], T!["</"]]);
+    parser.expect(
+        T!["%}"],
+        &[T!["endembed"], T!["sw_end_embed"], T!["%}"], T!["</"]],
+    );
 
     // but embed has a body
     let wrapper_m = parser.complete(outer, SyntaxKind::TWIG_EMBED_STARTING_BLOCK);
@@ -670,7 +693,10 @@ fn parse_twig_embed(
     let body_m = parser.start();
     parse_many(
         parser,
-        |p| p.at_following(&[T!["{%"], T!["endembed"]]),
+        |p| {
+            p.at_following(&[T!["{%"], T!["endembed"]])
+                || p.at_following(&[T!["{%"], T!["sw_end_embed"]])
+        },
         |p| {
             child_parser(p);
         },
@@ -678,8 +704,11 @@ fn parse_twig_embed(
     parser.complete(body_m, SyntaxKind::BODY);
 
     let end_block_m = parser.start();
-    parser.expect(T!["{%"], &[T!["endembed"], T!["%}"], T!["</"]]);
-    parser.expect(T!["endembed"], &[T!["%}"], T!["</"]]);
+    parser.expect(
+        T!["{%"],
+        &[T!["endembed"], T!["sw_end_embed"], T!["%}"], T!["</"]],
+    );
+    parser.expect(expected_end_tag, &[T!["%}"], T!["</"]]);
     parser.expect(T!["%}"], &[T!["</"]]);
     parser.complete(end_block_m, SyntaxKind::TWIG_EMBED_ENDING_BLOCK);
 
@@ -4134,7 +4163,7 @@ mod tests {
                     TK_SINGLE_QUOTES@19..20 "'"
                 TK_WHITESPACE@20..21 " "
                 TK_PERCENT_CURLY@21..23 "%}"
-            error at 21..23: expected import but found %}
+            error at 21..23: expected import or sw_import but found %}
             error at 21..23: expected at least one macro name as macro name but found %}"#]],
         );
     }
@@ -5756,6 +5785,135 @@ mod tests {
                       TK_WHITESPACE@64..65 " "
                       TK_PERCENT_CURLY@65..67 "%}"
                 error at 13..15: expected component name but found %}"#]],
+        );
+    }
+
+    #[test]
+    fn parse_sw_use_alias() {
+        check_parse(
+            "{% sw_use 'forms.html.twig' %}",
+            expect![[r#"
+                ROOT@0..30
+                  TWIG_USE@0..30
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_SW_USE@3..9 "sw_use"
+                    TWIG_LITERAL_STRING@9..27
+                      TK_WHITESPACE@9..10 " "
+                      TK_SINGLE_QUOTES@10..11 "'"
+                      TWIG_LITERAL_STRING_INNER@11..26
+                        TK_WORD@11..16 "forms"
+                        TK_DOT@16..17 "."
+                        TK_WORD@17..21 "html"
+                        TK_DOT@21..22 "."
+                        TK_WORD@22..26 "twig"
+                      TK_SINGLE_QUOTES@26..27 "'"
+                    TK_WHITESPACE@27..28 " "
+                    TK_PERCENT_CURLY@28..30 "%}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_sw_import_alias() {
+        check_parse(
+            "{% sw_import 'forms.html.twig' as forms %}",
+            expect![[r#"
+                ROOT@0..42
+                  TWIG_IMPORT@0..42
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_SW_IMPORT@3..12 "sw_import"
+                    TWIG_EXPRESSION@12..30
+                      TWIG_LITERAL_STRING@12..30
+                        TK_WHITESPACE@12..13 " "
+                        TK_SINGLE_QUOTES@13..14 "'"
+                        TWIG_LITERAL_STRING_INNER@14..29
+                          TK_WORD@14..19 "forms"
+                          TK_DOT@19..20 "."
+                          TK_WORD@20..24 "html"
+                          TK_DOT@24..25 "."
+                          TK_WORD@25..29 "twig"
+                        TK_SINGLE_QUOTES@29..30 "'"
+                    TK_WHITESPACE@30..31 " "
+                    TK_AS@31..33 "as"
+                    TWIG_LITERAL_NAME@33..39
+                      TK_WHITESPACE@33..34 " "
+                      TK_WORD@34..39 "forms"
+                    TK_WHITESPACE@39..40 " "
+                    TK_PERCENT_CURLY@40..42 "%}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_sw_from_sw_import_alias() {
+        check_parse(
+            "{% sw_from 'forms.html.twig' sw_import input as input_field %}",
+            expect![[r#"
+                ROOT@0..62
+                  TWIG_FROM@0..62
+                    TK_CURLY_PERCENT@0..2 "{%"
+                    TK_WHITESPACE@2..3 " "
+                    TK_SW_FROM@3..10 "sw_from"
+                    TWIG_EXPRESSION@10..28
+                      TWIG_LITERAL_STRING@10..28
+                        TK_WHITESPACE@10..11 " "
+                        TK_SINGLE_QUOTES@11..12 "'"
+                        TWIG_LITERAL_STRING_INNER@12..27
+                          TK_WORD@12..17 "forms"
+                          TK_DOT@17..18 "."
+                          TK_WORD@18..22 "html"
+                          TK_DOT@22..23 "."
+                          TK_WORD@23..27 "twig"
+                        TK_SINGLE_QUOTES@27..28 "'"
+                    TK_WHITESPACE@28..29 " "
+                    TK_SW_IMPORT@29..38 "sw_import"
+                    TWIG_OVERRIDE@38..59
+                      TWIG_LITERAL_NAME@38..44
+                        TK_WHITESPACE@38..39 " "
+                        TK_WORD@39..44 "input"
+                      TK_WHITESPACE@44..45 " "
+                      TK_AS@45..47 "as"
+                      TWIG_LITERAL_NAME@47..59
+                        TK_WHITESPACE@47..48 " "
+                        TK_WORD@48..59 "input_field"
+                    TK_WHITESPACE@59..60 " "
+                    TK_PERCENT_CURLY@60..62 "%}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_sw_embed_alias_with_sw_end_embed() {
+        check_parse(
+            "{% sw_embed 'base.html.twig' %}...{% sw_end_embed %}",
+            expect![[r#"
+                ROOT@0..52
+                  TWIG_EMBED@0..52
+                    TWIG_EMBED_STARTING_BLOCK@0..31
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_SW_EMBED@3..11 "sw_embed"
+                      TWIG_EXPRESSION@11..28
+                        TWIG_LITERAL_STRING@11..28
+                          TK_WHITESPACE@11..12 " "
+                          TK_SINGLE_QUOTES@12..13 "'"
+                          TWIG_LITERAL_STRING_INNER@13..27
+                            TK_WORD@13..17 "base"
+                            TK_DOT@17..18 "."
+                            TK_WORD@18..22 "html"
+                            TK_DOT@22..23 "."
+                            TK_WORD@23..27 "twig"
+                          TK_SINGLE_QUOTES@27..28 "'"
+                      TK_WHITESPACE@28..29 " "
+                      TK_PERCENT_CURLY@29..31 "%}"
+                    BODY@31..34
+                      HTML_TEXT@31..34
+                        TK_TRIPLE_DOT@31..34 "..."
+                    TWIG_EMBED_ENDING_BLOCK@34..52
+                      TK_CURLY_PERCENT@34..36 "{%"
+                      TK_WHITESPACE@36..37 " "
+                      TK_SW_END_EMBED@37..49 "sw_end_embed"
+                      TK_WHITESPACE@49..50 " "
+                      TK_PERCENT_CURLY@50..52 "%}""#]],
         );
     }
 }
