@@ -1,23 +1,26 @@
 # BUILDING ENVIRONMENT
-FROM nwtgck/rust-musl-builder:latest AS builder
+FROM rust:alpine AS builder
 
-# Add source code.
-ADD --chown=rust:rust . ./
+WORKDIR /build
+COPY . .
 
-# Build application.
 RUN cargo build --release
 
 # RUN ENVIRONMENT / FINAL IMAGE
-FROM alpine:latest
+FROM alpine
 
-COPY --from=builder \
-    /home/rust/src/target/x86_64-unknown-linux-musl/release/ludtwig \
-    /usr/local/bin/
+LABEL org.opencontainers.image.source="https://github.com/MalteJanz/ludtwig" \
+      org.opencontainers.image.description="ludtwig - Linter / Formatter for Twig template files which respects HTML and your time" \
+      org.opencontainers.image.license="MIT"
 
-CMD ["/bin/sh"]
-# the system files should be mounted to the ludtwig directory to allow ludtwig to see them
-WORKDIR /ludtwig
+RUN adduser -D ludtwig
 
-CMD ["ludtwig"]
-# this will auto execute ludtwig and only parameters are passed as arguments to docker run
-#ENTRYPOINT [ "/usr/local/bin/ludtwig" ]
+COPY --from=builder /build/target/release/ludtwig /usr/local/bin/ludtwig
+
+USER ludtwig
+
+# the system files should be mounted to /work to allow ludtwig to see them
+WORKDIR /work
+
+ENTRYPOINT ["ludtwig"]
+CMD ["--help"]

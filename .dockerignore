@@ -1,3 +1,4 @@
+.git
 /target
 **/target
 .idea
@@ -10,3 +11,4 @@
 fuzz/corpus
 fuzz/artifacts
 /demo
+.DS_Store

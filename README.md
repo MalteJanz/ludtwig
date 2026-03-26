@@ -59,7 +59,7 @@ in your PATH for easy access.
 
 Have a look at the [docker image](https://hub.docker.com/r/maltejanz/ludtwig) or try it with the following command to
 lint the current working directory:
-`docker run --rm -v $(pwd):/ludtwig maltejanz/ludtwig:latest ludtwig .`
+`docker run --rm -v $(pwd):/work maltejanz/ludtwig:latest .`
 
 ### Nix / DevEnv
 
@@ -134,7 +134,7 @@ but can be if you're not writing a template for HTML.
 
 ## License
 
-Copyright (c) 2025 Malte Janz  
+Copyright (c) 2026 Malte Janz  
 `ludtwig` is distributed under the terms of the MIT License.  
 See the [LICENSE](./LICENSE) file for details.
 
