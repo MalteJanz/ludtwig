@@ -1,5 +1,7 @@
 # NEXT-VERSION
 
+# v0.9.0
+
 - [#173](https://github.com/MalteJanz/ludtwig/pull/173) Add support for Shopware tokens `sw_use`, `sw_embed`, `sw_from` and `sw_import`.
 
 # v0.8.0
