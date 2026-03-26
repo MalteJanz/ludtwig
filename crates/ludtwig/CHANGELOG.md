@@ -1,5 +1,13 @@
 # NEXT-VERSION
 
+# v0.12.0
+
+- Bumped version of `ludtwig-parser` to `0.9.0`
+- Adjusted docker build and release process:
+  - the image should be available for `linux/amd64` and (new) `linux/arm64` platforms now
+  - the ludtwig executable is now the entrypoint of the image, so you don't need to call ludtwig and can immediately pass parameters
+  - it's still an alpine based image to have compatibility with most CI pipeline environments
+
 # v0.11.0
 
 - Added new rule `twig-json-encode-escape-js` to avoid using `| raw` after `json_encode` and suggest using `| escape('js')` instead.
