@@ -21,11 +21,19 @@ pub enum FileProcessingError {
 impl Display for FileProcessingError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            FileProcessingError::FileRead { path, .. } => {
-                write!(f, "file {} can't be read", path.to_string_lossy())
+            FileProcessingError::FileRead { path, io_error } => {
+                write!(
+                    f,
+                    "file {} can't be read: {io_error}",
+                    path.to_string_lossy()
+                )
             }
-            FileProcessingError::FileWrite { path, .. } => {
-                write!(f, "file {} can't be written", path.to_string_lossy())
+            FileProcessingError::FileWrite { path, io_error } => {
+                write!(
+                    f,
+                    "file {} can't be written: {io_error}",
+                    path.to_string_lossy()
+                )
             }
             FileProcessingError::MaxApplyIteration => {
                 write!(

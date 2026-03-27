@@ -61,8 +61,8 @@ pub struct Opts {
     inspect: bool,
 }
 
-/// Context to pass to every processing thead (can be cloned)
-#[derive(Debug)]
+/// Context to pass to every processing thread (can be cloned)
+#[derive(Debug, Clone)]
 pub struct CliContext {
     /// Channel sender for transmitting messages back to the CLI.
     pub output_tx: Sender<ProcessingEvent>,
@@ -80,15 +80,6 @@ pub struct CliSharedData {
     pub config: Config,
     /// Config active rule definitions
     pub rule_definitions: Vec<&'static dyn Rule>,
-}
-
-impl Clone for CliContext {
-    fn clone(&self) -> Self {
-        Self {
-            output_tx: self.output_tx.clone(),
-            data: Arc::clone(&self.data),
-        }
-    }
 }
 
 impl CliContext {
@@ -111,7 +102,7 @@ fn main() {
     std::process::exit(process_code);
 }
 
-/// The entry point of the async application.
+/// The entry point of the application.
 fn app(opts: Opts, config: Config) -> i32 {
     println!("Scanning files...");
 
@@ -122,7 +113,7 @@ fn app(opts: Opts, config: Config) -> i32 {
     let active_rules = match get_config_active_rule_definitions(&config) {
         Ok(rules) => rules,
         Err(e) => {
-            println!("Error: {e}");
+            eprintln!("Error: {e}");
             return 1;
         }
     };
@@ -173,7 +164,8 @@ fn handle_input_paths(paths: Vec<PathBuf>, cli_context: CliContext) {
     let cwd_ignore_path = Path::new("./.ludtwig-ignore");
     if cwd_ignore_path.exists() {
         if let Some(e) = walker.add_ignore(cwd_ignore_path) {
-            panic!("Error: can't use ./.ludtwig-ignore: {e}");
+            eprintln!("Error: can't use ./.ludtwig-ignore: {e}");
+            std::process::exit(1);
         }
     }
     let walker = walker.build_parallel();
@@ -187,7 +179,7 @@ fn handle_input_paths(paths: Vec<PathBuf>, cli_context: CliContext) {
                 let entry = match entry {
                     Ok(e) => e,
                     Err(e) => {
-                        println!("Error: walking over the file path: {e}");
+                        eprintln!("Error: walking over the file path: {e}");
                         cli_context
                             .send_processing_output(ProcessingEvent::Report(Severity::Error));
                         return WalkState::Continue;
@@ -208,7 +200,7 @@ fn handle_input_paths(paths: Vec<PathBuf>, cli_context: CliContext) {
                             tx_clone
                                 .send(ProcessingEvent::Report(Severity::Error))
                                 .expect("output should still receive ProcessingEvents");
-                            println!("Error: {e}");
+                            eprintln!("Error: {e}");
                         }
                     },
                 );

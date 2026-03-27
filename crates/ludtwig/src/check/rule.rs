@@ -159,7 +159,7 @@ pub struct CheckSuggestion {
     pub message: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Severity {
     /// Errors which must be fixed for the template to work correctly
     Error,

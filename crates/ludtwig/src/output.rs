@@ -20,7 +20,7 @@ pub fn handle_processing_output(rx: &Receiver<ProcessingEvent>) -> i32 {
     let mut help_count = 0;
     let mut info_count = 0;
 
-    let stderr_writer = BufferWriter::stderr(ColorChoice::Always);
+    let stderr_writer = BufferWriter::stderr(ColorChoice::Auto);
 
     // receive all incoming messages until all sending ends are closed.
     while let Ok(msg) = rx.recv() {

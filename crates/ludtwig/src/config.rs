@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 
 use figment::Figment;
 use figment::providers::{Env, Format as FigFormat, Toml};
-use regex::Regex;
 use serde::Deserialize;
 
 use crate::Opts;
@@ -159,7 +158,7 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
 
     if opts.create_config {
         if Path::exists(config_path.as_ref()) {
-            println!(
+            eprintln!(
                 "The configuration file already exists at the location {}. \
             Try choosing a different location with '-c my-path' or make a backup of your current config file (rename it).",
                 config_path.display()
@@ -198,15 +197,14 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
             }
 
             let raw_user_config = std::fs::read_to_string(config_path).unwrap_or_default();
-            let version_field_regex = Regex::new("version\\s?=").unwrap();
             if c.version != LUDTWIG_VERSION {
-                println!(
+                eprintln!(
                     "Warning: The version of the config file ({}) does not match the version of ludtwig ({}). You should update your config file and set it to the same version when you are done. To update you should carefully read the changelog or generate a new config with 'ludtwig -C' to not miss out on new features.",
                     c.version, LUDTWIG_VERSION
                 );
-            } else if !version_field_regex.is_match(&raw_user_config) {
+            } else if !raw_user_config.is_empty() && !raw_user_config.contains("version") {
                 // ToDo #119: this edge case should be removed in future versions, the version field was introduced in 0.9.0
-                println!(
+                eprintln!(
                     "Warning: The version of the config file (UNKNOWN) does not match the version of ludtwig ({LUDTWIG_VERSION}). You should update your config file and set it to the same version when you are done. To update you should carefully read the changelog or generate a new config with 'ludtwig -C' to not miss out on new features.",
                 );
             }
@@ -218,8 +216,8 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
             c
         }
         Err(e) => {
-            println!("Error reading config:");
-            println!("{e}");
+            eprintln!("Error reading config:");
+            eprintln!("{e}");
             std::process::exit(1)
         }
     }
