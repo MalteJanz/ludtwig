@@ -84,10 +84,7 @@ impl TwigBlock {
     /// Name of the twig block
     #[must_use]
     pub fn name(&self) -> Option<SyntaxToken> {
-        match self.starting_block() {
-            None => None,
-            Some(n) => n.name(),
-        }
+        self.starting_block().and_then(|n| n.name())
     }
 
     #[must_use]
@@ -117,10 +114,7 @@ impl TwigStartingBlock {
     /// Parent complete twig block
     #[must_use]
     pub fn twig_block(&self) -> Option<TwigBlock> {
-        match self.syntax.parent() {
-            Some(p) => TwigBlock::cast(p),
-            None => None,
-        }
+        self.syntax.parent().and_then(TwigBlock::cast)
     }
 }
 
@@ -129,10 +123,7 @@ impl TwigEndingBlock {
     /// Parent complete twig block
     #[must_use]
     pub fn twig_block(&self) -> Option<TwigBlock> {
-        match self.syntax.parent() {
-            Some(p) => TwigBlock::cast(p),
-            None => None,
-        }
+        self.syntax.parent().and_then(TwigBlock::cast)
     }
 }
 
@@ -141,10 +132,7 @@ impl HtmlTag {
     /// Name of the tag
     #[must_use]
     pub fn name(&self) -> Option<SyntaxToken> {
-        match self.starting_tag() {
-            Some(n) => n.name(),
-            None => None,
-        }
+        self.starting_tag().and_then(|n| n.name())
     }
 
     /// Returns true if the tag doesn't have an ending tag
@@ -166,10 +154,7 @@ impl HtmlTag {
     /// if the tag is a twig component, e.g. '<twig:my:component />'
     #[must_use]
     pub fn is_twig_component(&self) -> bool {
-        match self.starting_tag() {
-            Some(n) => n.is_twig_component(),
-            None => false,
-        }
+        self.starting_tag().is_some_and(|n| n.is_twig_component())
     }
 
     #[must_use]
@@ -212,10 +197,7 @@ impl HtmlStartingTag {
     /// Parent complete html tag
     #[must_use]
     pub fn html_tag(&self) -> Option<HtmlTag> {
-        match self.syntax.parent() {
-            Some(p) => HtmlTag::cast(p),
-            None => None,
-        }
+        self.syntax.parent().and_then(HtmlTag::cast)
     }
 
     /// if the tag is a twig component, e.g. '<twig:my:component />'
@@ -243,10 +225,10 @@ impl HtmlAttribute {
     #[must_use]
     pub fn html_tag(&self) -> Option<HtmlStartingTag> {
         // first parent is HtmlAttributeList, the parent of that is the tag itself
-        match self.syntax.parent()?.parent() {
-            Some(p) => HtmlStartingTag::cast(p),
-            None => None,
-        }
+        self.syntax
+            .parent()?
+            .parent()
+            .and_then(HtmlStartingTag::cast)
     }
 }
 
@@ -264,10 +246,7 @@ impl HtmlEndingTag {
     /// Parent complete html tag
     #[must_use]
     pub fn html_tag(&self) -> Option<HtmlTag> {
-        match self.syntax.parent() {
-            Some(p) => HtmlTag::cast(p),
-            None => None,
-        }
+        self.syntax.parent().and_then(HtmlTag::cast)
     }
 
     /// if the tag is a twig component, e.g. '</twig:my:component>'
@@ -329,10 +308,9 @@ ast_node!(
 impl LudtwigDirectiveFileIgnore {
     #[must_use]
     pub fn get_rules(&self) -> Vec<String> {
-        match support::child::<LudtwigDirectiveRuleList>(&self.syntax) {
-            Some(rule_list) => rule_list.get_rule_names(),
-            None => vec![],
-        }
+        support::child::<LudtwigDirectiveRuleList>(&self.syntax)
+            .map(|rule_list| rule_list.get_rule_names())
+            .unwrap_or_default()
     }
 }
 
@@ -340,10 +318,9 @@ ast_node!(LudtwigDirectiveIgnore, SyntaxKind::LUDTWIG_DIRECTIVE_IGNORE);
 impl LudtwigDirectiveIgnore {
     #[must_use]
     pub fn get_rules(&self) -> Vec<String> {
-        match support::child::<LudtwigDirectiveRuleList>(&self.syntax) {
-            Some(rule_list) => rule_list.get_rule_names(),
-            None => vec![],
-        }
+        support::child::<LudtwigDirectiveRuleList>(&self.syntax)
+            .map(|rule_list| rule_list.get_rule_names())
+            .unwrap_or_default()
     }
 }
 

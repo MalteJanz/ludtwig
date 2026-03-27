@@ -189,7 +189,7 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
         parser.bump_as(T![word]);
     } else {
         parser.add_error(ParseErrorBuilder::new("HTML Tag Name"));
-        parser.recover(&[T![">"], T!["/>"], T!["</"], T![word], T![">"]]);
+        parser.recover(&[T![">"], T!["/>"], T!["</"], T![word]]);
     }
 
     // parse attributes (can include twig)
@@ -334,7 +334,7 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
                     return true;
                 }
 
-                child_early_return(p)
+                at_twig_termination_tag(p)
             },
             |p| child_parser(p, inner_double_quote_parser),
         );
@@ -349,7 +349,7 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
                     return true;
                 }
 
-                child_early_return(p)
+                at_twig_termination_tag(p)
             },
             |p| child_parser(p, inner_single_quote_parser),
         );
@@ -368,14 +368,6 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
         }
 
         None
-    }
-
-    fn child_early_return(p: &mut Parser) -> bool {
-        if at_twig_termination_tag(p) {
-            return true;
-        }
-
-        false
     }
 
     fn child_parser(p: &mut Parser, inner_twig_child_parser: ParseFunction) {

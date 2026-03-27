@@ -19,6 +19,10 @@ use crate::syntax::untyped::SyntaxKind;
 /// Important:
 /// Every ending twig tag or delimiter tag must be added to this function for now!
 pub(crate) fn at_twig_termination_tag(p: &mut Parser) -> bool {
+    if !p.at(T!["{%"]) {
+        return false;
+    }
+
     p.at_following(&[T!["{%"], T!["endblock"]])
         || p.at_following(&[T!["{%"], T!["endif"]])
         || p.at_following(&[T!["{%"], T!["elseif"]])

@@ -64,14 +64,14 @@ impl Parse {
     /// the list of parse errors
     #[must_use]
     pub fn split(self) -> (SyntaxNode, Vec<ParseError>) {
-        let root = SyntaxNode::new_root(self.green_node.clone());
+        let root = SyntaxNode::new_root(self.green_node);
 
         (root, self.errors)
     }
 
     #[must_use]
-    pub fn debug_parse(&self) -> String {
-        let syntax_node = SyntaxNode::new_root(self.green_node.clone());
+    pub fn debug_parse(self) -> String {
+        let syntax_node = SyntaxNode::new_root(self.green_node);
         let mut s = debug_tree(&syntax_node);
 
         for error in &self.errors {
@@ -223,7 +223,7 @@ impl<'source> Parser<'source> {
         expected_kind: Option<SyntaxKind>,
         recovery_set: &[SyntaxKind],
     ) -> Option<&Token<'_>> {
-        if self.at_end() || self.at_set(GENERAL_RECOVERY_SET) || self.at_set(recovery_set) {
+        if self.at_end() || self.at_set(recovery_set) || self.at_set(GENERAL_RECOVERY_SET) {
             return None;
         }
 
