@@ -4,6 +4,9 @@
 #![allow(clippy::elidable_lifetime_names)]
 #![allow(clippy::needless_continue)]
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use crate::check::rule::{Rule, Severity};
 use crate::check::rules::get_config_active_rule_definitions;
 use crate::config::Config;

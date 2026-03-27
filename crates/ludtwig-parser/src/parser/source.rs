@@ -72,6 +72,21 @@ impl<'source> Source<'source> {
         }
     }
 
+    /// Peeks the kind of the next non-trivia token after the current position.
+    /// Assumes `eat_trivia` has already been called (cursor is at a non-trivia token).
+    pub(super) fn peek_next_non_trivia_kind(&mut self) -> Option<SyntaxKind> {
+        self.eat_trivia();
+        let mut pos = self.cursor + 1;
+        while pos < self.tokens.len() {
+            let kind = self.tokens[pos].kind;
+            if !kind.is_trivia() {
+                return Some(kind);
+            }
+            pos += 1;
+        }
+        None
+    }
+
     pub(super) fn at_following_content(&mut self, set: &[(SyntaxKind, Option<&str>)]) -> bool {
         self.eat_trivia();
         if self.cursor == self.tokens.len() {
@@ -106,17 +121,17 @@ impl<'source> Source<'source> {
     }
 
     fn eat_trivia(&mut self) {
-        while self.at_trivia() {
+        while self.cursor < self.tokens.len() && self.tokens[self.cursor].kind.is_trivia() {
             self.cursor += 1;
         }
     }
 
-    fn at_trivia(&self) -> bool {
-        self.peek_kind_raw().is_some_and(SyntaxKind::is_trivia)
-    }
-
     fn peek_kind_raw(&self) -> Option<SyntaxKind> {
-        self.peek_token_raw().map(|Token { kind, .. }| *kind)
+        if self.cursor < self.tokens.len() {
+            Some(self.tokens[self.cursor].kind)
+        } else {
+            None
+        }
     }
 
     fn peek_token_raw(&self) -> Option<&Token<'_>> {

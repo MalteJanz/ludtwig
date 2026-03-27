@@ -91,9 +91,11 @@ pub(crate) struct Parser<'source> {
 
 impl<'source> Parser<'source> {
     pub(crate) fn new(tokens: &'source [Token<'source>]) -> Self {
+        // Events are roughly 2x the number of tokens (start/finish nodes + token events)
+        let estimated_events = tokens.len() * 2;
         Self {
             source: Source::new(tokens),
-            event_collection: EventCollection::new(),
+            event_collection: EventCollection::with_capacity(estimated_events),
             parse_errors: vec![],
         }
     }
@@ -133,6 +135,18 @@ impl<'source> Parser<'source> {
     /// Only use this if absolutely necessary, because it is expensive to lookahead!
     pub(crate) fn at_following(&mut self, set: &[SyntaxKind]) -> bool {
         self.source.at_following(set)
+    }
+
+    /// Peeks the kind of the next non-trivia token after the current position.
+    pub(crate) fn peek_next_non_trivia_kind(&mut self) -> Option<SyntaxKind> {
+        self.source.peek_next_non_trivia_kind()
+    }
+
+    /// Efficiently checks if the parser is at a `{% keyword` sequence.
+    /// This is faster than `at_following(&[T!["{%"], T!["keyword"]])` because
+    /// it avoids creating a filter iterator and only peeks the next non-trivia token.
+    pub(crate) fn at_twig_tag(&mut self, keyword: SyntaxKind) -> bool {
+        self.at(T!["{%"]) && self.peek_next_non_trivia_kind() == Some(keyword)
     }
 
     /// Only use this if absolutely necessary, because it is expensive to lookahead!
