@@ -33,10 +33,13 @@ pub(super) fn root(parser: &mut Parser) -> CompletedMarker {
     parser.complete(m, SyntaxKind::ROOT)
 }
 
-fn parse_many<E, P>(parser: &mut Parser, mut early_exit_closure: E, mut child_parser: P)
-where
-    E: FnMut(&mut Parser) -> bool,
-    P: FnMut(&mut Parser),
+fn parse_many<'source, E, P>(
+    parser: &mut Parser<'source>,
+    mut early_exit_closure: E,
+    mut child_parser: P,
+) where
+    E: FnMut(&mut Parser<'source>) -> bool,
+    P: FnMut(&mut Parser<'source>),
 {
     loop {
         // capture parser token position to prevent infinite loops!
@@ -60,7 +63,7 @@ fn parse_any_element(parser: &mut Parser) -> Option<CompletedMarker> {
 fn parse_ludtwig_directive(
     parser: &mut Parser,
     outer: Marker,
-    closing_kind: SyntaxKind,
+    closing_kinds: &'static [SyntaxKind],
 ) -> CompletedMarker {
     debug_assert!(parser.at_set(&[T!["ludtwig-ignore-file"], T!["ludtwig-ignore"]]));
     let ignore_kind = if parser.at(T!["ludtwig-ignore-file"]) {
@@ -73,9 +76,12 @@ fn parse_ludtwig_directive(
     let rule_list_m = parser.start();
     parse_many(
         parser,
-        |p| p.at(closing_kind),
+        |p| p.at_set(closing_kinds),
         |p| {
-            p.expect(T![word], &[T![","], closing_kind]);
+            // Build a recovery set that includes "," and the closing kinds
+            let mut recovery = vec![T![","]];
+            recovery.extend_from_slice(closing_kinds);
+            p.expect(T![word], &recovery);
             if p.at(T![","]) {
                 p.bump();
             }
@@ -83,7 +89,7 @@ fn parse_ludtwig_directive(
     );
     parser.complete(rule_list_m, SyntaxKind::LUDTWIG_DIRECTIVE_RULE_LIST);
 
-    parser.expect(closing_kind, &[]);
+    parser.expect_any(closing_kinds, &[]);
     parser.complete(outer, ignore_kind)
 }
 

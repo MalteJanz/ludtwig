@@ -156,16 +156,40 @@ pub enum SyntaxKind {
     TK_GRAVE_ACCENT_QUOTES,
     #[token("{%")]
     TK_CURLY_PERCENT,
+    #[token("{%-")]
+    TK_CURLY_PERCENT_MINUS,
+    #[token("{%~")]
+    TK_CURLY_PERCENT_TILDE,
     #[token("%}")]
     TK_PERCENT_CURLY,
+    #[token("-%}")]
+    TK_MINUS_PERCENT_CURLY,
+    #[token("~%}")]
+    TK_TILDE_PERCENT_CURLY,
     #[token("{{")]
     TK_OPEN_CURLY_CURLY,
+    #[token("{{-")]
+    TK_OPEN_CURLY_CURLY_MINUS,
+    #[token("{{~")]
+    TK_OPEN_CURLY_CURLY_TILDE,
     #[token("}}")]
     TK_CLOSE_CURLY_CURLY,
+    #[token("-}}")]
+    TK_MINUS_CLOSE_CURLY_CURLY,
+    #[token("~}}")]
+    TK_TILDE_CLOSE_CURLY_CURLY,
     #[token("{#")]
     TK_OPEN_CURLY_HASHTAG,
+    #[token("{#-")]
+    TK_OPEN_CURLY_HASHTAG_MINUS,
+    #[token("{#~")]
+    TK_OPEN_CURLY_HASHTAG_TILDE,
     #[token("#}")]
     TK_HASHTAG_CLOSE_CURLY,
+    #[token("-#}")]
+    TK_MINUS_HASHTAG_CLOSE_CURLY,
+    #[token("~#}")]
+    TK_TILDE_HASHTAG_CLOSE_CURLY,
     #[token("#")]
     TK_HASHTAG,
 
@@ -617,11 +641,23 @@ macro_rules! T {
     ["'"] => { $crate::syntax::untyped::SyntaxKind::TK_SINGLE_QUOTES };
     ["`"] => { $crate::syntax::untyped::SyntaxKind::TK_GRAVE_ACCENT_QUOTES };
     ["{%"] => { $crate::syntax::untyped::SyntaxKind::TK_CURLY_PERCENT };
+    ["{%-"] => { $crate::syntax::untyped::SyntaxKind::TK_CURLY_PERCENT_MINUS };
+    ["{%~"] => { $crate::syntax::untyped::SyntaxKind::TK_CURLY_PERCENT_TILDE };
     ["%}"] => { $crate::syntax::untyped::SyntaxKind::TK_PERCENT_CURLY };
+    ["-%}"] => { $crate::syntax::untyped::SyntaxKind::TK_MINUS_PERCENT_CURLY };
+    ["~%}"] => { $crate::syntax::untyped::SyntaxKind::TK_TILDE_PERCENT_CURLY };
     ["{{"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY_CURLY };
+    ["{{-"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY_CURLY_MINUS };
+    ["{{~"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY_CURLY_TILDE };
     ["}}"] => { $crate::syntax::untyped::SyntaxKind::TK_CLOSE_CURLY_CURLY };
+    ["-}}"] => { $crate::syntax::untyped::SyntaxKind::TK_MINUS_CLOSE_CURLY_CURLY };
+    ["~}}"] => { $crate::syntax::untyped::SyntaxKind::TK_TILDE_CLOSE_CURLY_CURLY };
     ["{#"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY_HASHTAG };
+    ["{#-"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY_HASHTAG_MINUS };
+    ["{#~"] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_CURLY_HASHTAG_TILDE };
     ["#}"] => { $crate::syntax::untyped::SyntaxKind::TK_HASHTAG_CLOSE_CURLY };
+    ["-#}"] => { $crate::syntax::untyped::SyntaxKind::TK_MINUS_HASHTAG_CLOSE_CURLY };
+    ["~#}"] => { $crate::syntax::untyped::SyntaxKind::TK_TILDE_HASHTAG_CLOSE_CURLY };
     ["#"] => { $crate::syntax::untyped::SyntaxKind::TK_HASHTAG };
     ["true"] => { $crate::syntax::untyped::SyntaxKind::TK_TRUE };
     ["false"] => { $crate::syntax::untyped::SyntaxKind::TK_FALSE };
@@ -775,11 +811,23 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_SINGLE_QUOTES => "'",
             SyntaxKind::TK_GRAVE_ACCENT_QUOTES => "`",
             SyntaxKind::TK_CURLY_PERCENT => "{%",
+            SyntaxKind::TK_CURLY_PERCENT_MINUS => "{%-",
+            SyntaxKind::TK_CURLY_PERCENT_TILDE => "{%~",
             SyntaxKind::TK_PERCENT_CURLY => "%}",
+            SyntaxKind::TK_MINUS_PERCENT_CURLY => "-%}",
+            SyntaxKind::TK_TILDE_PERCENT_CURLY => "~%}",
             SyntaxKind::TK_OPEN_CURLY_CURLY => "{{",
+            SyntaxKind::TK_OPEN_CURLY_CURLY_MINUS => "{{-",
+            SyntaxKind::TK_OPEN_CURLY_CURLY_TILDE => "{{~",
             SyntaxKind::TK_CLOSE_CURLY_CURLY => "}}",
+            SyntaxKind::TK_MINUS_CLOSE_CURLY_CURLY => "-}}",
+            SyntaxKind::TK_TILDE_CLOSE_CURLY_CURLY => "~}}",
             SyntaxKind::TK_OPEN_CURLY_HASHTAG => "{#",
+            SyntaxKind::TK_OPEN_CURLY_HASHTAG_MINUS => "{#-",
+            SyntaxKind::TK_OPEN_CURLY_HASHTAG_TILDE => "{#~",
             SyntaxKind::TK_HASHTAG_CLOSE_CURLY => "#}",
+            SyntaxKind::TK_MINUS_HASHTAG_CLOSE_CURLY => "-#}",
+            SyntaxKind::TK_TILDE_HASHTAG_CLOSE_CURLY => "~#}",
             SyntaxKind::TK_HASHTAG => "#",
             SyntaxKind::TK_TRUE => "true",
             SyntaxKind::TK_FALSE => "false",

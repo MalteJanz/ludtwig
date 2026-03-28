@@ -20,8 +20,38 @@ mod source;
 
 /// Tokens which can lead to parsing of another element
 /// (top level parsers under [`crate::grammar::parse_any_element`])
-pub(crate) static GENERAL_RECOVERY_SET: &[SyntaxKind] =
-    &[T!["{%"], T!["{{"], T!["{#"], T!["<"], T!["<!--"], T!["<!"]];
+pub(crate) static GENERAL_RECOVERY_SET: &[SyntaxKind] = &[
+    T!["{%"],
+    T!["{%-"],
+    T!["{%~"],
+    T!["{{"],
+    T!["{{-"],
+    T!["{{~"],
+    T!["{#"],
+    T!["{#-"],
+    T!["{#~"],
+    T!["<"],
+    T!["<!--"],
+    T!["<!"],
+];
+
+/// All token kinds that open a twig block tag: `{%`, `{%-`, `{%~`
+pub(crate) static TWIG_BLOCK_OPEN_SET: &[SyntaxKind] = &[T!["{%"], T!["{%-"], T!["{%~"]];
+
+/// All token kinds that close a twig block tag: `%}`, `-%}`, `~%}`
+pub(crate) static TWIG_BLOCK_CLOSE_SET: &[SyntaxKind] = &[T!["%}"], T!["-%}"], T!["~%}"]];
+
+/// All token kinds that open a twig var: `{{`, `{{-`, `{{~`
+pub(crate) static TWIG_VAR_OPEN_SET: &[SyntaxKind] = &[T!["{{"], T!["{{-"], T!["{{~"]];
+
+/// All token kinds that close a twig var: `}}`, `-}}`, `~}}`
+pub(crate) static TWIG_VAR_CLOSE_SET: &[SyntaxKind] = &[T!["}}"], T!["-}}"], T!["~}}"]];
+
+/// All token kinds that open a twig comment: `{#`, `{#-`, `{#~`
+pub(crate) static TWIG_COMMENT_OPEN_SET: &[SyntaxKind] = &[T!["{#"], T!["{#-"], T!["{#~"]];
+
+/// All token kinds that close a twig comment: `#}`, `-#}`, `~#}`
+pub(crate) static TWIG_COMMENT_CLOSE_SET: &[SyntaxKind] = &[T!["#}"], T!["-#}"], T!["~#}"]];
 
 /// Parses a given string slice (of Twig+HTML code) into a syntax tree.
 ///
@@ -142,11 +172,30 @@ impl<'source> Parser<'source> {
         self.source.peek_next_non_trivia_kind()
     }
 
-    /// Efficiently checks if the parser is at a `{% keyword` sequence.
-    /// This is faster than `at_following(&[T!["{%"], T!["keyword"]])` because
-    /// it avoids creating a filter iterator and only peeks the next non-trivia token.
+    /// Efficiently checks if the parser is at a `{% keyword` sequence
+    /// (including whitespace control variants `{%-` and `{%~`).
     pub(crate) fn at_twig_tag(&mut self, keyword: SyntaxKind) -> bool {
-        self.at(T!["{%"]) && self.peek_next_non_trivia_kind() == Some(keyword)
+        self.at_twig_block_open() && self.peek_next_non_trivia_kind() == Some(keyword)
+    }
+
+    /// Checks if the parser is at any twig block open token (`{%`, `{%-`, `{%~`).
+    pub(crate) fn at_twig_block_open(&mut self) -> bool {
+        self.at_set(TWIG_BLOCK_OPEN_SET)
+    }
+
+    /// Checks if the parser is at any twig block close token (`%}`, `-%}`, `~%}`).
+    pub(crate) fn at_twig_block_close(&mut self) -> bool {
+        self.at_set(TWIG_BLOCK_CLOSE_SET)
+    }
+
+    /// Checks if the parser is at any twig var open token (`{{`, `{{-`, `{{~`).
+    pub(crate) fn at_twig_var_open(&mut self) -> bool {
+        self.at_set(TWIG_VAR_OPEN_SET)
+    }
+
+    /// Checks if the parser is at any twig comment open token (`{#`, `{#-`, `{#~`).
+    pub(crate) fn at_twig_comment_open(&mut self) -> bool {
+        self.at_set(TWIG_COMMENT_OPEN_SET)
     }
 
     /// Only use this if absolutely necessary, because it is expensive to lookahead!
@@ -218,7 +267,27 @@ impl<'source> Parser<'source> {
             Some(self.bump())
         } else {
             self.add_error(ParseErrorBuilder::new(format!("{kind}")));
-            self.recover_expect(Some(kind), recovery_set)
+            self.recover_expect(&[kind], recovery_set)
+        }
+    }
+
+    /// Like [`expect`](Self::expect) but accepts any of the given token kinds.
+    /// The error message lists all accepted kinds.
+    pub(crate) fn expect_any(
+        &mut self,
+        kinds: &[SyntaxKind],
+        recovery_set: &[SyntaxKind],
+    ) -> Option<&Token<'_>> {
+        if self.at_set(kinds) {
+            Some(self.bump())
+        } else {
+            let expected = kinds
+                .iter()
+                .map(|k| format!("{k}"))
+                .collect::<Vec<_>>()
+                .join(" or ");
+            self.add_error(ParseErrorBuilder::new(expected));
+            self.recover_expect(kinds, recovery_set)
         }
     }
 
@@ -229,12 +298,12 @@ impl<'source> Parser<'source> {
     /// Important: in most cases this should not be called inside `parse_many`because it may
     /// consume future children.
     pub(crate) fn recover(&mut self, recovery_set: &[SyntaxKind]) {
-        self.recover_expect(None, recovery_set);
+        self.recover_expect(&[], recovery_set);
     }
 
     fn recover_expect(
         &mut self,
-        expected_kind: Option<SyntaxKind>,
+        expected_kinds: &[SyntaxKind],
         recovery_set: &[SyntaxKind],
     ) -> Option<&Token<'_>> {
         if self.at_end() || self.at_set(recovery_set) || self.at_set(GENERAL_RECOVERY_SET) {
@@ -245,11 +314,9 @@ impl<'source> Parser<'source> {
         loop {
             self.bump();
 
-            if let Some(expected_kind) = expected_kind {
-                if self.at(expected_kind) {
-                    self.complete(error_m, SyntaxKind::ERROR);
-                    return Some(self.bump());
-                }
+            if !expected_kinds.is_empty() && self.at_set(expected_kinds) {
+                self.complete(error_m, SyntaxKind::ERROR);
+                return Some(self.bump());
             }
 
             if self.at_end() || self.at_set(GENERAL_RECOVERY_SET) || self.at_set(recovery_set) {

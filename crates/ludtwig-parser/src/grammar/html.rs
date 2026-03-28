@@ -150,7 +150,7 @@ fn parse_html_comment(parser: &mut Parser) -> CompletedMarker {
     parser.bump();
 
     if parser.at_set(&[T!["ludtwig-ignore-file"], T!["ludtwig-ignore"]]) {
-        parse_ludtwig_directive(parser, m, T!["-->"])
+        parse_ludtwig_directive(parser, m, &[T!["-->"]])
     } else {
         parse_plain_html_comment(parser, m)
     }
@@ -301,7 +301,7 @@ fn parse_html_attribute_or_twig(parser: &mut Parser) -> Option<CompletedMarker> 
         attribute_m
     } else {
         // is the attribute name a twig var expression?
-        if parser.at(T!["{{"]) {
+        if parser.at_twig_var_open() {
             let twig_name_attribute_m = parser.start();
             parse_twig_var_statement(parser);
             twig_name_attribute_m
@@ -359,7 +359,7 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
     fn inner_no_quote_parser(parser: &mut Parser) -> Option<CompletedMarker> {
         if parser.at(T![word]) {
             parser.bump();
-        } else if parser.at(T!["{{"]) {
+        } else if parser.at_twig_var_open() {
             // a single twig var expression with missing quotes should also count as an html attribute value
             parse_twig_var_statement(parser);
         } else {
@@ -790,9 +790,9 @@ mod tests {
                       TK_LESS_THAN_SLASH@29..31 "</"
                       TK_WORD@31..34 "div"
                       TK_GREATER_THAN@34..35 ">"
-                error at 29..31: expected {% but found </
+                error at 29..31: expected {% or {%- or {%~ but found </
                 error at 29..31: expected endblock but found </
-                error at 29..31: expected %} but found </"#]],
+                error at 29..31: expected %} or -%} or ~%} but found </"#]],
         );
     }
 
@@ -836,9 +836,9 @@ mod tests {
                         TWIG_ENDING_BLOCK@39..39
                     HTML_ENDING_TAG@39..39
                 error at 33..35: expected </span> ending tag but found </
-                error at 38..39: expected {% but reached end of file
+                error at 38..39: expected {% or {%- or {%~ but reached end of file
                 error at 38..39: expected endblock but reached end of file
-                error at 38..39: expected %} but reached end of file
+                error at 38..39: expected %} or -%} or ~%} but reached end of file
                 error at 38..39: expected </div> ending tag but reached end of file"#]],
         );
     }
@@ -1628,9 +1628,9 @@ mod tests {
                     TK_LESS_THAN_SLASH@50..52 "</"
                     TK_WORD@52..55 "div"
                     TK_GREATER_THAN@55..56 ">"
-                error at 29..30: expected {% but found <
+                error at 29..30: expected {% or {%- or {%~ but found <
                 error at 29..30: expected endblock but found <
-                error at 29..30: expected %} but found <
+                error at 29..30: expected %} or -%} or ~%} but found <
                 error at 29..30: expected > but found <
                 error at 35..37: expected </div> ending tag but found {%
                 error at 38..46: expected twig tag but found endblock

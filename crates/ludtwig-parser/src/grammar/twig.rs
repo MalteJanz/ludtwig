@@ -9,7 +9,7 @@ use crate::T;
 use crate::grammar::twig::expression::{TWIG_EXPRESSION_RECOVERY_SET, parse_twig_expression};
 use crate::grammar::{ParseFunction, parse_ludtwig_directive, parse_many};
 use crate::parser::event::{CompletedMarker, Marker};
-use crate::parser::{ParseErrorBuilder, Parser};
+use crate::parser::{ParseErrorBuilder, Parser, TWIG_COMMENT_CLOSE_SET, TWIG_VAR_CLOSE_SET};
 use crate::syntax::untyped::SyntaxKind;
 
 pub use literal::TWIG_NAME_REGEX;
@@ -18,11 +18,11 @@ pub(super) fn parse_any_twig(
     parser: &mut Parser,
     child_parser: ParseFunction,
 ) -> Option<CompletedMarker> {
-    if parser.at(T!["{%"]) {
+    if parser.at_twig_block_open() {
         tags::parse_twig_block_statement(parser, child_parser)
-    } else if parser.at(T!["{{"]) {
+    } else if parser.at_twig_var_open() {
         Some(parse_twig_var_statement(parser))
-    } else if parser.at(T!["{#"]) {
+    } else if parser.at_twig_comment_open() {
         Some(parse_twig_comment_statement(parser))
     } else {
         None
@@ -30,12 +30,12 @@ pub(super) fn parse_any_twig(
 }
 
 fn parse_twig_comment_statement(parser: &mut Parser) -> CompletedMarker {
-    debug_assert!(parser.at(T!["{#"]));
+    debug_assert!(parser.at_twig_comment_open());
     let m = parser.start();
     parser.bump();
 
     if parser.at_set(&[T!["ludtwig-ignore-file"], T!["ludtwig-ignore"]]) {
-        parse_ludtwig_directive(parser, m, T!["#}"])
+        parse_ludtwig_directive(parser, m, TWIG_COMMENT_CLOSE_SET)
     } else {
         parse_twig_plain_comment(parser, m)
     }
@@ -44,18 +44,18 @@ fn parse_twig_comment_statement(parser: &mut Parser) -> CompletedMarker {
 fn parse_twig_plain_comment(parser: &mut Parser, outer: Marker) -> CompletedMarker {
     parse_many(
         parser,
-        |p| p.at(T!["#}"]),
+        |p| p.at_set(TWIG_COMMENT_CLOSE_SET),
         |p| {
             p.bump();
         },
     );
 
-    parser.expect(T!["#}"], &[]);
+    parser.expect_any(TWIG_COMMENT_CLOSE_SET, &[]);
     parser.complete(outer, SyntaxKind::TWIG_COMMENT)
 }
 
 pub(crate) fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {
-    debug_assert!(parser.at(T!["{{"]));
+    debug_assert!(parser.at_twig_var_open());
     let m = parser.start();
     parser.bump();
 
@@ -64,7 +64,7 @@ pub(crate) fn parse_twig_var_statement(parser: &mut Parser) -> CompletedMarker {
         parser.recover(TWIG_EXPRESSION_RECOVERY_SET);
     }
 
-    parser.expect(T!["}}"], &[]);
+    parser.expect_any(TWIG_VAR_CLOSE_SET, &[]);
     parser.complete(m, SyntaxKind::TWIG_VAR)
 }
 
@@ -190,6 +190,55 @@ mod tests {
                           TK_CLOSE_PARENTHESIS@59..60 ")"
                     TK_WHITESPACE@60..61 " "
                     TK_CLOSE_CURLY_CURLY@61..63 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_var_whitespace_control_dash() {
+        check_parse(
+            "{{- something -}}",
+            expect![[r#"
+                ROOT@0..17
+                  TWIG_VAR@0..17
+                    TK_OPEN_CURLY_CURLY_MINUS@0..3 "{{-"
+                    TWIG_EXPRESSION@3..13
+                      TWIG_LITERAL_NAME@3..13
+                        TK_WHITESPACE@3..4 " "
+                        TK_WORD@4..13 "something"
+                    TK_WHITESPACE@13..14 " "
+                    TK_MINUS_CLOSE_CURLY_CURLY@14..17 "-}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_var_whitespace_control_tilde() {
+        check_parse(
+            "{{~ something ~}}",
+            expect![[r#"
+                ROOT@0..17
+                  TWIG_VAR@0..17
+                    TK_OPEN_CURLY_CURLY_TILDE@0..3 "{{~"
+                    TWIG_EXPRESSION@3..13
+                      TWIG_LITERAL_NAME@3..13
+                        TK_WHITESPACE@3..4 " "
+                        TK_WORD@4..13 "something"
+                    TK_WHITESPACE@13..14 " "
+                    TK_TILDE_CLOSE_CURLY_CURLY@14..17 "~}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_comment_whitespace_control() {
+        check_parse(
+            "{#- comment -#}",
+            expect![[r#"
+                ROOT@0..15
+                  TWIG_COMMENT@0..15
+                    TK_OPEN_CURLY_HASHTAG_MINUS@0..3 "{#-"
+                    TK_WHITESPACE@3..4 " "
+                    TK_WORD@4..11 "comment"
+                    TK_WHITESPACE@11..12 " "
+                    TK_MINUS_HASHTAG_CLOSE_CURLY@12..15 "-#}""#]],
         );
     }
 }
