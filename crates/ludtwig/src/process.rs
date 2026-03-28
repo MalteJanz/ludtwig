@@ -40,7 +40,7 @@ impl FileContext {
     }
 }
 
-/// Process a single file with it's filepath.
+/// Process a single file with its filepath.
 pub fn process_file(path: PathBuf, cli_context: CliContext) -> Result<(), FileProcessingError> {
     // notify the output about this file (to increase the processed file counter)
     cli_context.send_processing_output(ProcessingEvent::FileProcessed);
@@ -106,7 +106,7 @@ fn run_analysis(
     };
 
     // send processing events for rule check results + parser errors and output them to the terminal
-    let writer = BufferWriter::stderr(ColorChoice::Always);
+    let writer = BufferWriter::stderr(ColorChoice::Auto);
     let mut buffer = writer.buffer();
     produce_diagnostics(&file_context, rule_result_context, &mut buffer);
     file_context.send_processing_output(ProcessingEvent::OutputStderrMessage(buffer));
@@ -118,17 +118,15 @@ pub fn iteratively_apply_suggestions(
     file_context: FileContext,
     check_results: Vec<CheckResult>,
 ) -> Result<(FileContext, Vec<CheckResult>, bool, usize), FileProcessingError> {
-    let mut current_results = (file_context, check_results, false, 0);
+    let mut file_context = file_context;
+    let mut check_results = check_results;
+    let mut dirty = false;
 
     // try at maximum 10 parsing iterations
-    for i in 0..10 {
-        if i >= 9 {
-            return Err(FileProcessingError::MaxApplyIteration);
-        }
-
-        let mut suggestions = get_rule_context_suggestions(&current_results.1);
+    for iterations in 0_usize..10 {
+        let mut suggestions = get_rule_context_suggestions(&check_results);
         if suggestions.is_empty() {
-            break;
+            return Ok((file_context, check_results, dirty, iterations));
         }
 
         // sort by syntax range
@@ -161,31 +159,26 @@ pub fn iteratively_apply_suggestions(
             .collect();
 
         // transform source code according to non overlapping suggestions
-        current_results.2 = true; // set dirty flag
-        let source_code = apply_suggestions_to_text(suggestions, current_results.0.source_code);
+        dirty = true;
+        let source_code = apply_suggestions_to_text(suggestions, file_context.source_code);
 
         // Parse the new source code again
         let new_parse = ludtwig_parser::parse(&source_code);
         let tree_root = SyntaxNode::new_root(new_parse.green_node);
 
-        let file_context = FileContext {
+        file_context = FileContext {
             source_code,
             tree_root,
             parse_errors: new_parse.errors,
-            ..current_results.0
+            ..file_context
         };
 
         // Run all rules again
-        let rule_result_context = run_rules(&file_context);
-        current_results = (
-            file_context,
-            rule_result_context,
-            current_results.2,
-            current_results.3 + 1,
-        );
+        check_results = run_rules(&file_context);
     }
 
-    Ok(current_results)
+    // suggestions still remain after max iterations
+    Err(FileProcessingError::MaxApplyIteration)
 }
 
 fn apply_suggestions_to_text(

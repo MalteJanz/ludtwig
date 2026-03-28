@@ -84,15 +84,7 @@ pub fn get_config_active_rule_definitions(
         .collect();
     // validate that every rule in the config is there
     for config_rule in &config_active_rules {
-        let mut found = false;
-        for rule in &active_rules {
-            if &rule.name() == config_rule {
-                found = true;
-                break;
-            }
-        }
-
-        if !found {
+        if !active_rules.iter().any(|r| &r.name() == config_rule) {
             return Err(ConfigurationError::RuleNotFound {
                 name: (*config_rule).to_string(),
             });

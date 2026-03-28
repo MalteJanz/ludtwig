@@ -6,7 +6,8 @@ use crate::syntax::untyped::{SyntaxKind, TextRange, TextSize};
 /// These tokens are produced by a dumb lexer and don't have any meaning / semantic attached to them.
 pub(crate) fn lex(source: &str) -> Vec<Token<'_>> {
     let mut lexer = SyntaxKind::lexer(source);
-    let mut result = vec![];
+    // Pre-allocate based on input size: roughly 1 token per 4 bytes for typical Twig/HTML
+    let mut result = Vec::with_capacity(source.len() / 4);
 
     while let Some(kind) = lexer.next() {
         let range = {

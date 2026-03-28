@@ -18,11 +18,7 @@ pub(crate) static TWIG_EXPRESSION_RECOVERY_SET: &[SyntaxKind] = &[
     T![":"],
     T!["}}"],
     T!["%}"],
-    // expressions
     T!["("],
-    T!["-"],
-    T!["+"],
-    T!["not"],
     // literals
     T![number],
     T!["\""],

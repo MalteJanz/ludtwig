@@ -19,23 +19,33 @@ use crate::syntax::untyped::SyntaxKind;
 /// Important:
 /// Every ending twig tag or delimiter tag must be added to this function for now!
 pub(crate) fn at_twig_termination_tag(p: &mut Parser) -> bool {
-    p.at_following(&[T!["{%"], T!["endblock"]])
-        || p.at_following(&[T!["{%"], T!["endif"]])
-        || p.at_following(&[T!["{%"], T!["elseif"]])
-        || p.at_following(&[T!["{%"], T!["else"]])
-        || p.at_following(&[T!["{%"], T!["endset"]])
-        || p.at_following(&[T!["{%"], T!["endfor"]])
-        || p.at_following(&[T!["{%"], T!["endembed"]])
-        || p.at_following(&[T!["{%"], T!["sw_end_embed"]])
-        || p.at_following(&[T!["{%"], T!["endapply"]])
-        || p.at_following(&[T!["{%"], T!["endautoescape"]])
-        || p.at_following(&[T!["{%"], T!["endsandbox"]])
-        || p.at_following(&[T!["{%"], T!["endverbatim"]])
-        || p.at_following(&[T!["{%"], T!["endmacro"]])
-        || p.at_following(&[T!["{%"], T!["endwith"]])
-        || p.at_following(&[T!["{%"], T!["endcache"]])
-        || p.at_following(&[T!["{%"], T!["endsw_silent_feature_call"]])
-        || p.at_following(&[T!["{%"], T!["endtrans"]]) // Drupal Trans / Endtrans
+    /// All twig ending / delimiter keywords that signal a termination tag.
+    static TERMINATION_KEYWORDS: &[SyntaxKind] = &[
+        T!["endblock"],
+        T!["endif"],
+        T!["elseif"],
+        T!["else"],
+        T!["endset"],
+        T!["endfor"],
+        T!["endembed"],
+        T!["sw_end_embed"],
+        T!["endapply"],
+        T!["endautoescape"],
+        T!["endsandbox"],
+        T!["endverbatim"],
+        T!["endmacro"],
+        T!["endwith"],
+        T!["endcache"],
+        T!["endsw_silent_feature_call"],
+        T!["endtrans"],
+    ];
+
+    if !p.at(T!["{%"]) {
+        return false;
+    }
+
+    p.peek_next_non_trivia_kind()
+        .is_some_and(|k| TERMINATION_KEYWORDS.contains(&k))
 }
 
 pub(crate) fn parse_twig_block_statement(
@@ -160,7 +170,7 @@ fn parse_twig_cache(
     let body_m = parser.start();
     parse_many(
         parser,
-        |p| p.at_following(&[T!["{%"], T!["endcache"]]),
+        |p| p.at_twig_tag(T!["endcache"]),
         |p| {
             child_parser(p);
         },
@@ -198,7 +208,7 @@ fn parse_twig_with(
     let body_m = parser.start();
     parse_many(
         parser,
-        |p| p.at_following(&[T!["{%"], T!["endwith"]]),
+        |p| p.at_twig_tag(T!["endwith"]),
         |p| {
             child_parser(p);
         },
@@ -255,7 +265,7 @@ fn parse_twig_macro(
     let body_m = parser.start();
     parse_many(
         parser,
-        |p| p.at_following(&[T!["{%"], T!["endmacro"]]),
+        |p| p.at_twig_tag(T!["endmacro"]),
         |p| {
             child_parser(p);
         },
@@ -303,7 +313,7 @@ fn parse_twig_verbatim(
     let body_m = parser.start();
     parse_many(
         parser,
-        |p| p.at_following(&[T!["{%"], T!["endverbatim"]]),
+        |p| p.at_twig_tag(T!["endverbatim"]),
         |p| {
             child_parser(p);
         },
@@ -336,7 +346,7 @@ fn parse_twig_sandbox(
     let body_m = parser.start();
     parse_many(
         parser,
-        |p| p.at_following(&[T!["{%"], T!["endsandbox"]]),
+        |p| p.at_twig_tag(T!["endsandbox"]),
         |p| {
             child_parser(p);
         },
@@ -416,7 +426,7 @@ fn parse_twig_autoescape(
     let body_m = parser.start();
     parse_many(
         parser,
-        |p| p.at_following(&[T!["{%"], T!["endautoescape"]]),
+        |p| p.at_twig_tag(T!["endautoescape"]),
         |p| {
             child_parser(p);
         },
@@ -488,7 +498,7 @@ fn parse_twig_apply(
     let body_m = parser.start();
     parse_many(
         parser,
-        |p| p.at_following(&[T!["{%"], T!["endapply"]]),
+        |p| p.at_twig_tag(T!["endapply"]),
         |p| {
             child_parser(p);
         },
@@ -693,10 +703,7 @@ fn parse_twig_embed(
     let body_m = parser.start();
     parse_many(
         parser,
-        |p| {
-            p.at_following(&[T!["{%"], T!["endembed"]])
-                || p.at_following(&[T!["{%"], T!["sw_end_embed"]])
-        },
+        |p| p.at_twig_tag(T!["endembed"]) || p.at_twig_tag(T!["sw_end_embed"]),
         |p| {
             child_parser(p);
         },
@@ -813,7 +820,7 @@ fn parse_twig_for(
     let body_m = parser.start();
     parse_many(
         parser,
-        |p| p.at_following(&[T!["{%"], T!["endfor"]]) || p.at_following(&[T!["{%"], T!["else"]]),
+        |p| p.at_twig_tag(T!["endfor"]) || p.at_twig_tag(T!["else"]),
         |p| {
             child_parser(p);
         },
@@ -821,7 +828,7 @@ fn parse_twig_for(
     parser.complete(body_m, SyntaxKind::BODY);
 
     // check for else block
-    if parser.at_following(&[T!["{%"], T!["else"]]) {
+    if parser.at_twig_tag(T!["else"]) {
         let else_m = parser.start();
         parser.bump();
         parser.bump();
@@ -832,7 +839,7 @@ fn parse_twig_for(
         let body_m = parser.start();
         parse_many(
             parser,
-            |p| p.at_following(&[T!["{%"], T!["endfor"]]),
+            |p| p.at_twig_tag(T!["endfor"]),
             |p| {
                 child_parser(p);
             },
@@ -931,7 +938,7 @@ fn parse_twig_set(
         let body_m = parser.start();
         parse_many(
             parser,
-            |p| p.at_following(&[T!["{%"], T!["endset"]]),
+            |p| p.at_twig_tag(T!["endset"]),
             |p| {
                 child_parser(p);
             },
@@ -979,7 +986,7 @@ fn parse_twig_block(
         let body_m = parser.start();
         parse_many(
             parser,
-            |p| p.at_following(&[T!["{%"], T!["endblock"]]),
+            |p| p.at_twig_tag(T!["endblock"]),
             |p| {
                 child_parser(p);
             },
@@ -1039,9 +1046,9 @@ fn parse_twig_if(
         parse_many(
             parser,
             |p| {
-                p.at_following(&[T!["{%"], T!["endif"]])
-                    || p.at_following(&[T!["{%"], T!["elseif"]])
-                    || p.at_following(&[T!["{%"], T!["else"]])
+                p.at_twig_tag(T!["endif"])
+                    || p.at_twig_tag(T!["elseif"])
+                    || p.at_twig_tag(T!["else"])
             },
             |p| {
                 child_parser(p);
@@ -1049,12 +1056,12 @@ fn parse_twig_if(
         );
         parser.complete(body_m, SyntaxKind::BODY);
 
-        if parser.at_following(&[T!["{%"], T!["endif"]]) {
+        if parser.at_twig_tag(T!["endif"]) {
             break; // no more branches
         }
 
         // parse next branch header
-        if parser.at_following(&[T!["{%"], T!["elseif"]]) {
+        if parser.at_twig_tag(T!["elseif"]) {
             let branch_m = parser.start();
             parser.bump();
             parser.bump();
@@ -1064,7 +1071,7 @@ fn parse_twig_if(
             }
             parser.expect(T!["%}"], &[T!["endif"], T!["%}"], T!["</"]]);
             parser.complete(branch_m, SyntaxKind::TWIG_ELSE_IF_BLOCK);
-        } else if parser.at_following(&[T!["{%"], T!["else"]]) {
+        } else if parser.at_twig_tag(T!["else"]) {
             let branch_m = parser.start();
             parser.bump();
             parser.bump();
@@ -1102,7 +1109,7 @@ fn parse_twig_trans(
     let body_m = parser.start();
     parse_many(
         parser,
-        |p| p.at_following(&[T!["{%"], T!["endtrans"]]),
+        |p| p.at_twig_tag(T!["endtrans"]),
         |p| {
             child_parser(p);
         },
@@ -1192,7 +1199,7 @@ fn parse_twig_component(
     let body_m = parser.start();
     parse_many(
         parser,
-        |p| p.at_following(&[T!["{%"], T!["endcomponent"]]),
+        |p| p.at_twig_tag(T!["endcomponent"]),
         |p| {
             child_parser(p);
         },

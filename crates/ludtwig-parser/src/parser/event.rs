@@ -30,11 +30,20 @@ pub(crate) struct EventCollection {
 }
 
 impl EventCollection {
+    #[cfg(test)]
     pub(super) fn new() -> Self {
         Self {
-            events: vec![],
+            events: Vec::new(),
             #[cfg(debug_assertions)]
-            open_markers: vec![],
+            open_markers: Vec::new(),
+        }
+    }
+
+    pub(super) fn with_capacity(capacity: usize) -> Self {
+        Self {
+            events: Vec::with_capacity(capacity),
+            #[cfg(debug_assertions)]
+            open_markers: Vec::new(),
         }
     }
 

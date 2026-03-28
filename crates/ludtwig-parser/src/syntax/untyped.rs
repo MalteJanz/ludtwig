@@ -716,14 +716,6 @@ macro_rules! T {
     ["ludtwig-ignore"] => { $crate::syntax::untyped::SyntaxKind::TK_LUDTWIG_IGNORE };
 }
 
-impl SyntaxKind {
-    #[must_use]
-    pub fn is_trivia(self) -> bool {
-        // Add comments and other non interesting things for the parser here in the future
-        matches!(self, T![ws] | T![lb])
-    }
-}
-
 #[allow(clippy::too_many_lines)]
 impl fmt::Display for SyntaxKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -884,6 +876,14 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::ERROR => "error",
             t => unreachable!("Display not implemented for {:?}", t),
         })
+    }
+}
+
+impl SyntaxKind {
+    #[must_use]
+    pub fn is_trivia(self) -> bool {
+        // Add comments and other non-interesting things for the parser here in the future
+        matches!(self, T![ws] | T![lb])
     }
 }
 

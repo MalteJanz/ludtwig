@@ -125,7 +125,7 @@ fn parse_twig_sw_silent_feature_call(
     let body_m = parser.start();
     parse_many(
         parser,
-        |p| p.at_following(&[T!["{%"], T!["endsw_silent_feature_call"]]),
+        |p| p.at_twig_tag(T!["endsw_silent_feature_call"]),
         |p| {
             child_parser(p);
         },

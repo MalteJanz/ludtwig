@@ -144,7 +144,12 @@ pub fn run_rules(file_context: &FileContext) -> Vec<CheckResult> {
                 };
 
                 for rule in found_ignored_rules {
-                    ignored_rules.remove(ignored_rules.iter().position(|r| r == &rule).unwrap());
+                    ignored_rules.remove(
+                        ignored_rules
+                            .iter()
+                            .position(|r| r == &rule)
+                            .expect("ignored rule should exist in the ignored_rules list"),
+                    );
                 }
 
                 // adjust traversal context when exiting special nodes
