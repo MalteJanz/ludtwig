@@ -3,7 +3,7 @@ use crate::grammar::twig::expression::parse_twig_expression;
 use crate::grammar::twig::literal::parse_twig_string;
 use crate::grammar::{ParseFunction, parse_many};
 use crate::parser::event::{CompletedMarker, Marker};
-use crate::parser::{ParseErrorBuilder, Parser};
+use crate::parser::{ParseErrorBuilder, Parser, TWIG_BLOCK_CLOSE_SET, TWIG_BLOCK_OPEN_SET};
 use crate::syntax::untyped::SyntaxKind;
 
 pub(crate) enum BlockParseResult {
@@ -45,7 +45,7 @@ fn parse_twig_sw_thumbnails(parser: &mut Parser, outer: Marker) -> CompletedMark
 
     if parse_twig_expression(parser).is_none() {
         parser.add_error(ParseErrorBuilder::new("twig expression as thumbnail name"));
-        parser.recover(&[T!["with"], T!["%}"]]);
+        parser.recover(&[T!["with"], T!["%}"], T!["-%}"], T!["~%}"]]);
     }
 
     if parser.at(T!["with"]) {
@@ -55,12 +55,12 @@ fn parse_twig_sw_thumbnails(parser: &mut Parser, outer: Marker) -> CompletedMark
             parser.add_error(ParseErrorBuilder::new(
                 "twig expression as thumbnail variables",
             ));
-            parser.recover(&[T!["with"], T!["%}"]]);
+            parser.recover(&[T!["with"], T!["%}"], T!["-%}"], T!["~%}"]]);
         }
         parser.complete(style_m, SyntaxKind::SHOPWARE_THUMBNAILS_WITH);
     }
 
-    parser.expect(T!["%}"], &[]);
+    parser.expect_any(TWIG_BLOCK_CLOSE_SET, &[]);
     parser.complete(outer, SyntaxKind::SHOPWARE_THUMBNAILS)
 }
 
@@ -70,7 +70,7 @@ fn parse_twig_sw_icon(parser: &mut Parser, outer: Marker) -> CompletedMarker {
 
     if parse_twig_expression(parser).is_none() {
         parser.add_error(ParseErrorBuilder::new("twig expression as icon name"));
-        parser.recover(&[T!["style"], T!["%}"]]);
+        parser.recover(&[T!["style"], T!["%}"], T!["-%}"], T!["~%}"]]);
     }
 
     if parser.at(T!["style"]) {
@@ -80,12 +80,12 @@ fn parse_twig_sw_icon(parser: &mut Parser, outer: Marker) -> CompletedMarker {
             parser.add_error(ParseErrorBuilder::new(
                 "twig expression as icon style variables",
             ));
-            parser.recover(&[T!["%}"]]);
+            parser.recover(&[T!["%}"], T!["-%}"], T!["~%}"]]);
         }
         parser.complete(style_m, SyntaxKind::SHOPWARE_ICON_STYLE);
     }
 
-    parser.expect(T!["%}"], &[]);
+    parser.expect_any(TWIG_BLOCK_CLOSE_SET, &[]);
     parser.complete(outer, SyntaxKind::SHOPWARE_ICON)
 }
 
@@ -95,7 +95,7 @@ fn parse_twig_sw_return(parser: &mut Parser, outer: Marker) -> CompletedMarker {
 
     parse_twig_expression(parser);
 
-    parser.expect(T!["%}"], &[]);
+    parser.expect_any(TWIG_BLOCK_CLOSE_SET, &[]);
     parser.complete(outer, SyntaxKind::SHOPWARE_RETURN)
 }
 
@@ -112,9 +112,22 @@ fn parse_twig_sw_silent_feature_call(
         parser.add_error(ParseErrorBuilder::new(
             "twig string as feature flag (shopware doesn't allow expressions here)",
         ));
-        parser.recover(&[T!["endsw_silent_feature_call"], T!["%}"]]);
+        parser.recover(&[
+            T!["endsw_silent_feature_call"],
+            T!["%}"],
+            T!["-%}"],
+            T!["~%}"],
+        ]);
     }
-    parser.expect(T!["%}"], &[T!["endsw_silent_feature_call"], T!["%}"]]);
+    parser.expect_any(
+        TWIG_BLOCK_CLOSE_SET,
+        &[
+            T!["endsw_silent_feature_call"],
+            T!["%}"],
+            T!["-%}"],
+            T!["~%}"],
+        ],
+    );
     let wrapper_m = parser.complete(
         outer,
         SyntaxKind::SHOPWARE_SILENT_FEATURE_CALL_STARTING_BLOCK,
@@ -133,9 +146,20 @@ fn parse_twig_sw_silent_feature_call(
     parser.complete(body_m, SyntaxKind::BODY);
 
     let end_block_m = parser.start();
-    parser.expect(T!["{%"], &[T!["endsw_silent_feature_call"], T!["%}"]]);
-    parser.expect(T!["endsw_silent_feature_call"], &[T!["%}"]]);
-    parser.expect(T!["%}"], &[]);
+    parser.expect_any(
+        TWIG_BLOCK_OPEN_SET,
+        &[
+            T!["endsw_silent_feature_call"],
+            T!["%}"],
+            T!["-%}"],
+            T!["~%}"],
+        ],
+    );
+    parser.expect(
+        T!["endsw_silent_feature_call"],
+        &[T!["%}"], T!["-%}"], T!["~%}"]],
+    );
+    parser.expect_any(TWIG_BLOCK_CLOSE_SET, &[]);
     parser.complete(
         end_block_m,
         SyntaxKind::SHOPWARE_SILENT_FEATURE_CALL_ENDING_BLOCK,
@@ -155,10 +179,10 @@ fn parse_twig_sw_extends(parser: &mut Parser, outer: Marker) -> CompletedMarker 
         parser.add_error(ParseErrorBuilder::new(
             "twig string as template (shopware doesn't allow expressions here)",
         ));
-        parser.recover(&[T!["%}"]]);
+        parser.recover(&[T!["%}"], T!["-%}"], T!["~%}"]]);
     }
 
-    parser.expect(T!["%}"], &[]);
+    parser.expect_any(TWIG_BLOCK_CLOSE_SET, &[]);
     parser.complete(outer, SyntaxKind::SHOPWARE_TWIG_SW_EXTENDS)
 }
 
@@ -168,7 +192,14 @@ fn parse_twig_sw_include(parser: &mut Parser, outer: Marker) -> CompletedMarker 
 
     if parse_twig_expression(parser).is_none() {
         parser.add_error(ParseErrorBuilder::new("twig expression as template name"));
-        parser.recover(&[T!["ignore missing"], T!["with"], T!["only"], T!["%}"]]);
+        parser.recover(&[
+            T!["ignore missing"],
+            T!["with"],
+            T!["only"],
+            T!["%}"],
+            T!["-%}"],
+            T!["~%}"],
+        ]);
     }
 
     if parser.at(T!["ignore missing"]) {
@@ -180,7 +211,7 @@ fn parse_twig_sw_include(parser: &mut Parser, outer: Marker) -> CompletedMarker 
         parser.bump();
         if parse_twig_expression(parser).is_none() {
             parser.add_error(ParseErrorBuilder::new("twig expression as with value"));
-            parser.recover(&[T!["only"], T!["%}"]]);
+            parser.recover(&[T!["only"], T!["%}"], T!["-%}"], T!["~%}"]]);
         }
         parser.complete(with_value_m, SyntaxKind::TWIG_INCLUDE_WITH);
     }
@@ -189,7 +220,7 @@ fn parse_twig_sw_include(parser: &mut Parser, outer: Marker) -> CompletedMarker 
         parser.bump();
     }
 
-    parser.expect(T!["%}"], &[]);
+    parser.expect_any(TWIG_BLOCK_CLOSE_SET, &[]);
 
     parser.complete(outer, SyntaxKind::SHOPWARE_TWIG_SW_INCLUDE)
 }

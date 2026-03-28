@@ -212,12 +212,24 @@ mod tests {
         add("'", T!["'"]);
         add("`", T!["`"]);
         add("{%", T!["{%"]);
+        add("{%-", T!["{%-"]);
+        add("{%~", T!["{%~"]);
         add("%}", T!["%}"]);
+        add("-%}", T!["-%}"]);
+        add("~%}", T!["~%}"]);
         add("{{", T!["{{"]);
+        add("{{-", T!["{{-"]);
+        add("{{~", T!["{{~"]);
         add("}}", T!["}}"]);
+        add("-}}", T!["-}}"]);
+        add("~}}", T!["~}}"]);
         add("{#", T!["{#"]);
+        add("{#-", T!["{#-"]);
+        add("{#~", T!["{#~"]);
         add("#", T!["#"]);
         add("#}", T!["#}"]);
+        add("-#}", T!["-#}"]);
+        add("~#}", T!["~#}"]);
         add("true", T!["true"]);
         add("false", T!["false"]);
         add("block", T!["block"]);
@@ -1113,5 +1125,65 @@ mod tests {
     #[test]
     fn lex_sw_from() {
         check_token("sw_from", T!["sw_from"]);
+    }
+
+    #[test]
+    fn lex_curly_percent_minus() {
+        check_token("{%-", T!["{%-"]);
+    }
+
+    #[test]
+    fn lex_curly_percent_tilde() {
+        check_token("{%~", T!["{%~"]);
+    }
+
+    #[test]
+    fn lex_minus_percent_curly() {
+        check_token("-%}", T!["-%}"]);
+    }
+
+    #[test]
+    fn lex_tilde_percent_curly() {
+        check_token("~%}", T!["~%}"]);
+    }
+
+    #[test]
+    fn lex_open_curly_curly_minus() {
+        check_token("{{-", T!["{{-"]);
+    }
+
+    #[test]
+    fn lex_open_curly_curly_tilde() {
+        check_token("{{~", T!["{{~"]);
+    }
+
+    #[test]
+    fn lex_minus_close_curly_curly() {
+        check_token("-}}", T!["-}}"]);
+    }
+
+    #[test]
+    fn lex_tilde_close_curly_curly() {
+        check_token("~}}", T!["~}}"]);
+    }
+
+    #[test]
+    fn lex_open_curly_hashtag_minus() {
+        check_token("{#-", T!["{#-"]);
+    }
+
+    #[test]
+    fn lex_open_curly_hashtag_tilde() {
+        check_token("{#~", T!["{#~"]);
+    }
+
+    #[test]
+    fn lex_minus_hashtag_close_curly() {
+        check_token("-#}", T!["-#}"]);
+    }
+
+    #[test]
+    fn lex_tilde_hashtag_close_curly() {
+        check_token("~#}", T!["~#}"]);
     }
 }

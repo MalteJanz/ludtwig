@@ -17,7 +17,11 @@ pub(crate) static TWIG_EXPRESSION_RECOVERY_SET: &[SyntaxKind] = &[
     T!["]"],
     T![":"],
     T!["}}"],
+    T!["-}}"],
+    T!["~}}"],
     T!["%}"],
+    T!["-%}"],
+    T!["~%}"],
     T!["("],
     // literals
     T![number],
@@ -201,7 +205,15 @@ fn parse_conditional_expression(
     // truthy expression
     if parse_twig_expression_binding_power(parser, 0).is_none() && !parser.at(T![":"]) {
         parser.add_error(ParseErrorBuilder::new("twig expression or ':'"));
-        parser.recover(&[T![":"], T!["}}"], T!["%}"]]);
+        parser.recover(&[
+            T![":"],
+            T!["}}"],
+            T!["-}}"],
+            T!["~}}"],
+            T!["%}"],
+            T!["-%}"],
+            T!["~%}"],
+        ]);
     }
 
     if parser.at(T![":"]) {
@@ -210,7 +222,14 @@ fn parse_conditional_expression(
         // falsy expression
         if parse_twig_expression_binding_power(parser, 0).is_none() {
             parser.add_error(ParseErrorBuilder::new("twig expression"));
-            parser.recover(&[T!["}}"], T!["%}"]]);
+            parser.recover(&[
+                T!["}}"],
+                T!["-}}"],
+                T!["~}}"],
+                T!["%}"],
+                T!["-%}"],
+                T!["~%}"],
+            ]);
         }
     }
 
