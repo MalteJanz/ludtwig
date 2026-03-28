@@ -19,6 +19,55 @@ use super::untyped::{
     SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken, TemplateLanguage, debug_tree,
 };
 
+pub enum WhitespaceTrimming {
+    /// Whitespace trimming via the `-` modifier: Removes all whitespace (including newlines);
+    RemoveAll,
+    /// Line whitespace trimming via the `~` modifier: Removes all whitespace (excluding newlines).
+    /// Using this modifier on the right disables the default removal of the first newline inherited from PHP.
+    RemoveExceptNewLines,
+}
+
+/// Find the first non-trivia token among direct children of a syntax node.
+fn first_non_trivia_token(syntax: &SyntaxNode) -> Option<SyntaxToken> {
+    syntax
+        .children_with_tokens()
+        .filter_map(NodeOrToken::into_token)
+        .find(|t| !t.kind().is_trivia())
+}
+
+/// Find the last non-trivia token among direct children of a syntax node.
+fn last_non_trivia_token(syntax: &SyntaxNode) -> Option<SyntaxToken> {
+    syntax
+        .children_with_tokens()
+        .filter_map(NodeOrToken::into_token)
+        .filter(|t| !t.kind().is_trivia())
+        .last()
+}
+
+/// Trait for AST nodes that have twig whitespace control modifiers (`-` or `~`)
+/// on their opening and/or closing delimiter tokens.
+pub trait HasWhitespaceControl: AstNode<Language = TemplateLanguage> {
+    /// Returns the whitespace trimming modifier on the opening delimiter (e.g. `{%-`, `{{~`),
+    /// or `None` if no modifier is present.
+    fn leading_ws_control(&self) -> Option<WhitespaceTrimming> {
+        match first_non_trivia_token(self.syntax())?.kind() {
+            T!["{%-"] | T!["{{-"] | T!["{#-"] => Some(WhitespaceTrimming::RemoveAll),
+            T!["{%~"] | T!["{{~"] | T!["{#~"] => Some(WhitespaceTrimming::RemoveExceptNewLines),
+            _ => None,
+        }
+    }
+
+    /// Returns the whitespace trimming modifier on the closing delimiter (e.g. `-%}`, `~}}`),
+    /// or `None` if no modifier is present.
+    fn trailing_ws_control(&self) -> Option<WhitespaceTrimming> {
+        match last_non_trivia_token(self.syntax())?.kind() {
+            T!["-%}"] | T!["-}}"] | T!["-#}"] => Some(WhitespaceTrimming::RemoveAll),
+            T!["~%}"] | T!["~}}"] | T!["~#}"] => Some(WhitespaceTrimming::RemoveExceptNewLines),
+            _ => None,
+        }
+    }
+}
+
 /// So far, we've been working with a homogeneous untyped tree.
 /// It's nice to provide generic tree operations, like traversals,
 /// but it's a bad fit for semantic analysis.
@@ -634,6 +683,61 @@ ast_node!(
 );
 ast_node!(TwigTransEndingBlock, SyntaxKind::TWIG_TRANS_ENDING_BLOCK);
 
+// Implement HasWhitespaceControl for all twig tag AST nodes that have delimiter tokens.
+// {%...%} block tags
+impl HasWhitespaceControl for TwigStartingBlock {}
+impl HasWhitespaceControl for TwigEndingBlock {}
+impl HasWhitespaceControl for TwigIfBlock {}
+impl HasWhitespaceControl for TwigElseIfBlock {}
+impl HasWhitespaceControl for TwigElseBlock {}
+impl HasWhitespaceControl for TwigEndIfBlock {}
+impl HasWhitespaceControl for TwigSetBlock {}
+impl HasWhitespaceControl for TwigEndSetBlock {}
+impl HasWhitespaceControl for TwigForBlock {}
+impl HasWhitespaceControl for TwigForElseBlock {}
+impl HasWhitespaceControl for TwigEndForBlock {}
+impl HasWhitespaceControl for TwigInclude {}
+impl HasWhitespaceControl for TwigUse {}
+impl HasWhitespaceControl for TwigOverride {}
+impl HasWhitespaceControl for TwigApplyStartingBlock {}
+impl HasWhitespaceControl for TwigApplyEndingBlock {}
+impl HasWhitespaceControl for TwigAutoescapeStartingBlock {}
+impl HasWhitespaceControl for TwigAutoescapeEndingBlock {}
+impl HasWhitespaceControl for TwigDeprecated {}
+impl HasWhitespaceControl for TwigDo {}
+impl HasWhitespaceControl for TwigEmbedStartingBlock {}
+impl HasWhitespaceControl for TwigEmbedEndingBlock {}
+impl HasWhitespaceControl for TwigFlush {}
+impl HasWhitespaceControl for TwigFrom {}
+impl HasWhitespaceControl for TwigImport {}
+impl HasWhitespaceControl for TwigExtends {}
+impl HasWhitespaceControl for TwigSandboxStartingBlock {}
+impl HasWhitespaceControl for TwigSandboxEndingBlock {}
+impl HasWhitespaceControl for TwigVerbatimStartingBlock {}
+impl HasWhitespaceControl for TwigVerbatimEndingBlock {}
+impl HasWhitespaceControl for TwigMacroStartingBlock {}
+impl HasWhitespaceControl for TwigMacroEndingBlock {}
+impl HasWhitespaceControl for TwigWithStartingBlock {}
+impl HasWhitespaceControl for TwigWithEndingBlock {}
+impl HasWhitespaceControl for TwigCacheStartingBlock {}
+impl HasWhitespaceControl for TwigCacheEndingBlock {}
+impl HasWhitespaceControl for TwigProps {}
+impl HasWhitespaceControl for TwigComponentStartingBlock {}
+impl HasWhitespaceControl for TwigComponentEndingBlock {}
+impl HasWhitespaceControl for TwigTransStartingBlock {}
+impl HasWhitespaceControl for TwigTransEndingBlock {}
+impl HasWhitespaceControl for TwigAssignment {}
+impl HasWhitespaceControl for ShopwareTwigExtends {}
+impl HasWhitespaceControl for ShopwareTwigInclude {}
+impl HasWhitespaceControl for ShopwareSilentFeatureCallStartingBlock {}
+impl HasWhitespaceControl for ShopwareSilentFeatureCallEndingBlock {}
+impl HasWhitespaceControl for ShopwareReturn {}
+impl HasWhitespaceControl for ShopwareIcon {}
+// {{...}} var tags
+impl HasWhitespaceControl for TwigVar {}
+// {#...#} comment tags
+impl HasWhitespaceControl for TwigComment {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -721,5 +825,84 @@ mod tests {
                 .map(|t| t.to_string()),
             Some("hello".to_string())
         );
+    }
+
+    #[test]
+    fn whitespace_control_block_tag() {
+        // no modifiers
+        let block: TwigBlock = parse_and_extract("{% block foo %}{% endblock %}");
+        let starting = block.starting_block().unwrap();
+        assert!(starting.leading_ws_control().is_none());
+        assert!(starting.trailing_ws_control().is_none());
+
+        // minus on both sides
+        let block: TwigBlock = parse_and_extract("{%- block foo -%}{%- endblock -%}");
+        let starting = block.starting_block().unwrap();
+        let ending = block.ending_block().unwrap();
+        assert!(matches!(
+            starting.leading_ws_control(),
+            Some(WhitespaceTrimming::RemoveAll)
+        ));
+        assert!(matches!(
+            starting.trailing_ws_control(),
+            Some(WhitespaceTrimming::RemoveAll)
+        ));
+        assert!(matches!(
+            ending.leading_ws_control(),
+            Some(WhitespaceTrimming::RemoveAll)
+        ));
+        assert!(matches!(
+            ending.trailing_ws_control(),
+            Some(WhitespaceTrimming::RemoveAll)
+        ));
+
+        // tilde on both sides
+        let block: TwigBlock = parse_and_extract("{%~ block foo ~%}{%~ endblock ~%}");
+        let starting = block.starting_block().unwrap();
+        assert!(matches!(
+            starting.leading_ws_control(),
+            Some(WhitespaceTrimming::RemoveExceptNewLines)
+        ));
+        assert!(matches!(
+            starting.trailing_ws_control(),
+            Some(WhitespaceTrimming::RemoveExceptNewLines)
+        ));
+
+        // mixed: tilde leading, minus trailing
+        let block: TwigBlock = parse_and_extract("{%~ block foo -%}{% endblock %}");
+        let starting = block.starting_block().unwrap();
+        assert!(matches!(
+            starting.leading_ws_control(),
+            Some(WhitespaceTrimming::RemoveExceptNewLines)
+        ));
+        assert!(matches!(
+            starting.trailing_ws_control(),
+            Some(WhitespaceTrimming::RemoveAll)
+        ));
+    }
+
+    #[test]
+    fn whitespace_control_var_and_comment() {
+        // var tag with minus
+        let var: TwigVar = parse_and_extract("{{- name -}}");
+        assert!(matches!(
+            var.leading_ws_control(),
+            Some(WhitespaceTrimming::RemoveAll)
+        ));
+        assert!(matches!(
+            var.trailing_ws_control(),
+            Some(WhitespaceTrimming::RemoveAll)
+        ));
+
+        // comment tag with tilde
+        let comment: TwigComment = parse_and_extract("{#~ a comment ~#}");
+        assert!(matches!(
+            comment.leading_ws_control(),
+            Some(WhitespaceTrimming::RemoveExceptNewLines)
+        ));
+        assert!(matches!(
+            comment.trailing_ws_control(),
+            Some(WhitespaceTrimming::RemoveExceptNewLines)
+        ));
     }
 }

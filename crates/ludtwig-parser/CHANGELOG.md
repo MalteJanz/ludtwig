@@ -1,5 +1,7 @@
 # NEXT-VERSION
 
+- [#178](https://github.com/MalteJanz/ludtwig/pull/178) Add full twig whitespace token support (e.g. `{%-` or `{%~`)
+
 # v0.9.0
 
 - [#173](https://github.com/MalteJanz/ludtwig/pull/173) Add support for Shopware tokens `sw_use`, `sw_embed`, `sw_from` and `sw_import`.
