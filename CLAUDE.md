@@ -48,7 +48,7 @@ Two crates in `crates/`:
 
 ### Changelog
 
-When making changes, add a changelog entry under `# NEXT-VERSION` in the affected crate's `CHANGELOG.md`. Link a GitHub issue or PR number when available (e.g. `[#149](https://github.com/MalteJanz/ludtwig/issues/149)`). See existing entries for style reference.
+When making changes, add a changelog entry under `# NEXT-VERSION` in the affected crate's `CHANGELOG.md`. Link a GitHub issue or PR number when available, preferring issues over PRs if both exist (e.g. `[#149](https://github.com/MalteJanz/ludtwig/issues/149)`). See existing entries for style reference.
 
 ### Adding a new rule
 
