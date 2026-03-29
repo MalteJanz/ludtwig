@@ -1,5 +1,7 @@
 # NEXT-VERSION
 
+- [#149](https://github.com/MalteJanz/ludtwig/issues/149) Fixed indentation being incorrectly modified inside `<script>` and `<style>` tags by treating them as trivia-sensitive (like `<pre>` and `<textarea>`)
+
 # v0.12.0
 
 - Bumped version of `ludtwig-parser` to `0.9.0`

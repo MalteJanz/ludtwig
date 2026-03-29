@@ -46,6 +46,10 @@ Two crates in `crates/`:
 - **Rule implementations**: one file per rule in `check/rules/`. Rules are registered in a static `RULE_DEFINITIONS` array in `check/rules.rs`.
 - **Suggestion application** (`process.rs`): iterative loop (max 10 passes) — apply non-overlapping suggestions, re-parse, re-check until stable.
 
+### Changelog
+
+When making changes, add a changelog entry under `# NEXT-VERSION` in the affected crate's `CHANGELOG.md`. Link a GitHub issue or PR number when available, preferring issues over PRs if both exist (e.g. `[#149](https://github.com/MalteJanz/ludtwig/issues/149)`). See existing entries for style reference.
+
 ### Adding a new rule
 
 1. Create `crates/ludtwig/src/check/rules/your_rule.rs` implementing the `Rule` trait

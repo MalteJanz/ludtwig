@@ -248,7 +248,9 @@ impl RuleIndentation {
         walk_mode: WalkMode,
     ) {
         if let Some(t) = HtmlTag::cast(n.clone()) {
-            if let Some("pre" | "textarea") = t.name().as_ref().map(SyntaxToken::text) {
+            if let Some("pre" | "textarea" | "script" | "style") =
+                t.name().as_ref().map(SyntaxToken::text)
+            {
                 match walk_mode {
                     WalkMode::Enter => {
                         *inside_trivia_sensitive_node = true;
@@ -427,6 +429,33 @@ mod tests {
                    │ Change indentation to 4 spaces:     
 
             "]],
+        );
+    }
+
+    #[test]
+    fn rule_does_not_report_trivia_sensitive_script_and_style() {
+        test_rule(
+            "indentation",
+            r#"<script>
+    console.log("root");
+
+    if (foo) {
+        console.log("nested");
+        if (nested2) {
+            console.log("nested");
+        }
+    }
+</script>
+
+<style>
+    .foo {
+        color: red;
+        .bar {
+            color: blue;
+        }
+    }
+</style>"#,
+            expect![[r""]],
         );
     }
 
