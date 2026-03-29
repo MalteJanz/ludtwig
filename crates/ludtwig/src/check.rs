@@ -95,7 +95,7 @@ pub fn run_rules(file_context: &FileContext) -> Vec<CheckResult> {
                         {
                             run_context.traversal_ctx.inside_trivia_sensitive_node = true;
                         } else if let Some(t) = HtmlTag::cast(n.clone()) {
-                            if let Some("pre" | "textarea") =
+                            if let Some("pre" | "textarea" | "script" | "style") =
                                 t.name().as_ref().map(SyntaxToken::text)
                             {
                                 run_context.traversal_ctx.inside_trivia_sensitive_node = true;
@@ -159,7 +159,9 @@ pub fn run_rules(file_context: &FileContext) -> Vec<CheckResult> {
                     {
                         run_context.traversal_ctx.inside_trivia_sensitive_node = false;
                     } else if let Some(t) = HtmlTag::cast(n) {
-                        if let Some("pre" | "textarea") = t.name().as_ref().map(SyntaxToken::text) {
+                        if let Some("pre" | "textarea" | "script" | "style") =
+                            t.name().as_ref().map(SyntaxToken::text)
+                        {
                             run_context.traversal_ctx.inside_trivia_sensitive_node = false;
                         }
                     }
