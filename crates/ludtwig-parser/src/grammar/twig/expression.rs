@@ -1248,6 +1248,134 @@ mod tests {
     }
 
     #[test]
+    fn parse_twig_expression_is_same_as_no_parens() {
+        check_parse(
+            r"{{ foo is same as 0 }}",
+            expect![[r#"
+                ROOT@0..22
+                  TWIG_VAR@0..22
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..19
+                      TWIG_BINARY_EXPRESSION@2..19
+                        TWIG_EXPRESSION@2..6
+                          TWIG_LITERAL_NAME@2..6
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..6 "foo"
+                        TK_WHITESPACE@6..7 " "
+                        TK_IS@7..9 "is"
+                        TWIG_EXPRESSION@9..19
+                          TWIG_FUNCTION_CALL@9..19
+                            TWIG_OPERAND@9..17
+                              TWIG_LITERAL_NAME@9..17
+                                TK_WHITESPACE@9..10 " "
+                                TK_WORD@10..17 "same as"
+                            TWIG_ARGUMENTS@17..19
+                              TWIG_EXPRESSION@17..19
+                                TWIG_LITERAL_NUMBER@17..19
+                                  TK_WHITESPACE@17..18 " "
+                                  TK_NUMBER@18..19 "0"
+                    TK_WHITESPACE@19..20 " "
+                    TK_CLOSE_CURLY_CURLY@20..22 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_expression_is_same_as_no_parens_variable() {
+        check_parse(
+            r"{{ foo is same as bar }}",
+            expect![[r#"
+                ROOT@0..24
+                  TWIG_VAR@0..24
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..21
+                      TWIG_BINARY_EXPRESSION@2..21
+                        TWIG_EXPRESSION@2..6
+                          TWIG_LITERAL_NAME@2..6
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..6 "foo"
+                        TK_WHITESPACE@6..7 " "
+                        TK_IS@7..9 "is"
+                        TWIG_EXPRESSION@9..21
+                          TWIG_FUNCTION_CALL@9..21
+                            TWIG_OPERAND@9..17
+                              TWIG_LITERAL_NAME@9..17
+                                TK_WHITESPACE@9..10 " "
+                                TK_WORD@10..17 "same as"
+                            TWIG_ARGUMENTS@17..21
+                              TWIG_EXPRESSION@17..21
+                                TWIG_LITERAL_NAME@17..21
+                                  TK_WHITESPACE@17..18 " "
+                                  TK_WORD@18..21 "bar"
+                    TK_WHITESPACE@21..22 " "
+                    TK_CLOSE_CURLY_CURLY@22..24 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_expression_is_divisible_by_no_parens() {
+        check_parse(
+            r"{{ foo is divisible by 3 }}",
+            expect![[r#"
+                ROOT@0..27
+                  TWIG_VAR@0..27
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..24
+                      TWIG_BINARY_EXPRESSION@2..24
+                        TWIG_EXPRESSION@2..6
+                          TWIG_LITERAL_NAME@2..6
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..6 "foo"
+                        TK_WHITESPACE@6..7 " "
+                        TK_IS@7..9 "is"
+                        TWIG_EXPRESSION@9..24
+                          TWIG_FUNCTION_CALL@9..24
+                            TWIG_OPERAND@9..22
+                              TWIG_LITERAL_NAME@9..22
+                                TK_WHITESPACE@9..10 " "
+                                TK_WORD@10..22 "divisible by"
+                            TWIG_ARGUMENTS@22..24
+                              TWIG_EXPRESSION@22..24
+                                TWIG_LITERAL_NUMBER@22..24
+                                  TK_WHITESPACE@22..23 " "
+                                  TK_NUMBER@23..24 "3"
+                    TK_WHITESPACE@24..25 " "
+                    TK_CLOSE_CURLY_CURLY@25..27 "}}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_expression_is_not_same_as_no_parens() {
+        check_parse(
+            r"{{ foo is not same as 0 }}",
+            expect![[r#"
+                ROOT@0..26
+                  TWIG_VAR@0..26
+                    TK_OPEN_CURLY_CURLY@0..2 "{{"
+                    TWIG_EXPRESSION@2..23
+                      TWIG_BINARY_EXPRESSION@2..23
+                        TWIG_EXPRESSION@2..6
+                          TWIG_LITERAL_NAME@2..6
+                            TK_WHITESPACE@2..3 " "
+                            TK_WORD@3..6 "foo"
+                        TK_WHITESPACE@6..7 " "
+                        TK_IS_NOT@7..13 "is not"
+                        TWIG_EXPRESSION@13..23
+                          TWIG_FUNCTION_CALL@13..23
+                            TWIG_OPERAND@13..21
+                              TWIG_LITERAL_NAME@13..21
+                                TK_WHITESPACE@13..14 " "
+                                TK_WORD@14..21 "same as"
+                            TWIG_ARGUMENTS@21..23
+                              TWIG_EXPRESSION@21..23
+                                TWIG_LITERAL_NUMBER@21..23
+                                  TK_WHITESPACE@21..22 " "
+                                  TK_NUMBER@22..23 "0"
+                    TK_WHITESPACE@23..24 " "
+                    TK_CLOSE_CURLY_CURLY@24..26 "}}""#]],
+        );
+    }
+
+    #[test]
     fn parse_twig_unary_filter() {
         // The abs filter should apply to '5' and is then negated
         check_parse(
