@@ -26,6 +26,7 @@ pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker>
         Some(parse_twig_hash(parser))
     } else {
         // literal name
+        let token_kind = parser.peek_token().map(|t| t.kind);
         let mut node = parse_twig_name(parser)?;
 
         // check for optional function call or arrow function
@@ -36,6 +37,11 @@ pub(crate) fn parse_twig_literal(parser: &mut Parser) -> Option<CompletedMarker>
             let m = parser.precede(node);
             let last_node = parser.complete(m, SyntaxKind::TWIG_ARGUMENTS);
             node = parse_twig_arrow_function(parser, last_node);
+        } else if matches!(token_kind, Some(T!["same as"] | T!["divisible by"])) {
+            // Support parentheses-optional syntax for twig tests like `is same as 0`
+            // Parse the following expression as an implicit argument,
+            // producing the same TWIG_FUNCTION_CALL tree as the parenthesized form.
+            node = parse_twig_test_implicit_argument(parser, node);
         }
 
         Some(node)
@@ -404,6 +410,28 @@ pub(crate) fn parse_twig_function(
     parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
 
     // complete the outer marker
+    parser.complete(outer, SyntaxKind::TWIG_FUNCTION_CALL)
+}
+
+/// Parses an implicit (no parentheses) argument for twig test expressions like `is same as 0`.
+/// Produces the same `TWIG_FUNCTION_CALL` tree structure as the parenthesized form.
+fn parse_twig_test_implicit_argument(
+    parser: &mut Parser,
+    last_node: CompletedMarker,
+) -> CompletedMarker {
+    // wrap last_node in an operand and create outer marker (same as parse_twig_function)
+    let m = parser.precede(last_node);
+    let operand = parser.complete(m, SyntaxKind::TWIG_OPERAND);
+    let outer = parser.precede(operand);
+
+    // parse the single argument expression without parentheses
+    let arguments_m = parser.start();
+    if parse_twig_expression(parser).is_none() {
+        parser.add_error(ParseErrorBuilder::new("argument for twig test"));
+        parser.recover(TWIG_EXPRESSION_RECOVERY_SET);
+    }
+    parser.complete(arguments_m, SyntaxKind::TWIG_ARGUMENTS);
+
     parser.complete(outer, SyntaxKind::TWIG_FUNCTION_CALL)
 }
 
