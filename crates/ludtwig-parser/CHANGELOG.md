@@ -1,5 +1,6 @@
 # NEXT-VERSION
 
+- [#179](https://github.com/MalteJanz/ludtwig/pull/179) Support parentheses-optional syntax for `same as` and `divisible by` twig tests (e.g. `is same as 0`)
 - [#178](https://github.com/MalteJanz/ludtwig/pull/178) Add full twig whitespace token support (e.g. `{%-` or `{%~`)
 
 # v0.9.0
