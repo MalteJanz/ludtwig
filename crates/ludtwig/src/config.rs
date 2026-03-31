@@ -14,12 +14,22 @@ pub struct Config {
     pub version: String,
     pub general: General,
     pub format: Format,
+    pub twig: Twig,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct General {
     pub active_rules: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+#[serde(rename_all = "kebab-case")]
+#[allow(clippy::struct_field_names)]
+pub struct Twig {
+    pub valid_filters: Vec<String>,
+    pub valid_tests: Vec<String>,
+    pub valid_functions: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
