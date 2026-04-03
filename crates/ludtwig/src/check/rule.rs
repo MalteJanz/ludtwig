@@ -1,5 +1,6 @@
 use crate::{CliSharedData, Config};
-use ludtwig_parser::syntax::untyped::{SyntaxNode, SyntaxToken, TextRange};
+use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveIgnore};
+use ludtwig_parser::syntax::untyped::{Preorder, SyntaxNode, SyntaxToken, TextRange};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
@@ -54,6 +55,19 @@ pub trait Rule: Sync {
 pub trait RuleExt: Rule {
     /// Create a result for the corresponding rule.
     fn create_result<S: Into<String>>(&self, severity: Severity, message: S) -> CheckResult;
+
+    /// Helper for `check_root` implementations: check if a `LudtwigDirectiveIgnore` applies
+    /// when entering a node. Returns `true` if the subtree was skipped entirely (blanket ignore).
+    fn check_for_rule_ignore_enter(
+        &self,
+        is_ignored: &mut bool,
+        tree_iter: &mut Preorder,
+        n: &SyntaxNode,
+    ) -> bool;
+
+    /// Helper for `check_root` implementations: reset the ignore flag when leaving a node
+    /// whose previous sibling was a `LudtwigDirectiveIgnore` targeting this rule.
+    fn check_for_rule_ignore_leave(&self, is_ignored: &mut bool, n: &SyntaxNode);
 }
 
 impl<R: Rule> RuleExt for R {
@@ -65,6 +79,43 @@ impl<R: Rule> RuleExt for R {
             primary: None,
             secondary: vec![],
             suggestions: vec![],
+        }
+    }
+
+    fn check_for_rule_ignore_enter(
+        &self,
+        is_ignored: &mut bool,
+        tree_iter: &mut Preorder,
+        n: &SyntaxNode,
+    ) -> bool {
+        if let Some(node) = n.prev_sibling() {
+            if let Some(directive) = LudtwigDirectiveIgnore::cast(node) {
+                let ignored_rules = directive.get_rules();
+                if ignored_rules.is_empty() {
+                    // all rules are disabled
+                    tree_iter.skip_subtree();
+                    return true;
+                }
+
+                if ignored_rules.iter().any(|r| r == self.name()) {
+                    // this rule is now ignored
+                    *is_ignored = true;
+                }
+            }
+        }
+        false
+    }
+
+    fn check_for_rule_ignore_leave(&self, is_ignored: &mut bool, n: &SyntaxNode) {
+        if let Some(node) = n.prev_sibling() {
+            if let Some(directive) = LudtwigDirectiveIgnore::cast(node) {
+                let ignored_rules = directive.get_rules();
+
+                if ignored_rules.iter().any(|r| r == self.name()) {
+                    // this rule is no longer ignored
+                    *is_ignored = false;
+                }
+            }
         }
     }
 }

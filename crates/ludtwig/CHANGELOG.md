@@ -6,7 +6,7 @@
 - [#65](https://github.com/MalteJanz/ludtwig/issues/65) Added new rule `twig-valid-filter` to validate twig filter names against a configurable allowlist
 - [#66](https://github.com/MalteJanz/ludtwig/issues/66) Added new rule `twig-valid-test` to validate twig test names (used with `is` / `is not`) against a configurable allowlist
 - [#67](https://github.com/MalteJanz/ludtwig/issues/67) Added new rule `twig-valid-function` to validate twig standalone function names against a configurable allowlist
-- Added new `[twig]` configuration section with `valid-filters`, `valid-tests`, and `valid-functions` lists (pre-populated with Twig 3.x built-ins. Symfony and Shopware extensions commented out)
+- Added new `[twig]` configuration section with `valid-filters`, `valid-tests`, and `valid-functions` lists (pre-populated with Twig 3.x built-ins; Symfony and Shopware extensions commented out)
 
 # v0.12.0
 

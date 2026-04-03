@@ -57,6 +57,16 @@ When making changes, add a changelog entry under `# NEXT-VERSION` in the affecte
 3. Add it to the `active-rules` list in `ludtwig-config.toml`
 4. Write tests using `test_rule()` and `test_rule_fix()` helpers from `check/rules/test`
 
+#### `check_root` vs `check_node`/`check_token`
+
+Rules using `check_node` or `check_token` get ignore-directive handling for free from the framework in `check.rs`. Rules using `check_root` must handle it themselves by calling the shared helpers `check_for_rule_ignore_enter` and `check_for_rule_ignore_leave` from `RuleExt` during tree traversal. They must also skip `SyntaxKind::ERROR` nodes manually. See `html_duplicate_id.rs` or `twig_block_duplicate.rs` for the pattern.
+
+Every `check_root` rule should include tests for ignore-directive handling:
+- Specific ignore (`{# ludtwig-ignore <rule-name> #}`) suppresses the diagnostic
+- Blanket ignore (`{# ludtwig-ignore #}`) skips the subtree
+- Diagnostics are still reported after the ignore directive's scope ends
+- Ignoring a different rule name does not suppress this rule
+
 ### Testing patterns
 
 - **Snapshot tests**: uses `expect-test` crate — call `.assert_eq()` on expected strings, run tests with `UPDATE_EXPECT=1` to auto-update snapshots

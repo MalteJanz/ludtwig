@@ -1,7 +1,7 @@
 use ludtwig_parser::syntax::typed::{
     AstNode, TwigAssignment, TwigForBlock, TwigLiteralName, support,
 };
-use ludtwig_parser::syntax::untyped::SyntaxNode;
+use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxNode};
 
 use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 
@@ -13,15 +13,17 @@ impl Rule for RuleTwigVariableNameCamelCase {
     }
 
     fn check_node(&self, node: SyntaxNode, _ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
-        if let Some(assignment) = TwigAssignment::cast(node.clone()) {
-            return check_literal_names(self, assignment.syntax());
+        match node.kind() {
+            SyntaxKind::TWIG_ASSIGNMENT => {
+                let assignment = TwigAssignment::cast(node)?;
+                check_literal_names(self, assignment.syntax())
+            }
+            SyntaxKind::TWIG_FOR_BLOCK => {
+                let for_block = TwigForBlock::cast(node)?;
+                check_literal_names(self, for_block.syntax())
+            }
+            _ => None,
         }
-
-        if let Some(for_block) = TwigForBlock::cast(node) {
-            return check_literal_names(self, for_block.syntax());
-        }
-
-        None
     }
 }
 

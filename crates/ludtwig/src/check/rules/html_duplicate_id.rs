@@ -1,5 +1,5 @@
-use ludtwig_parser::syntax::typed::{AstNode, HtmlAttribute, LudtwigDirectiveIgnore};
-use ludtwig_parser::syntax::untyped::{Preorder, SyntaxKind, SyntaxNode, WalkEvent};
+use ludtwig_parser::syntax::typed::{AstNode, HtmlAttribute};
+use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxNode, WalkEvent};
 use std::collections::HashMap;
 
 use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
@@ -96,42 +96,6 @@ impl Rule for RuleHtmlDuplicateId {
     }
 }
 
-impl RuleHtmlDuplicateId {
-    fn check_for_rule_ignore_enter(
-        &self,
-        is_ignored: &mut bool,
-        tree_iter: &mut Preorder,
-        n: &SyntaxNode,
-    ) -> bool {
-        if let Some(node) = n.prev_sibling() {
-            if let Some(directive) = LudtwigDirectiveIgnore::cast(node) {
-                let ignored_rules = directive.get_rules();
-                if ignored_rules.is_empty() {
-                    tree_iter.skip_subtree();
-                    return true;
-                }
-
-                if ignored_rules.iter().any(|r| r == self.name()) {
-                    *is_ignored = true;
-                }
-            }
-        }
-        false
-    }
-
-    fn check_for_rule_ignore_leave(&self, is_ignored: &mut bool, n: &SyntaxNode) {
-        if let Some(node) = n.prev_sibling() {
-            if let Some(directive) = LudtwigDirectiveIgnore::cast(node) {
-                let ignored_rules = directive.get_rules();
-
-                if ignored_rules.iter().any(|r| r == self.name()) {
-                    *is_ignored = false;
-                }
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use expect_test::expect;
@@ -177,6 +141,73 @@ mod tests {
             r#"<div id="item-{{ id }}"></div>
 <span id="item-{{ id }}"></span>"#,
             expect![""],
+        );
+    }
+
+    #[test]
+    fn rule_ignores_with_specific_rule_directive() {
+        test_rule(
+            "html-duplicate-id",
+            r#"<div id="foo"></div>
+{# ludtwig-ignore html-duplicate-id #}
+<p id="foo"></p>"#,
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn rule_ignores_with_blanket_directive() {
+        test_rule(
+            "html-duplicate-id",
+            r#"<div id="foo"></div>
+{# ludtwig-ignore #}
+<p id="foo"></p>"#,
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn rule_still_reports_after_ignore_directive_scope() {
+        test_rule(
+            "html-duplicate-id",
+            r#"<div id="foo"></div>
+<div>
+    {# ludtwig-ignore html-duplicate-id #}
+    <span id="foo"></span>
+</div>
+<p id="foo"></p>"#,
+            expect![[r#"
+                warning[html-duplicate-id]: duplicate HTML element id attribute value
+                  ┌─ ./debug-rule.html.twig:6:8
+                  │
+                1 │ <div id="foo"></div>
+                  │          --- first defined here
+                  ·
+                6 │ <p id="foo"></p>
+                  │        ^^^ duplicate id 'foo'
+
+            "#]],
+        );
+    }
+
+    #[test]
+    fn rule_ignores_only_targeted_rule() {
+        test_rule(
+            "html-duplicate-id",
+            r#"<div id="foo"></div>
+{# ludtwig-ignore some-other-rule #}
+<p id="foo"></p>"#,
+            expect![[r#"
+                warning[html-duplicate-id]: duplicate HTML element id attribute value
+                  ┌─ ./debug-rule.html.twig:3:8
+                  │
+                1 │ <div id="foo"></div>
+                  │          --- first defined here
+                2 │ {# ludtwig-ignore some-other-rule #}
+                3 │ <p id="foo"></p>
+                  │        ^^^ duplicate id 'foo'
+
+            "#]],
         );
     }
 
