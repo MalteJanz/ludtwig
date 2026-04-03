@@ -35,7 +35,13 @@ impl Rule for RuleTwigValidFunction {
                 if let Some(binary_expr) = TwigBinaryExpression::cast(grandparent) {
                     if let Some(op) = binary_expr.operator() {
                         if op.kind() == T!["is"] || op.kind() == T!["is not"] {
-                            return None;
+                            // Only skip if the function call is on the RHS (i.e. it's a test, not a real function)
+                            if binary_expr
+                                .rhs_expression()
+                                .is_some_and(|rhs| *rhs.syntax() == parent)
+                            {
+                                return None;
+                            }
                         }
                     }
                 }
@@ -117,6 +123,47 @@ mod tests {
         test_rule(
             "twig-valid-function",
             "{% if foo is not divisible by(3) %}{% endif %}",
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn rule_reports_unknown_function_on_lhs_of_is() {
+        test_rule(
+            "twig-valid-function",
+            "{% if unknown_func(var) is defined %}{% endif %}",
+            expect![[r#"
+                warning[twig-valid-function]: unknown twig function 'unknown_func'
+                  ┌─ ./debug-rule.html.twig:1:7
+                  │
+                1 │ {% if unknown_func(var) is defined %}{% endif %}
+                  │       ^^^^^^^^^^^^ this function is not in the valid-functions config
+
+            "#]],
+        );
+    }
+
+    #[test]
+    fn rule_reports_unknown_function_on_lhs_of_is_not() {
+        test_rule(
+            "twig-valid-function",
+            "{% if unknown_func(var) is not defined %}{% endif %}",
+            expect![[r#"
+                warning[twig-valid-function]: unknown twig function 'unknown_func'
+                  ┌─ ./debug-rule.html.twig:1:7
+                  │
+                1 │ {% if unknown_func(var) is not defined %}{% endif %}
+                  │       ^^^^^^^^^^^^ this function is not in the valid-functions config
+
+            "#]],
+        );
+    }
+
+    #[test]
+    fn rule_does_not_report_known_function_on_lhs_of_is() {
+        test_rule(
+            "twig-valid-function",
+            "{% if dump(var) is defined %}{% endif %}",
             expect![""],
         );
     }
