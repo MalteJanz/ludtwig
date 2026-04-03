@@ -176,4 +176,12 @@ mod tests {
             expect![""],
         );
     }
+
+    #[test]
+    fn rule_does_not_report_method_call_on_object() {
+        // `foo.bar()` is a method call via accessor, not a standalone function call.
+        // The name_operand contains a TwigAccessor (not a plain TwigLiteralName),
+        // so the rule bails out early and emits no warning.
+        test_rule("twig-valid-function", "{{ foo.bar() }}", expect![""]);
+    }
 }

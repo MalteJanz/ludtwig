@@ -23,8 +23,8 @@ pub struct General {
     pub active_rules: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Default, Deserialize, PartialEq, Eq, Clone)]
+#[serde(rename_all = "kebab-case", default)]
 #[allow(clippy::struct_field_names)]
 pub struct Twig {
     pub valid_filters: Vec<String>,
@@ -230,5 +230,85 @@ pub fn handle_config_or_exit(opts: &Opts) -> Config {
             eprintln!("{e}");
             std::process::exit(1)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use figment::Figment;
+    use figment::providers::{Format as FigFormat, Toml};
+
+    use super::*;
+
+    fn load_config_from_str(user_config: &str) -> Config {
+        Figment::new()
+            .merge(Toml::string(
+                &DEFAULT_RAW_CONFIG.replace("{{LUDTWIG_VERSION}}", LUDTWIG_VERSION),
+            ))
+            .merge(Toml::string(user_config))
+            .extract()
+            .expect("config should deserialize without error")
+    }
+
+    #[test]
+    fn config_without_twig_section_uses_embedded_defaults() {
+        // A user config that predates the [twig] section should still load fine;
+        // figment fills in the missing keys from the embedded defaults.
+        let config = load_config_from_str(
+            r#"
+            version = "0.0.0"
+            [general]
+            active-rules = []
+            "#,
+        );
+
+        // The embedded defaults contain non-empty lists, so the loaded config
+        // must contain at least the built-in entries.
+        assert!(
+            !config.twig.valid_filters.is_empty(),
+            "valid_filters should be populated from embedded defaults"
+        );
+        assert!(
+            !config.twig.valid_tests.is_empty(),
+            "valid_tests should be populated from embedded defaults"
+        );
+        assert!(
+            !config.twig.valid_functions.is_empty(),
+            "valid_functions should be populated from embedded defaults"
+        );
+    }
+
+    #[test]
+    fn config_with_partial_twig_section_fills_in_missing_keys() {
+        // A user config that only overrides one [twig] key should get
+        // the other keys filled in from the embedded defaults.
+        let config = load_config_from_str(
+            r#"
+            version = "0.0.0"
+            [twig]
+            valid-filters = ["my_custom_filter"]
+            "#,
+        );
+
+        assert_eq!(config.twig.valid_filters, vec!["my_custom_filter"]);
+        assert!(
+            !config.twig.valid_tests.is_empty(),
+            "valid_tests should be populated from embedded defaults when not overridden"
+        );
+        assert!(
+            !config.twig.valid_functions.is_empty(),
+            "valid_functions should be populated from embedded defaults when not overridden"
+        );
+    }
+
+    #[test]
+    fn twig_default_is_empty_vecs() {
+        // Twig::default() returns empty vecs as a last-resort fallback;
+        // in practice this is never reached because the embedded config always
+        // provides values, but it ensures deserialization never hard-fails.
+        let default = Twig::default();
+        assert!(default.valid_filters.is_empty());
+        assert!(default.valid_tests.is_empty());
+        assert!(default.valid_functions.is_empty());
     }
 }

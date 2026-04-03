@@ -102,4 +102,20 @@ mod tests {
     fn rule_does_not_report_chained_known_filters() {
         test_rule("twig-valid-filter", "{{ name|lower|upper }}", expect![""]);
     }
+
+    #[test]
+    fn rule_reports_unknown_filter_in_chain_but_not_known_ones() {
+        test_rule(
+            "twig-valid-filter",
+            "{{ name|lower|unknown_custom }}",
+            expect![[r#"
+                warning[twig-valid-filter]: unknown twig filter 'unknown_custom'
+                  ┌─ ./debug-rule.html.twig:1:15
+                  │
+                1 │ {{ name|lower|unknown_custom }}
+                  │               ^^^^^^^^^^^^^^ this filter is not in the valid-filters config
+
+            "#]],
+        );
+    }
 }

@@ -172,4 +172,40 @@ mod tests {
             expect![""],
         );
     }
+
+    #[test]
+    fn rule_does_not_report_rhs_variable_in_set() {
+        // The RHS of a `set` assignment is not a variable definition, so it must not be flagged
+        test_rule(
+            "twig-variable-name-camel-case",
+            r"{% set myVar = snake_case_rhs %}",
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn rule_does_not_report_collection_in_for_loop() {
+        // The iterable in a `for` loop is not a variable definition, so it must not be flagged
+        test_rule(
+            "twig-variable-name-camel-case",
+            r"{% for item in snake_items %}{% endfor %}",
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn rule_reports_upper_camel_case_set() {
+        test_rule(
+            "twig-variable-name-camel-case",
+            r"{% set MyVar = 'hello' %}",
+            expect![[r#"
+                help[twig-variable-name-camel-case]: twig variable name is not in camelCase
+                  ┌─ ./debug-rule.html.twig:1:8
+                  │
+                1 │ {% set MyVar = 'hello' %}
+                  │        ^^^^^ rename 'MyVar' to camelCase
+
+            "#]],
+        );
+    }
 }
