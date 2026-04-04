@@ -20,7 +20,7 @@ use crate::check::rules::twig_use_is_same_as::RuleTwigUseIsSameAs;
 use crate::check::rules::twig_valid_filter::RuleTwigValidFilter;
 use crate::check::rules::twig_valid_function::RuleTwigValidFunction;
 use crate::check::rules::twig_valid_test::RuleTwigValidTest;
-use crate::check::rules::twig_variable_name_camel_case::RuleTwigVariableNameCamelCase;
+use crate::check::rules::twig_variable_definition_naming::RuleTwigVariableDefinitionNaming;
 use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
 use crate::error::ConfigurationError;
 use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveFileIgnore};
@@ -46,7 +46,7 @@ mod twig_use_is_same_as;
 mod twig_valid_filter;
 mod twig_valid_function;
 mod twig_valid_test;
-mod twig_variable_name_camel_case;
+mod twig_variable_definition_naming;
 mod whitespace_between_line_breaks;
 
 /// List of all rule trait objects, also add them to the `active-rules` in `ludtwig-config.toml`!
@@ -69,7 +69,7 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleTwigBlockDuplicate,
     &RuleTwigJsonEncodeEscapeJs,
     &RuleHtmlDuplicateId,
-    &RuleTwigVariableNameCamelCase,
+    &RuleTwigVariableDefinitionNaming,
     &RuleTwigValidFilter,
     &RuleTwigValidTest,
     &RuleTwigValidFunction,

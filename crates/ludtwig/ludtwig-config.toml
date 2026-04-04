@@ -48,7 +48,7 @@ active-rules = [
     "twig-block-duplicate",
     "twig-json-encode-escape-js",
     "html-duplicate-id",
-    "twig-variable-name-camel-case",
+    "twig-variable-definition-naming",
     "twig-valid-filter",
     "twig-valid-test",
     "twig-valid-function",
