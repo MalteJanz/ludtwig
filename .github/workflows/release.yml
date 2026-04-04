@@ -29,7 +29,7 @@ jobs:
       - name: Save version from tag
         id: get_version
         shell: bash
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build artifacts
@@ -129,12 +129,12 @@ jobs:
       - name: Publish ludtwig-parser
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
-        run: cargo publish --token ${CRATES_TOKEN} -p ludtwig-parser
+        run: cargo publish --token "${CRATES_TOKEN}" -p ludtwig-parser
 
       - name: Publish ludtwig
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
-        run: cargo publish --token ${CRATES_TOKEN} -p ludtwig
+        run: cargo publish --token "${CRATES_TOKEN}" -p ludtwig
 
 
   publish_docker:
