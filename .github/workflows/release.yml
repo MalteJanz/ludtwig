@@ -29,7 +29,7 @@ jobs:
       - name: Save version from tag
         id: get_version
         shell: bash
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build artifacts
@@ -57,12 +57,12 @@ jobs:
             output_ending: .zip
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install latest stable Rust version
         uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
 
       - name: Final cargo test
         run: cargo test --verbose --all-features
@@ -86,7 +86,7 @@ jobs:
         if: matrix.os == 'macos-latest' || matrix.os == 'macos-14'
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           path: artifacts/*
           name: executable-${{ matrix.build }}
@@ -98,7 +98,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts
           pattern: executable-*
@@ -106,7 +106,7 @@ jobs:
 
       - name: Create draft release
         id: create_release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ github.ref }}
@@ -121,7 +121,7 @@ jobs:
     needs: [ tag_version, build ]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install latest stable Rust version
         uses: dtolnay/rust-toolchain@stable
@@ -129,12 +129,12 @@ jobs:
       - name: Publish ludtwig-parser
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
-        run: cargo publish --token ${CRATES_TOKEN} -p ludtwig-parser
+        run: cargo publish --token "${CRATES_TOKEN}" -p ludtwig-parser
 
       - name: Publish ludtwig
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
-        run: cargo publish --token ${CRATES_TOKEN} -p ludtwig
+        run: cargo publish --token "${CRATES_TOKEN}" -p ludtwig
 
 
   publish_docker:
@@ -142,17 +142,17 @@ jobs:
     needs: [ tag_version, build ]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
       - name: Docker metadata
         id: metadata
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
         with:
           images: ${{ env.CONTAINER_IMG_NAME }}
           tags: |
@@ -160,14 +160,14 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         if: ${{ github.ref_type == 'tag' }}
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64
