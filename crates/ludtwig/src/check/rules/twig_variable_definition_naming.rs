@@ -33,31 +33,15 @@ impl Rule for RuleTwigVariableDefinitionNaming {
 }
 
 fn is_constant_assignment(syntax: &SyntaxNode) -> bool {
-    let Some(expr) = support::child::<TwigExpression>(syntax) else {
-        return false;
-    };
-
-    let Some(twig_fn) = support::child::<TwigFunctionCall>(expr.syntax()) else {
-        return false;
-    };
-
-    let Some(op) = twig_fn.name_operand() else {
-        return false;
-    };
-
-    let Some(op_name) = support::child::<TwigLiteralName>(op.syntax()) else {
-        return false;
-    };
-
-    let Some(name_lit) = op_name.get_name() else {
-        return false;
-    };
-
-    if name_lit.text() != "constant" {
-        return false;
-    }
-
-    true
+    // Detect `{% set VAR = constant(...) %}` by checking that the direct child expression
+    // is a bare `constant()` function call. Wrapped expressions (filters, binary ops, etc.)
+    // are intentionally not detected; users can suppress the diagnostic with `ludtwig-ignore`.
+    support::child::<TwigExpression>(syntax)
+        .and_then(|expr| support::child::<TwigFunctionCall>(expr.syntax()))
+        .and_then(|twig_fn| twig_fn.name_operand())
+        .and_then(|op| support::child::<TwigLiteralName>(op.syntax()))
+        .and_then(|op_name| op_name.get_name())
+        .is_some_and(|name_lit| name_lit.text() == "constant")
 }
 
 fn check_literal_names(
@@ -73,6 +57,8 @@ fn check_literal_names(
         };
         let name = name_token.text();
 
+        // No auto-fix suggestion is provided: renaming a variable definition requires updating
+        // all use-sites as well, which is beyond the scope of a single-node rule.
         if is_constant && !is_valid_ascii_alpha_snake_case(name, true) {
             let maybe_suggestion = try_make_snake_case(name, true);
             let suggestion = maybe_suggestion

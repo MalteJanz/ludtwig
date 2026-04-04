@@ -14,7 +14,7 @@ pub fn is_valid_ascii_alpha_snake_case(s: &str, screaming: bool) -> bool {
             return false;
         }
 
-        // chars must be ascii lowercase or an underline
+        // chars must match the required case (lowercase or uppercase), or be a digit or underline
         if !is_ascii_case(&c) && !c.is_ascii_digit() && c != '_' {
             return false;
         }
@@ -316,6 +316,7 @@ mod tests {
         );
         assert_eq!(try_make_snake_case("_My-Broken_-Block_", false), None);
     }
+
     #[test]
     fn test_try_make_snake_case_screaming() {
         assert_eq!(
@@ -438,8 +439,12 @@ mod tests {
     fn test_is_camel_case() {
         assert!(is_camel_case("camelCase"));
         assert!(is_camel_case("camelCase2Long"));
+        assert!(is_camel_case("_privateVar")); // leading underscore is allowed
+        assert!(is_camel_case("_")); // just underscores, allowed by convention
 
         assert!(!is_camel_case("PascalCase"));
+        assert!(!is_camel_case("_PrivateVar")); // leading underscore + PascalCase
+        assert!(!is_camel_case("_snake_var")); // leading underscore + snake_case
         assert!(!is_camel_case("snake_case"));
         assert!(!is_camel_case("kebab-case"));
         assert!(!is_camel_case("UPPERCASE"));
