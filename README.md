@@ -29,17 +29,17 @@ Linter / Formatter for Twig template files which respects HTML and your time.
     - `ludtwig-config.toml` (use `-C` to create one) to configure the rules for your project / adjust the code style
     - Environment variables can override config values
 - The Parser is not HTML Spec compliant, but
-    - Almost all Twig syntax is supported
+    - All Twig syntax of the PHP Twig engine and Symfony + Shopware extensions are supported
+      (on best effort basis)
     - all input is parsed into a lossless syntax tree
     - even invalid syntax does not stop the parsing, and it tries to parse as much valid syntax as possible
 
 ## Current limitations
 
-- Twig syntax is still not fully supported
-    - most notably `{%- ... -%}` whitespace removal braces are not yet supported,
-      see [#56](https://github.com/MalteJanz/ludtwig/issues/56)
-- You may encounter other edge cases that result in parsing errors. Please create issues for them.
-- The list of rules is still quite small so many things besides the syntax aren't checked / suggested
+- Disclaimer: This project tries to follow the official Twig PHP compilers syntax
+  (+ Symfony and Shopware extensions) but might not immediately support all the latest features
+- You may encounter edge cases that result in parsing errors but are valid according to the PHP Twig compiler.
+  If they follow ludtwig's rules (not cutting HTML with Twig), please create issues for them.
 
 ## Installation
 
@@ -100,7 +100,8 @@ Have a look at the example below to get the general idea where Twig syntax is al
 {% endblock %}
 ```
 
-Ludtwig doesn't accept and will produce parsing errors for any Twig syntax that could cut off HTML in obvious ways, e.g.:
+Ludtwig doesn't accept and will produce parsing errors for any Twig syntax that could cut off HTML in obvious ways,
+e.g.:
 
 ```twig
 {% if condition %}
@@ -123,10 +124,13 @@ error[SyntaxError]: The parser encountered a syntax error
   │ ^^ expected </div> ending tag but found {%
 ...
 ```
+
 This is intentional, as the example above is very error-prone to maintain correctly and
 this trade-of allows to represent both HTML and Twig syntax in a single hierarchical syntax tree.
-In contrast, the [Twig PHP compiler](https://github.com/twigphp/Twig) mostly treats all other syntax that isn't Twig, as plain text,
-which comes with the benefit that Twig can be written between any character, which isn't that useful in practice when writing HTML templates,
+In contrast, the [Twig PHP compiler](https://github.com/twigphp/Twig) mostly treats all other syntax that isn't Twig, as
+plain text,
+which comes with the benefit that Twig can be written between any character, which isn't that useful in practice when
+writing HTML templates,
 but can be if you're not writing a template for HTML.
 
 > In general, you only want to write valid HTML (full elements) between your Twig syntax (`{% ... %}`).
