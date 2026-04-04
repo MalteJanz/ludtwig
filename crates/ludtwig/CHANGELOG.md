@@ -1,5 +1,7 @@
 # NEXT-VERSION
 
+# v0.13.0
+
 - [#149](https://github.com/MalteJanz/ludtwig/issues/149) Fixed indentation being incorrectly modified inside `<script>`
   and `<style>` tags by treating them as trivia-sensitive (like `<pre>` and `<textarea>`)
 - [#62](https://github.com/MalteJanz/ludtwig/issues/62) Added new rule `html-duplicate-id` to report duplicate `id`
