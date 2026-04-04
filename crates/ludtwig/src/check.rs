@@ -17,6 +17,7 @@ use crate::check::rule::{
 };
 use crate::process::FileContext;
 
+pub mod naming_convention;
 pub mod rule;
 pub mod rules;
 

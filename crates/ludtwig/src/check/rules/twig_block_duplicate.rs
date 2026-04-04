@@ -1,5 +1,5 @@
-use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveIgnore, TwigBlock};
-use ludtwig_parser::syntax::untyped::{Preorder, SyntaxKind, SyntaxNode, WalkEvent};
+use ludtwig_parser::syntax::typed::{AstNode, TwigBlock};
+use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxNode, WalkEvent};
 use std::collections::HashMap;
 
 use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
@@ -71,45 +71,6 @@ impl Rule for RuleTwigBlockDuplicate {
     }
 }
 
-impl RuleTwigBlockDuplicate {
-    fn check_for_rule_ignore_enter(
-        &self,
-        is_ignored: &mut bool,
-        tree_iter: &mut Preorder,
-        n: &SyntaxNode,
-    ) -> bool {
-        if let Some(node) = n.prev_sibling() {
-            if let Some(directive) = LudtwigDirectiveIgnore::cast(node) {
-                let ignored_rules = directive.get_rules();
-                if ignored_rules.is_empty() {
-                    // all rules are disabled
-                    tree_iter.skip_subtree();
-                    return true;
-                }
-
-                if ignored_rules.iter().any(|r| r == self.name()) {
-                    // this rule is now ignored
-                    *is_ignored = true;
-                }
-            }
-        }
-        false
-    }
-
-    fn check_for_rule_ignore_leave(&self, is_ignored: &mut bool, n: &SyntaxNode) {
-        if let Some(node) = n.prev_sibling() {
-            if let Some(directive) = LudtwigDirectiveIgnore::cast(node) {
-                let ignored_rules = directive.get_rules();
-
-                if ignored_rules.iter().any(|r| r == self.name()) {
-                    // this rule is no longer ignored
-                    *is_ignored = false;
-                }
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use expect_test::expect;
@@ -157,7 +118,7 @@ mod tests {
     }
 
     #[test]
-    fn rule_does_not_report() {
+    fn rule_ignores_with_specific_rule_directive() {
         test_rule(
             "twig-block-duplicate",
             r"
@@ -165,11 +126,46 @@ mod tests {
             {% endblock %}
 
             {% block first_duplicate %}
+                {# ludtwig-ignore twig-block-duplicate #}
                 {% block foo %}
                 {% endblock %}
             {% endblock %}
 
             {% block second_duplicate %}
+                {# ludtwig-ignore twig-block-duplicate #}
+                {% block foo %}
+                {% endblock %}
+            {% endblock %}",
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn rule_ignores_with_blanket_directive() {
+        test_rule(
+            "twig-block-duplicate",
+            r"
+            {% block foo %}
+            {% endblock %}
+
+            {% block wrapper %}
+                {# ludtwig-ignore #}
+                {% block foo %}
+                {% endblock %}
+            {% endblock %}",
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn rule_still_reports_after_ignore_directive_scope() {
+        test_rule(
+            "twig-block-duplicate",
+            r"
+            {% block foo %}
+            {% endblock %}
+
+            {% block first_duplicate %}
                 {# ludtwig-ignore twig-block-duplicate #}
                 {% block foo %}
                 {% endblock %}
@@ -181,22 +177,40 @@ mod tests {
             {% endblock %}",
             expect![[r"
                 error[twig-block-duplicate]: block name duplicate
-                  ┌─ ./debug-rule.html.twig:6:26
-                  │
-                2 │             {% block foo %}
-                  │                      --- first defined here
-                  ·
-                6 │                 {% block foo %}
-                  │                          ^^^ duplicate block 'foo'
-
-                error[twig-block-duplicate]: block name duplicate
-                   ┌─ ./debug-rule.html.twig:17:26
+                   ┌─ ./debug-rule.html.twig:12:26
                    │
                  2 │             {% block foo %}
                    │                      --- first defined here
                    ·
-                17 │                 {% block foo %}
+                12 │                 {% block foo %}
                    │                          ^^^ duplicate block 'foo'
+
+            "]],
+        );
+    }
+
+    #[test]
+    fn rule_ignores_only_targeted_rule() {
+        test_rule(
+            "twig-block-duplicate",
+            r"
+            {% block foo %}
+            {% endblock %}
+
+            {% block wrapper %}
+                {# ludtwig-ignore some-other-rule #}
+                {% block foo %}
+                {% endblock %}
+            {% endblock %}",
+            expect![[r"
+                error[twig-block-duplicate]: block name duplicate
+                  ┌─ ./debug-rule.html.twig:7:26
+                  │
+                2 │             {% block foo %}
+                  │                      --- first defined here
+                  ·
+                7 │                 {% block foo %}
+                  │                          ^^^ duplicate block 'foo'
 
             "]],
         );

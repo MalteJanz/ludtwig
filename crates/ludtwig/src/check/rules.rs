@@ -1,6 +1,7 @@
 use crate::Config;
 use crate::check::rule::Rule;
 use crate::check::rules::html_attribute_name_kebab_case::RuleHtmlAttributeNameKebabCase;
+use crate::check::rules::html_duplicate_id::RuleHtmlDuplicateId;
 use crate::check::rules::html_string_quotation::RuleHtmlStringQuotation;
 use crate::check::rules::indentation::RuleIndentation;
 use crate::check::rules::line_ending::RuleLineEnding;
@@ -16,12 +17,17 @@ use crate::check::rules::twig_prefer_shopware_extends::RuleTwigPreferShopwareExt
 use crate::check::rules::twig_string_quotation::RuleTwigStringQuotation;
 use crate::check::rules::twig_use_is_not_same_as::RuleTwigUseIsNotSameAs;
 use crate::check::rules::twig_use_is_same_as::RuleTwigUseIsSameAs;
+use crate::check::rules::twig_valid_filter::RuleTwigValidFilter;
+use crate::check::rules::twig_valid_function::RuleTwigValidFunction;
+use crate::check::rules::twig_valid_test::RuleTwigValidTest;
+use crate::check::rules::twig_variable_definition_naming::RuleTwigVariableDefinitionNaming;
 use crate::check::rules::whitespace_between_line_breaks::RuleWhitespaceBetweenLineBreaks;
 use crate::error::ConfigurationError;
 use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveFileIgnore};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 
 mod html_attribute_name_kebab_case;
+mod html_duplicate_id;
 mod html_string_quotation;
 mod indentation;
 mod line_ending;
@@ -37,6 +43,10 @@ mod twig_prefer_shopware_extends;
 mod twig_string_quotation;
 mod twig_use_is_not_same_as;
 mod twig_use_is_same_as;
+mod twig_valid_filter;
+mod twig_valid_function;
+mod twig_valid_test;
+mod twig_variable_definition_naming;
 mod whitespace_between_line_breaks;
 
 /// List of all rule trait objects, also add them to the `active-rules` in `ludtwig-config.toml`!
@@ -58,6 +68,11 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleTwigUseIsNotSameAs,
     &RuleTwigBlockDuplicate,
     &RuleTwigJsonEncodeEscapeJs,
+    &RuleHtmlDuplicateId,
+    &RuleTwigVariableDefinitionNaming,
+    &RuleTwigValidFilter,
+    &RuleTwigValidTest,
+    &RuleTwigValidFunction,
 ];
 
 /// Get active rule definitions based on config
