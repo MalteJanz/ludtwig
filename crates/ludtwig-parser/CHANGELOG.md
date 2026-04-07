@@ -1,11 +1,15 @@
 # NEXT-VERSION
 
-- [#179](https://github.com/MalteJanz/ludtwig/pull/179) Support parentheses-optional syntax for `same as` and `divisible by` twig tests (e.g. `is same as 0`)
+# v0.10.0
+
+- [#179](https://github.com/MalteJanz/ludtwig/pull/179) Support parentheses-optional syntax for `same as` and
+  `divisible by` twig tests (e.g. `is same as 0`)
 - [#178](https://github.com/MalteJanz/ludtwig/pull/178) Add full twig whitespace token support (e.g. `{%-` or `{%~`)
 
 # v0.9.0
 
-- [#173](https://github.com/MalteJanz/ludtwig/pull/173) Add support for Shopware tokens `sw_use`, `sw_embed`, `sw_from` and `sw_import`.
+- [#173](https://github.com/MalteJanz/ludtwig/pull/173) Add support for Shopware tokens `sw_use`, `sw_embed`, `sw_from`
+  and `sw_import`.
 
 # v0.8.0
 
@@ -13,9 +17,11 @@
   rust edition to 2024
 - [#168](https://github.com/MalteJanz/ludtwig/pull/168) Properly handle 'not in'
   and 'is not' as independent tokens and simplify parsing logic accordingly
-- [#169](https://github.com/MalteJanz/ludtwig/pull/169) Fix parsing errors for twig prop declarations without default value like
+- [#169](https://github.com/MalteJanz/ludtwig/pull/169) Fix parsing errors for twig prop declarations without default
+  value like
   `{% props icon %}`
-- [#170](https://github.com/MalteJanz/ludtwig/pull/170) Fix parsing errors for twig components that are namespaced, for example
+- [#170](https://github.com/MalteJanz/ludtwig/pull/170) Fix parsing errors for twig components that are namespaced, for
+  example
   `<twig:my:namespaced:component />`
 - [#171](https://github.com/MalteJanz/ludtwig/pull/171) Add support for twig spread `...` operator
 
