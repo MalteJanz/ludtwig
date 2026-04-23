@@ -333,7 +333,10 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
                 if p.at(T!("\"")) {
                     return true;
                 }
-
+                // Stop at '>' only when there is no closing '"' before the next HTML tag-boundary token.
+                if p.at_set(&[T![">"], T!["/>"]]) {
+                    return !p.has_closing_quote_before_tag_boundary(T!["\""]);
+                }
                 at_twig_termination_tag(p)
             },
             |p| child_parser(p, inner_double_quote_parser),
@@ -348,7 +351,10 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
                 if p.at(T!("'")) {
                     return true;
                 }
-
+                // Stop at '>' only when there is no closing '"' before the next HTML tag-boundary token.
+                if p.at_set(&[T![">"], T!["/>"]]) {
+                    return !p.has_closing_quote_before_tag_boundary(T!["'"]);
+                }
                 at_twig_termination_tag(p)
             },
             |p| child_parser(p, inner_single_quote_parser),
@@ -372,7 +378,7 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
 
     fn child_parser(p: &mut Parser, inner_twig_child_parser: ParseFunction) {
         if parse_any_twig(p, inner_twig_child_parser).is_none() {
-            if p.at_set(&[T![">"], T!["/>"]]) || p.at_set(GENERAL_RECOVERY_SET) || p.at_end() {
+            if p.at_set(GENERAL_RECOVERY_SET) || p.at_end() {
                 return;
             }
 
@@ -2793,6 +2799,72 @@ mod tests {
                       TK_LESS_THAN_SLASH@29..31 "</"
                       TK_WORD@31..36 "title"
                       TK_GREATER_THAN@36..37 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_value_string_with_greater_than_double_quote() {
+        check_parse(
+            r#"<div data-prop=">">Hello world</div>"#,
+            expect![[r#"
+                ROOT@0..36
+                  HTML_TAG@0..36
+                    HTML_STARTING_TAG@0..19
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE_LIST@4..18
+                        HTML_ATTRIBUTE@4..18
+                          TK_WHITESPACE@4..5 " "
+                          TK_WORD@5..14 "data-prop"
+                          TK_EQUAL@14..15 "="
+                          HTML_STRING@15..18
+                            TK_DOUBLE_QUOTES@15..16 "\""
+                            HTML_STRING_INNER@16..17
+                              TK_GREATER_THAN@16..17 ">"
+                            TK_DOUBLE_QUOTES@17..18 "\""
+                      TK_GREATER_THAN@18..19 ">"
+                    BODY@19..30
+                      HTML_TEXT@19..30
+                        TK_WORD@19..24 "Hello"
+                        TK_WHITESPACE@24..25 " "
+                        TK_WORD@25..30 "world"
+                    HTML_ENDING_TAG@30..36
+                      TK_LESS_THAN_SLASH@30..32 "</"
+                      TK_WORD@32..35 "div"
+                      TK_GREATER_THAN@35..36 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_value_string_with_greater_than_single_quote() {
+        check_parse(
+            r#"<div data-prop='>'>Hello world</div>"#,
+            expect![[r#"
+                ROOT@0..36
+                  HTML_TAG@0..36
+                    HTML_STARTING_TAG@0..19
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE_LIST@4..18
+                        HTML_ATTRIBUTE@4..18
+                          TK_WHITESPACE@4..5 " "
+                          TK_WORD@5..14 "data-prop"
+                          TK_EQUAL@14..15 "="
+                          HTML_STRING@15..18
+                            TK_SINGLE_QUOTES@15..16 "'"
+                            HTML_STRING_INNER@16..17
+                              TK_GREATER_THAN@16..17 ">"
+                            TK_SINGLE_QUOTES@17..18 "'"
+                      TK_GREATER_THAN@18..19 ">"
+                    BODY@19..30
+                      HTML_TEXT@19..30
+                        TK_WORD@19..24 "Hello"
+                        TK_WHITESPACE@24..25 " "
+                        TK_WORD@25..30 "world"
+                    HTML_ENDING_TAG@30..36
+                      TK_LESS_THAN_SLASH@30..32 "</"
+                      TK_WORD@32..35 "div"
+                      TK_GREATER_THAN@35..36 ">""#]],
         );
     }
 }

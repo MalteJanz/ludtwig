@@ -72,6 +72,33 @@ impl<'source> Source<'source> {
         }
     }
 
+    /// Scans ahead from the token AFTER the current position to check whether
+    /// `closing_kind` appears before any HTML tag-boundary token or EOF.
+    pub(super) fn has_closing_quote_before_tag_boundary(
+        &mut self,
+        closing_kind: SyntaxKind,
+    ) -> bool {
+        self.eat_trivia();
+        let mut pos = self.cursor + 1;
+        while pos < self.tokens.len() {
+            let kind = self.tokens[pos].kind;
+            if kind == closing_kind {
+                return true;
+            }
+            if matches!(
+                kind,
+                SyntaxKind::TK_LESS_THAN
+                    | SyntaxKind::TK_LESS_THAN_SLASH
+                    | SyntaxKind::TK_LESS_THAN_EXCLAMATION_MARK
+                    | SyntaxKind::TK_LESS_THAN_EXCLAMATION_MARK_MINUS_MINUS
+            ) {
+                return false;
+            }
+            pos += 1;
+        }
+        false // EOF reached without finding closing quote
+    }
+
     /// Peeks the kind of the next non-trivia token after the current position.
     /// Assumes `eat_trivia` has already been called (cursor is at a non-trivia token).
     pub(super) fn peek_next_non_trivia_kind(&mut self) -> Option<SyntaxKind> {

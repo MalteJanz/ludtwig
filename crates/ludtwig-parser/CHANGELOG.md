@@ -1,5 +1,7 @@
 # NEXT-VERSION
 
+- [#189](https://github.com/MalteJanz/ludtwig/issues/189) Fix parser crash when an HTML attribute value contains `>` inside a quoted string (e.g. `data-prop=">"`)
+
 # v0.10.0
 
 - [#179](https://github.com/MalteJanz/ludtwig/pull/179) Support parentheses-optional syntax for `same as` and

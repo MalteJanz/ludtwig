@@ -172,6 +172,15 @@ impl<'source> Parser<'source> {
         self.source.peek_next_non_trivia_kind()
     }
 
+    /// Scans ahead to check if `closing_kind` appears before any HTML tag-boundary token
+    pub(crate) fn has_closing_quote_before_tag_boundary(
+        &mut self,
+        closing_kind: SyntaxKind,
+    ) -> bool {
+        self.source
+            .has_closing_quote_before_tag_boundary(closing_kind)
+    }
+
     /// Efficiently checks if the parser is at a `{% keyword` sequence
     /// (including whitespace control variants `{%-` and `{%~`).
     pub(crate) fn at_twig_tag(&mut self, keyword: SyntaxKind) -> bool {
