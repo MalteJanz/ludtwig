@@ -16,8 +16,8 @@ rust-version = "1.85.0"
 [dependencies]
 ludtwig-parser = { path = "../ludtwig-parser", version = "0.10.0" }
 mimalloc = { version = "0.1.48", features = ["v3"] }
-clap = { version = "4.5.60", features = ["derive"] }
-rayon = "1.11.0"
+clap = { version = "4.6.1", features = ["derive"] }
+rayon = "1.12.0"
 ignore = "0.4.25"
 figment = { version = "0.10.19", features = ["toml", "env"] }
 serde = { version = "1.0.228", features = ["derive"] }
