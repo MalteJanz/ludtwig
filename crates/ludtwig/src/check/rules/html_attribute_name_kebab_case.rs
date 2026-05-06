@@ -1,6 +1,6 @@
 use crate::check::naming_convention::{is_valid_alphanumeric_kebab_case, try_make_kebab_case};
 use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
-use ludtwig_parser::syntax::typed::{AstNode, HtmlAttribute};
+use ludtwig_parser::syntax::typed::{AstNode, HtmlAttribute, HtmlTag};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 
 pub struct RuleHtmlAttributeNameKebabCase;
@@ -16,6 +16,10 @@ impl Rule for RuleHtmlAttributeNameKebabCase {
 
         if attribute.html_tag()?.is_twig_component() {
             return None; // skip this rule for twig components, because they often use camelCase as params
+        }
+
+        if is_inside_svg(attribute.syntax()) {
+            return None; // skip this rule inside SVG elements, which use camelCase attribute names
         }
 
         if !is_valid_alphanumeric_kebab_case(attribute_name.text()) {
@@ -43,6 +47,16 @@ impl Rule for RuleHtmlAttributeNameKebabCase {
         }
         None
     }
+}
+
+/// Returns true when `node` is contained within an `<svg>` element.
+fn is_inside_svg(node: &SyntaxNode) -> bool {
+    node.ancestors()
+        .filter_map(HtmlTag::cast)
+        .any(|tag| {
+            tag.name()
+                .is_some_and(|name| name.text().eq_ignore_ascii_case("svg"))
+        })
 }
 
 #[cfg(test)]
@@ -76,6 +90,43 @@ mod tests {
             "html-attribute-name-kebab-case",
             r#"<twig:namespaced:component :myCamelCaseAttribute="asdf"/>"#,
             expect![[r#"<twig:namespaced:component :myCamelCaseAttribute="asdf"/>"#]],
+        );
+    }
+
+    #[test]
+    fn rule_does_not_report_svg_viewbox() {
+        test_rule_does_not_fix(
+            "html-attribute-name-kebab-case",
+            r#"<svg viewBox="0 0 100 100"></svg>"#,
+            expect![[r#"<svg viewBox="0 0 100 100"></svg>"#]],
+        );
+    }
+
+    #[test]
+    fn rule_does_not_report_svg_child_camel_case() {
+        test_rule_does_not_fix(
+            "html-attribute-name-kebab-case",
+            r#"<svg><image preserveAspectRatio="none"/></svg>"#,
+            expect![[r#"<svg><image preserveAspectRatio="none"/></svg>"#]],
+        );
+    }
+
+    #[test]
+    fn rule_reports_camel_case_outside_svg() {
+        test_rule(
+            "html-attribute-name-kebab-case",
+            r#"<div viewBox="whatever"/>"#,
+            expect![[r#"
+                help[html-attribute-name-kebab-case]: Attribute name is not written in kebab-case
+                  ┌─ ./debug-rule.html.twig:1:6
+                  │
+                1 │ <div viewBox="whatever"/>
+                  │      ^^^^^^^
+                  │      │
+                  │      help: rename this attribute in kebab-case
+                  │      Try this name instead: view-box
+
+            "#]],
         );
     }
 
