@@ -1,5 +1,7 @@
 # NEXT-VERSION
 
+- [#188](https://github.com/MalteJanz/ludtwig/issues/188) ix `html-attribute-name-kebab-case` incorrectly flagging camelCase SVG attributes (e.g. `viewBox`, `preserveAspectRatio`) by skipping the rule inside `<svg>` elements
+
 # v0.13.0
 
 - [#149](https://github.com/MalteJanz/ludtwig/issues/149) Fixed indentation being incorrectly modified inside `<script>`
@@ -22,10 +24,10 @@
 
 - Bumped version of `ludtwig-parser` to `0.9.0`
 - Adjusted docker build and release process:
-    - the image should be available for `linux/amd64` and (new) `linux/arm64` platforms now
-    - the ludtwig executable is now the entrypoint of the image, so you don't need to call ludtwig and can immediately
-      pass parameters
-    - it's still an alpine based image to have compatibility with most CI pipeline environments
+  - the image should be available for `linux/amd64` and (new) `linux/arm64` platforms now
+  - the ludtwig executable is now the entrypoint of the image, so you don't need to call ludtwig and can immediately
+    pass parameters
+  - it's still an alpine based image to have compatibility with most CI pipeline environments
 
 # v0.11.0
 
@@ -167,4 +169,3 @@
   Improved readability for parsing errors by displaying the error and its context in a way that is readable by the user.
   For example missing closing tags will give the context with each attribute to identify the right tag.
   The attributes were not displayed in a user readable way before this change.
-  
