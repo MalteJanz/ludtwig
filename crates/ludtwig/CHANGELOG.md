@@ -1,6 +1,6 @@
 # NEXT-VERSION
 
-- [#188](https://github.com/MalteJanz/ludtwig/issues/188) ix `html-attribute-name-kebab-case` incorrectly flagging camelCase SVG attributes (e.g. `viewBox`, `preserveAspectRatio`) by skipping the rule inside `<svg>` elements
+- [#188](https://github.com/MalteJanz/ludtwig/issues/188) fix `html-attribute-name-kebab-case` incorrectly flagging camelCase SVG attributes (e.g. `viewBox`, `preserveAspectRatio`) by skipping the rule inside `<svg>` elements
 
 # v0.13.0
 
