@@ -469,6 +469,7 @@ pub enum SyntaxKind {
     TWIG_DEPRECATED,
     // twig do
     TWIG_DO,
+    TWIG_BREAK,
     // twig embed
     TWIG_EMBED,
     TWIG_EMBED_STARTING_BLOCK,
@@ -528,6 +529,7 @@ pub enum SyntaxKind {
 
     // html
     HTML_DOCTYPE,
+    HTML_PROCESSING_INSTRUCTION,
     HTML_ATTRIBUTE_LIST,
     HTML_ATTRIBUTE,
     HTML_STRING,       // used as attribute values

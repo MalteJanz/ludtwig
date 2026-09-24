@@ -102,6 +102,14 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_component(parser, m, child_parser))
     } else if parser.at(T!["props"]) {
         Some(parse_twig_props(parser, m))
+    } else if parser.at(T![word])
+        && parser
+            .peek_token()
+            .is_some_and(|token| token.text == "break")
+    {
+        parser.bump();
+        parser.expect_any(TWIG_BLOCK_CLOSE_SET, &[]);
+        Some(parser.complete(m, SyntaxKind::TWIG_BREAK))
     } else {
         match parse_shopware_twig_block_statement(parser, m, child_parser) {
             BlockParseResult::NothingFound(m) => {
@@ -1472,6 +1480,14 @@ fn parse_twig_component(
 mod tests {
     use crate::parser::check_parse;
     use expect_test::expect;
+
+    #[test]
+    fn parses_shopware_break_tag() {
+        let source = "{% for item in items %}{% break %}{% endfor %}";
+        let parse = crate::parse(source);
+        assert!(parse.errors.is_empty(), "{:#?}", parse.errors);
+        assert_eq!(parse.green_node.to_string(), source);
+    }
 
     #[test]
     fn parse_error() {

@@ -74,9 +74,8 @@ To create it in your current working directory run `ludtwig -C`.
 
 ## Allowed syntax
 
-To prevent many cases of creating invalid / dirty HTML by Twig, ludtwig only allows the Twig syntax in certain places.
-Without this restriction it wouldn't be possible to parse the combined syntax in a single hierarchical syntax tree.
-Have a look at the example below to get the general idea where Twig syntax is allowed:
+Ludtwig parses Twig and HTML into a single syntax tree. It analyzes complete HTML elements most precisely when they
+stay within the same Twig branch. Twig can also appear in attributes and across HTML tag boundaries:
 
 ```twig
 {% block my_component %}
@@ -100,8 +99,7 @@ Have a look at the example below to get the general idea where Twig syntax is al
 {% endblock %}
 ```
 
-Ludtwig doesn't accept and will produce parsing errors for any Twig syntax that could cut off HTML in obvious ways,
-e.g.:
+Ludtwig also parses HTML tags split across Twig branches, for example:
 
 ```twig
 {% if condition %}
@@ -113,28 +111,9 @@ e.g.:
 {% endif %}
 ```
 
-produces the following parsing error:
-
-```txt
-...
-error[SyntaxError]: The parser encountered a syntax error
-  ┌─ bad-example.html.twig:3:1
-  │
-3 │ {% endif %}
-  │ ^^ expected </div> ending tag but found {%
-...
-```
-
-This is intentional, as the example above is very error-prone to maintain correctly and
-this trade-of allows to represent both HTML and Twig syntax in a single hierarchical syntax tree.
-In contrast, the [Twig PHP compiler](https://github.com/twigphp/Twig) mostly treats all other syntax that isn't Twig, as
-plain text,
-which comes with the benefit that Twig can be written between any character, which isn't that useful in practice when
-writing HTML templates,
-but can be if you're not writing a template for HTML.
-
-> In general, you only want to write valid HTML (full elements) between your Twig syntax (`{% ... %}`).
-> With some exceptions for HTML attributes.
+For split tags, the parser represents the opening and closing tags as separate syntax nodes. It still analyzes their
+attributes and contents, but cannot verify that every runtime branch produces balanced HTML. Keep complete HTML
+elements within Twig branches where possible.
 
 ## License
 

@@ -117,6 +117,7 @@ pub(crate) struct Parser<'source> {
     source: Source<'source>,
     event_collection: EventCollection,
     parse_errors: Vec<ParseError>,
+    open_html_fragments: Vec<String>,
 }
 
 impl<'source> Parser<'source> {
@@ -127,6 +128,24 @@ impl<'source> Parser<'source> {
             source: Source::new(tokens),
             event_collection: EventCollection::with_capacity(estimated_events),
             parse_errors: vec![],
+            open_html_fragments: vec![],
+        }
+    }
+
+    pub(crate) fn add_html_fragment(&mut self, name: String) {
+        self.open_html_fragments.push(name);
+    }
+
+    pub(crate) fn take_html_fragment(&mut self, name: &str) -> bool {
+        if let Some(index) = self
+            .open_html_fragments
+            .iter()
+            .rposition(|open| open == name)
+        {
+            self.open_html_fragments.remove(index);
+            true
+        } else {
+            false
         }
     }
 

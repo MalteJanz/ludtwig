@@ -25,6 +25,12 @@ static HTML_RAW_TEXT_ELEMENTS: &[&str] = &["script", "style", "textarea", "title
 
 pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
     if parser.at(T!["<"])
+        && parser
+            .peek_nth_token(1)
+            .is_some_and(|token| token.kind == T!["?"])
+    {
+        Some(parse_xml_declaration(parser))
+    } else if parser.at(T!["<"])
         && parser.peek_nth_token(1).is_some_and(|t| {
             t.kind != T![ws] && t.kind != T![number] && !GENERAL_RECOVERY_SET.contains(&t.kind)
         })
@@ -32,6 +38,8 @@ pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
         // '<' should not be followed by EOF, a ws, a number or RECOVERY_SET token,
         // because then it is considered as arbitrary text (and parsed by the last else block)
         Some(parse_html_element(parser))
+    } else if parser.at(T!["</"]) {
+        parse_html_ending_fragment(parser)
     } else if parser.at(T!["<!--"]) {
         Some(parse_html_comment(parser))
     } else if parser.at(T!["<!"]) {
@@ -39,6 +47,34 @@ pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
     } else {
         parse_html_text(parser)
     }
+}
+
+fn parse_xml_declaration(parser: &mut Parser) -> CompletedMarker {
+    let m = parser.start();
+    parser.bump();
+    parser.bump();
+    parse_many(
+        parser,
+        |p| p.at(T![">"]),
+        |p| {
+            p.bump();
+        },
+    );
+    parser.expect(T![">"], &[]);
+    parser.complete(m, SyntaxKind::HTML_PROCESSING_INSTRUCTION)
+}
+
+fn parse_html_ending_fragment(parser: &mut Parser) -> Option<CompletedMarker> {
+    let name = parser.peek_nth_token(1)?.text.to_owned();
+    if !parser.take_html_fragment(&name) {
+        return None;
+    }
+
+    let m = parser.start();
+    parser.bump();
+    parser.bump_as(T![word]);
+    parser.expect(T![">"], &[]);
+    Some(parser.complete(m, SyntaxKind::HTML_ENDING_TAG))
 }
 
 fn parse_html_doctype(parser: &mut Parser) -> CompletedMarker {
@@ -272,6 +308,10 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
         }
 
         parser.expect(T![">"], &[]);
+    } else if at_twig_termination_tag(parser) {
+        // A Twig branch can contain only the opening half of an HTML element.
+        // Keep its closing tag available to a later branch without swallowing it.
+        parser.add_html_fragment(tag_name);
     } else {
         // no matching end tag found!
         parser.add_error(ParseErrorBuilder::new(format!("</{tag_name}> ending tag")));
@@ -283,6 +323,7 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
 }
 
 fn parse_html_attribute_or_twig(parser: &mut Parser) -> Option<CompletedMarker> {
+    let name_end = parser.peek_token()?.range.end();
     let token_text = if parser.at(T![":"]) {
         format!(":{}", parser.peek_nth_token(1)?.text)
     } else {
@@ -311,6 +352,19 @@ fn parse_html_attribute_or_twig(parser: &mut Parser) -> Option<CompletedMarker> 
             return parse_any_twig(parser, parse_html_attribute_or_twig);
         }
     };
+
+    if token_text.ends_with('-')
+        && parser
+            .peek_token()
+            .is_some_and(|token| token.range.start() == name_end)
+        && parser.at_twig_var_open()
+    {
+        parse_twig_var_statement(parser);
+        if parser.at(T!["-"]) {
+            parser.bump();
+            parser.expect(T![word], &[T!["="], T![">"], T!["/>"]]);
+        }
+    }
 
     if parser.at(T!["="]) {
         // attribute value
@@ -357,7 +411,7 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
     }
 
     fn inner_no_quote_parser(parser: &mut Parser) -> Option<CompletedMarker> {
-        if parser.at(T![word]) {
+        if parser.at_set(&[T![word], T!["true"], T!["false"]]) {
             parser.bump();
         } else if parser.at_twig_var_open() {
             // a single twig var expression with missing quotes should also count as an html attribute value
@@ -437,6 +491,34 @@ mod tests {
     use expect_test::expect;
 
     use crate::parser::check_parse;
+
+    #[test]
+    fn parses_shopware_footer_tags_split_across_twig_branches() {
+        let source = r#"{% if feature('v6.8.0.0') %}<ul>{% else %}<div>{% endif %}
+            <li>Content</li>
+            {% if feature('v6.8.0.0') %}</ul>{% else %}</div>{% endif %}"#;
+
+        let parse = crate::parse(source);
+        assert!(parse.errors.is_empty(), "{:#?}", parse.errors);
+        assert_eq!(parse.green_node.to_string(), source);
+    }
+
+    #[test]
+    fn still_rejects_unmatched_html_tags() {
+        assert!(!crate::parse("<div>content</span>").errors.is_empty());
+    }
+
+    #[test]
+    fn parses_shopware_dynamic_attribute_name() {
+        let parse = crate::parse(r#"<div data-{{ selector }}-options='{}'></div>"#);
+        assert!(parse.errors.is_empty(), "{:#?}", parse.errors);
+    }
+
+    #[test]
+    fn parses_xml_declaration_and_boolean_attribute_value() {
+        let parse = crate::parse("<?xml version=\"1.0\"?><entry enabled=true></entry>");
+        assert!(parse.errors.is_empty(), "{:#?}", parse.errors);
+    }
 
     #[test]
     fn parse_simple_html_element() {
@@ -691,7 +773,7 @@ mod tests {
                       TK_WORD@1..4 "div"
                       HTML_ATTRIBUTE_LIST@4..4
                       TK_GREATER_THAN@4..5 ">"
-                    BODY@5..127
+                    BODY@5..144
                       TWIG_BLOCK@5..96
                         TWIG_STARTING_BLOCK@5..31
                           TK_LINE_BREAK@5..6 "\n"
@@ -741,20 +823,18 @@ mod tests {
                           TK_LESS_THAN_SLASH@120..122 "</"
                           TK_WORD@122..126 "span"
                           TK_GREATER_THAN@126..127 ">"
-                    HTML_ENDING_TAG@127..163
-                      ERROR@127..163
+                      HTML_ENDING_TAG@127..144
                         TK_LINE_BREAK@127..128 "\n"
                         TK_WHITESPACE@128..140 "            "
                         TK_LESS_THAN_SLASH@140..142 "</"
                         TK_WORD@142..143 "p"
                         TK_GREATER_THAN@143..144 ">"
-                        TK_LINE_BREAK@144..145 "\n"
-                        TK_WHITESPACE@145..157 "            "
-                        TK_LESS_THAN_SLASH@157..159 "</"
-                        TK_WORD@159..162 "div"
-                        TK_GREATER_THAN@162..163 ">"
-                error at 82..84: expected </p> ending tag but found {%
-                error at 140..142: expected </div> ending tag but found </"#]],
+                    HTML_ENDING_TAG@144..163
+                      TK_LINE_BREAK@144..145 "\n"
+                      TK_WHITESPACE@145..157 "            "
+                      TK_LESS_THAN_SLASH@157..159 "</"
+                      TK_WORD@159..162 "div"
+                      TK_GREATER_THAN@162..163 ">""#]],
         );
     }
 
@@ -1624,7 +1704,7 @@ mod tests {
                     TK_WHITESPACE@46..47 " "
                     TK_PERCENT_CURLY@47..49 "%}"
                     TK_GREATER_THAN@49..50 ">"
-                  ERROR@50..56
+                  HTML_ENDING_TAG@50..56
                     TK_LESS_THAN_SLASH@50..52 "</"
                     TK_WORD@52..55 "div"
                     TK_GREATER_THAN@55..56 ">"
@@ -1632,9 +1712,7 @@ mod tests {
                 error at 29..30: expected endblock but found <
                 error at 29..30: expected %} or -%} or ~%} but found <
                 error at 29..30: expected > but found <
-                error at 35..37: expected </div> ending tag but found {%
-                error at 38..46: expected twig tag but found endblock
-                error at 50..52: expected html, text or twig element but found </"#]],
+                error at 38..46: expected twig tag but found endblock"#]],
         );
     }
 
