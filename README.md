@@ -111,9 +111,10 @@ Ludtwig also parses HTML tags split across Twig branches, for example:
 {% endif %}
 ```
 
-For split tags, the parser represents the opening and closing tags as separate syntax nodes. It still analyzes their
-attributes and contents, but cannot verify that every runtime branch produces balanced HTML. Keep complete HTML
-elements within Twig branches where possible.
+For split tags, the parser represents the opening and closing tags as separate syntax nodes. It checks that they have
+the same Twig branch conditions and rejects unmatched or improperly nested fragments. It still analyzes their
+attributes and contents. Conditions whose value changes between evaluations, or overridden Twig blocks, can change
+the rendered HTML; keep complete HTML elements within a single Twig branch where possible.
 
 ## License
 

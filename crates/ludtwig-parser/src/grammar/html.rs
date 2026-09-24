@@ -494,13 +494,53 @@ mod tests {
 
     #[test]
     fn parses_shopware_footer_tags_split_across_twig_branches() {
-        let source = r#"{% if feature('v6.8.0.0') %}<ul>{% else %}<div>{% endif %}
+        let source = r"{% if feature('v6.8.0.0') %}<ul>{% else %}<div>{% endif %}
             <li>Content</li>
-            {% if feature('v6.8.0.0') %}</ul>{% else %}</div>{% endif %}"#;
+            {% if feature('v6.8.0.0') %}</ul>{% else %}</div>{% endif %}";
 
         let parse = crate::parse(source);
         assert!(parse.errors.is_empty(), "{:#?}", parse.errors);
         assert_eq!(parse.green_node.to_string(), source);
+    }
+
+    #[test]
+    fn split_tags_require_the_same_twig_conditions() {
+        let valid = "{% if active %}<div>{% endif %}text{% if active %}</div>{% endif %}";
+        assert!(crate::parse(valid).errors.is_empty());
+        assert!(
+            crate::parse("{% block opener %}<html>{% endblock %}</html>")
+                .errors
+                .is_empty()
+        );
+        let valid_elseif = "{% if first %}{% elseif second %}<div>{% endif %}{% if first %}{% elseif second %}</div>{% endif %}";
+        assert!(crate::parse(valid_elseif).errors.is_empty());
+
+        for invalid in [
+            "{% if a %}<div>{% endif %}text{% if b %}</div>{% endif %}",
+            "{% if a %}<div>{% endif %}text{% if not a %}</div>{% endif %}",
+            "{% if a %}<div>{% endif %}text{% if a %}{% else %}</div>{% endif %}",
+            "{% if a %}<div>{% endif %}text",
+            "{% block first %}{% if a %}<div>{% endif %}{% endblock %}{% block second %}{% if a %}</div>{% endif %}{% endblock %}",
+        ] {
+            let errors = crate::parse(invalid).errors;
+            assert!(
+                errors
+                    .iter()
+                    .any(|error| error.expected.contains("same Twig conditions")),
+                "{invalid}: {errors:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn split_tags_must_remain_properly_nested() {
+        let invalid = "{% if a %}<div><span>{% endif %}{% if a %}</div></span>{% endif %}";
+        assert!(
+            crate::parse(invalid)
+                .errors
+                .iter()
+                .any(|error| error.expected.contains("properly nested"))
+        );
     }
 
     #[test]
@@ -510,7 +550,7 @@ mod tests {
 
     #[test]
     fn parses_shopware_dynamic_attribute_name() {
-        let parse = crate::parse(r#"<div data-{{ selector }}-options='{}'></div>"#);
+        let parse = crate::parse(r"<div data-{{ selector }}-options='{}'></div>");
         assert!(parse.errors.is_empty(), "{:#?}", parse.errors);
     }
 
