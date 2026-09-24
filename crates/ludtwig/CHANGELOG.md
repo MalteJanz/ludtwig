@@ -1,5 +1,8 @@
 # NEXT-VERSION
 
+- Do not rewrite the static part of a dynamic HTML attribute name.
+- Do not report duplicate IDs in mutually exclusive Twig `if` branches.
+
 # v0.13.0
 
 - [#149](https://github.com/MalteJanz/ludtwig/issues/149) Fixed indentation being incorrectly modified inside `<script>`
@@ -167,4 +170,3 @@
   Improved readability for parsing errors by displaying the error and its context in a way that is readable by the user.
   For example missing closing tags will give the context with each attribute to identify the right tag.
   The attributes were not displayed in a user readable way before this change.
-  
