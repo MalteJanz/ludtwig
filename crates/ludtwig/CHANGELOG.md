@@ -1,6 +1,7 @@
 # NEXT-VERSION
 
 - Do not rewrite the static part of a dynamic HTML attribute name.
+- Normalize the standard `tabindex` attribute without introducing an invalid hyphen.
 - Do not report duplicate IDs in mutually exclusive Twig `if` branches.
 
 # v0.13.0
