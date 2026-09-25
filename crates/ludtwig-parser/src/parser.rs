@@ -48,6 +48,9 @@ pub(crate) static TWIG_VAR_OPEN_SET: &[SyntaxKind] = &[T!["{{"], T!["{{-"], T!["
 /// All token kinds that close a twig var: `}}`, `-}}`, `~}}`
 pub(crate) static TWIG_VAR_CLOSE_SET: &[SyntaxKind] = &[T!["}}"], T!["-}}"], T!["~}}"]];
 
+// A literal HTML name cannot contain NUL, including Twig component names.
+pub(crate) const DYNAMIC_HTML_TAG_PREFIX: &str = "\0";
+
 /// All token kinds that open a twig comment: `{#`, `{#-`, `{#~`
 pub(crate) static TWIG_COMMENT_OPEN_SET: &[SyntaxKind] = &[T!["{#"], T!["{#-"], T!["{#~"]];
 
@@ -150,6 +153,17 @@ impl<'source> Parser<'source> {
         {
             self.open_html_fragments.remove(index);
             true
+        } else if name.starts_with(DYNAMIC_HTML_TAG_PREFIX) {
+            if let Some(index) = self
+                .open_html_fragments
+                .iter()
+                .rposition(|open| open.starts_with(DYNAMIC_HTML_TAG_PREFIX))
+            {
+                self.open_html_fragments.remove(index);
+                true
+            } else {
+                false
+            }
         } else {
             false
         }
@@ -226,6 +240,10 @@ impl<'source> Parser<'source> {
     /// Only use this if absolutely necessary, because it is expensive to lookahead!
     pub(crate) fn at_following_content(&mut self, set: &[(SyntaxKind, Option<&str>)]) -> bool {
         self.source.at_following_content(set)
+    }
+
+    pub(crate) fn peek_html_tag_expression(&mut self, ending: bool) -> Option<String> {
+        self.source.peek_html_tag_expression(ending)
     }
 
     pub(crate) fn at_end(&mut self) -> bool {

@@ -1,6 +1,7 @@
 use rowan::TextRange;
 
 use crate::lexer::Token;
+use crate::parser::{DYNAMIC_HTML_TAG_PREFIX, TWIG_VAR_CLOSE_SET, TWIG_VAR_OPEN_SET};
 use crate::syntax::untyped::SyntaxKind;
 
 /// Wrapper around lexing tokens to only get the non-whitespace tokens back
@@ -110,6 +111,36 @@ impl<'source> Source<'source> {
                 _ => return false,
             }
         }
+    }
+
+    pub(super) fn peek_html_tag_expression(&mut self, ending: bool) -> Option<String> {
+        self.eat_trivia();
+        let marker = if ending {
+            SyntaxKind::TK_LESS_THAN_SLASH
+        } else {
+            SyntaxKind::TK_LESS_THAN
+        };
+        if self.tokens.get(self.cursor)?.kind != marker
+            || !TWIG_VAR_OPEN_SET.contains(&self.tokens.get(self.cursor + 1)?.kind)
+        {
+            return None;
+        }
+
+        let mut tokens = self.tokens[self.cursor + 2..]
+            .iter()
+            .filter(|token| !token.kind.is_trivia());
+        let mut expression = String::from(DYNAMIC_HTML_TAG_PREFIX);
+        for token in &mut tokens {
+            if TWIG_VAR_CLOSE_SET.contains(&token.kind) {
+                if ending && tokens.next()?.kind != SyntaxKind::TK_GREATER_THAN {
+                    return None;
+                }
+                return Some(expression);
+            }
+            expression.push_str(token.text);
+            expression.push('\0');
+        }
+        None
     }
 
     pub(super) fn last_token_range(&self) -> Option<TextRange> {

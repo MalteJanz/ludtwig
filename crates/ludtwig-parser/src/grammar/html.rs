@@ -30,6 +30,8 @@ pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
             .is_some_and(|token| token.kind == T!["?"])
     {
         Some(parse_xml_declaration(parser))
+    } else if parser.peek_html_tag_expression(false).is_some() {
+        Some(parse_html_element(parser))
     } else if parser.at(T!["<"])
         && parser.peek_nth_token(1).is_some_and(|t| {
             t.kind != T![ws] && t.kind != T![number] && !GENERAL_RECOVERY_SET.contains(&t.kind)
@@ -65,14 +67,24 @@ fn parse_xml_declaration(parser: &mut Parser) -> CompletedMarker {
 }
 
 fn parse_html_ending_fragment(parser: &mut Parser) -> Option<CompletedMarker> {
-    let name = parser.peek_nth_token(1)?.text.to_owned();
+    let dynamic_name = parser.peek_html_tag_expression(true);
+    let name = dynamic_name.clone().unwrap_or_else(|| {
+        parser
+            .peek_nth_token(1)
+            .map_or("", |token| token.text)
+            .to_owned()
+    });
     if !parser.take_html_fragment(&name) {
         return None;
     }
 
     let m = parser.start();
     parser.bump();
-    parser.bump_as(T![word]);
+    if dynamic_name.is_some() {
+        parse_twig_var_statement(parser);
+    } else {
+        parser.bump_as(T![word]);
+    }
     parser.expect(T![">"], &[]);
     Some(parser.complete(m, SyntaxKind::HTML_ENDING_TAG))
 }
@@ -208,17 +220,22 @@ fn parse_plain_html_comment(parser: &mut Parser, outer: Marker) -> CompletedMark
 #[allow(clippy::too_many_lines)]
 fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
     debug_assert!(parser.at(T!["<"]));
+    let dynamic_name = parser.peek_html_tag_expression(false);
     let m = parser.start();
 
     // parse start tag
     let starting_tag_m = parser.start();
     parser.bump();
 
-    let tag_name = parser.peek_token().map_or("", |t| t.text).to_owned();
+    let tag_name = dynamic_name
+        .clone()
+        .unwrap_or_else(|| parser.peek_token().map_or("", |t| t.text).to_owned());
     let tag_name_lowercase = tag_name.to_ascii_lowercase();
     let tag_name_tokentype = parser.peek_token().map_or(SyntaxKind::TK_WORD, |t| t.kind);
 
-    if tag_name_tokentype == T![twig component name] {
+    if dynamic_name.is_some() {
+        parse_twig_var_statement(parser);
+    } else if tag_name_tokentype == T![twig component name] {
         parser.bump();
     } else if HTML_TAG_NAME_REGEX.is_match(&tag_name) {
         // normal html tag name
@@ -269,6 +286,12 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
         parse_many(
             parser,
             |p| {
+                if p.peek_html_tag_expression(true).is_some()
+                    || (dynamic_name.is_some() && p.at(T!["</"]))
+                {
+                    matching_end_tag_encountered = true;
+                    return true;
+                }
                 if p.at_following_content(&[
                     (T!["</"], None),
                     (tag_name_tokentype, Some(&tag_name)),
@@ -296,7 +319,11 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
         // found matching closing tag
         parser.expect(T!["</"], &[tag_name_tokentype, T![">"]]);
 
-        if parser.at(T![twig component name]) {
+        if parser.at_twig_var_open() {
+            parse_twig_var_statement(parser);
+        } else if dynamic_name.is_some() && parser.at_set(&[T![word], T![twig component name]]) {
+            parser.bump_as(T![word]);
+        } else if parser.at(T![twig component name]) {
             parser.bump();
         } else if parser.at(tag_name_tokentype) {
             parser.bump_as(T![word]);
@@ -568,6 +595,53 @@ mod tests {
     #[test]
     fn still_rejects_unmatched_html_tags() {
         assert!(!crate::parse("<div>content</span>").errors.is_empty());
+    }
+
+    #[test]
+    fn parses_matching_twig_expression_tag_names() {
+        for source in [
+            "<{{ tag }}>content</{{ tag }}>",
+            "<{{ tag|default('div') }}>content</{{ tag | default('div') }}>",
+            "<{{ tag }}><span>content</span></{{ tag }}>",
+            "<{{ tag }} />",
+            "{% if show %}<{{ tag }}>{% endif %}{% if show %}</{{ tag }}>{% endif %}",
+        ] {
+            let errors = crate::parse(source).errors;
+            assert!(errors.is_empty(), "{source}: {errors:?}");
+        }
+    }
+
+    #[test]
+    fn mismatched_twig_expression_tag_names_report_both_locations_once() {
+        for source in [
+            "<{{ openingTag }}>content</{{ closingTag }}>",
+            "{% if show %}<{{ openingTag }}>{% endif %}{% if show %}</{{ closingTag }}>{% endif %}",
+            "<{{ tag }}>content</div>",
+            "<div>content</{{ tag }}>",
+        ] {
+            let errors = crate::parse(source).errors;
+            assert_eq!(errors.len(), 1, "{source}: {errors:?}");
+            assert!(
+                errors[0]
+                    .message
+                    .as_ref()
+                    .is_some_and(|message| message.contains("different tag-name expressions"))
+            );
+            assert!(errors[0].secondary.is_some());
+        }
+    }
+
+    #[test]
+    fn split_twig_expression_tags_require_matching_conditions() {
+        let source = "{% if a %}<{{ tag }}>{% endif %}{% if b %}</{{ tag }}>{% endif %}";
+        let errors = crate::parse(source).errors;
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert!(
+            errors[0]
+                .expected_message()
+                .contains("different Twig conditions")
+        );
+        assert!(errors[0].secondary.is_some());
     }
 
     #[test]

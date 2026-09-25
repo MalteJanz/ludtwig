@@ -2,7 +2,7 @@ use rowan::NodeOrToken;
 use rowan::ast::AstNode;
 
 use crate::T;
-use crate::parser::ParseError;
+use crate::parser::{DYNAMIC_HTML_TAG_PREFIX, ParseError};
 use crate::syntax::typed::{HtmlEndingTag, HtmlTag};
 use crate::syntax::untyped::{SyntaxKind, SyntaxNode, TextRange};
 
@@ -14,9 +14,43 @@ struct Context {
 
 struct Fragment {
     name: String,
+    key: String,
     context: Context,
     range: TextRange,
     opening: bool,
+}
+
+fn tag_name(node: &SyntaxNode) -> Option<(String, String, TextRange)> {
+    if let Some(token) = node
+        .children_with_tokens()
+        .filter_map(NodeOrToken::into_token)
+        .find(|token| token.kind() == T![word] || token.kind() == T![twig component name])
+    {
+        return Some((
+            token.text().to_string(),
+            token.text().to_string(),
+            token.text_range(),
+        ));
+    }
+
+    let twig_var = node
+        .children()
+        .find(|child| child.kind() == SyntaxKind::TWIG_VAR)?;
+    let expression = twig_var
+        .children()
+        .find(|child| child.kind() == SyntaxKind::TWIG_EXPRESSION)?;
+    let key = expression
+        .descendants_with_tokens()
+        .filter_map(NodeOrToken::into_token)
+        .filter(|token| !token.kind().is_trivia())
+        .map(|token| token.text().to_owned())
+        .collect::<Vec<_>>()
+        .join("\0");
+    Some((
+        twig_var.to_string(),
+        format!("{DYNAMIC_HTML_TAG_PREFIX}{key}\0"),
+        twig_var.text_range(),
+    ))
 }
 
 fn branch_context(node: &SyntaxNode) -> Context {
@@ -107,7 +141,9 @@ fn mismatched_fragment_error(opening: &Fragment, closing: &Fragment) -> ParseErr
         ),
         false,
     );
-    let reason = if opening.context.conditions == closing.context.conditions {
+    let reason = if opening.key != closing.key {
+        "different tag-name expressions"
+    } else if opening.context.conditions == closing.context.conditions {
         "different Twig scopes"
     } else {
         "different Twig conditions"
@@ -128,30 +164,61 @@ fn mutually_exclusive(a: &Context, b: &Context) -> bool {
     })
 }
 
-pub(super) fn validate(root: &SyntaxNode) -> Vec<ParseError> {
+fn collect_fragments(root: &SyntaxNode) -> (Vec<Fragment>, Vec<ParseError>) {
     let mut fragments = Vec::new();
+    let mut errors = Vec::new();
     for node in root.descendants() {
         if let Some(tag) = HtmlTag::cast(node.clone()) {
+            if let (Some(starting), Some(ending)) = (tag.starting_tag(), tag.ending_tag()) {
+                if let (
+                    Some((opening, opening_key, opening_range)),
+                    Some((closing, closing_key, closing_range)),
+                ) = (tag_name(starting.syntax()), tag_name(ending.syntax()))
+                {
+                    if opening_key != closing_key {
+                        let opening = Fragment {
+                            name: opening,
+                            key: opening_key,
+                            context: branch_context(&node),
+                            range: opening_range,
+                            opening: true,
+                        };
+                        let closing = Fragment {
+                            name: closing,
+                            key: closing_key,
+                            context: branch_context(&node),
+                            range: closing_range,
+                            opening: false,
+                        };
+                        errors.push(mismatched_fragment_error(&opening, &closing));
+                    }
+                }
+            }
             if tag
                 .ending_tag()
-                .is_some_and(|ending| ending.name().is_none())
+                .is_some_and(|ending| tag_name(ending.syntax()).is_none())
             {
-                if let Some(name) = tag.name() {
+                if let Some((name, key, range)) = tag
+                    .starting_tag()
+                    .and_then(|starting| tag_name(starting.syntax()))
+                {
                     fragments.push(Fragment {
-                        name: name.text().to_string(),
+                        name,
+                        key,
                         context: branch_context(&node),
-                        range: name.text_range(),
+                        range,
                         opening: true,
                     });
                 }
             }
         } else if let Some(ending) = HtmlEndingTag::cast(node.clone()) {
             if ending.html_tag().is_none() {
-                if let Some(name) = ending.name() {
+                if let Some((name, key, range)) = tag_name(&node) {
                     fragments.push(Fragment {
-                        name: name.text().to_string(),
+                        name,
+                        key,
                         context: branch_context(&node),
-                        range: name.text_range(),
+                        range,
                         opening: false,
                     });
                 }
@@ -159,7 +226,11 @@ pub(super) fn validate(root: &SyntaxNode) -> Vec<ParseError> {
         }
     }
 
-    let mut errors = Vec::new();
+    (fragments, errors)
+}
+
+pub(super) fn validate(root: &SyntaxNode) -> Vec<ParseError> {
+    let (fragments, mut errors) = collect_fragments(root);
     let mut openings = Vec::new();
     let mut pairs = Vec::new();
     for (index, fragment) in fragments.iter().enumerate() {
@@ -167,17 +238,18 @@ pub(super) fn validate(root: &SyntaxNode) -> Vec<ParseError> {
             openings.push(index);
         } else if let Some(position) = openings.iter().rposition(|opening| {
             let candidate = &fragments[*opening];
-            candidate.name == fragment.name
+            candidate.key == fragment.key
                 && candidate.context.conditions == fragment.context.conditions
                 && (candidate.context.conditions.is_empty()
                     || candidate.context.scopes == fragment.context.scopes)
         }) {
             let opening = openings.remove(position);
             pairs.push((opening, index));
-        } else if let Some(position) = openings
-            .iter()
-            .rposition(|opening| fragments[*opening].name == fragment.name)
-        {
+        } else if let Some(position) = openings.iter().rposition(|opening| {
+            fragments[*opening].key == fragment.key
+                || (fragments[*opening].key.starts_with(DYNAMIC_HTML_TAG_PREFIX)
+                    && fragment.key.starts_with(DYNAMIC_HTML_TAG_PREFIX))
+        }) {
             let opening = &fragments[openings.remove(position)];
             errors.push(mismatched_fragment_error(opening, fragment));
         } else {
