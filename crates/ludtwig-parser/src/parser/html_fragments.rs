@@ -98,6 +98,28 @@ fn parse_error(range: TextRange, expected: String, opening: bool) -> ParseError 
     }
 }
 
+fn mismatched_fragment_error(opening: &Fragment, closing: &Fragment) -> ParseError {
+    let mut error = parse_error(
+        closing.range,
+        format!(
+            "an opening <{}> under the same Twig conditions",
+            closing.name
+        ),
+        false,
+    );
+    let reason = if opening.context.conditions == closing.context.conditions {
+        "different Twig scopes"
+    } else {
+        "different Twig conditions"
+    };
+    error.message = Some(format!(
+        "closing </{}> does not match opening <{}>: {reason}",
+        closing.name, opening.name
+    ));
+    error.secondary = Some((opening.range, format!("opening <{}> is here", opening.name)));
+    error
+}
+
 fn mutually_exclusive(a: &Context, b: &Context) -> bool {
     a.conditions.iter().any(|(expression, positive)| {
         b.conditions
@@ -157,25 +179,7 @@ pub(super) fn validate(root: &SyntaxNode) -> Vec<ParseError> {
             .rposition(|opening| fragments[*opening].name == fragment.name)
         {
             let opening = &fragments[openings.remove(position)];
-            let mut error = parse_error(
-                fragment.range,
-                format!(
-                    "an opening <{}> under the same Twig conditions",
-                    fragment.name
-                ),
-                false,
-            );
-            let reason = if opening.context.conditions == fragment.context.conditions {
-                "different Twig scopes"
-            } else {
-                "different Twig conditions"
-            };
-            error.message = Some(format!(
-                "closing </{}> does not match opening <{}>: {reason}",
-                fragment.name, opening.name
-            ));
-            error.secondary = Some((opening.range, format!("opening <{}> is here", opening.name)));
-            errors.push(error);
+            errors.push(mismatched_fragment_error(opening, fragment));
         } else {
             errors.push(parse_error(
                 fragment.range,
