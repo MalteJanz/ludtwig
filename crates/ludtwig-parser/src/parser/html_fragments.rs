@@ -93,6 +93,8 @@ fn parse_error(range: TextRange, expected: String, opening: bool) -> ParseError 
         range,
         found: Some(if opening { T!["<"] } else { T!["</"] }),
         expected,
+        secondary: None,
+        message: None,
     }
 }
 
@@ -150,6 +152,30 @@ pub(super) fn validate(root: &SyntaxNode) -> Vec<ParseError> {
         }) {
             let opening = openings.remove(position);
             pairs.push((opening, index));
+        } else if let Some(position) = openings
+            .iter()
+            .rposition(|opening| fragments[*opening].name == fragment.name)
+        {
+            let opening = &fragments[openings.remove(position)];
+            let mut error = parse_error(
+                fragment.range,
+                format!(
+                    "an opening <{}> under the same Twig conditions",
+                    fragment.name
+                ),
+                false,
+            );
+            let reason = if opening.context.conditions == fragment.context.conditions {
+                "different Twig scopes"
+            } else {
+                "different Twig conditions"
+            };
+            error.message = Some(format!(
+                "closing </{}> does not match opening <{}>: {reason}",
+                fragment.name, opening.name
+            ));
+            error.secondary = Some((opening.range, format!("opening <{}> is here", opening.name)));
+            errors.push(error);
         } else {
             errors.push(parse_error(
                 fragment.range,

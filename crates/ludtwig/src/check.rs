@@ -218,11 +218,15 @@ pub fn produce_diagnostics(
     for result in &file_context.parse_errors {
         // notify output about this
         file_context.send_processing_output(ProcessingEvent::Report(Severity::Error));
-        let label = Label::primary(file_id, result.range).with_message(result.expected_message());
+        let mut labels =
+            vec![Label::primary(file_id, result.range).with_message(result.expected_message())];
+        if let Some((range, message)) = &result.secondary {
+            labels.push(Label::secondary(file_id, *range).with_message(message));
+        }
         let diagnostic = Diagnostic::error()
             .with_code("SyntaxError")
             .with_message("The parser encountered a syntax error")
-            .with_labels(vec![label]);
+            .with_labels(labels);
 
         term::emit_to_write_style(buffer, &config, &files, &diagnostic).unwrap();
     }

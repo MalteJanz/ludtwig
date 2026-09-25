@@ -533,6 +533,28 @@ mod tests {
     }
 
     #[test]
+    fn mismatched_split_tags_report_both_locations_once() {
+        let source = "{% if a %}<div>{% endif %}\n{% if b %}</div>{% endif %}";
+        let errors = crate::parse(source).errors;
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(
+            u32::from(errors[0].range.start()) as usize,
+            source.find("</div>").unwrap() + 2
+        );
+        let (opening_range, message) = errors[0].secondary.as_ref().unwrap();
+        assert_eq!(
+            u32::from(opening_range.start()) as usize,
+            source.find("<div>").unwrap() + 1
+        );
+        assert_eq!(message, "opening <div> is here");
+        assert_eq!(
+            errors[0].expected_message(),
+            "closing </div> does not match opening <div>: different Twig conditions"
+        );
+    }
+
+    #[test]
     fn split_tags_must_remain_properly_nested() {
         let invalid = "{% if a %}<div><span>{% endif %}{% if a %}</div></span>{% endif %}";
         assert!(

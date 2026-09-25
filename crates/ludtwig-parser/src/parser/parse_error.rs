@@ -36,6 +36,8 @@ impl ParseErrorBuilder {
             range: self.range.unwrap(),
             found: self.found,
             expected: self.expected,
+            secondary: None,
+            message: None,
         }
     }
 }
@@ -45,11 +47,16 @@ pub struct ParseError {
     pub range: TextRange,
     pub found: Option<SyntaxKind>,
     pub expected: String,
+    pub secondary: Option<(TextRange, String)>,
+    pub message: Option<String>,
 }
 
 impl ParseError {
     #[must_use]
     pub fn expected_message(&self) -> String {
+        if let Some(message) = &self.message {
+            return message.clone();
+        }
         if let Some(found) = self.found {
             format!("expected {} but found {}", self.expected, found)
         } else {
@@ -84,6 +91,8 @@ mod test {
             range,
             found: Some(T!["{%"]),
             expected: "word".to_string(),
+            secondary: None,
+            message: None,
         };
 
         assert_eq!(
