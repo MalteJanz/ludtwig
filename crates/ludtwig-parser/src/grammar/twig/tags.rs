@@ -84,6 +84,8 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_deprecated(parser, m))
     } else if parser.at(T!["do"]) {
         Some(parse_twig_do(parser, m))
+    } else if parser.at(T!["break"]) {
+        Some(parse_twig_break(parser, m))
     } else if parser.at(T!["flush"]) {
         Some(parse_twig_flush(parser, m))
     } else if parser.at(T!["sandbox"]) {
@@ -102,14 +104,6 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_component(parser, m, child_parser))
     } else if parser.at(T!["props"]) {
         Some(parse_twig_props(parser, m))
-    } else if parser.at(T![word])
-        && parser
-            .peek_token()
-            .is_some_and(|token| token.text == "break")
-    {
-        parser.bump();
-        parser.expect_any(TWIG_BLOCK_CLOSE_SET, &[]);
-        Some(parser.complete(m, SyntaxKind::TWIG_BREAK))
     } else {
         match parse_shopware_twig_block_statement(parser, m, child_parser) {
             BlockParseResult::NothingFound(m) => {
@@ -482,6 +476,13 @@ fn parse_twig_flush(parser: &mut Parser, outer: Marker) -> CompletedMarker {
     parser.bump();
     parser.expect_any(TWIG_BLOCK_CLOSE_SET, &[T!["</"]]);
     parser.complete(outer, SyntaxKind::TWIG_FLUSH)
+}
+
+fn parse_twig_break(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["break"]));
+    parser.bump();
+    parser.expect_any(TWIG_BLOCK_CLOSE_SET, &[]);
+    parser.complete(outer, SyntaxKind::TWIG_BREAK)
 }
 
 fn parse_twig_do(parser: &mut Parser, outer: Marker) -> CompletedMarker {
@@ -1507,7 +1508,7 @@ mod tests {
                       TWIG_BREAK@23..34
                         TK_CURLY_PERCENT@23..25 "{%"
                         TK_WHITESPACE@25..26 " "
-                        TK_WORD@26..31 "break"
+                        TK_BREAK@26..31 "break"
                         TK_WHITESPACE@31..32 " "
                         TK_PERCENT_CURLY@32..34 "%}"
                     TWIG_ENDFOR_BLOCK@34..46

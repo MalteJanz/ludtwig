@@ -221,6 +221,8 @@ pub enum SyntaxKind {
     TK_AUTOESCAPE,
     #[token("endautoescape")]
     TK_ENDAUTOESCAPE,
+    #[token("break")]
+    TK_BREAK,
     #[token("cache")]
     TK_CACHE,
     #[token("endcache")]
@@ -676,6 +678,7 @@ macro_rules! T {
     ["endapply"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDAPPLY };
     ["autoescape"] => { $crate::syntax::untyped::SyntaxKind::TK_AUTOESCAPE };
     ["endautoescape"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDAUTOESCAPE };
+    ["break"] => { $crate::syntax::untyped::SyntaxKind::TK_BREAK };
     ["cache"] => { $crate::syntax::untyped::SyntaxKind::TK_CACHE };
     ["endcache"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDCACHE };
     ["deprecated"] => { $crate::syntax::untyped::SyntaxKind::TK_DEPRECATED };
@@ -847,6 +850,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_ENDAPPLY => "endapply",
             SyntaxKind::TK_AUTOESCAPE => "autoescape",
             SyntaxKind::TK_ENDAUTOESCAPE => "endautoescape",
+            SyntaxKind::TK_BREAK => "break",
             SyntaxKind::TK_CACHE => "cache",
             SyntaxKind::TK_ENDCACHE => "endcache",
             SyntaxKind::TK_DEPRECATED => "deprecated",

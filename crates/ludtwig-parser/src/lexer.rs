@@ -243,6 +243,7 @@ mod tests {
         add("endapply", T!["endapply"]);
         add("autoescape", T!["autoescape"]);
         add("endautoescape", T!["endautoescape"]);
+        add("break", T!["break"]);
         add("cache", T!["cache"]);
         add("endcache", T!["endcache"]);
         add("deprecated", T!["deprecated"]);
@@ -746,6 +747,12 @@ mod tests {
     #[test]
     fn lex_endautoescape() {
         check_token("endautoescape", T!["endautoescape"]);
+    }
+
+    #[test]
+    fn lex_break() {
+        check_token("break", T!["break"]);
+        check_regex("breakpoint", T![word], "word");
     }
 
     #[test]
