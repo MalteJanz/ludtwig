@@ -520,6 +520,7 @@ mod tests {
     use crate::parser::check_parse;
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn parses_shopware_footer_tags_split_across_twig_branches() {
         check_parse(
             r"{% if feature('v6.8.0.0') %}<ul>{% else %}<div>{% endif %}
@@ -652,6 +653,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn split_tags_require_the_same_twig_conditions() {
         check_parse(
             "{% if active %}<div>{% endif %}text{% if active %}</div>{% endif %}",
@@ -1289,6 +1291,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn parses_matching_twig_expression_tag_names() {
         for (source, expected) in [
             (
@@ -1522,6 +1525,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn mismatched_twig_expression_tag_names_report_both_locations_once() {
         for (source, expected) in [
             (

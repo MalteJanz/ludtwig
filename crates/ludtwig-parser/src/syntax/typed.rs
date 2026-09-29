@@ -223,6 +223,13 @@ impl HtmlTag {
 }
 
 ast_node!(HtmlStartingTag, SyntaxKind::HTML_STARTING_TAG);
+
+/// A literal HTML tag name or a Twig expression used as one.
+pub enum HtmlTagName {
+    Static(SyntaxToken),
+    Dynamic(TwigVar),
+}
+
 impl HtmlStartingTag {
     /// Name of the tag
     #[must_use]
@@ -231,6 +238,14 @@ impl HtmlStartingTag {
             .children_with_tokens()
             .filter_map(NodeOrToken::into_token)
             .find(|it| it.kind() == T![word] || it.kind() == T![twig component name])
+    }
+
+    /// Name of the tag, including dynamic Twig names such as `<{{ tag }}>`.
+    #[must_use]
+    pub fn tag_name(&self) -> Option<HtmlTagName> {
+        self.name()
+            .map(HtmlTagName::Static)
+            .or_else(|| support::child(&self.syntax).map(HtmlTagName::Dynamic))
     }
 
     /// Attributes of the tag
@@ -290,6 +305,14 @@ impl HtmlEndingTag {
             .children_with_tokens()
             .filter_map(NodeOrToken::into_token)
             .find(|it| it.kind() == T![word] || it.kind() == T![twig component name])
+    }
+
+    /// Name of the tag, including dynamic Twig names such as `</{{ tag }}>`.
+    #[must_use]
+    pub fn tag_name(&self) -> Option<HtmlTagName> {
+        self.name()
+            .map(HtmlTagName::Static)
+            .or_else(|| support::child(&self.syntax).map(HtmlTagName::Dynamic))
     }
 
     /// Parent complete html tag

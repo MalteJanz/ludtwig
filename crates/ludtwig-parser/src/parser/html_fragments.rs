@@ -3,7 +3,7 @@ use rowan::ast::AstNode;
 
 use crate::T;
 use crate::parser::{DYNAMIC_HTML_TAG_PREFIX, ParseError};
-use crate::syntax::typed::{HtmlEndingTag, HtmlTag};
+use crate::syntax::typed::{HtmlEndingTag, HtmlTag, HtmlTagName};
 use crate::syntax::untyped::{SyntaxKind, SyntaxNode, TextRange};
 
 #[derive(Clone, Eq, PartialEq)]
@@ -20,37 +20,30 @@ struct Fragment {
     opening: bool,
 }
 
-fn tag_name(node: &SyntaxNode) -> Option<(String, String, TextRange)> {
-    if let Some(token) = node
-        .children_with_tokens()
-        .filter_map(NodeOrToken::into_token)
-        .find(|token| token.kind() == T![word] || token.kind() == T![twig component name])
-    {
-        return Some((
+fn fragment_name(name: HtmlTagName) -> Option<(String, String, TextRange)> {
+    match name {
+        HtmlTagName::Static(token) => Some((
             token.text().to_string(),
             token.text().to_string(),
             token.text_range(),
-        ));
+        )),
+        HtmlTagName::Dynamic(twig_var) => {
+            let expression = twig_var.get_expression()?;
+            let key = expression
+                .syntax()
+                .descendants_with_tokens()
+                .filter_map(NodeOrToken::into_token)
+                .filter(|token| !token.kind().is_trivia())
+                .map(|token| token.text().to_owned())
+                .collect::<Vec<_>>()
+                .join("\0");
+            Some((
+                twig_var.to_string(),
+                format!("{DYNAMIC_HTML_TAG_PREFIX}{key}\0"),
+                twig_var.syntax().text_range(),
+            ))
+        }
     }
-
-    let twig_var = node
-        .children()
-        .find(|child| child.kind() == SyntaxKind::TWIG_VAR)?;
-    let expression = twig_var
-        .children()
-        .find(|child| child.kind() == SyntaxKind::TWIG_EXPRESSION)?;
-    let key = expression
-        .descendants_with_tokens()
-        .filter_map(NodeOrToken::into_token)
-        .filter(|token| !token.kind().is_trivia())
-        .map(|token| token.text().to_owned())
-        .collect::<Vec<_>>()
-        .join("\0");
-    Some((
-        twig_var.to_string(),
-        format!("{DYNAMIC_HTML_TAG_PREFIX}{key}\0"),
-        twig_var.text_range(),
-    ))
 }
 
 fn branch_context(node: &SyntaxNode) -> Context {
@@ -173,8 +166,10 @@ fn collect_fragments(root: &SyntaxNode) -> (Vec<Fragment>, Vec<ParseError>) {
                 if let (
                     Some((opening, opening_key, opening_range)),
                     Some((closing, closing_key, closing_range)),
-                ) = (tag_name(starting.syntax()), tag_name(ending.syntax()))
-                {
+                ) = (
+                    starting.tag_name().and_then(fragment_name),
+                    ending.tag_name().and_then(fragment_name),
+                ) {
                     if opening_key != closing_key {
                         let opening = Fragment {
                             name: opening,
@@ -196,11 +191,11 @@ fn collect_fragments(root: &SyntaxNode) -> (Vec<Fragment>, Vec<ParseError>) {
             }
             if tag
                 .ending_tag()
-                .is_some_and(|ending| tag_name(ending.syntax()).is_none())
+                .is_some_and(|ending| ending.tag_name().and_then(fragment_name).is_none())
             {
                 if let Some((name, key, range)) = tag
                     .starting_tag()
-                    .and_then(|starting| tag_name(starting.syntax()))
+                    .and_then(|starting| starting.tag_name().and_then(fragment_name))
                 {
                     fragments.push(Fragment {
                         name,
@@ -213,7 +208,7 @@ fn collect_fragments(root: &SyntaxNode) -> (Vec<Fragment>, Vec<ParseError>) {
             }
         } else if let Some(ending) = HtmlEndingTag::cast(node.clone()) {
             if ending.html_tag().is_none() {
-                if let Some((name, key, range)) = tag_name(&node) {
+                if let Some((name, key, range)) = ending.tag_name().and_then(fragment_name) {
                     fragments.push(Fragment {
                         name,
                         key,
