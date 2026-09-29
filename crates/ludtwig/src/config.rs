@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::env;
 use std::fmt::{Display, Formatter};
 use std::path::{Path, PathBuf};
@@ -30,6 +31,7 @@ pub struct Twig {
     pub valid_filters: Vec<String>,
     pub valid_tests: Vec<String>,
     pub valid_functions: Vec<String>,
+    pub deprecated_feature_flags: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]

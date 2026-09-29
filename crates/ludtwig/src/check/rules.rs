@@ -9,6 +9,7 @@ use crate::check::rules::ludtwig_ignore_file_not_on_top::RuleLudtwigIgnoreFileNo
 use crate::check::rules::twig_block_duplicate::RuleTwigBlockDuplicate;
 use crate::check::rules::twig_block_line_breaks::RuleTwigBlockLineBreaks;
 use crate::check::rules::twig_block_name_snake_case::RuleTwigBlockNameSnakeCase;
+use crate::check::rules::twig_deprecated_feature_guard::RuleTwigDeprecatedFeatureGuard;
 use crate::check::rules::twig_hash_key_no_quotes::RuleTwigHashKeyNoQuotes;
 use crate::check::rules::twig_json_encode_escape_js::RuleTwigJsonEncodeEscapeJs;
 use crate::check::rules::twig_logic_and::RuleTwigLogicAnd;
@@ -35,6 +36,7 @@ mod ludtwig_ignore_file_not_on_top;
 mod twig_block_duplicate;
 mod twig_block_line_breaks;
 mod twig_block_name_snake_case;
+mod twig_deprecated_feature_guard;
 mod twig_hash_key_no_quotes;
 mod twig_json_encode_escape_js;
 mod twig_logic_and;
@@ -73,6 +75,7 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleTwigValidFilter,
     &RuleTwigValidTest,
     &RuleTwigValidFunction,
+    &RuleTwigDeprecatedFeatureGuard,
 ];
 
 /// Get active rule definitions based on config
@@ -159,9 +162,8 @@ pub mod test {
     fn debug_rule(
         rule_name: &str,
         source_code: &str,
+        config: Config,
     ) -> (FileContext, Vec<CheckResult>, Receiver<ProcessingEvent>) {
-        let config = Config::new(crate::config::DEFAULT_CONFIG_PATH).unwrap();
-
         let rule = RULE_DEFINITIONS
             .iter()
             .find(|r| r.name() == rule_name)
@@ -193,7 +195,18 @@ pub mod test {
 
     #[allow(clippy::needless_pass_by_value)]
     pub fn test_rule(rule_name: &str, source_code: &str, expected_report: expect_test::Expect) {
-        let (file_context, rule_result_context, rx) = debug_rule(rule_name, source_code);
+        let config = Config::new(crate::config::DEFAULT_CONFIG_PATH).unwrap();
+        test_rule_with_config(rule_name, source_code, config, expected_report);
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn test_rule_with_config(
+        rule_name: &str,
+        source_code: &str,
+        config: Config,
+        expected_report: expect_test::Expect,
+    ) {
+        let (file_context, rule_result_context, rx) = debug_rule(rule_name, source_code, config);
         let mut buffer = Buffer::no_color();
         produce_diagnostics(&file_context, rule_result_context, &mut buffer);
         expected_report.assert_eq(&String::from_utf8_lossy(buffer.as_slice()));
@@ -206,7 +219,8 @@ pub mod test {
         source_code: &str,
         expected_source_code: expect_test::Expect,
     ) {
-        let (file_context, rule_result_context, rx) = debug_rule(rule_name, source_code);
+        let config = Config::new(crate::config::DEFAULT_CONFIG_PATH).unwrap();
+        let (file_context, rule_result_context, rx) = debug_rule(rule_name, source_code, config);
         let (file_context, _, dirty, iteration) =
             iteratively_apply_suggestions(file_context, rule_result_context).unwrap();
 
@@ -225,7 +239,8 @@ pub mod test {
         source_code: &str,
         expected_source_code: expect_test::Expect,
     ) {
-        let (file_context, rule_result_context, rx) = debug_rule(rule_name, source_code);
+        let config = Config::new(crate::config::DEFAULT_CONFIG_PATH).unwrap();
+        let (file_context, rule_result_context, rx) = debug_rule(rule_name, source_code, config);
         let (file_context, _, dirty, iteration) =
             iteratively_apply_suggestions(file_context, rule_result_context).unwrap();
 
