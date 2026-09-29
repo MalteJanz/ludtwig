@@ -56,6 +56,9 @@ pub trait RuleExt: Rule {
     /// Create a result for the corresponding rule.
     fn create_result<S: Into<String>>(&self, severity: Severity, message: S) -> CheckResult;
 
+    /// Whether a node or one of its ancestors follows an ignore directive for this rule.
+    fn is_ignored_for_node(&self, node: &SyntaxNode) -> bool;
+
     /// Helper for `check_root` implementations: check if a `LudtwigDirectiveIgnore` applies
     /// when entering a node. Returns `true` if the subtree was skipped entirely (blanket ignore).
     fn check_for_rule_ignore_enter(
@@ -80,6 +83,18 @@ impl<R: Rule> RuleExt for R {
             secondary: vec![],
             suggestions: vec![],
         }
+    }
+
+    fn is_ignored_for_node(&self, node: &SyntaxNode) -> bool {
+        node.ancestors().any(|ancestor| {
+            ancestor
+                .prev_sibling()
+                .and_then(LudtwigDirectiveIgnore::cast)
+                .is_some_and(|directive| {
+                    let rules = directive.get_rules();
+                    rules.is_empty() || rules.iter().any(|name| name == self.name())
+                })
+        })
     }
 
     fn check_for_rule_ignore_enter(

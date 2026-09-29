@@ -1,6 +1,4 @@
-use ludtwig_parser::syntax::typed::{
-    AstNode, HtmlEndingTag, HtmlTag, HtmlTagName, LudtwigDirectiveIgnore,
-};
+use ludtwig_parser::syntax::typed::{AstNode, HtmlEndingTag, HtmlTag, HtmlTagName};
 use ludtwig_parser::syntax::untyped::{
     SyntaxElement, SyntaxKind, SyntaxNode, TextRange, WalkEvent,
 };
@@ -24,18 +22,6 @@ struct Fragment {
     range: TextRange,
     opening: bool,
     ignored: bool,
-}
-
-fn is_ignored(rule: &RuleHtmlTagFragments, node: &SyntaxNode) -> bool {
-    node.ancestors().any(|ancestor| {
-        ancestor
-            .prev_sibling()
-            .and_then(LudtwigDirectiveIgnore::cast)
-            .is_some_and(|directive| {
-                let rules = directive.get_rules();
-                rules.is_empty() || rules.iter().any(|name| name == rule.name())
-            })
-    })
 }
 
 fn fragment_name(name: HtmlTagName) -> Option<(String, String, TextRange)> {
@@ -243,7 +229,7 @@ fn collect_fragments(
             WalkEvent::Leave(_) => continue,
         };
         if let Some(tag) = HtmlTag::cast(node.clone()) {
-            let ignored = is_ignored(rule, &node);
+            let ignored = rule.is_ignored_for_node(&node);
             if let (Some(starting), Some(ending)) = (tag.starting_tag(), tag.ending_tag()) {
                 if let (
                     Some((opening, opening_key, opening_range)),
@@ -302,7 +288,7 @@ fn collect_fragments(
                         context: branch_context(&node),
                         range,
                         opening: false,
-                        ignored: is_ignored(rule, &node),
+                        ignored: rule.is_ignored_for_node(&node),
                     });
                 }
             }
