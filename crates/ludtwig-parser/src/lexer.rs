@@ -190,6 +190,7 @@ mod tests {
         add("[", T!["["]);
         add("]", T!["]"]);
         add("<", T!["<"]);
+        add("<?", T!["<?"]);
         add("<=", T!["<="]);
         add("<=>", T!["<=>"]);
         add("</", T!["</"]);
@@ -540,6 +541,11 @@ mod tests {
     #[test]
     fn lex_less_than() {
         check_token("<", T!["<"]);
+    }
+
+    #[test]
+    fn lex_less_than_question_mark() {
+        check_token("<?", T!["<?"]);
     }
 
     #[test]

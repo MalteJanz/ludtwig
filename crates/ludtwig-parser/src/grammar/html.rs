@@ -24,11 +24,7 @@ static HTML_VOID_ELEMENTS: &[&str] = &[
 static HTML_RAW_TEXT_ELEMENTS: &[&str] = &["script", "style", "textarea", "title"];
 
 pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
-    if parser.at(T!["<"])
-        && parser
-            .peek_nth_token(1)
-            .is_some_and(|token| token.kind == T!["?"])
-    {
+    if parser.at(T!["<?"]) {
         Some(parse_xml_declaration(parser))
     } else if parser.peek_html_tag_expression(false).is_some() {
         Some(parse_html_element(parser))
@@ -53,7 +49,6 @@ pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
 
 fn parse_xml_declaration(parser: &mut Parser) -> CompletedMarker {
     let m = parser.start();
-    parser.bump();
     parser.bump();
     parse_many(
         parser,
@@ -1819,8 +1814,7 @@ mod tests {
             expect![[r#"
                 ROOT@0..49
                   HTML_PROCESSING_INSTRUCTION@0..21
-                    TK_LESS_THAN@0..1 "<"
-                    TK_QUESTION_MARK@1..2 "?"
+                    TK_LESS_THAN_QUESTION_MARK@0..2 "<?"
                     TK_WORD@2..5 "xml"
                     TK_WHITESPACE@5..6 " "
                     TK_WORD@6..13 "version"

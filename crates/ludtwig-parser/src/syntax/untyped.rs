@@ -112,6 +112,8 @@ pub enum SyntaxKind {
     TK_CLOSE_SQUARE,
     #[token("<")]
     TK_LESS_THAN,
+    #[token("<?")]
+    TK_LESS_THAN_QUESTION_MARK,
     #[token("<=")]
     TK_LESS_THAN_EQUAL,
     #[token("<=>")]
@@ -621,6 +623,7 @@ macro_rules! T {
     ["["] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_SQUARE };
     ["]"] => { $crate::syntax::untyped::SyntaxKind::TK_CLOSE_SQUARE };
     ["<"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN };
+    ["<?"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_QUESTION_MARK };
     ["<="] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_EQUAL };
     ["<=>"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_EQUAL_GREATER_THAN };
     ["</"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_SLASH };
@@ -791,6 +794,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_OPEN_SQUARE => "[",
             SyntaxKind::TK_CLOSE_SQUARE => "]",
             SyntaxKind::TK_LESS_THAN => "<",
+            SyntaxKind::TK_LESS_THAN_QUESTION_MARK => "<?",
             SyntaxKind::TK_LESS_THAN_EQUAL => "<=",
             SyntaxKind::TK_LESS_THAN_EQUAL_GREATER_THAN => "<=>",
             SyntaxKind::TK_LESS_THAN_SLASH => "</",
