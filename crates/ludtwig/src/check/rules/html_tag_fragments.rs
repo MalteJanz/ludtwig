@@ -1,4 +1,6 @@
-use ludtwig_parser::syntax::typed::{AstNode, HtmlEndingTag, HtmlTag, HtmlTagName};
+use ludtwig_parser::syntax::typed::{
+    AstNode, HtmlEndingTag, HtmlTag, HtmlTagName, LudtwigDirectiveIgnore,
+};
 use ludtwig_parser::syntax::untyped::{
     SyntaxElement, SyntaxKind, SyntaxNode, TextRange, WalkEvent,
 };
@@ -21,6 +23,19 @@ struct Fragment {
     context: Context,
     range: TextRange,
     opening: bool,
+    ignored: bool,
+}
+
+fn is_ignored(rule: &RuleHtmlTagFragments, node: &SyntaxNode) -> bool {
+    node.ancestors().any(|ancestor| {
+        ancestor
+            .prev_sibling()
+            .and_then(LudtwigDirectiveIgnore::cast)
+            .is_some_and(|directive| {
+                let rules = directive.get_rules();
+                rules.is_empty() || rules.iter().any(|name| name == rule.name())
+            })
+    })
 }
 
 fn fragment_name(name: HtmlTagName) -> Option<(String, String, TextRange)> {
@@ -215,7 +230,6 @@ fn collect_fragments(
 ) -> (Vec<Fragment>, Vec<CheckResult>) {
     let mut fragments = Vec::new();
     let mut errors = Vec::new();
-    let mut is_ignored = false;
     let mut tree_iter = root.preorder();
     while let Some(walk) = tree_iter.next() {
         let node = match walk {
@@ -224,20 +238,12 @@ fn collect_fragments(
                     tree_iter.skip_subtree();
                     continue;
                 }
-                if rule.check_for_rule_ignore_enter(&mut is_ignored, &mut tree_iter, &node) {
-                    continue;
-                }
-                if is_ignored {
-                    continue;
-                }
                 node
             }
-            WalkEvent::Leave(node) => {
-                rule.check_for_rule_ignore_leave(&mut is_ignored, &node);
-                continue;
-            }
+            WalkEvent::Leave(_) => continue,
         };
         if let Some(tag) = HtmlTag::cast(node.clone()) {
+            let ignored = is_ignored(rule, &node);
             if let (Some(starting), Some(ending)) = (tag.starting_tag(), tag.ending_tag()) {
                 if let (
                     Some((opening, opening_key, opening_range)),
@@ -253,6 +259,7 @@ fn collect_fragments(
                             context: branch_context(&node),
                             range: opening_range,
                             opening: true,
+                            ignored,
                         };
                         let closing = Fragment {
                             name: closing,
@@ -260,8 +267,11 @@ fn collect_fragments(
                             context: branch_context(&node),
                             range: closing_range,
                             opening: false,
+                            ignored,
                         };
-                        errors.push(mismatched_fragment_error(rule, &opening, &closing));
+                        if !ignored {
+                            errors.push(mismatched_fragment_error(rule, &opening, &closing));
+                        }
                     }
                 }
             }
@@ -279,6 +289,7 @@ fn collect_fragments(
                         context: branch_context(&node),
                         range,
                         opening: true,
+                        ignored,
                     });
                 }
             }
@@ -291,6 +302,7 @@ fn collect_fragments(
                         context: branch_context(&node),
                         range,
                         opening: false,
+                        ignored: is_ignored(rule, &node),
                     });
                 }
             }
@@ -321,14 +333,18 @@ fn validate(rule: &RuleHtmlTagFragments, root: &SyntaxNode) -> Vec<CheckResult> 
                     && fragment.key.starts_with(DYNAMIC_HTML_TAG_PREFIX))
         }) {
             let opening = &fragments[openings.remove(position)];
-            errors.push(mismatched_fragment_error(rule, opening, fragment));
-        } else {
+            if !opening.ignored && !fragment.ignored {
+                errors.push(mismatched_fragment_error(rule, opening, fragment));
+            }
+        } else if !fragment.ignored {
             errors.push(unmatched_fragment_error(rule, fragment));
         }
     }
     for opening in openings {
         let fragment = &fragments[opening];
-        errors.push(unmatched_fragment_error(rule, fragment));
+        if !fragment.ignored {
+            errors.push(unmatched_fragment_error(rule, fragment));
+        }
     }
 
     for (i, &(left_open, left_close)) in pairs.iter().enumerate() {
@@ -336,6 +352,9 @@ fn validate(rule: &RuleHtmlTagFragments, root: &SyntaxNode) -> Vec<CheckResult> 
             if left_open < right_open
                 && right_open < left_close
                 && left_close < right_close
+                && ![left_open, left_close, right_open, right_close]
+                    .iter()
+                    .any(|index| fragments[*index].ignored)
                 && !mutually_exclusive(
                     &fragments[left_open].context,
                     &fragments[right_open].context,
@@ -481,6 +500,26 @@ mod tests {
         test_rule(
             "html-tag-fragments",
             "{# ludtwig-ignore html-tag-fragments #}{% block a %}{% if a %}<div>{% endif %}{% if b %}</div>{% endif %}{% endblock %}",
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn ignore_directive_on_closing_fragment_only_suppresses_its_pair() {
+        let source = "{% block a %}<html>{% endblock %}{# ludtwig-ignore html-tag-fragments #}</html><{{ a }}></{{ b }}>";
+        let (root, parse_errors) = ludtwig_parser::parse(source).split();
+        assert!(parse_errors.is_empty());
+
+        let errors = super::validate(&super::RuleHtmlTagFragments, &root);
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].message.contains("different tag-name expressions"));
+    }
+
+    #[test]
+    fn ignore_directive_on_opening_fragment_suppresses_its_pair() {
+        test_rule(
+            "html-tag-fragments",
+            "{# ludtwig-ignore html-tag-fragments #}{% block a %}<html>{% endblock %}</html>",
             expect![""],
         );
     }
