@@ -52,6 +52,7 @@ pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
 }
 
 fn parse_xml_declaration(parser: &mut Parser) -> CompletedMarker {
+    debug_assert!(parser.at(T!["<?"]));
     let m = parser.start();
     parser.bump();
     parse_many(
