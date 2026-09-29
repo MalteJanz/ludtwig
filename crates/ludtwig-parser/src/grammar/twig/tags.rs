@@ -28,7 +28,7 @@ pub(crate) fn at_twig_termination_tag(p: &mut Parser) -> bool {
         T!["endset"],
         T!["endfor"],
         T!["endembed"],
-        T!["sw_end_embed"],
+        T!["end_sw_embed"],
         T!["endapply"],
         T!["endautoescape"],
         T!["endsandbox"],
@@ -782,7 +782,7 @@ fn parse_twig_embed(
     parser.bump();
 
     let expected_end_tag = if is_sw_embed {
-        T!["sw_end_embed"]
+        T!["end_sw_embed"]
     } else {
         T!["endembed"]
     };
@@ -795,7 +795,7 @@ fn parse_twig_embed(
             T!["with"],
             T!["only"],
             T!["endembed"],
-            T!["sw_end_embed"],
+            T!["end_sw_embed"],
             T!["%}"],
             T!["-%}"],
             T!["~%}"],
@@ -815,7 +815,7 @@ fn parse_twig_embed(
             parser.recover(&[
                 T!["only"],
                 T!["endembed"],
-                T!["sw_end_embed"],
+                T!["end_sw_embed"],
                 T!["%}"],
                 T!["-%}"],
                 T!["~%}"],
@@ -833,7 +833,7 @@ fn parse_twig_embed(
         TWIG_BLOCK_CLOSE_SET,
         &[
             T!["endembed"],
-            T!["sw_end_embed"],
+            T!["end_sw_embed"],
             T!["%}"],
             T!["-%}"],
             T!["~%}"],
@@ -849,7 +849,7 @@ fn parse_twig_embed(
     let body_m = parser.start();
     parse_many(
         parser,
-        |p| p.at_twig_tag(T!["endembed"]) || p.at_twig_tag(T!["sw_end_embed"]),
+        |p| p.at_twig_tag(T!["endembed"]) || p.at_twig_tag(T!["end_sw_embed"]),
         |p| {
             child_parser(p);
         },
@@ -861,7 +861,7 @@ fn parse_twig_embed(
         TWIG_BLOCK_OPEN_SET,
         &[
             T!["endembed"],
-            T!["sw_end_embed"],
+            T!["end_sw_embed"],
             T!["%}"],
             T!["-%}"],
             T!["~%}"],
@@ -6142,9 +6142,9 @@ mod tests {
     }
 
     #[test]
-    fn parse_sw_embed_alias_with_sw_end_embed() {
+    fn parse_sw_embed_alias_with_end_sw_embed() {
         check_parse(
-            "{% sw_embed 'base.html.twig' %}...{% sw_end_embed %}",
+            "{% sw_embed 'base.html.twig' %}...{% end_sw_embed %}",
             expect![[r#"
                 ROOT@0..52
                   TWIG_EMBED@0..52
@@ -6171,7 +6171,7 @@ mod tests {
                     TWIG_EMBED_ENDING_BLOCK@34..52
                       TK_CURLY_PERCENT@34..36 "{%"
                       TK_WHITESPACE@36..37 " "
-                      TK_SW_END_EMBED@37..49 "sw_end_embed"
+                      TK_END_SW_EMBED@37..49 "end_sw_embed"
                       TK_WHITESPACE@49..50 " "
                       TK_PERCENT_CURLY@50..52 "%}""#]],
         );

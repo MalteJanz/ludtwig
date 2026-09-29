@@ -318,7 +318,7 @@ mod tests {
         add("trans", T!["trans"]);
         add("endtrans", T!["endtrans"]);
         add("sw_embed", T!["sw_embed"]);
-        add("sw_end_embed", T!["sw_end_embed"]);
+        add("end_sw_embed", T!["end_sw_embed"]);
         add("sw_use", T!["sw_use"]);
         add("sw_import", T!["sw_import"]);
         add("sw_from", T!["sw_from"]);
@@ -1108,8 +1108,8 @@ mod tests {
     }
 
     #[test]
-    fn lex_sw_end_embed() {
-        check_token("sw_end_embed", T!["sw_end_embed"]);
+    fn lex_end_sw_embed() {
+        check_token("end_sw_embed", T!["end_sw_embed"]);
     }
 
     #[test]
