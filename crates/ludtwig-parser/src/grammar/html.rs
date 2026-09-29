@@ -24,7 +24,11 @@ static HTML_VOID_ELEMENTS: &[&str] = &[
 static HTML_RAW_TEXT_ELEMENTS: &[&str] = &["script", "style", "textarea", "title"];
 
 pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
-    if parser.at(T!["<?"]) {
+    if parser.at(T!["<?"])
+        && parser
+            .peek_nth_token(1)
+            .is_some_and(|token| token.kind == T![word] && token.text == "xml")
+    {
         Some(parse_xml_declaration(parser))
     } else if parser.peek_html_tag_expression(false).is_some() {
         Some(parse_html_element(parser))
@@ -58,7 +62,7 @@ fn parse_xml_declaration(parser: &mut Parser) -> CompletedMarker {
         },
     );
     parser.expect(T![">"], &[]);
-    parser.complete(m, SyntaxKind::HTML_PROCESSING_INSTRUCTION)
+    parser.complete(m, SyntaxKind::XML_DECLARATION)
 }
 
 fn parse_html_ending_fragment(parser: &mut Parser) -> Option<CompletedMarker> {
@@ -1813,7 +1817,7 @@ mod tests {
             "<?xml version=\"1.0\"?><entry enabled=true></entry>",
             expect![[r#"
                 ROOT@0..49
-                  HTML_PROCESSING_INSTRUCTION@0..21
+                  XML_DECLARATION@0..21
                     TK_LESS_THAN_QUESTION_MARK@0..2 "<?"
                     TK_WORD@2..5 "xml"
                     TK_WHITESPACE@5..6 " "
@@ -1842,6 +1846,31 @@ mod tests {
                       TK_LESS_THAN_SLASH@41..43 "</"
                       TK_WORD@43..48 "entry"
                       TK_GREATER_THAN@48..49 ">""#]],
+        );
+    }
+
+    #[test]
+    fn other_processing_instruction_is_not_an_xml_declaration() {
+        check_parse(
+            "<?other?><div></div>",
+            expect![[r#"
+            ROOT@0..20
+              HTML_TEXT@0..9
+                TK_LESS_THAN_QUESTION_MARK@0..2 "<?"
+                TK_WORD@2..7 "other"
+                TK_QUESTION_MARK@7..8 "?"
+                TK_GREATER_THAN@8..9 ">"
+              HTML_TAG@9..20
+                HTML_STARTING_TAG@9..14
+                  TK_LESS_THAN@9..10 "<"
+                  TK_WORD@10..13 "div"
+                  HTML_ATTRIBUTE_LIST@13..13
+                  TK_GREATER_THAN@13..14 ">"
+                BODY@14..14
+                HTML_ENDING_TAG@14..20
+                  TK_LESS_THAN_SLASH@14..16 "</"
+                  TK_WORD@16..19 "div"
+                  TK_GREATER_THAN@19..20 ">""#]],
         );
     }
 

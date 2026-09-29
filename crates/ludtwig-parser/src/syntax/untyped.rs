@@ -531,7 +531,7 @@ pub enum SyntaxKind {
 
     // html
     HTML_DOCTYPE,
-    HTML_PROCESSING_INSTRUCTION,
+    XML_DECLARATION,
     HTML_ATTRIBUTE_LIST,
     HTML_ATTRIBUTE,
     HTML_STRING,       // used as attribute values
