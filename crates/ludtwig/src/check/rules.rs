@@ -3,6 +3,7 @@ use crate::check::rule::Rule;
 use crate::check::rules::html_attribute_name_kebab_case::RuleHtmlAttributeNameKebabCase;
 use crate::check::rules::html_duplicate_id::RuleHtmlDuplicateId;
 use crate::check::rules::html_string_quotation::RuleHtmlStringQuotation;
+use crate::check::rules::html_tag_fragments::RuleHtmlTagFragments;
 use crate::check::rules::indentation::RuleIndentation;
 use crate::check::rules::line_ending::RuleLineEnding;
 use crate::check::rules::ludtwig_ignore_file_not_on_top::RuleLudtwigIgnoreFileNotOnTop;
@@ -30,6 +31,7 @@ use ludtwig_parser::syntax::untyped::SyntaxNode;
 mod html_attribute_name_kebab_case;
 mod html_duplicate_id;
 mod html_string_quotation;
+pub(crate) mod html_tag_fragments;
 mod indentation;
 mod line_ending;
 mod ludtwig_ignore_file_not_on_top;
@@ -72,6 +74,7 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleTwigBlockDuplicate,
     &RuleTwigJsonEncodeEscapeJs,
     &RuleHtmlDuplicateId,
+    &RuleHtmlTagFragments,
     &RuleTwigVariableDefinitionNaming,
     &RuleTwigValidFilter,
     &RuleTwigValidTest,

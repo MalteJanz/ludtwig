@@ -654,7 +654,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::too_many_lines)]
-    fn split_tags_require_the_same_twig_conditions() {
+    fn parses_split_tags_across_twig_conditions() {
         check_parse(
             "{% if active %}<div>{% endif %}text{% if active %}</div>{% endif %}",
             expect![[r#"
@@ -871,8 +871,7 @@ mod tests {
                       TK_WHITESPACE@48..49 " "
                       TK_ENDIF@49..54 "endif"
                       TK_WHITESPACE@54..55 " "
-                      TK_PERCENT_CURLY@55..57 "%}"
-                error at 42..45: closing </div> does not match opening <div>: different Twig conditions"#]],
+                      TK_PERCENT_CURLY@55..57 "%}""#]],
         );
         check_parse(
             "{% if a %}<div>{% endif %}text{% if not a %}</div>{% endif %}",
@@ -931,8 +930,7 @@ mod tests {
                       TK_WHITESPACE@52..53 " "
                       TK_ENDIF@53..58 "endif"
                       TK_WHITESPACE@58..59 " "
-                      TK_PERCENT_CURLY@59..61 "%}"
-                error at 46..49: closing </div> does not match opening <div>: different Twig conditions"#]],
+                      TK_PERCENT_CURLY@59..61 "%}""#]],
         );
         check_parse(
             "{% if a %}<div>{% endif %}text{% if a %}{% else %}</div>{% endif %}",
@@ -994,8 +992,7 @@ mod tests {
                       TK_WHITESPACE@58..59 " "
                       TK_ENDIF@59..64 "endif"
                       TK_WHITESPACE@64..65 " "
-                      TK_PERCENT_CURLY@65..67 "%}"
-                error at 52..55: closing </div> does not match opening <div>: different Twig conditions"#]],
+                      TK_PERCENT_CURLY@65..67 "%}""#]],
         );
         check_parse(
             "{% if a %}<div>{% endif %}text",
@@ -1028,8 +1025,7 @@ mod tests {
                       TK_WHITESPACE@23..24 " "
                       TK_PERCENT_CURLY@24..26 "%}"
                   HTML_TEXT@26..30
-                    TK_WORD@26..30 "text"
-                error at 11..14: expected a closing </div> under the same Twig conditions but found <"#]],
+                    TK_WORD@26..30 "text""#]],
         );
         check_parse(
             "{% block first %}{% if a %}<div>{% endif %}{% endblock %}{% block second %}{% if a %}</div>{% endif %}{% endblock %}",
@@ -1114,90 +1110,72 @@ mod tests {
                       TK_WHITESPACE@104..105 " "
                       TK_ENDBLOCK@105..113 "endblock"
                       TK_WHITESPACE@113..114 " "
-                      TK_PERCENT_CURLY@114..116 "%}"
-                error at 87..90: closing </div> does not match opening <div>: different Twig scopes"#]],
+                      TK_PERCENT_CURLY@114..116 "%}""#]],
         );
     }
 
     #[test]
-    fn mismatched_split_tags_report_both_locations_once() {
+    fn parses_mismatched_split_tags_without_semantic_errors() {
         let source = "{% if a %}<div>{% endif %}\n{% if b %}</div>{% endif %}";
         check_parse(
             source,
             expect![[r#"
-            ROOT@0..54
-              TWIG_IF@0..26
-                TWIG_IF_BLOCK@0..10
-                  TK_CURLY_PERCENT@0..2 "{%"
-                  TK_WHITESPACE@2..3 " "
-                  TK_IF@3..5 "if"
-                  TWIG_EXPRESSION@5..7
-                    TWIG_LITERAL_NAME@5..7
-                      TK_WHITESPACE@5..6 " "
-                      TK_WORD@6..7 "a"
-                  TK_WHITESPACE@7..8 " "
-                  TK_PERCENT_CURLY@8..10 "%}"
-                BODY@10..15
-                  HTML_TAG@10..15
-                    HTML_STARTING_TAG@10..15
-                      TK_LESS_THAN@10..11 "<"
-                      TK_WORD@11..14 "div"
-                      HTML_ATTRIBUTE_LIST@14..14
-                      TK_GREATER_THAN@14..15 ">"
-                    BODY@15..15
-                    HTML_ENDING_TAG@15..15
-                TWIG_ENDIF_BLOCK@15..26
-                  TK_CURLY_PERCENT@15..17 "{%"
-                  TK_WHITESPACE@17..18 " "
-                  TK_ENDIF@18..23 "endif"
-                  TK_WHITESPACE@23..24 " "
-                  TK_PERCENT_CURLY@24..26 "%}"
-              TWIG_IF@26..54
-                TWIG_IF_BLOCK@26..37
-                  TK_LINE_BREAK@26..27 "\n"
-                  TK_CURLY_PERCENT@27..29 "{%"
-                  TK_WHITESPACE@29..30 " "
-                  TK_IF@30..32 "if"
-                  TWIG_EXPRESSION@32..34
-                    TWIG_LITERAL_NAME@32..34
-                      TK_WHITESPACE@32..33 " "
-                      TK_WORD@33..34 "b"
-                  TK_WHITESPACE@34..35 " "
-                  TK_PERCENT_CURLY@35..37 "%}"
-                BODY@37..43
-                  HTML_ENDING_TAG@37..43
-                    TK_LESS_THAN_SLASH@37..39 "</"
-                    TK_WORD@39..42 "div"
-                    TK_GREATER_THAN@42..43 ">"
-                TWIG_ENDIF_BLOCK@43..54
-                  TK_CURLY_PERCENT@43..45 "{%"
-                  TK_WHITESPACE@45..46 " "
-                  TK_ENDIF@46..51 "endif"
-                  TK_WHITESPACE@51..52 " "
-                  TK_PERCENT_CURLY@52..54 "%}"
-            error at 39..42: closing </div> does not match opening <div>: different Twig conditions"#]],
+                ROOT@0..54
+                  TWIG_IF@0..26
+                    TWIG_IF_BLOCK@0..10
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_IF@3..5 "if"
+                      TWIG_EXPRESSION@5..7
+                        TWIG_LITERAL_NAME@5..7
+                          TK_WHITESPACE@5..6 " "
+                          TK_WORD@6..7 "a"
+                      TK_WHITESPACE@7..8 " "
+                      TK_PERCENT_CURLY@8..10 "%}"
+                    BODY@10..15
+                      HTML_TAG@10..15
+                        HTML_STARTING_TAG@10..15
+                          TK_LESS_THAN@10..11 "<"
+                          TK_WORD@11..14 "div"
+                          HTML_ATTRIBUTE_LIST@14..14
+                          TK_GREATER_THAN@14..15 ">"
+                        BODY@15..15
+                        HTML_ENDING_TAG@15..15
+                    TWIG_ENDIF_BLOCK@15..26
+                      TK_CURLY_PERCENT@15..17 "{%"
+                      TK_WHITESPACE@17..18 " "
+                      TK_ENDIF@18..23 "endif"
+                      TK_WHITESPACE@23..24 " "
+                      TK_PERCENT_CURLY@24..26 "%}"
+                  TWIG_IF@26..54
+                    TWIG_IF_BLOCK@26..37
+                      TK_LINE_BREAK@26..27 "\n"
+                      TK_CURLY_PERCENT@27..29 "{%"
+                      TK_WHITESPACE@29..30 " "
+                      TK_IF@30..32 "if"
+                      TWIG_EXPRESSION@32..34
+                        TWIG_LITERAL_NAME@32..34
+                          TK_WHITESPACE@32..33 " "
+                          TK_WORD@33..34 "b"
+                      TK_WHITESPACE@34..35 " "
+                      TK_PERCENT_CURLY@35..37 "%}"
+                    BODY@37..43
+                      HTML_ENDING_TAG@37..43
+                        TK_LESS_THAN_SLASH@37..39 "</"
+                        TK_WORD@39..42 "div"
+                        TK_GREATER_THAN@42..43 ">"
+                    TWIG_ENDIF_BLOCK@43..54
+                      TK_CURLY_PERCENT@43..45 "{%"
+                      TK_WHITESPACE@45..46 " "
+                      TK_ENDIF@46..51 "endif"
+                      TK_WHITESPACE@51..52 " "
+                      TK_PERCENT_CURLY@52..54 "%}""#]],
         );
-        let errors = crate::parse(source).errors;
-
-        assert_eq!(errors.len(), 1);
-        assert_eq!(
-            u32::from(errors[0].range.start()) as usize,
-            source.find("</div>").unwrap() + 2
-        );
-        let (opening_range, message) = errors[0].secondary.as_ref().unwrap();
-        assert_eq!(
-            u32::from(opening_range.start()) as usize,
-            source.find("<div>").unwrap() + 1
-        );
-        assert_eq!(message, "opening <div> is here");
-        assert_eq!(
-            errors[0].expected_message(),
-            "closing </div> does not match opening <div>: different Twig conditions"
-        );
+        assert!(crate::parse(source).errors.is_empty());
     }
 
     #[test]
-    fn split_tags_must_remain_properly_nested() {
+    fn parses_crossing_tag_fragments() {
         check_parse(
             "{% if a %}<div><span>{% endif %}{% if a %}</div></span>{% endif %}",
             expect![[r#"
@@ -1261,8 +1239,7 @@ mod tests {
                       TK_WHITESPACE@57..58 " "
                       TK_ENDIF@58..63 "endif"
                       TK_WHITESPACE@63..64 " "
-                      TK_PERCENT_CURLY@64..66 "%}"
-                error at 44..47: expected properly nested HTML tags under the same Twig conditions but found </"#]],
+                      TK_PERCENT_CURLY@64..66 "%}""#]],
         );
     }
 
@@ -1526,254 +1503,234 @@ mod tests {
 
     #[test]
     #[allow(clippy::too_many_lines)]
-    fn mismatched_twig_expression_tag_names_report_both_locations_once() {
+    fn parses_mismatched_twig_expression_tag_names() {
         for (source, expected) in [
             (
                 "<{{ openingTag }}>content</{{ closingTag }}>",
                 expect![[r#"
-                ROOT@0..44
-                  HTML_TAG@0..44
-                    HTML_STARTING_TAG@0..18
-                      TK_LESS_THAN@0..1 "<"
-                      TWIG_VAR@1..17
-                        TK_OPEN_CURLY_CURLY@1..3 "{{"
-                        TWIG_EXPRESSION@3..14
-                          TWIG_LITERAL_NAME@3..14
-                            TK_WHITESPACE@3..4 " "
-                            TK_WORD@4..14 "openingTag"
-                        TK_WHITESPACE@14..15 " "
-                        TK_CLOSE_CURLY_CURLY@15..17 "}}"
-                      HTML_ATTRIBUTE_LIST@17..17
-                      TK_GREATER_THAN@17..18 ">"
-                    BODY@18..25
-                      HTML_TEXT@18..25
-                        TK_WORD@18..25 "content"
-                    HTML_ENDING_TAG@25..44
-                      TK_LESS_THAN_SLASH@25..27 "</"
-                      TWIG_VAR@27..43
-                        TK_OPEN_CURLY_CURLY@27..29 "{{"
-                        TWIG_EXPRESSION@29..40
-                          TWIG_LITERAL_NAME@29..40
-                            TK_WHITESPACE@29..30 " "
-                            TK_WORD@30..40 "closingTag"
-                        TK_WHITESPACE@40..41 " "
-                        TK_CLOSE_CURLY_CURLY@41..43 "}}"
-                      TK_GREATER_THAN@43..44 ">"
-                error at 27..43: closing </{{ closingTag }}> does not match opening <{{ openingTag }}>: different tag-name expressions"#]],
+                    ROOT@0..44
+                      HTML_TAG@0..44
+                        HTML_STARTING_TAG@0..18
+                          TK_LESS_THAN@0..1 "<"
+                          TWIG_VAR@1..17
+                            TK_OPEN_CURLY_CURLY@1..3 "{{"
+                            TWIG_EXPRESSION@3..14
+                              TWIG_LITERAL_NAME@3..14
+                                TK_WHITESPACE@3..4 " "
+                                TK_WORD@4..14 "openingTag"
+                            TK_WHITESPACE@14..15 " "
+                            TK_CLOSE_CURLY_CURLY@15..17 "}}"
+                          HTML_ATTRIBUTE_LIST@17..17
+                          TK_GREATER_THAN@17..18 ">"
+                        BODY@18..25
+                          HTML_TEXT@18..25
+                            TK_WORD@18..25 "content"
+                        HTML_ENDING_TAG@25..44
+                          TK_LESS_THAN_SLASH@25..27 "</"
+                          TWIG_VAR@27..43
+                            TK_OPEN_CURLY_CURLY@27..29 "{{"
+                            TWIG_EXPRESSION@29..40
+                              TWIG_LITERAL_NAME@29..40
+                                TK_WHITESPACE@29..30 " "
+                                TK_WORD@30..40 "closingTag"
+                            TK_WHITESPACE@40..41 " "
+                            TK_CLOSE_CURLY_CURLY@41..43 "}}"
+                          TK_GREATER_THAN@43..44 ">""#]],
             ),
             (
                 "{% if show %}<{{ openingTag }}>{% endif %}{% if show %}</{{ closingTag }}>{% endif %}",
                 expect![[r#"
-                ROOT@0..85
-                  TWIG_IF@0..42
-                    TWIG_IF_BLOCK@0..13
-                      TK_CURLY_PERCENT@0..2 "{%"
-                      TK_WHITESPACE@2..3 " "
-                      TK_IF@3..5 "if"
-                      TWIG_EXPRESSION@5..10
-                        TWIG_LITERAL_NAME@5..10
-                          TK_WHITESPACE@5..6 " "
-                          TK_WORD@6..10 "show"
-                      TK_WHITESPACE@10..11 " "
-                      TK_PERCENT_CURLY@11..13 "%}"
-                    BODY@13..31
-                      HTML_TAG@13..31
-                        HTML_STARTING_TAG@13..31
-                          TK_LESS_THAN@13..14 "<"
-                          TWIG_VAR@14..30
-                            TK_OPEN_CURLY_CURLY@14..16 "{{"
-                            TWIG_EXPRESSION@16..27
-                              TWIG_LITERAL_NAME@16..27
-                                TK_WHITESPACE@16..17 " "
-                                TK_WORD@17..27 "openingTag"
-                            TK_WHITESPACE@27..28 " "
-                            TK_CLOSE_CURLY_CURLY@28..30 "}}"
-                          HTML_ATTRIBUTE_LIST@30..30
-                          TK_GREATER_THAN@30..31 ">"
-                        BODY@31..31
-                        HTML_ENDING_TAG@31..31
-                    TWIG_ENDIF_BLOCK@31..42
-                      TK_CURLY_PERCENT@31..33 "{%"
-                      TK_WHITESPACE@33..34 " "
-                      TK_ENDIF@34..39 "endif"
-                      TK_WHITESPACE@39..40 " "
-                      TK_PERCENT_CURLY@40..42 "%}"
-                  TWIG_IF@42..85
-                    TWIG_IF_BLOCK@42..55
-                      TK_CURLY_PERCENT@42..44 "{%"
-                      TK_WHITESPACE@44..45 " "
-                      TK_IF@45..47 "if"
-                      TWIG_EXPRESSION@47..52
-                        TWIG_LITERAL_NAME@47..52
-                          TK_WHITESPACE@47..48 " "
-                          TK_WORD@48..52 "show"
-                      TK_WHITESPACE@52..53 " "
-                      TK_PERCENT_CURLY@53..55 "%}"
-                    BODY@55..74
-                      HTML_ENDING_TAG@55..74
-                        TK_LESS_THAN_SLASH@55..57 "</"
-                        TWIG_VAR@57..73
-                          TK_OPEN_CURLY_CURLY@57..59 "{{"
-                          TWIG_EXPRESSION@59..70
-                            TWIG_LITERAL_NAME@59..70
-                              TK_WHITESPACE@59..60 " "
-                              TK_WORD@60..70 "closingTag"
-                          TK_WHITESPACE@70..71 " "
-                          TK_CLOSE_CURLY_CURLY@71..73 "}}"
-                        TK_GREATER_THAN@73..74 ">"
-                    TWIG_ENDIF_BLOCK@74..85
-                      TK_CURLY_PERCENT@74..76 "{%"
-                      TK_WHITESPACE@76..77 " "
-                      TK_ENDIF@77..82 "endif"
-                      TK_WHITESPACE@82..83 " "
-                      TK_PERCENT_CURLY@83..85 "%}"
-                error at 57..73: closing </{{ closingTag }}> does not match opening <{{ openingTag }}>: different tag-name expressions"#]],
+                    ROOT@0..85
+                      TWIG_IF@0..42
+                        TWIG_IF_BLOCK@0..13
+                          TK_CURLY_PERCENT@0..2 "{%"
+                          TK_WHITESPACE@2..3 " "
+                          TK_IF@3..5 "if"
+                          TWIG_EXPRESSION@5..10
+                            TWIG_LITERAL_NAME@5..10
+                              TK_WHITESPACE@5..6 " "
+                              TK_WORD@6..10 "show"
+                          TK_WHITESPACE@10..11 " "
+                          TK_PERCENT_CURLY@11..13 "%}"
+                        BODY@13..31
+                          HTML_TAG@13..31
+                            HTML_STARTING_TAG@13..31
+                              TK_LESS_THAN@13..14 "<"
+                              TWIG_VAR@14..30
+                                TK_OPEN_CURLY_CURLY@14..16 "{{"
+                                TWIG_EXPRESSION@16..27
+                                  TWIG_LITERAL_NAME@16..27
+                                    TK_WHITESPACE@16..17 " "
+                                    TK_WORD@17..27 "openingTag"
+                                TK_WHITESPACE@27..28 " "
+                                TK_CLOSE_CURLY_CURLY@28..30 "}}"
+                              HTML_ATTRIBUTE_LIST@30..30
+                              TK_GREATER_THAN@30..31 ">"
+                            BODY@31..31
+                            HTML_ENDING_TAG@31..31
+                        TWIG_ENDIF_BLOCK@31..42
+                          TK_CURLY_PERCENT@31..33 "{%"
+                          TK_WHITESPACE@33..34 " "
+                          TK_ENDIF@34..39 "endif"
+                          TK_WHITESPACE@39..40 " "
+                          TK_PERCENT_CURLY@40..42 "%}"
+                      TWIG_IF@42..85
+                        TWIG_IF_BLOCK@42..55
+                          TK_CURLY_PERCENT@42..44 "{%"
+                          TK_WHITESPACE@44..45 " "
+                          TK_IF@45..47 "if"
+                          TWIG_EXPRESSION@47..52
+                            TWIG_LITERAL_NAME@47..52
+                              TK_WHITESPACE@47..48 " "
+                              TK_WORD@48..52 "show"
+                          TK_WHITESPACE@52..53 " "
+                          TK_PERCENT_CURLY@53..55 "%}"
+                        BODY@55..74
+                          HTML_ENDING_TAG@55..74
+                            TK_LESS_THAN_SLASH@55..57 "</"
+                            TWIG_VAR@57..73
+                              TK_OPEN_CURLY_CURLY@57..59 "{{"
+                              TWIG_EXPRESSION@59..70
+                                TWIG_LITERAL_NAME@59..70
+                                  TK_WHITESPACE@59..60 " "
+                                  TK_WORD@60..70 "closingTag"
+                              TK_WHITESPACE@70..71 " "
+                              TK_CLOSE_CURLY_CURLY@71..73 "}}"
+                            TK_GREATER_THAN@73..74 ">"
+                        TWIG_ENDIF_BLOCK@74..85
+                          TK_CURLY_PERCENT@74..76 "{%"
+                          TK_WHITESPACE@76..77 " "
+                          TK_ENDIF@77..82 "endif"
+                          TK_WHITESPACE@82..83 " "
+                          TK_PERCENT_CURLY@83..85 "%}""#]],
             ),
             (
                 "<{{ tag }}>content</div>",
                 expect![[r#"
-                ROOT@0..24
-                  HTML_TAG@0..24
-                    HTML_STARTING_TAG@0..11
-                      TK_LESS_THAN@0..1 "<"
-                      TWIG_VAR@1..10
-                        TK_OPEN_CURLY_CURLY@1..3 "{{"
-                        TWIG_EXPRESSION@3..7
-                          TWIG_LITERAL_NAME@3..7
-                            TK_WHITESPACE@3..4 " "
-                            TK_WORD@4..7 "tag"
-                        TK_WHITESPACE@7..8 " "
-                        TK_CLOSE_CURLY_CURLY@8..10 "}}"
-                      HTML_ATTRIBUTE_LIST@10..10
-                      TK_GREATER_THAN@10..11 ">"
-                    BODY@11..18
-                      HTML_TEXT@11..18
-                        TK_WORD@11..18 "content"
-                    HTML_ENDING_TAG@18..24
-                      TK_LESS_THAN_SLASH@18..20 "</"
-                      TK_WORD@20..23 "div"
-                      TK_GREATER_THAN@23..24 ">"
-                error at 20..23: closing </div> does not match opening <{{ tag }}>: different tag-name expressions"#]],
+                    ROOT@0..24
+                      HTML_TAG@0..24
+                        HTML_STARTING_TAG@0..11
+                          TK_LESS_THAN@0..1 "<"
+                          TWIG_VAR@1..10
+                            TK_OPEN_CURLY_CURLY@1..3 "{{"
+                            TWIG_EXPRESSION@3..7
+                              TWIG_LITERAL_NAME@3..7
+                                TK_WHITESPACE@3..4 " "
+                                TK_WORD@4..7 "tag"
+                            TK_WHITESPACE@7..8 " "
+                            TK_CLOSE_CURLY_CURLY@8..10 "}}"
+                          HTML_ATTRIBUTE_LIST@10..10
+                          TK_GREATER_THAN@10..11 ">"
+                        BODY@11..18
+                          HTML_TEXT@11..18
+                            TK_WORD@11..18 "content"
+                        HTML_ENDING_TAG@18..24
+                          TK_LESS_THAN_SLASH@18..20 "</"
+                          TK_WORD@20..23 "div"
+                          TK_GREATER_THAN@23..24 ">""#]],
             ),
             (
                 "<div>content</{{ tag }}>",
                 expect![[r#"
-                ROOT@0..24
-                  HTML_TAG@0..24
-                    HTML_STARTING_TAG@0..5
-                      TK_LESS_THAN@0..1 "<"
-                      TK_WORD@1..4 "div"
-                      HTML_ATTRIBUTE_LIST@4..4
-                      TK_GREATER_THAN@4..5 ">"
-                    BODY@5..12
-                      HTML_TEXT@5..12
-                        TK_WORD@5..12 "content"
-                    HTML_ENDING_TAG@12..24
-                      TK_LESS_THAN_SLASH@12..14 "</"
-                      TWIG_VAR@14..23
-                        TK_OPEN_CURLY_CURLY@14..16 "{{"
-                        TWIG_EXPRESSION@16..20
-                          TWIG_LITERAL_NAME@16..20
-                            TK_WHITESPACE@16..17 " "
-                            TK_WORD@17..20 "tag"
-                        TK_WHITESPACE@20..21 " "
-                        TK_CLOSE_CURLY_CURLY@21..23 "}}"
-                      TK_GREATER_THAN@23..24 ">"
-                error at 14..23: closing </{{ tag }}> does not match opening <div>: different tag-name expressions"#]],
+                    ROOT@0..24
+                      HTML_TAG@0..24
+                        HTML_STARTING_TAG@0..5
+                          TK_LESS_THAN@0..1 "<"
+                          TK_WORD@1..4 "div"
+                          HTML_ATTRIBUTE_LIST@4..4
+                          TK_GREATER_THAN@4..5 ">"
+                        BODY@5..12
+                          HTML_TEXT@5..12
+                            TK_WORD@5..12 "content"
+                        HTML_ENDING_TAG@12..24
+                          TK_LESS_THAN_SLASH@12..14 "</"
+                          TWIG_VAR@14..23
+                            TK_OPEN_CURLY_CURLY@14..16 "{{"
+                            TWIG_EXPRESSION@16..20
+                              TWIG_LITERAL_NAME@16..20
+                                TK_WHITESPACE@16..17 " "
+                                TK_WORD@17..20 "tag"
+                            TK_WHITESPACE@20..21 " "
+                            TK_CLOSE_CURLY_CURLY@21..23 "}}"
+                          TK_GREATER_THAN@23..24 ">""#]],
             ),
         ] {
             check_parse(source, expected);
-            let errors = crate::parse(source).errors;
-            assert_eq!(errors.len(), 1, "{source}: {errors:?}");
-            assert!(
-                errors[0]
-                    .message
-                    .as_ref()
-                    .is_some_and(|message| message.contains("different tag-name expressions"))
-            );
-            assert!(errors[0].secondary.is_some());
+            assert!(crate::parse(source).errors.is_empty(), "{source}");
         }
     }
 
     #[test]
-    fn split_twig_expression_tags_require_matching_conditions() {
+    fn parses_split_twig_expression_tags_across_conditions() {
         let source = "{% if a %}<{{ tag }}>{% endif %}{% if b %}</{{ tag }}>{% endif %}";
         check_parse(
             source,
             expect![[r#"
-            ROOT@0..65
-              TWIG_IF@0..32
-                TWIG_IF_BLOCK@0..10
-                  TK_CURLY_PERCENT@0..2 "{%"
-                  TK_WHITESPACE@2..3 " "
-                  TK_IF@3..5 "if"
-                  TWIG_EXPRESSION@5..7
-                    TWIG_LITERAL_NAME@5..7
-                      TK_WHITESPACE@5..6 " "
-                      TK_WORD@6..7 "a"
-                  TK_WHITESPACE@7..8 " "
-                  TK_PERCENT_CURLY@8..10 "%}"
-                BODY@10..21
-                  HTML_TAG@10..21
-                    HTML_STARTING_TAG@10..21
-                      TK_LESS_THAN@10..11 "<"
-                      TWIG_VAR@11..20
-                        TK_OPEN_CURLY_CURLY@11..13 "{{"
-                        TWIG_EXPRESSION@13..17
-                          TWIG_LITERAL_NAME@13..17
-                            TK_WHITESPACE@13..14 " "
-                            TK_WORD@14..17 "tag"
-                        TK_WHITESPACE@17..18 " "
-                        TK_CLOSE_CURLY_CURLY@18..20 "}}"
-                      HTML_ATTRIBUTE_LIST@20..20
-                      TK_GREATER_THAN@20..21 ">"
-                    BODY@21..21
-                    HTML_ENDING_TAG@21..21
-                TWIG_ENDIF_BLOCK@21..32
-                  TK_CURLY_PERCENT@21..23 "{%"
-                  TK_WHITESPACE@23..24 " "
-                  TK_ENDIF@24..29 "endif"
-                  TK_WHITESPACE@29..30 " "
-                  TK_PERCENT_CURLY@30..32 "%}"
-              TWIG_IF@32..65
-                TWIG_IF_BLOCK@32..42
-                  TK_CURLY_PERCENT@32..34 "{%"
-                  TK_WHITESPACE@34..35 " "
-                  TK_IF@35..37 "if"
-                  TWIG_EXPRESSION@37..39
-                    TWIG_LITERAL_NAME@37..39
-                      TK_WHITESPACE@37..38 " "
-                      TK_WORD@38..39 "b"
-                  TK_WHITESPACE@39..40 " "
-                  TK_PERCENT_CURLY@40..42 "%}"
-                BODY@42..54
-                  HTML_ENDING_TAG@42..54
-                    TK_LESS_THAN_SLASH@42..44 "</"
-                    TWIG_VAR@44..53
-                      TK_OPEN_CURLY_CURLY@44..46 "{{"
-                      TWIG_EXPRESSION@46..50
-                        TWIG_LITERAL_NAME@46..50
-                          TK_WHITESPACE@46..47 " "
-                          TK_WORD@47..50 "tag"
-                      TK_WHITESPACE@50..51 " "
-                      TK_CLOSE_CURLY_CURLY@51..53 "}}"
-                    TK_GREATER_THAN@53..54 ">"
-                TWIG_ENDIF_BLOCK@54..65
-                  TK_CURLY_PERCENT@54..56 "{%"
-                  TK_WHITESPACE@56..57 " "
-                  TK_ENDIF@57..62 "endif"
-                  TK_WHITESPACE@62..63 " "
-                  TK_PERCENT_CURLY@63..65 "%}"
-            error at 44..53: closing </{{ tag }}> does not match opening <{{ tag }}>: different Twig conditions"#]],
+                ROOT@0..65
+                  TWIG_IF@0..32
+                    TWIG_IF_BLOCK@0..10
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_IF@3..5 "if"
+                      TWIG_EXPRESSION@5..7
+                        TWIG_LITERAL_NAME@5..7
+                          TK_WHITESPACE@5..6 " "
+                          TK_WORD@6..7 "a"
+                      TK_WHITESPACE@7..8 " "
+                      TK_PERCENT_CURLY@8..10 "%}"
+                    BODY@10..21
+                      HTML_TAG@10..21
+                        HTML_STARTING_TAG@10..21
+                          TK_LESS_THAN@10..11 "<"
+                          TWIG_VAR@11..20
+                            TK_OPEN_CURLY_CURLY@11..13 "{{"
+                            TWIG_EXPRESSION@13..17
+                              TWIG_LITERAL_NAME@13..17
+                                TK_WHITESPACE@13..14 " "
+                                TK_WORD@14..17 "tag"
+                            TK_WHITESPACE@17..18 " "
+                            TK_CLOSE_CURLY_CURLY@18..20 "}}"
+                          HTML_ATTRIBUTE_LIST@20..20
+                          TK_GREATER_THAN@20..21 ">"
+                        BODY@21..21
+                        HTML_ENDING_TAG@21..21
+                    TWIG_ENDIF_BLOCK@21..32
+                      TK_CURLY_PERCENT@21..23 "{%"
+                      TK_WHITESPACE@23..24 " "
+                      TK_ENDIF@24..29 "endif"
+                      TK_WHITESPACE@29..30 " "
+                      TK_PERCENT_CURLY@30..32 "%}"
+                  TWIG_IF@32..65
+                    TWIG_IF_BLOCK@32..42
+                      TK_CURLY_PERCENT@32..34 "{%"
+                      TK_WHITESPACE@34..35 " "
+                      TK_IF@35..37 "if"
+                      TWIG_EXPRESSION@37..39
+                        TWIG_LITERAL_NAME@37..39
+                          TK_WHITESPACE@37..38 " "
+                          TK_WORD@38..39 "b"
+                      TK_WHITESPACE@39..40 " "
+                      TK_PERCENT_CURLY@40..42 "%}"
+                    BODY@42..54
+                      HTML_ENDING_TAG@42..54
+                        TK_LESS_THAN_SLASH@42..44 "</"
+                        TWIG_VAR@44..53
+                          TK_OPEN_CURLY_CURLY@44..46 "{{"
+                          TWIG_EXPRESSION@46..50
+                            TWIG_LITERAL_NAME@46..50
+                              TK_WHITESPACE@46..47 " "
+                              TK_WORD@47..50 "tag"
+                          TK_WHITESPACE@50..51 " "
+                          TK_CLOSE_CURLY_CURLY@51..53 "}}"
+                        TK_GREATER_THAN@53..54 ">"
+                    TWIG_ENDIF_BLOCK@54..65
+                      TK_CURLY_PERCENT@54..56 "{%"
+                      TK_WHITESPACE@56..57 " "
+                      TK_ENDIF@57..62 "endif"
+                      TK_WHITESPACE@62..63 " "
+                      TK_PERCENT_CURLY@63..65 "%}""#]],
         );
-        let errors = crate::parse(source).errors;
-        assert_eq!(errors.len(), 1, "{errors:?}");
-        assert!(
-            errors[0]
-                .expected_message()
-                .contains("different Twig conditions")
-        );
-        assert!(errors[0].secondary.is_some());
+        assert!(crate::parse(source).errors.is_empty());
     }
 
     #[test]
@@ -2111,6 +2068,12 @@ mod tests {
                 error at 22..24: expected </span> ending tag but found </
                 error at 27..28: expected </div> ending tag but reached end of file"#]],
         );
+    }
+
+    #[test]
+    fn parses_missing_closing_tag_inside_block_as_fragment() {
+        let source = "<div>{% block a %}<p>hello{% endblock %}<span>world</span></div>";
+        assert!(crate::parse(source).errors.is_empty());
     }
 
     #[test]

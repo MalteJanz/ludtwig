@@ -137,6 +137,7 @@ pub struct RuleRunContext {
     // source_text
     pub(super) cli_data: Arc<CliSharedData>,
     pub(super) traversal_ctx: TreeTraversalContext,
+    pub(super) uncertain_trivia_ranges: Vec<TextRange>,
 }
 
 impl RuleRunContext {
@@ -146,6 +147,12 @@ impl RuleRunContext {
 
     pub fn traversal_ctx(&self) -> &TreeTraversalContext {
         &self.traversal_ctx
+    }
+
+    pub fn is_in_uncertain_trivia(&self, range: TextRange) -> bool {
+        self.uncertain_trivia_ranges
+            .iter()
+            .any(|uncertain| uncertain.start() < range.end() && range.start() < uncertain.end())
     }
 }
 

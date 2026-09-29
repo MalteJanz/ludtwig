@@ -14,7 +14,6 @@ use crate::syntax::untyped::{SyntaxKind, SyntaxNode, debug_tree};
 use crate::{T, lex};
 
 pub(crate) mod event;
-mod html_fragments;
 mod parse_error;
 mod sink;
 mod source;
@@ -84,12 +83,7 @@ pub fn parse(input_text: &str) -> Parse {
     let parser = Parser::new(&lex_result);
     let (parse_events, parse_errors) = parser.parse();
     let sink = Sink::new(&lex_result, parse_events, parse_errors);
-    let mut result = sink.finish();
-    if result.errors.is_empty() {
-        let root = SyntaxNode::new_root(result.green_node.clone());
-        result.errors.extend(html_fragments::validate(&root));
-    }
-    result
+    sink.finish()
 }
 
 /// Result of the parser

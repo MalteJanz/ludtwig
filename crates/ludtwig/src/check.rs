@@ -9,7 +9,7 @@ use ludtwig_parser::syntax::typed;
 use ludtwig_parser::syntax::typed::{
     AstNode, HtmlStringInner, HtmlTag, LudtwigDirectiveIgnore, TwigLiteralStringInner,
 };
-use ludtwig_parser::syntax::untyped::{SyntaxElement, SyntaxToken, WalkEvent, debug_tree};
+use ludtwig_parser::syntax::untyped::{SyntaxElement, WalkEvent, debug_tree};
 
 use crate::ProcessingEvent;
 use crate::check::rule::{
@@ -29,6 +29,9 @@ pub fn run_rules(file_context: &FileContext) -> Vec<CheckResult> {
         traversal_ctx: TreeTraversalContext {
             inside_trivia_sensitive_node: false,
         },
+        uncertain_trivia_ranges: rules::html_tag_fragments::uncertain_trivia_ranges(
+            &file_context.tree_root,
+        ),
     };
 
     if file_context.file_rule_definitions.is_empty() {
@@ -96,9 +99,7 @@ pub fn run_rules(file_context: &FileContext) -> Vec<CheckResult> {
                         {
                             run_context.traversal_ctx.inside_trivia_sensitive_node = true;
                         } else if let Some(t) = HtmlTag::cast(n.clone()) {
-                            if let Some("pre" | "textarea" | "script" | "style") =
-                                t.name().as_ref().map(SyntaxToken::text)
-                            {
+                            if rules::html_tag_fragments::is_trivia_sensitive_tag(&t) {
                                 run_context.traversal_ctx.inside_trivia_sensitive_node = true;
                             }
                         }
@@ -160,9 +161,7 @@ pub fn run_rules(file_context: &FileContext) -> Vec<CheckResult> {
                     {
                         run_context.traversal_ctx.inside_trivia_sensitive_node = false;
                     } else if let Some(t) = HtmlTag::cast(n) {
-                        if let Some("pre" | "textarea" | "script" | "style") =
-                            t.name().as_ref().map(SyntaxToken::text)
-                        {
+                        if rules::html_tag_fragments::is_trivia_sensitive_tag(&t) {
                             run_context.traversal_ctx.inside_trivia_sensitive_node = false;
                         }
                     }
@@ -218,11 +217,8 @@ pub fn produce_diagnostics(
     for result in &file_context.parse_errors {
         // notify output about this
         file_context.send_processing_output(ProcessingEvent::Report(Severity::Error));
-        let mut labels =
+        let labels =
             vec![Label::primary(file_id, result.range).with_message(result.expected_message())];
-        if let Some((range, message)) = &result.secondary {
-            labels.push(Label::secondary(file_id, *range).with_message(message));
-        }
         let diagnostic = Diagnostic::error()
             .with_code("SyntaxError")
             .with_message("The parser encountered a syntax error")
