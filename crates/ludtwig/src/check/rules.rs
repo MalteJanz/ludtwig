@@ -13,6 +13,7 @@ use crate::check::rules::twig_hash_key_no_quotes::RuleTwigHashKeyNoQuotes;
 use crate::check::rules::twig_json_encode_escape_js::RuleTwigJsonEncodeEscapeJs;
 use crate::check::rules::twig_logic_and::RuleTwigLogicAnd;
 use crate::check::rules::twig_logic_or::RuleTwigLogicOr;
+use crate::check::rules::twig_no_break::RuleTwigNoBreak;
 use crate::check::rules::twig_prefer_shopware_extends::RuleTwigPreferShopwareExtends;
 use crate::check::rules::twig_string_quotation::RuleTwigStringQuotation;
 use crate::check::rules::twig_use_is_not_same_as::RuleTwigUseIsNotSameAs;
@@ -39,6 +40,7 @@ mod twig_hash_key_no_quotes;
 mod twig_json_encode_escape_js;
 mod twig_logic_and;
 mod twig_logic_or;
+mod twig_no_break;
 mod twig_prefer_shopware_extends;
 mod twig_string_quotation;
 mod twig_use_is_not_same_as;
@@ -60,6 +62,7 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleHtmlAttributeNameKebabCase,
     &RuleTwigLogicAnd,
     &RuleTwigLogicOr,
+    &RuleTwigNoBreak,
     &RuleTwigStringQuotation,
     &RuleHtmlStringQuotation,
     &RuleTwigHashKeyNoQuotes,
