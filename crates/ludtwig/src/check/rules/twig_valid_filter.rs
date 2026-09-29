@@ -17,17 +17,15 @@ impl Rule for RuleTwigValidFilter {
         let right_operand = filter.filter()?;
 
         // Filter name can be a plain TwigLiteralName or inside a TwigFunctionCall (when filter has args)
-        let name_token = if let Some(name_node) =
-            support::child::<TwigLiteralName>(right_operand.syntax())
-        {
-            name_node.get_name()?
-        } else if let Some(func_call) = support::child::<TwigFunctionCall>(right_operand.syntax()) {
-            let name_operand = func_call.name_operand()?;
-            let name_node: TwigLiteralName = support::child(name_operand.syntax())?;
-            name_node.get_name()?
-        } else {
-            return None;
-        };
+        let name_token =
+            if let Some(name_node) = support::child::<TwigLiteralName>(right_operand.syntax()) {
+                name_node.get_name()?
+            } else {
+                let func_call = support::child::<TwigFunctionCall>(right_operand.syntax())?;
+                let name_operand = func_call.name_operand()?;
+                let name_node: TwigLiteralName = support::child(name_operand.syntax())?;
+                name_node.get_name()?
+            };
 
         let filter_name = name_token.text();
         let valid_filters = &ctx.config().twig.valid_filters;

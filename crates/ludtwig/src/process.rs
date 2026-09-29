@@ -95,7 +95,7 @@ fn run_analysis(
             }
             println!(
                 "fixed {} in {} iterations",
-                &file_context.file_path.display(),
+                file_context.file_path.display(),
                 iterations
             );
         }

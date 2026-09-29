@@ -1,5 +1,7 @@
 # NEXT-VERSION
 
+- [#187](https://github.com/MalteJanz/ludtwig/pull/187) Fix wrong parsing of `sw_end_embed` . Now only `end_sw_embed` is correctly parsed
+
 # v0.10.0
 
 - [#179](https://github.com/MalteJanz/ludtwig/pull/179) Support parentheses-optional syntax for `same as` and
