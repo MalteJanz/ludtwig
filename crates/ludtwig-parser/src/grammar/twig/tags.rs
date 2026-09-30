@@ -84,6 +84,8 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_deprecated(parser, m))
     } else if parser.at(T!["do"]) {
         Some(parse_twig_do(parser, m))
+    } else if parser.at(T!["break"]) {
+        Some(parse_twig_break(parser, m))
     } else if parser.at(T!["flush"]) {
         Some(parse_twig_flush(parser, m))
     } else if parser.at(T!["sandbox"]) {
@@ -474,6 +476,13 @@ fn parse_twig_flush(parser: &mut Parser, outer: Marker) -> CompletedMarker {
     parser.bump();
     parser.expect_any(TWIG_BLOCK_CLOSE_SET, &[T!["</"]]);
     parser.complete(outer, SyntaxKind::TWIG_FLUSH)
+}
+
+fn parse_twig_break(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["break"]));
+    parser.bump();
+    parser.expect_any(TWIG_BLOCK_CLOSE_SET, &[]);
+    parser.complete(outer, SyntaxKind::TWIG_BREAK)
 }
 
 fn parse_twig_do(parser: &mut Parser, outer: Marker) -> CompletedMarker {
@@ -1472,6 +1481,44 @@ fn parse_twig_component(
 mod tests {
     use crate::parser::check_parse;
     use expect_test::expect;
+
+    #[test]
+    fn parses_shopware_break_tag() {
+        check_parse(
+            "{% for item in items %}{% break %}{% endfor %}",
+            expect![[r#"
+                ROOT@0..46
+                  TWIG_FOR@0..46
+                    TWIG_FOR_BLOCK@0..23
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_FOR@3..6 "for"
+                      TWIG_LITERAL_NAME@6..11
+                        TK_WHITESPACE@6..7 " "
+                        TK_WORD@7..11 "item"
+                      TK_WHITESPACE@11..12 " "
+                      TK_IN@12..14 "in"
+                      TWIG_EXPRESSION@14..20
+                        TWIG_LITERAL_NAME@14..20
+                          TK_WHITESPACE@14..15 " "
+                          TK_WORD@15..20 "items"
+                      TK_WHITESPACE@20..21 " "
+                      TK_PERCENT_CURLY@21..23 "%}"
+                    BODY@23..34
+                      TWIG_BREAK@23..34
+                        TK_CURLY_PERCENT@23..25 "{%"
+                        TK_WHITESPACE@25..26 " "
+                        TK_BREAK@26..31 "break"
+                        TK_WHITESPACE@31..32 " "
+                        TK_PERCENT_CURLY@32..34 "%}"
+                    TWIG_ENDFOR_BLOCK@34..46
+                      TK_CURLY_PERCENT@34..36 "{%"
+                      TK_WHITESPACE@36..37 " "
+                      TK_ENDFOR@37..43 "endfor"
+                      TK_WHITESPACE@43..44 " "
+                      TK_PERCENT_CURLY@44..46 "%}""#]],
+        );
+    }
 
     #[test]
     fn parse_error() {

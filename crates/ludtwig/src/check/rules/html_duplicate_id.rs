@@ -6,13 +6,42 @@ use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 
 pub struct RuleHtmlDuplicateId;
 
+fn in_different_if_branches(first: &HtmlAttribute, second: &HtmlAttribute) -> bool {
+    for conditional in first
+        .syntax()
+        .ancestors()
+        .filter(|node| node.kind() == SyntaxKind::TWIG_IF)
+    {
+        if !second.syntax().ancestors().any(|node| node == conditional) {
+            continue;
+        }
+
+        let branch = |attribute: &HtmlAttribute| {
+            conditional.children().find(|node| {
+                node.kind() == SyntaxKind::BODY
+                    && node
+                        .text_range()
+                        .contains_range(attribute.syntax().text_range())
+            })
+        };
+
+        if let (Some(first_branch), Some(second_branch)) = (branch(first), branch(second)) {
+            if first_branch != second_branch {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
 impl Rule for RuleHtmlDuplicateId {
     fn name(&self) -> &'static str {
         "html-duplicate-id"
     }
 
     fn check_root(&self, node: SyntaxNode, _ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
-        let mut id_table: HashMap<String, HtmlAttribute> = HashMap::new();
+        let mut id_table: HashMap<String, Vec<HtmlAttribute>> = HashMap::new();
 
         let mut is_ignored = false;
         let mut check_results = vec![];
@@ -57,30 +86,28 @@ impl Rule for RuleHtmlDuplicateId {
                         continue;
                     }
 
-                    match id_table
-                        .get(&id_text)
-                        .and_then(|attr| attr.value()?.get_inner())
+                    let previous = id_table.entry(id_text.clone()).or_default();
+                    if let Some(first_inner) = previous
+                        .iter()
+                        .filter(|first| !in_different_if_branches(first, &attribute))
+                        .find_map(|first| first.value()?.get_inner())
                     {
-                        Some(first_inner) => {
-                            check_results.push(
-                                self.create_result(
-                                    Severity::Warning,
-                                    "duplicate HTML element id attribute value",
-                                )
-                                .primary_note(
-                                    inner.syntax().text_range(),
-                                    format!("duplicate id '{id_text}'"),
-                                )
-                                .secondary_note(
-                                    first_inner.syntax().text_range(),
-                                    "first defined here",
-                                ),
-                            );
-                        }
-                        _ => {
-                            id_table.insert(id_text, attribute);
-                        }
+                        check_results.push(
+                            self.create_result(
+                                Severity::Warning,
+                                "duplicate HTML element id attribute value",
+                            )
+                            .primary_note(
+                                inner.syntax().text_range(),
+                                format!("duplicate id '{id_text}'"),
+                            )
+                            .secondary_note(
+                                first_inner.syntax().text_range(),
+                                "first defined here",
+                            ),
+                        );
                     }
+                    previous.push(attribute);
                 }
                 WalkEvent::Leave(element) => {
                     self.check_for_rule_ignore_leave(&mut is_ignored, &element);
@@ -130,6 +157,15 @@ mod tests {
             r#"<div id="foo"></div>
 <span id="bar"></span>
 <p id="baz"></p>"#,
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn rule_does_not_report_ids_in_exclusive_if_branches() {
+        test_rule(
+            "html-duplicate-id",
+            r#"{% if feature('v6.8.0.0') %}<ul id="footerColumns"></ul>{% else %}<div id="footerColumns"></div>{% endif %}"#,
             expect![""],
         );
     }

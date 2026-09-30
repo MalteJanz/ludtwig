@@ -24,7 +24,13 @@ static HTML_VOID_ELEMENTS: &[&str] = &[
 static HTML_RAW_TEXT_ELEMENTS: &[&str] = &["script", "style", "textarea", "title"];
 
 pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
-    if parser.at(T!["<"])
+    if parser.at(T!["<?"])
+        && parser
+            .peek_nth_token(1)
+            .is_some_and(|token| token.kind == T![word] && token.text == "xml")
+    {
+        Some(parse_xml_declaration(parser))
+    } else if parser.at(T!["<"])
         && parser.peek_nth_token(1).is_some_and(|t| {
             t.kind != T![ws] && t.kind != T![number] && !GENERAL_RECOVERY_SET.contains(&t.kind)
         })
@@ -32,6 +38,8 @@ pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
         // '<' should not be followed by EOF, a ws, a number or RECOVERY_SET token,
         // because then it is considered as arbitrary text (and parsed by the last else block)
         Some(parse_html_element(parser))
+    } else if parser.at(T!["</"]) {
+        parse_html_ending_fragment(parser)
     } else if parser.at(T!["<!--"]) {
         Some(parse_html_comment(parser))
     } else if parser.at(T!["<!"]) {
@@ -39,6 +47,37 @@ pub(super) fn parse_any_html(parser: &mut Parser) -> Option<CompletedMarker> {
     } else {
         parse_html_text(parser)
     }
+}
+
+fn parse_xml_declaration(parser: &mut Parser) -> CompletedMarker {
+    debug_assert!(parser.at(T!["<?"]));
+    let m = parser.start();
+    parser.bump();
+    parse_many(
+        parser,
+        |p| p.at(T![">"]),
+        |p| {
+            p.bump();
+        },
+    );
+    parser.expect(T![">"], &[]);
+    parser.complete(m, SyntaxKind::XML_DECLARATION)
+}
+
+fn parse_html_ending_fragment(parser: &mut Parser) -> Option<CompletedMarker> {
+    let name = parser
+        .peek_nth_token(1)
+        .map_or("", |token| token.text)
+        .to_owned();
+    if !parser.take_html_fragment(&name) {
+        return None;
+    }
+
+    let m = parser.start();
+    parser.bump();
+    parser.bump_as(T![word]);
+    parser.expect(T![">"], &[]);
+    Some(parser.complete(m, SyntaxKind::HTML_ENDING_TAG))
 }
 
 fn parse_html_doctype(parser: &mut Parser) -> CompletedMarker {
@@ -272,6 +311,10 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
         }
 
         parser.expect(T![">"], &[]);
+    } else if at_twig_termination_tag(parser) {
+        // A Twig branch can contain only the opening half of an HTML element.
+        // Keep its closing tag available to a later branch without swallowing it.
+        parser.add_html_fragment(tag_name);
     } else {
         // no matching end tag found!
         parser.add_error(ParseErrorBuilder::new(format!("</{tag_name}> ending tag")));
@@ -283,6 +326,7 @@ fn parse_html_element(parser: &mut Parser) -> CompletedMarker {
 }
 
 fn parse_html_attribute_or_twig(parser: &mut Parser) -> Option<CompletedMarker> {
+    let name_end = parser.peek_token()?.range.end();
     let token_text = if parser.at(T![":"]) {
         format!(":{}", parser.peek_nth_token(1)?.text)
     } else {
@@ -311,6 +355,19 @@ fn parse_html_attribute_or_twig(parser: &mut Parser) -> Option<CompletedMarker> 
             return parse_any_twig(parser, parse_html_attribute_or_twig);
         }
     };
+
+    if token_text.ends_with('-')
+        && parser
+            .peek_token()
+            .is_some_and(|token| token.range.start() == name_end)
+        && parser.at_twig_var_open()
+    {
+        parse_twig_var_statement(parser);
+        if parser.at(T!["-"]) {
+            parser.bump();
+            parser.expect(T![word], &[T!["="], T![">"], T!["/>"]]);
+        }
+    }
 
     if parser.at(T!["="]) {
         // attribute value
@@ -357,7 +414,7 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
     }
 
     fn inner_no_quote_parser(parser: &mut Parser) -> Option<CompletedMarker> {
-        if parser.at(T![word]) {
+        if parser.at_set(&[T![word], T!["true"], T!["false"]]) {
             parser.bump();
         } else if parser.at_twig_var_open() {
             // a single twig var expression with missing quotes should also count as an html attribute value
@@ -437,6 +494,240 @@ mod tests {
     use expect_test::expect;
 
     use crate::parser::check_parse;
+
+    #[test]
+    fn parses_shopware_footer_tags_split_across_twig_branches() {
+        let source = r"{% if feature('v6.8.0.0') %}<ul>{% else %}<div>{% endif %}
+            <li>Content</li>
+            {% if feature('v6.8.0.0') %}</ul>{% else %}</div>{% endif %}";
+
+        check_parse(
+            source,
+            expect![[r#"
+            ROOT@0..160
+              TWIG_IF@0..58
+                TWIG_IF_BLOCK@0..28
+                  TK_CURLY_PERCENT@0..2 "{%"
+                  TK_WHITESPACE@2..3 " "
+                  TK_IF@3..5 "if"
+                  TWIG_EXPRESSION@5..25
+                    TWIG_FUNCTION_CALL@5..25
+                      TWIG_OPERAND@5..13
+                        TWIG_LITERAL_NAME@5..13
+                          TK_WHITESPACE@5..6 " "
+                          TK_WORD@6..13 "feature"
+                      TWIG_ARGUMENTS@13..25
+                        TK_OPEN_PARENTHESIS@13..14 "("
+                        TWIG_EXPRESSION@14..24
+                          TWIG_LITERAL_STRING@14..24
+                            TK_SINGLE_QUOTES@14..15 "'"
+                            TWIG_LITERAL_STRING_INNER@15..23
+                              TK_WORD@15..17 "v6"
+                              TK_DOT@17..18 "."
+                              TK_NUMBER@18..21 "8.0"
+                              TK_DOT@21..22 "."
+                              TK_NUMBER@22..23 "0"
+                            TK_SINGLE_QUOTES@23..24 "'"
+                        TK_CLOSE_PARENTHESIS@24..25 ")"
+                  TK_WHITESPACE@25..26 " "
+                  TK_PERCENT_CURLY@26..28 "%}"
+                BODY@28..32
+                  HTML_TAG@28..32
+                    HTML_STARTING_TAG@28..32
+                      TK_LESS_THAN@28..29 "<"
+                      TK_WORD@29..31 "ul"
+                      HTML_ATTRIBUTE_LIST@31..31
+                      TK_GREATER_THAN@31..32 ">"
+                    BODY@32..32
+                    HTML_ENDING_TAG@32..32
+                TWIG_ELSE_BLOCK@32..42
+                  TK_CURLY_PERCENT@32..34 "{%"
+                  TK_WHITESPACE@34..35 " "
+                  TK_ELSE@35..39 "else"
+                  TK_WHITESPACE@39..40 " "
+                  TK_PERCENT_CURLY@40..42 "%}"
+                BODY@42..47
+                  HTML_TAG@42..47
+                    HTML_STARTING_TAG@42..47
+                      TK_LESS_THAN@42..43 "<"
+                      TK_WORD@43..46 "div"
+                      HTML_ATTRIBUTE_LIST@46..46
+                      TK_GREATER_THAN@46..47 ">"
+                    BODY@47..47
+                    HTML_ENDING_TAG@47..47
+                TWIG_ENDIF_BLOCK@47..58
+                  TK_CURLY_PERCENT@47..49 "{%"
+                  TK_WHITESPACE@49..50 " "
+                  TK_ENDIF@50..55 "endif"
+                  TK_WHITESPACE@55..56 " "
+                  TK_PERCENT_CURLY@56..58 "%}"
+              HTML_TAG@58..87
+                HTML_STARTING_TAG@58..75
+                  TK_LINE_BREAK@58..59 "\n"
+                  TK_WHITESPACE@59..71 "            "
+                  TK_LESS_THAN@71..72 "<"
+                  TK_WORD@72..74 "li"
+                  HTML_ATTRIBUTE_LIST@74..74
+                  TK_GREATER_THAN@74..75 ">"
+                BODY@75..82
+                  HTML_TEXT@75..82
+                    TK_WORD@75..82 "Content"
+                HTML_ENDING_TAG@82..87
+                  TK_LESS_THAN_SLASH@82..84 "</"
+                  TK_WORD@84..86 "li"
+                  TK_GREATER_THAN@86..87 ">"
+              TWIG_IF@87..160
+                TWIG_IF_BLOCK@87..128
+                  TK_LINE_BREAK@87..88 "\n"
+                  TK_WHITESPACE@88..100 "            "
+                  TK_CURLY_PERCENT@100..102 "{%"
+                  TK_WHITESPACE@102..103 " "
+                  TK_IF@103..105 "if"
+                  TWIG_EXPRESSION@105..125
+                    TWIG_FUNCTION_CALL@105..125
+                      TWIG_OPERAND@105..113
+                        TWIG_LITERAL_NAME@105..113
+                          TK_WHITESPACE@105..106 " "
+                          TK_WORD@106..113 "feature"
+                      TWIG_ARGUMENTS@113..125
+                        TK_OPEN_PARENTHESIS@113..114 "("
+                        TWIG_EXPRESSION@114..124
+                          TWIG_LITERAL_STRING@114..124
+                            TK_SINGLE_QUOTES@114..115 "'"
+                            TWIG_LITERAL_STRING_INNER@115..123
+                              TK_WORD@115..117 "v6"
+                              TK_DOT@117..118 "."
+                              TK_NUMBER@118..121 "8.0"
+                              TK_DOT@121..122 "."
+                              TK_NUMBER@122..123 "0"
+                            TK_SINGLE_QUOTES@123..124 "'"
+                        TK_CLOSE_PARENTHESIS@124..125 ")"
+                  TK_WHITESPACE@125..126 " "
+                  TK_PERCENT_CURLY@126..128 "%}"
+                BODY@128..133
+                  HTML_ENDING_TAG@128..133
+                    TK_LESS_THAN_SLASH@128..130 "</"
+                    TK_WORD@130..132 "ul"
+                    TK_GREATER_THAN@132..133 ">"
+                TWIG_ELSE_BLOCK@133..143
+                  TK_CURLY_PERCENT@133..135 "{%"
+                  TK_WHITESPACE@135..136 " "
+                  TK_ELSE@136..140 "else"
+                  TK_WHITESPACE@140..141 " "
+                  TK_PERCENT_CURLY@141..143 "%}"
+                BODY@143..149
+                  HTML_ENDING_TAG@143..149
+                    TK_LESS_THAN_SLASH@143..145 "</"
+                    TK_WORD@145..148 "div"
+                    TK_GREATER_THAN@148..149 ">"
+                TWIG_ENDIF_BLOCK@149..160
+                  TK_CURLY_PERCENT@149..151 "{%"
+                  TK_WHITESPACE@151..152 " "
+                  TK_ENDIF@152..157 "endif"
+                  TK_WHITESPACE@157..158 " "
+                  TK_PERCENT_CURLY@158..160 "%}""#]],
+        );
+    }
+
+    #[test]
+    fn parses_shopware_dynamic_attribute_name() {
+        check_parse(
+            r"<div data-{{ selector }}-options='{}'></div>",
+            expect![[r#"
+            ROOT@0..44
+              HTML_TAG@0..44
+                HTML_STARTING_TAG@0..38
+                  TK_LESS_THAN@0..1 "<"
+                  TK_WORD@1..4 "div"
+                  HTML_ATTRIBUTE_LIST@4..37
+                    HTML_ATTRIBUTE@4..37
+                      TK_WHITESPACE@4..5 " "
+                      TK_WORD@5..10 "data-"
+                      TWIG_VAR@10..24
+                        TK_OPEN_CURLY_CURLY@10..12 "{{"
+                        TWIG_EXPRESSION@12..21
+                          TWIG_LITERAL_NAME@12..21
+                            TK_WHITESPACE@12..13 " "
+                            TK_WORD@13..21 "selector"
+                        TK_WHITESPACE@21..22 " "
+                        TK_CLOSE_CURLY_CURLY@22..24 "}}"
+                      TK_MINUS@24..25 "-"
+                      TK_WORD@25..32 "options"
+                      TK_EQUAL@32..33 "="
+                      HTML_STRING@33..37
+                        TK_SINGLE_QUOTES@33..34 "'"
+                        HTML_STRING_INNER@34..36
+                          TK_OPEN_CURLY@34..35 "{"
+                          TK_CLOSE_CURLY@35..36 "}"
+                        TK_SINGLE_QUOTES@36..37 "'"
+                  TK_GREATER_THAN@37..38 ">"
+                BODY@38..38
+                HTML_ENDING_TAG@38..44
+                  TK_LESS_THAN_SLASH@38..40 "</"
+                  TK_WORD@40..43 "div"
+                  TK_GREATER_THAN@43..44 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parses_xml_declaration_and_boolean_attribute_value() {
+        check_parse(
+            "<?xml version=\"1.0\"?><entry enabled=true></entry>",
+            expect![[r#"
+            ROOT@0..49
+              XML_DECLARATION@0..21
+                TK_LESS_THAN_QUESTION_MARK@0..2 "<?"
+                TK_WORD@2..5 "xml"
+                TK_WHITESPACE@5..6 " "
+                TK_WORD@6..13 "version"
+                TK_EQUAL@13..14 "="
+                TK_DOUBLE_QUOTES@14..15 "\""
+                TK_NUMBER@15..18 "1.0"
+                TK_DOUBLE_QUOTES@18..19 "\""
+                TK_QUESTION_MARK@19..20 "?"
+                TK_GREATER_THAN@20..21 ">"
+              HTML_TAG@21..49
+                HTML_STARTING_TAG@21..41
+                  TK_LESS_THAN@21..22 "<"
+                  TK_WORD@22..27 "entry"
+                  HTML_ATTRIBUTE_LIST@27..40
+                    HTML_ATTRIBUTE@27..40
+                      TK_WHITESPACE@27..28 " "
+                      TK_WORD@28..35 "enabled"
+                      TK_EQUAL@35..36 "="
+                      HTML_STRING@36..40
+                        HTML_STRING_INNER@36..40
+                          TK_TRUE@36..40 "true"
+                  TK_GREATER_THAN@40..41 ">"
+                BODY@41..41
+                HTML_ENDING_TAG@41..49
+                  TK_LESS_THAN_SLASH@41..43 "</"
+                  TK_WORD@43..48 "entry"
+                  TK_GREATER_THAN@48..49 ">""#]],
+        );
+    }
+
+    #[test]
+    fn other_processing_instruction_is_not_an_xml_declaration() {
+        check_parse(
+            "<?php echo 'ok'; ?>",
+            expect![[r#"
+            ROOT@0..19
+              HTML_TEXT@0..19
+                TK_LESS_THAN_QUESTION_MARK@0..2 "<?"
+                TK_WORD@2..5 "php"
+                TK_WHITESPACE@5..6 " "
+                TK_WORD@6..10 "echo"
+                TK_WHITESPACE@10..11 " "
+                TK_SINGLE_QUOTES@11..12 "'"
+                TK_WORD@12..14 "ok"
+                TK_SINGLE_QUOTES@14..15 "'"
+                TK_SEMICOLON@15..16 ";"
+                TK_WHITESPACE@16..17 " "
+                TK_QUESTION_MARK@17..18 "?"
+                TK_GREATER_THAN@18..19 ">""#]],
+        );
+    }
 
     #[test]
     fn parse_simple_html_element() {
@@ -673,6 +964,65 @@ mod tests {
     }
 
     #[test]
+    fn parses_missing_closing_tag_inside_block_as_fragment() {
+        check_parse(
+            "<div>{% block a %}<p>hello{% endblock %}<span>world</span></div>",
+            expect![[r#"
+                ROOT@0..64
+                  HTML_TAG@0..64
+                    HTML_STARTING_TAG@0..5
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE_LIST@4..4
+                      TK_GREATER_THAN@4..5 ">"
+                    BODY@5..58
+                      TWIG_BLOCK@5..40
+                        TWIG_STARTING_BLOCK@5..18
+                          TK_CURLY_PERCENT@5..7 "{%"
+                          TK_WHITESPACE@7..8 " "
+                          TK_BLOCK@8..13 "block"
+                          TK_WHITESPACE@13..14 " "
+                          TK_WORD@14..15 "a"
+                          TK_WHITESPACE@15..16 " "
+                          TK_PERCENT_CURLY@16..18 "%}"
+                        BODY@18..26
+                          HTML_TAG@18..26
+                            HTML_STARTING_TAG@18..21
+                              TK_LESS_THAN@18..19 "<"
+                              TK_WORD@19..20 "p"
+                              HTML_ATTRIBUTE_LIST@20..20
+                              TK_GREATER_THAN@20..21 ">"
+                            BODY@21..26
+                              HTML_TEXT@21..26
+                                TK_WORD@21..26 "hello"
+                            HTML_ENDING_TAG@26..26
+                        TWIG_ENDING_BLOCK@26..40
+                          TK_CURLY_PERCENT@26..28 "{%"
+                          TK_WHITESPACE@28..29 " "
+                          TK_ENDBLOCK@29..37 "endblock"
+                          TK_WHITESPACE@37..38 " "
+                          TK_PERCENT_CURLY@38..40 "%}"
+                      HTML_TAG@40..58
+                        HTML_STARTING_TAG@40..46
+                          TK_LESS_THAN@40..41 "<"
+                          TK_WORD@41..45 "span"
+                          HTML_ATTRIBUTE_LIST@45..45
+                          TK_GREATER_THAN@45..46 ">"
+                        BODY@46..51
+                          HTML_TEXT@46..51
+                            TK_WORD@46..51 "world"
+                        HTML_ENDING_TAG@51..58
+                          TK_LESS_THAN_SLASH@51..53 "</"
+                          TK_WORD@53..57 "span"
+                          TK_GREATER_THAN@57..58 ">"
+                    HTML_ENDING_TAG@58..64
+                      TK_LESS_THAN_SLASH@58..60 "</"
+                      TK_WORD@60..63 "div"
+                      TK_GREATER_THAN@63..64 ">""#]],
+        );
+    }
+
+    #[test]
     fn parse_html_element_with_cutoff_closing_tag() {
         check_parse(
             r"<div>
@@ -691,7 +1041,7 @@ mod tests {
                       TK_WORD@1..4 "div"
                       HTML_ATTRIBUTE_LIST@4..4
                       TK_GREATER_THAN@4..5 ">"
-                    BODY@5..127
+                    BODY@5..144
                       TWIG_BLOCK@5..96
                         TWIG_STARTING_BLOCK@5..31
                           TK_LINE_BREAK@5..6 "\n"
@@ -741,20 +1091,18 @@ mod tests {
                           TK_LESS_THAN_SLASH@120..122 "</"
                           TK_WORD@122..126 "span"
                           TK_GREATER_THAN@126..127 ">"
-                    HTML_ENDING_TAG@127..163
-                      ERROR@127..163
+                      HTML_ENDING_TAG@127..144
                         TK_LINE_BREAK@127..128 "\n"
                         TK_WHITESPACE@128..140 "            "
                         TK_LESS_THAN_SLASH@140..142 "</"
                         TK_WORD@142..143 "p"
                         TK_GREATER_THAN@143..144 ">"
-                        TK_LINE_BREAK@144..145 "\n"
-                        TK_WHITESPACE@145..157 "            "
-                        TK_LESS_THAN_SLASH@157..159 "</"
-                        TK_WORD@159..162 "div"
-                        TK_GREATER_THAN@162..163 ">"
-                error at 82..84: expected </p> ending tag but found {%
-                error at 140..142: expected </div> ending tag but found </"#]],
+                    HTML_ENDING_TAG@144..163
+                      TK_LINE_BREAK@144..145 "\n"
+                      TK_WHITESPACE@145..157 "            "
+                      TK_LESS_THAN_SLASH@157..159 "</"
+                      TK_WORD@159..162 "div"
+                      TK_GREATER_THAN@162..163 ">""#]],
         );
     }
 
@@ -1624,7 +1972,7 @@ mod tests {
                     TK_WHITESPACE@46..47 " "
                     TK_PERCENT_CURLY@47..49 "%}"
                     TK_GREATER_THAN@49..50 ">"
-                  ERROR@50..56
+                  HTML_ENDING_TAG@50..56
                     TK_LESS_THAN_SLASH@50..52 "</"
                     TK_WORD@52..55 "div"
                     TK_GREATER_THAN@55..56 ">"
@@ -1632,9 +1980,7 @@ mod tests {
                 error at 29..30: expected endblock but found <
                 error at 29..30: expected %} or -%} or ~%} but found <
                 error at 29..30: expected > but found <
-                error at 35..37: expected </div> ending tag but found {%
-                error at 38..46: expected twig tag but found endblock
-                error at 50..52: expected html, text or twig element but found </"#]],
+                error at 38..46: expected twig tag but found endblock"#]],
         );
     }
 

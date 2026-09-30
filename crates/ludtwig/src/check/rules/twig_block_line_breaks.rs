@@ -12,11 +12,13 @@ impl Rule for RuleTwigBlockLineBreaks {
 
     #[allow(clippy::too_many_lines)]
     fn check_node(&self, node: SyntaxNode, ctx: &RuleRunContext) -> Option<Vec<CheckResult>> {
-        if ctx.traversal_ctx().inside_trivia_sensitive_node {
+        let block = TwigBlock::cast(node)?;
+
+        if ctx.traversal_ctx().inside_trivia_sensitive_node
+            || ctx.is_in_uncertain_trivia(block.syntax().text_range())
+        {
             return None; // no trivia modification allowed here
         }
-
-        let block = TwigBlock::cast(node)?;
 
         // determine siblings of block excluding comments
         let real_prev_sibling = block.syntax().prev_sibling().and_then(|n| {
@@ -496,6 +498,27 @@ mod tests {
                 </div>
         "#,
             expect![r""],
+        );
+    }
+
+    #[test]
+    fn does_not_change_line_breaks_inside_split_sensitive_tags() {
+        test_rule(
+            "twig-block-line-breaks",
+            "{% if a %}<pre>{% endif %}\n{% block content %}X{% endblock %}\n{% if a %}</pre>{% endif %}",
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn fix_keeps_line_breaks_inside_split_pre() {
+        let source = "{% if a %}<pre>{% endif %}\n{% block content %}X{% endblock %}\n{% if a %}</pre>{% endif %}";
+        test_rule_does_not_fix(
+            "twig-block-line-breaks",
+            source,
+            expect![
+                "{% if a %}<pre>{% endif %}\n{% block content %}X{% endblock %}\n{% if a %}</pre>{% endif %}"
+            ],
         );
     }
 }

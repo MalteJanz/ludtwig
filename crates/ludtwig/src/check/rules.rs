@@ -3,6 +3,7 @@ use crate::check::rule::Rule;
 use crate::check::rules::html_attribute_name_kebab_case::RuleHtmlAttributeNameKebabCase;
 use crate::check::rules::html_duplicate_id::RuleHtmlDuplicateId;
 use crate::check::rules::html_string_quotation::RuleHtmlStringQuotation;
+use crate::check::rules::html_tag_fragments::RuleHtmlTagFragments;
 use crate::check::rules::indentation::RuleIndentation;
 use crate::check::rules::line_ending::RuleLineEnding;
 use crate::check::rules::ludtwig_ignore_file_not_on_top::RuleLudtwigIgnoreFileNotOnTop;
@@ -13,6 +14,7 @@ use crate::check::rules::twig_hash_key_no_quotes::RuleTwigHashKeyNoQuotes;
 use crate::check::rules::twig_json_encode_escape_js::RuleTwigJsonEncodeEscapeJs;
 use crate::check::rules::twig_logic_and::RuleTwigLogicAnd;
 use crate::check::rules::twig_logic_or::RuleTwigLogicOr;
+use crate::check::rules::twig_no_break::RuleTwigNoBreak;
 use crate::check::rules::twig_prefer_shopware_extends::RuleTwigPreferShopwareExtends;
 use crate::check::rules::twig_string_quotation::RuleTwigStringQuotation;
 use crate::check::rules::twig_use_is_not_same_as::RuleTwigUseIsNotSameAs;
@@ -29,6 +31,7 @@ use ludtwig_parser::syntax::untyped::SyntaxNode;
 mod html_attribute_name_kebab_case;
 mod html_duplicate_id;
 mod html_string_quotation;
+pub(crate) mod html_tag_fragments;
 mod indentation;
 mod line_ending;
 mod ludtwig_ignore_file_not_on_top;
@@ -39,6 +42,7 @@ mod twig_hash_key_no_quotes;
 mod twig_json_encode_escape_js;
 mod twig_logic_and;
 mod twig_logic_or;
+mod twig_no_break;
 mod twig_prefer_shopware_extends;
 mod twig_string_quotation;
 mod twig_use_is_not_same_as;
@@ -60,6 +64,7 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleHtmlAttributeNameKebabCase,
     &RuleTwigLogicAnd,
     &RuleTwigLogicOr,
+    &RuleTwigNoBreak,
     &RuleTwigStringQuotation,
     &RuleHtmlStringQuotation,
     &RuleTwigHashKeyNoQuotes,
@@ -69,6 +74,7 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleTwigBlockDuplicate,
     &RuleTwigJsonEncodeEscapeJs,
     &RuleHtmlDuplicateId,
+    &RuleHtmlTagFragments,
     &RuleTwigVariableDefinitionNaming,
     &RuleTwigValidFilter,
     &RuleTwigValidTest,
