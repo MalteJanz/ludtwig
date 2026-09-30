@@ -1,4 +1,4 @@
-use ludtwig_parser::syntax::typed::{AstNode, HtmlEndingTag, HtmlTag};
+use ludtwig_parser::syntax::typed::{AstNode, HtmlEndingTag, HtmlTag, HtmlTagName};
 use ludtwig_parser::syntax::untyped::{
     SyntaxElement, SyntaxKind, SyntaxNode, TextRange, WalkEvent,
 };
@@ -6,6 +6,8 @@ use ludtwig_parser::syntax::untyped::{
 use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 
 pub struct RuleHtmlTagFragments;
+
+const DYNAMIC_HTML_TAG_PREFIX: &str = "\0";
 
 #[derive(Clone, Eq, PartialEq)]
 struct Context {
@@ -15,21 +17,50 @@ struct Context {
 
 struct Fragment {
     name: String,
+    key: String,
     context: Context,
     range: TextRange,
     opening: bool,
     ignored: bool,
 }
 
+fn fragment_name(name: HtmlTagName) -> Option<(String, String, TextRange)> {
+    match name {
+        HtmlTagName::Static(token) => Some((
+            token.text().to_string(),
+            token.text().to_string(),
+            token.text_range(),
+        )),
+        HtmlTagName::Dynamic(twig_var) => {
+            let expression = twig_var.get_expression()?;
+            let key = expression
+                .syntax()
+                .descendants_with_tokens()
+                .filter_map(SyntaxElement::into_token)
+                .filter(|token| !token.kind().is_trivia())
+                .map(|token| token.text().to_owned())
+                .collect::<Vec<_>>()
+                .join("\0");
+            Some((
+                twig_var.to_string(),
+                format!("{DYNAMIC_HTML_TAG_PREFIX}{key}\0"),
+                twig_var.syntax().text_range(),
+            ))
+        }
+    }
+}
+
 pub(crate) fn is_trivia_sensitive_tag(tag: &HtmlTag) -> bool {
-    tag.starting_tag()
-        .and_then(|starting| starting.name())
-        .is_some_and(|name| {
+    match tag.starting_tag().and_then(|starting| starting.tag_name()) {
+        Some(HtmlTagName::Static(name)) => {
             matches!(
                 name.text().to_ascii_lowercase().as_str(),
                 "pre" | "textarea" | "script" | "style"
             )
-        })
+        }
+        Some(HtmlTagName::Dynamic(_)) => true,
+        None => false,
+    }
 }
 
 pub(crate) fn uncertain_trivia_ranges(root: &SyntaxNode) -> Vec<TextRange> {
@@ -40,18 +71,21 @@ pub(crate) fn uncertain_trivia_ranges(root: &SyntaxNode) -> Vec<TextRange> {
             if is_trivia_sensitive_tag(&tag)
                 && tag
                     .ending_tag()
-                    .is_some_and(|ending| ending.name().is_none())
+                    .is_some_and(|ending| ending.tag_name().is_none())
             {
-                if let Some(name) = tag.starting_tag().and_then(|starting| starting.name()) {
-                    openings.push((name.text().to_owned(), tag.syntax().text_range().end()));
+                if let Some((_, key, _)) = tag
+                    .starting_tag()
+                    .and_then(|starting| starting.tag_name().and_then(fragment_name))
+                {
+                    openings.push((key, tag.syntax().text_range().end()));
                 }
             }
         } else if let Some(ending) = HtmlEndingTag::cast(node) {
             if ending.html_tag().is_none() {
-                if let Some(name) = ending.name() {
+                if let Some((_, key, _)) = ending.tag_name().and_then(fragment_name) {
                     if let Some(index) = openings
                         .iter()
-                        .rposition(|(opening_name, _)| opening_name == name.text())
+                        .rposition(|(opening_key, _)| *opening_key == key)
                     {
                         let (_, start) = openings.remove(index);
                         ranges.push(TextRange::new(start, ending.syntax().text_range().end()));
@@ -150,7 +184,9 @@ fn mismatched_fragment_error(
     opening: &Fragment,
     closing: &Fragment,
 ) -> CheckResult {
-    let reason = if opening.context.conditions == closing.context.conditions {
+    let reason = if opening.key != closing.key {
+        "different tag-name expressions"
+    } else if opening.context.conditions == closing.context.conditions {
         "different Twig scopes"
     } else {
         "different Twig conditions"
@@ -174,8 +210,12 @@ fn mutually_exclusive(a: &Context, b: &Context) -> bool {
     })
 }
 
-fn collect_fragments(rule: &RuleHtmlTagFragments, root: &SyntaxNode) -> Vec<Fragment> {
+fn collect_fragments(
+    rule: &RuleHtmlTagFragments,
+    root: &SyntaxNode,
+) -> (Vec<Fragment>, Vec<CheckResult>) {
     let mut fragments = Vec::new();
+    let mut errors = Vec::new();
     let mut tree_iter = root.preorder();
     while let Some(walk) = tree_iter.next() {
         let node = match walk {
@@ -190,15 +230,50 @@ fn collect_fragments(rule: &RuleHtmlTagFragments, root: &SyntaxNode) -> Vec<Frag
         };
         if let Some(tag) = HtmlTag::cast(node.clone()) {
             let ignored = rule.is_ignored_for_node(&node);
+            if let (Some(starting), Some(ending)) = (tag.starting_tag(), tag.ending_tag()) {
+                if let (
+                    Some((opening, opening_key, opening_range)),
+                    Some((closing, closing_key, closing_range)),
+                ) = (
+                    starting.tag_name().and_then(fragment_name),
+                    ending.tag_name().and_then(fragment_name),
+                ) {
+                    if opening_key != closing_key {
+                        let opening = Fragment {
+                            name: opening,
+                            key: opening_key,
+                            context: branch_context(&node),
+                            range: opening_range,
+                            opening: true,
+                            ignored,
+                        };
+                        let closing = Fragment {
+                            name: closing,
+                            key: closing_key,
+                            context: branch_context(&node),
+                            range: closing_range,
+                            opening: false,
+                            ignored,
+                        };
+                        if !ignored {
+                            errors.push(mismatched_fragment_error(rule, &opening, &closing));
+                        }
+                    }
+                }
+            }
             if tag
                 .ending_tag()
-                .is_some_and(|ending| ending.name().is_none())
+                .is_some_and(|ending| ending.tag_name().and_then(fragment_name).is_none())
             {
-                if let Some(name) = tag.starting_tag().and_then(|starting| starting.name()) {
+                if let Some((name, key, range)) = tag
+                    .starting_tag()
+                    .and_then(|starting| starting.tag_name().and_then(fragment_name))
+                {
                     fragments.push(Fragment {
-                        name: name.text().to_owned(),
+                        name,
+                        key,
                         context: branch_context(&node),
-                        range: name.text_range(),
+                        range,
                         opening: true,
                         ignored,
                     });
@@ -206,11 +281,12 @@ fn collect_fragments(rule: &RuleHtmlTagFragments, root: &SyntaxNode) -> Vec<Frag
             }
         } else if let Some(ending) = HtmlEndingTag::cast(node.clone()) {
             if ending.html_tag().is_none() {
-                if let Some(name) = ending.name() {
+                if let Some((name, key, range)) = ending.tag_name().and_then(fragment_name) {
                     fragments.push(Fragment {
-                        name: name.text().to_owned(),
+                        name,
+                        key,
                         context: branch_context(&node),
-                        range: name.text_range(),
+                        range,
                         opening: false,
                         ignored: rule.is_ignored_for_node(&node),
                     });
@@ -219,12 +295,11 @@ fn collect_fragments(rule: &RuleHtmlTagFragments, root: &SyntaxNode) -> Vec<Frag
         }
     }
 
-    fragments
+    (fragments, errors)
 }
 
 fn validate(rule: &RuleHtmlTagFragments, root: &SyntaxNode) -> Vec<CheckResult> {
-    let fragments = collect_fragments(rule, root);
-    let mut errors = Vec::new();
+    let (fragments, mut errors) = collect_fragments(rule, root);
     let mut openings = Vec::new();
     let mut pairs = Vec::new();
     for (index, fragment) in fragments.iter().enumerate() {
@@ -232,16 +307,17 @@ fn validate(rule: &RuleHtmlTagFragments, root: &SyntaxNode) -> Vec<CheckResult> 
             openings.push(index);
         } else if let Some(position) = openings.iter().rposition(|opening| {
             let candidate = &fragments[*opening];
-            candidate.name == fragment.name
+            candidate.key == fragment.key
                 && candidate.context.conditions == fragment.context.conditions
                 && candidate.context.scopes == fragment.context.scopes
         }) {
             let opening = openings.remove(position);
             pairs.push((opening, index));
-        } else if let Some(position) = openings
-            .iter()
-            .rposition(|opening| fragments[*opening].name == fragment.name)
-        {
+        } else if let Some(position) = openings.iter().rposition(|opening| {
+            fragments[*opening].key == fragment.key
+                || (fragments[*opening].key.starts_with(DYNAMIC_HTML_TAG_PREFIX)
+                    && fragment.key.starts_with(DYNAMIC_HTML_TAG_PREFIX))
+        }) {
             let opening = &fragments[openings.remove(position)];
             if !opening.ignored && !fragment.ignored {
                 errors.push(mismatched_fragment_error(rule, opening, fragment));
@@ -310,6 +386,7 @@ mod tests {
     fn accepts_matching_fragments() {
         for source in [
             "{% if a %}<div>{% endif %}{% if a %}</div>{% endif %}",
+            "{% if a %}<{{ tag }}>{% endif %}{% if a %}</{{tag}}>{% endif %}",
             "{% block a %}{% if a %}<div>{% endif %}{% if a %}</div>{% endif %}{% endblock %}",
         ] {
             test_rule("html-tag-fragments", source, expect![""]);
@@ -329,6 +406,25 @@ mod tests {
                   │            --- opening <div> is here
                 2 │ {% if b %}</div>{% endif %}
                   │             ^^^ closing tag
+
+            "#]],
+        );
+    }
+
+    #[test]
+    fn rejects_different_expressions() {
+        test_rule(
+            "html-tag-fragments",
+            "<{{ openingTag }}>\ntext\n</{{ closingTag }}>",
+            expect![[r#"
+                error[html-tag-fragments]: closing </{{ closingTag }}> does not match opening <{{ openingTag }}>: different tag-name expressions
+                  ┌─ ./debug-rule.html.twig:3:3
+                  │
+                1 │ <{{ openingTag }}>
+                  │  ---------------- opening <{{ openingTag }}> is here
+                2 │ text
+                3 │ </{{ closingTag }}>
+                  │   ^^^^^^^^^^^^^^^^ closing tag
 
             "#]],
         );
@@ -397,13 +493,13 @@ mod tests {
 
     #[test]
     fn ignore_directive_on_closing_fragment_only_suppresses_its_pair() {
-        let source = "{% block a %}<html>{% endblock %}{# ludtwig-ignore html-tag-fragments #}</html>{% if a %}<div>{% endif %}{% if b %}</div>{% endif %}";
+        let source = "{% block a %}<html>{% endblock %}{# ludtwig-ignore html-tag-fragments #}</html><{{ a }}></{{ b }}>";
         let (root, parse_errors) = ludtwig_parser::parse(source).split();
         assert!(parse_errors.is_empty());
 
         let errors = super::validate(&super::RuleHtmlTagFragments, &root);
         assert_eq!(errors.len(), 1);
-        assert!(errors[0].message.contains("different Twig conditions"));
+        assert!(errors[0].message.contains("different tag-name expressions"));
     }
 
     #[test]
