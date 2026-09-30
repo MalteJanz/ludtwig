@@ -1,6 +1,10 @@
 # NEXT-VERSION
 
 - [#187](https://github.com/MalteJanz/ludtwig/pull/187) Fix wrong parsing of `sw_end_embed` . Now only `end_sw_embed` is correctly parsed
+- Parse Twig expressions as HTML tag names and check matching
+  opening and closing expressions under the same Twig conditions.
+- Parse HTML tags split across Twig branches, dynamic attribute names, XML declarations, unquoted boolean attribute
+  values, and Shopware's `break` tag.
 
 # v0.10.0
 

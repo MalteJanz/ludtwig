@@ -223,6 +223,13 @@ impl HtmlTag {
 }
 
 ast_node!(HtmlStartingTag, SyntaxKind::HTML_STARTING_TAG);
+
+/// A literal HTML tag name or a Twig expression used as one.
+pub enum HtmlTagName {
+    Static(SyntaxToken),
+    Dynamic(TwigVar),
+}
+
 impl HtmlStartingTag {
     /// Name of the tag
     #[must_use]
@@ -231,6 +238,14 @@ impl HtmlStartingTag {
             .children_with_tokens()
             .filter_map(NodeOrToken::into_token)
             .find(|it| it.kind() == T![word] || it.kind() == T![twig component name])
+    }
+
+    /// Name of the tag, including dynamic Twig names such as `<{{ tag }}>`.
+    #[must_use]
+    pub fn tag_name(&self) -> Option<HtmlTagName> {
+        self.name()
+            .map(HtmlTagName::Static)
+            .or_else(|| support::child(&self.syntax).map(HtmlTagName::Dynamic))
     }
 
     /// Attributes of the tag
@@ -290,6 +305,14 @@ impl HtmlEndingTag {
             .children_with_tokens()
             .filter_map(NodeOrToken::into_token)
             .find(|it| it.kind() == T![word] || it.kind() == T![twig component name])
+    }
+
+    /// Name of the tag, including dynamic Twig names such as `</{{ tag }}>`.
+    #[must_use]
+    pub fn tag_name(&self) -> Option<HtmlTagName> {
+        self.name()
+            .map(HtmlTagName::Static)
+            .or_else(|| support::child(&self.syntax).map(HtmlTagName::Dynamic))
     }
 
     /// Parent complete html tag
@@ -594,6 +617,7 @@ ast_node!(
 );
 ast_node!(TwigDeprecated, SyntaxKind::TWIG_DEPRECATED);
 ast_node!(TwigDo, SyntaxKind::TWIG_DO);
+ast_node!(TwigBreak, SyntaxKind::TWIG_BREAK);
 ast_node!(TwigEmbed, SyntaxKind::TWIG_EMBED);
 ast_node!(
     TwigEmbedStartingBlock,
@@ -669,6 +693,7 @@ ast_node!(ShopwareIconStyle, SyntaxKind::SHOPWARE_ICON_STYLE);
 ast_node!(ShopwareThumbnails, SyntaxKind::SHOPWARE_THUMBNAILS);
 ast_node!(ShopwareThumbnailsWith, SyntaxKind::SHOPWARE_THUMBNAILS_WITH);
 ast_node!(HtmlDoctype, SyntaxKind::HTML_DOCTYPE);
+ast_node!(XmlDeclaration, SyntaxKind::XML_DECLARATION);
 ast_node!(HtmlAttributeList, SyntaxKind::HTML_ATTRIBUTE_LIST);
 ast_node!(HtmlStringInner, SyntaxKind::HTML_STRING_INNER);
 ast_node!(HtmlText, SyntaxKind::HTML_TEXT);

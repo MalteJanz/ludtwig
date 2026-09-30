@@ -112,6 +112,8 @@ pub enum SyntaxKind {
     TK_CLOSE_SQUARE,
     #[token("<")]
     TK_LESS_THAN,
+    #[token("<?")]
+    TK_LESS_THAN_QUESTION_MARK,
     #[token("<=")]
     TK_LESS_THAN_EQUAL,
     #[token("<=>")]
@@ -219,6 +221,8 @@ pub enum SyntaxKind {
     TK_AUTOESCAPE,
     #[token("endautoescape")]
     TK_ENDAUTOESCAPE,
+    #[token("break")]
+    TK_BREAK,
     #[token("cache")]
     TK_CACHE,
     #[token("endcache")]
@@ -469,6 +473,7 @@ pub enum SyntaxKind {
     TWIG_DEPRECATED,
     // twig do
     TWIG_DO,
+    TWIG_BREAK,
     // twig embed
     TWIG_EMBED,
     TWIG_EMBED_STARTING_BLOCK,
@@ -528,6 +533,7 @@ pub enum SyntaxKind {
 
     // html
     HTML_DOCTYPE,
+    XML_DECLARATION,
     HTML_ATTRIBUTE_LIST,
     HTML_ATTRIBUTE,
     HTML_STRING,       // used as attribute values
@@ -619,6 +625,7 @@ macro_rules! T {
     ["["] => { $crate::syntax::untyped::SyntaxKind::TK_OPEN_SQUARE };
     ["]"] => { $crate::syntax::untyped::SyntaxKind::TK_CLOSE_SQUARE };
     ["<"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN };
+    ["<?"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_QUESTION_MARK };
     ["<="] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_EQUAL };
     ["<=>"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_EQUAL_GREATER_THAN };
     ["</"] => { $crate::syntax::untyped::SyntaxKind::TK_LESS_THAN_SLASH };
@@ -671,6 +678,7 @@ macro_rules! T {
     ["endapply"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDAPPLY };
     ["autoescape"] => { $crate::syntax::untyped::SyntaxKind::TK_AUTOESCAPE };
     ["endautoescape"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDAUTOESCAPE };
+    ["break"] => { $crate::syntax::untyped::SyntaxKind::TK_BREAK };
     ["cache"] => { $crate::syntax::untyped::SyntaxKind::TK_CACHE };
     ["endcache"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDCACHE };
     ["deprecated"] => { $crate::syntax::untyped::SyntaxKind::TK_DEPRECATED };
@@ -789,6 +797,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_OPEN_SQUARE => "[",
             SyntaxKind::TK_CLOSE_SQUARE => "]",
             SyntaxKind::TK_LESS_THAN => "<",
+            SyntaxKind::TK_LESS_THAN_QUESTION_MARK => "<?",
             SyntaxKind::TK_LESS_THAN_EQUAL => "<=",
             SyntaxKind::TK_LESS_THAN_EQUAL_GREATER_THAN => "<=>",
             SyntaxKind::TK_LESS_THAN_SLASH => "</",
@@ -841,6 +850,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_ENDAPPLY => "endapply",
             SyntaxKind::TK_AUTOESCAPE => "autoescape",
             SyntaxKind::TK_ENDAUTOESCAPE => "endautoescape",
+            SyntaxKind::TK_BREAK => "break",
             SyntaxKind::TK_CACHE => "cache",
             SyntaxKind::TK_ENDCACHE => "endcache",
             SyntaxKind::TK_DEPRECATED => "deprecated",
