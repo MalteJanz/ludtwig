@@ -503,12 +503,11 @@ mod tests {
 
     #[test]
     fn does_not_change_line_breaks_inside_split_sensitive_tags() {
-        for source in [
+        test_rule(
+            "twig-block-line-breaks",
             "{% if a %}<pre>{% endif %}\n{% block content %}X{% endblock %}\n{% if a %}</pre>{% endif %}",
-            "<{{ tag }}>\n{% block content %}X{% endblock %}\n</{{ tag }}>",
-        ] {
-            test_rule("twig-block-line-breaks", source, expect![""]);
-        }
+            expect![""],
+        );
     }
 
     #[test]

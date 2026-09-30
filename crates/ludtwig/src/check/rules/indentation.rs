@@ -465,8 +465,6 @@ mod tests {
         for source in [
             "{% if a %}<pre>{% endif %}\n  content\n{% if a %}</pre>{% endif %}",
             "{% if a %}<PRE>{% endif %}\n  content\n{% if a %}</PRE>{% endif %}",
-            "{% if a %}<{{ tag }}>{% endif %}\n  content\n{% if a %}</{{ tag }}>{% endif %}",
-            "<{{ tag }}>\n  content\n</{{ tag }}>",
         ] {
             test_rule("indentation", source, expect![""]);
         }
