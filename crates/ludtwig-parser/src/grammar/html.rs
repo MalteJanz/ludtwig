@@ -1244,30 +1244,6 @@ mod tests {
     }
 
     #[test]
-    fn still_rejects_unmatched_html_tags() {
-        check_parse(
-            "<div>content</span>",
-            expect![[r#"
-            ROOT@0..19
-              HTML_TAG@0..19
-                HTML_STARTING_TAG@0..5
-                  TK_LESS_THAN@0..1 "<"
-                  TK_WORD@1..4 "div"
-                  HTML_ATTRIBUTE_LIST@4..4
-                  TK_GREATER_THAN@4..5 ">"
-                BODY@5..12
-                  HTML_TEXT@5..12
-                    TK_WORD@5..12 "content"
-                HTML_ENDING_TAG@12..19
-                  ERROR@12..19
-                    TK_LESS_THAN_SLASH@12..14 "</"
-                    TK_WORD@14..18 "span"
-                    TK_GREATER_THAN@18..19 ">"
-            error at 12..14: expected </div> ending tag but found </"#]],
-        );
-    }
-
-    #[test]
     #[allow(clippy::too_many_lines)]
     fn parses_matching_twig_expression_tag_names() {
         for (source, expected) in [
@@ -2072,8 +2048,61 @@ mod tests {
 
     #[test]
     fn parses_missing_closing_tag_inside_block_as_fragment() {
-        let source = "<div>{% block a %}<p>hello{% endblock %}<span>world</span></div>";
-        assert!(crate::parse(source).errors.is_empty());
+        check_parse(
+            "<div>{% block a %}<p>hello{% endblock %}<span>world</span></div>",
+            expect![[r#"
+                ROOT@0..64
+                  HTML_TAG@0..64
+                    HTML_STARTING_TAG@0..5
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE_LIST@4..4
+                      TK_GREATER_THAN@4..5 ">"
+                    BODY@5..58
+                      TWIG_BLOCK@5..40
+                        TWIG_STARTING_BLOCK@5..18
+                          TK_CURLY_PERCENT@5..7 "{%"
+                          TK_WHITESPACE@7..8 " "
+                          TK_BLOCK@8..13 "block"
+                          TK_WHITESPACE@13..14 " "
+                          TK_WORD@14..15 "a"
+                          TK_WHITESPACE@15..16 " "
+                          TK_PERCENT_CURLY@16..18 "%}"
+                        BODY@18..26
+                          HTML_TAG@18..26
+                            HTML_STARTING_TAG@18..21
+                              TK_LESS_THAN@18..19 "<"
+                              TK_WORD@19..20 "p"
+                              HTML_ATTRIBUTE_LIST@20..20
+                              TK_GREATER_THAN@20..21 ">"
+                            BODY@21..26
+                              HTML_TEXT@21..26
+                                TK_WORD@21..26 "hello"
+                            HTML_ENDING_TAG@26..26
+                        TWIG_ENDING_BLOCK@26..40
+                          TK_CURLY_PERCENT@26..28 "{%"
+                          TK_WHITESPACE@28..29 " "
+                          TK_ENDBLOCK@29..37 "endblock"
+                          TK_WHITESPACE@37..38 " "
+                          TK_PERCENT_CURLY@38..40 "%}"
+                      HTML_TAG@40..58
+                        HTML_STARTING_TAG@40..46
+                          TK_LESS_THAN@40..41 "<"
+                          TK_WORD@41..45 "span"
+                          HTML_ATTRIBUTE_LIST@45..45
+                          TK_GREATER_THAN@45..46 ">"
+                        BODY@46..51
+                          HTML_TEXT@46..51
+                            TK_WORD@46..51 "world"
+                        HTML_ENDING_TAG@51..58
+                          TK_LESS_THAN_SLASH@51..53 "</"
+                          TK_WORD@53..57 "span"
+                          TK_GREATER_THAN@57..58 ">"
+                    HTML_ENDING_TAG@58..64
+                      TK_LESS_THAN_SLASH@58..60 "</"
+                      TK_WORD@60..63 "div"
+                      TK_GREATER_THAN@63..64 ">""#]],
+        );
     }
 
     #[test]

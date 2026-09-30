@@ -493,13 +493,20 @@ mod tests {
 
     #[test]
     fn ignore_directive_on_closing_fragment_only_suppresses_its_pair() {
-        let source = "{% block a %}<html>{% endblock %}{# ludtwig-ignore html-tag-fragments #}</html><{{ a }}></{{ b }}>";
-        let (root, parse_errors) = ludtwig_parser::parse(source).split();
-        assert!(parse_errors.is_empty());
+        test_rule(
+            "html-tag-fragments",
+            "{% block a %}<html>{% endblock %}{# ludtwig-ignore html-tag-fragments #}</html>\n<{{ a }}>\n</{{ b }}>",
+            expect![[r#"
+                error[html-tag-fragments]: closing </{{ b }}> does not match opening <{{ a }}>: different tag-name expressions
+                  ┌─ ./debug-rule.html.twig:3:3
+                  │
+                2 │ <{{ a }}>
+                  │  ------- opening <{{ a }}> is here
+                3 │ </{{ b }}>
+                  │   ^^^^^^^ closing tag
 
-        let errors = super::validate(&super::RuleHtmlTagFragments, &root);
-        assert_eq!(errors.len(), 1);
-        assert!(errors[0].message.contains("different tag-name expressions"));
+            "#]],
+        );
     }
 
     #[test]
