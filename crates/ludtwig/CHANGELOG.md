@@ -4,7 +4,6 @@
 - Avoid whitespace fixes inside split whitespace-sensitive tags and dynamic HTML tags.
 - Add the configurable `twig-no-break` rule to suggest native Twig alternatives to `{% break %}`.
 - Do not rewrite the static part of a dynamic HTML attribute name.
-- Normalize the standard `tabindex` attribute without introducing an invalid hyphen.
 - Do not report duplicate IDs in mutually exclusive Twig `if` branches.
 
 # v0.13.0

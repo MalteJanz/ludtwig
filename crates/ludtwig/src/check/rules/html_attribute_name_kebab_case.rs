@@ -39,12 +39,7 @@ impl Rule for RuleHtmlAttributeNameKebabCase {
                 );
 
             // try make a suggestion
-            let suggested_name = if attribute_name.text().eq_ignore_ascii_case("tabindex") {
-                Some("tabindex".to_owned())
-            } else {
-                try_make_kebab_case(attribute_name.text())
-            };
-            if let Some(suggested_name) = suggested_name {
+            if let Some(suggested_name) = try_make_kebab_case(attribute_name.text()) {
                 result = result.suggestion(
                     attribute_name.text_range(),
                     suggested_name,
@@ -107,15 +102,6 @@ mod tests {
             "html-attribute-name-kebab-case",
             "<custom aBc/>",
             expect!["<custom a-bc/>"],
-        );
-    }
-
-    #[test]
-    fn rule_preserves_standard_tabindex_attribute() {
-        test_rule_fix(
-            "html-attribute-name-kebab-case",
-            "<button tabIndex=\"0\"></button>",
-            expect!["<button tabindex=\"0\"></button>"],
         );
     }
 }
