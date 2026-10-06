@@ -223,6 +223,7 @@ impl HtmlTag {
 }
 
 ast_node!(HtmlStartingTag, SyntaxKind::HTML_STARTING_TAG);
+
 impl HtmlStartingTag {
     /// Name of the tag
     #[must_use]
@@ -594,6 +595,7 @@ ast_node!(
 );
 ast_node!(TwigDeprecated, SyntaxKind::TWIG_DEPRECATED);
 ast_node!(TwigDo, SyntaxKind::TWIG_DO);
+ast_node!(TwigBreak, SyntaxKind::TWIG_BREAK);
 ast_node!(TwigEmbed, SyntaxKind::TWIG_EMBED);
 ast_node!(
     TwigEmbedStartingBlock,
@@ -669,6 +671,7 @@ ast_node!(ShopwareIconStyle, SyntaxKind::SHOPWARE_ICON_STYLE);
 ast_node!(ShopwareThumbnails, SyntaxKind::SHOPWARE_THUMBNAILS);
 ast_node!(ShopwareThumbnailsWith, SyntaxKind::SHOPWARE_THUMBNAILS_WITH);
 ast_node!(HtmlDoctype, SyntaxKind::HTML_DOCTYPE);
+ast_node!(XmlDeclaration, SyntaxKind::XML_DECLARATION);
 ast_node!(HtmlAttributeList, SyntaxKind::HTML_ATTRIBUTE_LIST);
 ast_node!(HtmlStringInner, SyntaxKind::HTML_STRING_INNER);
 ast_node!(HtmlText, SyntaxKind::HTML_TEXT);

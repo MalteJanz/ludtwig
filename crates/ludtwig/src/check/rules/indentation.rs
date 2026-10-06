@@ -36,7 +36,9 @@ impl Rule for RuleIndentation {
                             line_break_encountered = true;
                         }
                         SyntaxElement::Token(t) if !is_ignored && line_break_encountered => {
-                            if !inside_trivia_sensitive_node {
+                            if !inside_trivia_sensitive_node
+                                && !ctx.is_in_uncertain_trivia(t.text_range())
+                            {
                                 check_results.append(&mut self.handle_first_token_in_line(
                                     &t,
                                     indentation_level,
@@ -248,9 +250,7 @@ impl RuleIndentation {
         walk_mode: WalkMode,
     ) {
         if let Some(t) = HtmlTag::cast(n.clone()) {
-            if let Some("pre" | "textarea" | "script" | "style") =
-                t.name().as_ref().map(SyntaxToken::text)
-            {
+            if super::html_tag_fragments::is_trivia_sensitive_tag(&t) {
                 match walk_mode {
                     WalkMode::Enter => {
                         *inside_trivia_sensitive_node = true;
@@ -331,7 +331,7 @@ fn get_spaces_and_tabs_count(input: &str) -> (i32, i32) {
 mod tests {
     use expect_test::expect;
 
-    use crate::check::rules::test::{test_rule, test_rule_fix};
+    use crate::check::rules::test::{test_rule, test_rule_does_not_fix, test_rule_fix};
 
     #[test]
     fn rule_reports() {
@@ -445,6 +445,7 @@ mod tests {
             console.log("nested");
         }
     }
+
 </script>
 
 <style>
@@ -456,6 +457,26 @@ mod tests {
     }
 </style>"#,
             expect![[r""]],
+        );
+    }
+
+    #[test]
+    fn does_not_change_indentation_inside_split_sensitive_tags() {
+        for source in [
+            "{% if a %}<pre>{% endif %}\n  content\n{% if a %}</pre>{% endif %}",
+            "{% if a %}<PRE>{% endif %}\n  content\n{% if a %}</PRE>{% endif %}",
+        ] {
+            test_rule("indentation", source, expect![""]);
+        }
+    }
+
+    #[test]
+    fn fix_keeps_spacing_inside_split_pre() {
+        let source = "{% if a %}<pre>{% endif %}\n  content\n{% if a %}</pre>{% endif %}";
+        test_rule_does_not_fix(
+            "indentation",
+            source,
+            expect!["{% if a %}<pre>{% endif %}\n  content\n{% if a %}</pre>{% endif %}"],
         );
     }
 

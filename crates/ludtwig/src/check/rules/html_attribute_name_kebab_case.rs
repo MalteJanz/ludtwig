@@ -1,7 +1,7 @@
 use crate::check::naming_convention::{is_valid_alphanumeric_kebab_case, try_make_kebab_case};
 use crate::check::rule::{CheckResult, Rule, RuleExt, RuleRunContext, Severity};
 use ludtwig_parser::syntax::typed::{AstNode, HtmlAttribute};
-use ludtwig_parser::syntax::untyped::SyntaxNode;
+use ludtwig_parser::syntax::untyped::{SyntaxKind, SyntaxNode};
 
 pub struct RuleHtmlAttributeNameKebabCase;
 
@@ -16,6 +16,14 @@ impl Rule for RuleHtmlAttributeNameKebabCase {
 
         if attribute.html_tag()?.is_twig_component() {
             return None; // skip this rule for twig components, because they often use camelCase as params
+        }
+
+        if attribute
+            .syntax()
+            .children()
+            .any(|child| child.kind() == SyntaxKind::TWIG_VAR)
+        {
+            return None; // the static token is only part of a dynamic attribute name
         }
 
         if !is_valid_alphanumeric_kebab_case(attribute_name.text()) {
@@ -76,6 +84,15 @@ mod tests {
             "html-attribute-name-kebab-case",
             r#"<twig:namespaced:component :myCamelCaseAttribute="asdf"/>"#,
             expect![[r#"<twig:namespaced:component :myCamelCaseAttribute="asdf"/>"#]],
+        );
+    }
+
+    #[test]
+    fn rule_does_not_change_dynamic_attribute_names() {
+        test_rule_does_not_fix(
+            "html-attribute-name-kebab-case",
+            r#"<div data-{{ selector }}-options="value"></div>"#,
+            expect![[r#"<div data-{{ selector }}-options="value"></div>"#]],
         );
     }
 

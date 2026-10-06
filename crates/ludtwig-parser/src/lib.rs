@@ -10,7 +10,7 @@
 //! Parsing both Twig and HTML together into a single hierarchical syntax tree gives some benefits,
 //! valid syntax trees follow some desirable properties:
 //! - non-self-closing HTML tags always need a corresponding closing tag
-//! - opening and closing HTML tag must exist inside the same Twig block
+//! - HTML tags split across Twig blocks are represented as separate opening and closing nodes
 //! - Twig syntax is only allowed in specific places instead of everywhere
 //!
 //! which in turn make these templates and the HTML generated in the end less error-prone.
