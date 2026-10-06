@@ -25,6 +25,6 @@ criterion = "0.8.2"
 expect-test = "1.5.1"
 
 [dependencies]
-rowan = "0.16.1"
+rowan = "0.17.0"
 logos = "0.16.1"
 regex = "1.12.3"
