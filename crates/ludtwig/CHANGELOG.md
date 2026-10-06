@@ -1,8 +1,12 @@
 # NEXT-VERSION
 
-- Validate HTML tag fragments with a configurable rule instead of parser errors.
+
+
+# v0.14.0
+
+- Validate HTML tag fragments with the `html-tag-fragments` rule instead of parser errors.
 - Avoid whitespace fixes inside split whitespace-sensitive tags.
-- Add the configurable `twig-no-break` rule to suggest native Twig alternatives to `{% break %}`.
+- Add the `twig-no-break` rule to suggest native Twig alternatives to `{% break %}`.
 - Do not rewrite the static part of a dynamic HTML attribute name.
 - Do not report duplicate IDs in mutually exclusive Twig `if` branches.
 
