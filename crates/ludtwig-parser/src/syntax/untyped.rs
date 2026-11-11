@@ -279,6 +279,8 @@ pub enum SyntaxKind {
     TK_TAGS,
     #[token("props")]
     TK_PROPS,
+    #[token("types")]
+    TK_TYPES,
     #[token("component")]
     TK_COMPONENT,
     #[token("endcomponent")]
@@ -509,6 +511,9 @@ pub enum SyntaxKind {
     // twig props
     TWIG_PROPS,
     TWIG_PROP_DECLARATION,
+    // twig types
+    TWIG_TYPES,
+    TWIG_TYPE_DECLARATION,
     // twig component
     TWIG_COMPONENT,
     TWIG_COMPONENT_STARTING_BLOCK,
@@ -707,6 +712,7 @@ macro_rules! T {
     ["ttl"] => { $crate::syntax::untyped::SyntaxKind::TK_TTL };
     ["tags"] => { $crate::syntax::untyped::SyntaxKind::TK_TAGS };
     ["props"] => { $crate::syntax::untyped::SyntaxKind::TK_PROPS };
+    ["types"] => { $crate::syntax::untyped::SyntaxKind::TK_TYPES };
     ["component"] => { $crate::syntax::untyped::SyntaxKind::TK_COMPONENT };
     ["endcomponent"] => { $crate::syntax::untyped::SyntaxKind::TK_ENDCOMPONENT };
     ["not"] => { $crate::syntax::untyped::SyntaxKind::TK_NOT };
@@ -879,6 +885,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TK_TTL => "ttl",
             SyntaxKind::TK_TAGS => "tags",
             SyntaxKind::TK_PROPS => "props",
+            SyntaxKind::TK_TYPES => "types",
             SyntaxKind::TK_COMPONENT => "component",
             SyntaxKind::TK_ENDCOMPONENT => "endcomponent",
             SyntaxKind::TK_NOT => "not",

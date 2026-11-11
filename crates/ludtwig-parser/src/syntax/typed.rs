@@ -642,6 +642,8 @@ ast_node!(
 ast_node!(TwigCacheEndingBlock, SyntaxKind::TWIG_CACHE_ENDING_BLOCK);
 ast_node!(TwigProps, SyntaxKind::TWIG_PROPS);
 ast_node!(TwigPropDeclaration, SyntaxKind::TWIG_PROP_DECLARATION);
+ast_node!(TwigTypes, SyntaxKind::TWIG_TYPES);
+ast_node!(TwigTypeDeclaration, SyntaxKind::TWIG_TYPE_DECLARATION);
 ast_node!(TwigComponent, SyntaxKind::TWIG_COMPONENT);
 ast_node!(
     TwigComponentStartingBlock,
@@ -725,6 +727,7 @@ impl HasWhitespaceControl for TwigWithEndingBlock {}
 impl HasWhitespaceControl for TwigCacheStartingBlock {}
 impl HasWhitespaceControl for TwigCacheEndingBlock {}
 impl HasWhitespaceControl for TwigProps {}
+impl HasWhitespaceControl for TwigTypes {}
 impl HasWhitespaceControl for TwigComponentStartingBlock {}
 impl HasWhitespaceControl for TwigComponentEndingBlock {}
 impl HasWhitespaceControl for TwigTransStartingBlock {}

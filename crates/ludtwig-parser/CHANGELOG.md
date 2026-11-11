@@ -1,5 +1,6 @@
 # NEXT-VERSION
 
+- Parse Twig `types` tags, including optional variables and mappings with or without braces.
 
 
 # v0.11.0

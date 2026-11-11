@@ -261,6 +261,7 @@ mod tests {
         add("sandbox", T!["sandbox"]);
         add("endsandbox", T!["endsandbox"]);
         add("set", T!["set"]);
+        add("types", T!["types"]);
         add("endset", T!["endset"]);
         add("use", T!["use"]);
         add("verbatim", T!["verbatim"]);
@@ -838,6 +839,11 @@ mod tests {
     #[test]
     fn lex_set() {
         check_token("set", T!["set"]);
+    }
+
+    #[test]
+    fn lex_types() {
+        check_token("types", T!["types"]);
     }
 
     #[test]
