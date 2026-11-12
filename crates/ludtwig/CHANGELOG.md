@@ -1,6 +1,8 @@
 # NEXT-VERSION
 
-
+- [#204](https://github.com/MalteJanz/ludtwig/issues/204) [BREAKING] Removed `html-attribute-name-kebab-case`
+  rule to prevent unsafe HTML attribute renames such as `tabIndex` to `tab-index` and `viewBox` to `view-box`.
+  Please remove this rule from `active-rules` in your config file.
 
 # v0.14.0
 
