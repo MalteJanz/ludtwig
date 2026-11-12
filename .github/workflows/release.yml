@@ -44,11 +44,11 @@ jobs:
             type: application/gzip
             output_ending: .tar.gz
           - build: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-26-intel
             type: application/gzip
             output_ending: .tar.gz
           - build: aarch64-apple-darwin
-            os: macos-14 # m1 runner
+            os: macos-latest
             type: application/gzip
             output_ending: .tar.gz
           - build: x86_64-pc-windows-msvc
@@ -83,7 +83,7 @@ jobs:
 
       - name: Create archive for MacOS
         run: 7z a -ttar -so -an ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }} | 7z a -tgzip -si ./artifacts/${{ env.RELEASE_BIN }}-${{ needs.tag_version.outputs.version }}-${{ matrix.build }}${{ matrix.output_ending }}
-        if: matrix.os == 'macos-latest' || matrix.os == 'macos-14'
+        if: runner.os == 'macOS'
 
       - name: Upload artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
