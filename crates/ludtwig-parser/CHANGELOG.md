@@ -1,6 +1,10 @@
 # NEXT-VERSION
 
-- [#212](https://github.com/MalteJanz/ludtwig/pull/212) Parse Twig `types` tags, including optional variables and mappings with or without braces.
+
+# v0.12.0
+
+- [#212](https://github.com/MalteJanz/ludtwig/pull/212) Parse Twig `types` tags, including optional variables and mappings with or without braces
+- [#216](https://github.com/MalteJanz/ludtwig/pull/216) Allow arbitrary HTML content in quoted attribute values
 
 
 # v0.11.0
