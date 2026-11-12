@@ -15,7 +15,7 @@ cargo test -p ludtwig-parser         # Test parser crate only
 cargo test -p ludtwig                # Test CLI crate only
 cargo test <test_name>               # Run a single test by name
 cargo fmt -- --check                 # Check formatting
-cargo clippy --locked                # Lint (CI uses RUSTFLAGS="-Dwarnings")
+cargo clippy --locked --all-targets  # Lint (CI uses RUSTFLAGS="-Dwarnings")
 cargo bench -p ludtwig-parser        # Run parser benchmarks (criterion)
 ```
 

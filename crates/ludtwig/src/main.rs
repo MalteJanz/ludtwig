@@ -3,6 +3,8 @@
 #![allow(clippy::doc_markdown)]
 #![allow(clippy::elidable_lifetime_names)]
 #![allow(clippy::needless_continue)]
+#![allow(clippy::needless_raw_string_hashes)]
+#![allow(clippy::too_many_lines)]
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
