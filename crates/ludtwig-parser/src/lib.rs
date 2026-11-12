@@ -3,6 +3,8 @@
 #![allow(clippy::doc_markdown)]
 #![allow(clippy::elidable_lifetime_names)]
 #![allow(clippy::needless_continue)]
+#![allow(clippy::needless_raw_string_hashes)]
+#![allow(clippy::too_many_lines)]
 //! # Parser
 //! This is a handwritten top-down parser for the [twig templating language](https://twig.symfony.com/) combined with HTML.
 //! It's mostly developed together with the linter / formatter [ludtwig](https://github.com/MalteJanz/ludtwig).

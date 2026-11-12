@@ -307,8 +307,8 @@ mod tests {
         // in practice this is never reached because the embedded config always
         // provides values, but it ensures deserialization never hard-fails.
         let default = Twig::default();
-        assert!(default.valid_filters.is_empty());
-        assert!(default.valid_tests.is_empty());
-        assert!(default.valid_functions.is_empty());
+        assert_eq!(default.valid_filters, [] as [String; 0]);
+        assert_eq!(default.valid_tests, [] as [String; 0]);
+        assert_eq!(default.valid_functions, [] as [String; 0]);
     }
 }
