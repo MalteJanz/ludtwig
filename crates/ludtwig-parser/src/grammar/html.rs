@@ -428,19 +428,16 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
     }
 
     fn child_parser(p: &mut Parser, inner_twig_child_parser: ParseFunction) {
-        if parse_any_twig(p, inner_twig_child_parser).is_none() {
-            if p.at_set(&[T![">"], T!["/>"]]) || p.at_set(GENERAL_RECOVERY_SET) || p.at_end() {
-                return;
-            }
-
+        if parse_any_twig(p, inner_twig_child_parser).is_none() && !p.at_end() {
+            // HTML punctuation is literal content until the matching quote.
             p.bump();
         }
     }
 
     let m = parser.start();
-    let quote_kind = if parser.at_set(&[T!["\""], T!["'"]]) {
+    let opening_quote = if parser.at_set(&[T!["\""], T!["'"]]) {
         let starting_quote_token = parser.bump();
-        Some(starting_quote_token.kind)
+        Some((starting_quote_token.kind, starting_quote_token.range))
     } else {
         // the HTML specification also allows no quotes but then
         // the value must only be a single word
@@ -449,11 +446,11 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
 
     let inner_m = parser.start();
     // run the appropriate inner parser
-    match quote_kind {
-        Some(T!["\""]) => {
+    match opening_quote {
+        Some((T!["\""], _)) => {
             inner_double_quote_parser(parser);
         }
-        Some(T!["'"]) => {
+        Some((T!["'"], _)) => {
             inner_single_quote_parser(parser);
         }
         None => {
@@ -462,7 +459,7 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
         Some(_) => unreachable!(),
     }
 
-    if quote_kind.is_some() {
+    if opening_quote.is_some() {
         // consume any trailing trivia to be inside the inner string
         // but only when quotation exists (otherwise only the single word should be inside the HTML_STRING_INNER node)
         parser.explicitly_consume_trivia();
@@ -471,8 +468,16 @@ fn parse_html_attribute_value_string(parser: &mut Parser) -> CompletedMarker {
     parser.complete(inner_m, SyntaxKind::HTML_STRING_INNER);
 
     // expect the same closing quote if a starting quote existed
-    if let Some(quote_kind) = quote_kind {
-        parser.expect(quote_kind, &[T![">"], T!["/>"]]);
+    if let Some((quote_kind, opening_range)) = opening_quote {
+        if parser.at(quote_kind) {
+            parser.bump();
+        } else {
+            // Point to the opening quote even if the string consumed the rest of the file.
+            parser.add_error(
+                ParseErrorBuilder::new(format!("matching closing {quote_kind}"))
+                    .at_range(opening_range),
+            );
+        }
     } else {
         // check for unexpected quote which this parser still consumes to make missing leading quote errors simpler
         if parser.at_set(&[T!["\""], T!["'"]]) {
@@ -1505,6 +1510,216 @@ mod tests {
     }
 
     #[test]
+    fn parse_html_attribute_with_chevron() {
+        check_parse(
+            r#"<div data-prop=">">Hello world</div>"#,
+            expect![[r#"
+                ROOT@0..36
+                  HTML_TAG@0..36
+                    HTML_STARTING_TAG@0..19
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE_LIST@4..18
+                        HTML_ATTRIBUTE@4..18
+                          TK_WHITESPACE@4..5 " "
+                          TK_WORD@5..14 "data-prop"
+                          TK_EQUAL@14..15 "="
+                          HTML_STRING@15..18
+                            TK_DOUBLE_QUOTES@15..16 "\""
+                            HTML_STRING_INNER@16..17
+                              TK_GREATER_THAN@16..17 ">"
+                            TK_DOUBLE_QUOTES@17..18 "\""
+                      TK_GREATER_THAN@18..19 ">"
+                    BODY@19..30
+                      HTML_TEXT@19..30
+                        TK_WORD@19..24 "Hello"
+                        TK_WHITESPACE@24..25 " "
+                        TK_WORD@25..30 "world"
+                    HTML_ENDING_TAG@30..36
+                      TK_LESS_THAN_SLASH@30..32 "</"
+                      TK_WORD@32..35 "div"
+                      TK_GREATER_THAN@35..36 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_with_arbitrary_multiline_content() {
+        check_parse(
+            "<div data-prop='<span>\"text\"</span> /> <!-- comment --> <!DOCTYPE html>\n{{ value }}'>Hello</div>",
+            expect![[r#"
+                ROOT@0..96
+                  HTML_TAG@0..96
+                    HTML_STARTING_TAG@0..85
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE_LIST@4..84
+                        HTML_ATTRIBUTE@4..84
+                          TK_WHITESPACE@4..5 " "
+                          TK_WORD@5..14 "data-prop"
+                          TK_EQUAL@14..15 "="
+                          HTML_STRING@15..84
+                            TK_SINGLE_QUOTES@15..16 "'"
+                            HTML_STRING_INNER@16..83
+                              TK_LESS_THAN@16..17 "<"
+                              TK_WORD@17..21 "span"
+                              TK_GREATER_THAN@21..22 ">"
+                              TK_DOUBLE_QUOTES@22..23 "\""
+                              TK_WORD@23..27 "text"
+                              TK_DOUBLE_QUOTES@27..28 "\""
+                              TK_LESS_THAN_SLASH@28..30 "</"
+                              TK_WORD@30..34 "span"
+                              TK_GREATER_THAN@34..35 ">"
+                              TK_WHITESPACE@35..36 " "
+                              TK_SLASH_GREATER_THAN@36..38 "/>"
+                              TK_WHITESPACE@38..39 " "
+                              TK_LESS_THAN_EXCLAMATION_MARK_MINUS_MINUS@39..43 "<!--"
+                              TK_WHITESPACE@43..44 " "
+                              TK_WORD@44..51 "comment"
+                              TK_WHITESPACE@51..52 " "
+                              TK_MINUS_MINUS_GREATER_THAN@52..55 "-->"
+                              TK_WHITESPACE@55..56 " "
+                              TK_LESS_THAN_EXCLAMATION_MARK@56..58 "<!"
+                              TK_DOCTYPE@58..65 "DOCTYPE"
+                              TK_WHITESPACE@65..66 " "
+                              TK_WORD@66..70 "html"
+                              TK_GREATER_THAN@70..71 ">"
+                              TWIG_VAR@71..83
+                                TK_LINE_BREAK@71..72 "\n"
+                                TK_OPEN_CURLY_CURLY@72..74 "{{"
+                                TWIG_EXPRESSION@74..80
+                                  TWIG_LITERAL_NAME@74..80
+                                    TK_WHITESPACE@74..75 " "
+                                    TK_WORD@75..80 "value"
+                                TK_WHITESPACE@80..81 " "
+                                TK_CLOSE_CURLY_CURLY@81..83 "}}"
+                            TK_SINGLE_QUOTES@83..84 "'"
+                      TK_GREATER_THAN@84..85 ">"
+                    BODY@85..90
+                      HTML_TEXT@85..90
+                        TK_WORD@85..90 "Hello"
+                    HTML_ENDING_TAG@90..96
+                      TK_LESS_THAN_SLASH@90..92 "</"
+                      TK_WORD@92..95 "div"
+                      TK_GREATER_THAN@95..96 ">""#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_with_stimulus_action() {
+        check_parse(
+            "<button data-action='click->gallery#next'>Next</button>",
+            expect![[r##"
+                ROOT@0..55
+                  HTML_TAG@0..55
+                    HTML_STARTING_TAG@0..42
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..7 "button"
+                      HTML_ATTRIBUTE_LIST@7..41
+                        HTML_ATTRIBUTE@7..41
+                          TK_WHITESPACE@7..8 " "
+                          TK_WORD@8..19 "data-action"
+                          TK_EQUAL@19..20 "="
+                          HTML_STRING@20..41
+                            TK_SINGLE_QUOTES@20..21 "'"
+                            HTML_STRING_INNER@21..40
+                              TK_WORD@21..27 "click-"
+                              TK_GREATER_THAN@27..28 ">"
+                              TK_WORD@28..35 "gallery"
+                              TK_WORD@35..40 "#next"
+                            TK_SINGLE_QUOTES@40..41 "'"
+                      TK_GREATER_THAN@41..42 ">"
+                    BODY@42..46
+                      HTML_TEXT@42..46
+                        TK_WORD@42..46 "Next"
+                    HTML_ENDING_TAG@46..55
+                      TK_LESS_THAN_SLASH@46..48 "</"
+                      TK_WORD@48..54 "button"
+                      TK_GREATER_THAN@54..55 ">""##]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_with_multiple_stimulus_actions() {
+        // Action descriptors from https://stimulus.hotwired.dev/reference/actions
+        check_parse(
+            r#"<div data-action="
+    keydown.esc->modal#close
+    keydown.ctrl+a->listbox#selectAll
+    resize@window->gallery#layout
+    scroll->gallery#layout:!passive
+    focus->field#highlight input->search#update
+"></div>"#,
+            expect![[r##"
+                ROOT@0..212
+                  HTML_TAG@0..212
+                    HTML_STARTING_TAG@0..206
+                      TK_LESS_THAN@0..1 "<"
+                      TK_WORD@1..4 "div"
+                      HTML_ATTRIBUTE_LIST@4..205
+                        HTML_ATTRIBUTE@4..205
+                          TK_WHITESPACE@4..5 " "
+                          TK_WORD@5..16 "data-action"
+                          TK_EQUAL@16..17 "="
+                          HTML_STRING@17..205
+                            TK_DOUBLE_QUOTES@17..18 "\""
+                            HTML_STRING_INNER@18..204
+                              TK_LINE_BREAK@18..19 "\n"
+                              TK_WHITESPACE@19..23 "    "
+                              TK_WORD@23..30 "keydown"
+                              TK_DOT@30..31 "."
+                              TK_WORD@31..35 "esc-"
+                              TK_GREATER_THAN@35..36 ">"
+                              TK_WORD@36..41 "modal"
+                              TK_WORD@41..47 "#close"
+                              TK_LINE_BREAK@47..48 "\n"
+                              TK_WHITESPACE@48..52 "    "
+                              TK_WORD@52..59 "keydown"
+                              TK_DOT@59..60 "."
+                              TK_WORD@60..64 "ctrl"
+                              TK_PLUS@64..65 "+"
+                              TK_WORD@65..67 "a-"
+                              TK_GREATER_THAN@67..68 ">"
+                              TK_WORD@68..75 "listbox"
+                              TK_WORD@75..85 "#selectAll"
+                              TK_LINE_BREAK@85..86 "\n"
+                              TK_WHITESPACE@86..90 "    "
+                              TK_WORD@90..96 "resize"
+                              TK_WORD@96..104 "@window-"
+                              TK_GREATER_THAN@104..105 ">"
+                              TK_WORD@105..112 "gallery"
+                              TK_WORD@112..119 "#layout"
+                              TK_LINE_BREAK@119..120 "\n"
+                              TK_WHITESPACE@120..124 "    "
+                              TK_WORD@124..131 "scroll-"
+                              TK_GREATER_THAN@131..132 ">"
+                              TK_WORD@132..139 "gallery"
+                              TK_WORD@139..146 "#layout"
+                              TK_COLON@146..147 ":"
+                              TK_EXCLAMATION_MARK@147..148 "!"
+                              TK_WORD@148..155 "passive"
+                              TK_LINE_BREAK@155..156 "\n"
+                              TK_WHITESPACE@156..160 "    "
+                              TK_WORD@160..166 "focus-"
+                              TK_GREATER_THAN@166..167 ">"
+                              TK_WORD@167..172 "field"
+                              TK_WORD@172..182 "#highlight"
+                              TK_WHITESPACE@182..183 " "
+                              TK_WORD@183..189 "input-"
+                              TK_GREATER_THAN@189..190 ">"
+                              TK_WORD@190..196 "search"
+                              TK_WORD@196..203 "#update"
+                              TK_LINE_BREAK@203..204 "\n"
+                            TK_DOUBLE_QUOTES@204..205 "\""
+                      TK_GREATER_THAN@205..206 ">"
+                    BODY@206..206
+                    HTML_ENDING_TAG@206..212
+                      TK_LESS_THAN_SLASH@206..208 "</"
+                      TK_WORD@208..211 "div"
+                      TK_GREATER_THAN@211..212 ">""##]],
+        );
+    }
+
+    #[test]
     fn parse_html_attribute_with_single_quotes() {
         check_parse(
             "<div claSs='my-div'>
@@ -1552,33 +1767,87 @@ mod tests {
             expect![[r#"
                 ROOT@0..50
                   HTML_TAG@0..50
-                    HTML_STARTING_TAG@0..19
+                    HTML_STARTING_TAG@0..50
                       TK_LESS_THAN@0..1 "<"
                       TK_WORD@1..4 "div"
-                      HTML_ATTRIBUTE_LIST@4..18
-                        HTML_ATTRIBUTE@4..18
+                      HTML_ATTRIBUTE_LIST@4..50
+                        HTML_ATTRIBUTE@4..50
                           TK_WHITESPACE@4..5 " "
                           TK_WORD@5..10 "claSs"
                           TK_EQUAL@10..11 "="
-                          HTML_STRING@11..18
+                          HTML_STRING@11..50
                             TK_SINGLE_QUOTES@11..12 "'"
-                            HTML_STRING_INNER@12..18
+                            HTML_STRING_INNER@12..50
                               TK_WORD@12..18 "my-div"
-                      TK_GREATER_THAN@18..19 ">"
-                    BODY@19..39
-                      HTML_TEXT@19..39
-                        TK_LINE_BREAK@19..20 "\n"
-                        TK_WHITESPACE@20..28 "        "
-                        TK_WORD@28..33 "hello"
-                        TK_WHITESPACE@33..34 " "
-                        TK_WORD@34..39 "world"
-                    HTML_ENDING_TAG@39..50
-                      TK_LINE_BREAK@39..40 "\n"
-                      TK_WHITESPACE@40..44 "    "
-                      TK_LESS_THAN_SLASH@44..46 "</"
-                      TK_WORD@46..49 "div"
-                      TK_GREATER_THAN@49..50 ">"
-                error at 18..19: expected ' but found >"#]],
+                              TK_GREATER_THAN@18..19 ">"
+                              TK_LINE_BREAK@19..20 "\n"
+                              TK_WHITESPACE@20..28 "        "
+                              TK_WORD@28..33 "hello"
+                              TK_WHITESPACE@33..34 " "
+                              TK_WORD@34..39 "world"
+                              TK_LINE_BREAK@39..40 "\n"
+                              TK_WHITESPACE@40..44 "    "
+                              TK_LESS_THAN_SLASH@44..46 "</"
+                              TK_WORD@46..49 "div"
+                              TK_GREATER_THAN@49..50 ">"
+                    BODY@50..50
+                    HTML_ENDING_TAG@50..50
+                error at 11..12: expected matching closing ' but reached end of file
+                error at 49..50: expected > but reached end of file
+                error at 49..50: expected </div> ending tag but reached end of file"#]],
+        );
+    }
+
+    #[test]
+    fn parse_html_attribute_missing_quote_before_twig_termination() {
+        check_parse(
+            r#"{% if active %}<div title="missing>{% endif %}"#,
+            expect![[r#"
+                ROOT@0..46
+                  TWIG_IF@0..46
+                    TWIG_IF_BLOCK@0..15
+                      TK_CURLY_PERCENT@0..2 "{%"
+                      TK_WHITESPACE@2..3 " "
+                      TK_IF@3..5 "if"
+                      TWIG_EXPRESSION@5..12
+                        TWIG_LITERAL_NAME@5..12
+                          TK_WHITESPACE@5..6 " "
+                          TK_WORD@6..12 "active"
+                      TK_WHITESPACE@12..13 " "
+                      TK_PERCENT_CURLY@13..15 "%}"
+                    BODY@15..46
+                      HTML_TAG@15..46
+                        HTML_STARTING_TAG@15..46
+                          TK_LESS_THAN@15..16 "<"
+                          TK_WORD@16..19 "div"
+                          HTML_ATTRIBUTE_LIST@19..43
+                            HTML_ATTRIBUTE@19..35
+                              TK_WHITESPACE@19..20 " "
+                              TK_WORD@20..25 "title"
+                              TK_EQUAL@25..26 "="
+                              HTML_STRING@26..35
+                                TK_DOUBLE_QUOTES@26..27 "\""
+                                HTML_STRING_INNER@27..35
+                                  TK_WORD@27..34 "missing"
+                                  TK_GREATER_THAN@34..35 ">"
+                            ERROR@35..37
+                              TK_CURLY_PERCENT@35..37 "{%"
+                            HTML_ATTRIBUTE@37..43
+                              TK_WHITESPACE@37..38 " "
+                              TK_WORD@38..43 "endif"
+                          ERROR@43..46
+                            TK_WHITESPACE@43..44 " "
+                            TK_PERCENT_CURLY@44..46 "%}"
+                        BODY@46..46
+                        HTML_ENDING_TAG@46..46
+                    TWIG_ENDIF_BLOCK@46..46
+                error at 26..27: expected matching closing " but found {%
+                error at 38..43: expected twig tag but found endif
+                error at 44..46: expected > but found %}
+                error at 44..46: expected </div> ending tag but reached end of file
+                error at 44..46: expected {% or {%- or {%~ but reached end of file
+                error at 44..46: expected endif but reached end of file
+                error at 44..46: expected %} or -%} or ~%} but reached end of file"#]],
         );
     }
 
@@ -1631,35 +1900,36 @@ mod tests {
             expect![[r#"
                 ROOT@0..59
                   HTML_TAG@0..59
-                    HTML_STARTING_TAG@0..28
+                    HTML_STARTING_TAG@0..59
                       TK_LESS_THAN@0..1 "<"
                       TK_WORD@1..4 "div"
-                      HTML_ATTRIBUTE_LIST@4..27
-                        HTML_ATTRIBUTE@4..27
+                      HTML_ATTRIBUTE_LIST@4..59
+                        HTML_ATTRIBUTE@4..59
                           TK_WHITESPACE@4..5 " "
                           TK_WORD@5..10 "claSs"
                           TK_EQUAL@10..11 "="
-                          HTML_STRING@11..27
+                          HTML_STRING@11..59
                             TK_DOUBLE_QUOTES@11..12 "\""
-                            HTML_STRING_INNER@12..27
+                            HTML_STRING_INNER@12..59
                               TK_WORD@12..18 "my-div"
                               TK_WHITESPACE@18..19 " "
                               TK_WORD@19..27 "required"
-                      TK_GREATER_THAN@27..28 ">"
-                    BODY@28..48
-                      HTML_TEXT@28..48
-                        TK_LINE_BREAK@28..29 "\n"
-                        TK_WHITESPACE@29..37 "        "
-                        TK_WORD@37..42 "hello"
-                        TK_WHITESPACE@42..43 " "
-                        TK_WORD@43..48 "world"
-                    HTML_ENDING_TAG@48..59
-                      TK_LINE_BREAK@48..49 "\n"
-                      TK_WHITESPACE@49..53 "    "
-                      TK_LESS_THAN_SLASH@53..55 "</"
-                      TK_WORD@55..58 "div"
-                      TK_GREATER_THAN@58..59 ">"
-                error at 27..28: expected " but found >"#]],
+                              TK_GREATER_THAN@27..28 ">"
+                              TK_LINE_BREAK@28..29 "\n"
+                              TK_WHITESPACE@29..37 "        "
+                              TK_WORD@37..42 "hello"
+                              TK_WHITESPACE@42..43 " "
+                              TK_WORD@43..48 "world"
+                              TK_LINE_BREAK@48..49 "\n"
+                              TK_WHITESPACE@49..53 "    "
+                              TK_LESS_THAN_SLASH@53..55 "</"
+                              TK_WORD@55..58 "div"
+                              TK_GREATER_THAN@58..59 ">"
+                    BODY@59..59
+                    HTML_ENDING_TAG@59..59
+                error at 11..12: expected matching closing " but reached end of file
+                error at 58..59: expected > but reached end of file
+                error at 58..59: expected </div> ending tag but reached end of file"#]],
         );
     }
 

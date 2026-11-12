@@ -31,6 +31,11 @@ impl ParseErrorBuilder {
         self
     }
 
+    pub(crate) fn at_range(mut self, range: TextRange) -> Self {
+        self.range = Some(range);
+        self
+    }
+
     pub(super) fn build(self) -> ParseError {
         ParseError {
             range: self.range.unwrap(),
