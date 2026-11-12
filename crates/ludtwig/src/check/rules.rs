@@ -1,6 +1,5 @@
 use crate::Config;
 use crate::check::rule::Rule;
-use crate::check::rules::html_attribute_name_kebab_case::RuleHtmlAttributeNameKebabCase;
 use crate::check::rules::html_duplicate_id::RuleHtmlDuplicateId;
 use crate::check::rules::html_string_quotation::RuleHtmlStringQuotation;
 use crate::check::rules::html_tag_fragments::RuleHtmlTagFragments;
@@ -28,7 +27,6 @@ use crate::error::ConfigurationError;
 use ludtwig_parser::syntax::typed::{AstNode, LudtwigDirectiveFileIgnore};
 use ludtwig_parser::syntax::untyped::SyntaxNode;
 
-mod html_attribute_name_kebab_case;
 mod html_duplicate_id;
 mod html_string_quotation;
 pub(crate) mod html_tag_fragments;
@@ -61,7 +59,6 @@ pub static RULE_DEFINITIONS: &[&'static dyn Rule] = &[
     &RuleIndentation,
     &RuleTwigBlockLineBreaks,
     &RuleTwigBlockNameSnakeCase,
-    &RuleHtmlAttributeNameKebabCase,
     &RuleTwigLogicAnd,
     &RuleTwigLogicOr,
     &RuleTwigNoBreak,

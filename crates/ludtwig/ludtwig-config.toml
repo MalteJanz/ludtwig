@@ -36,7 +36,6 @@ active-rules = [
     "indentation",
     "twig-block-line-breaks",
     "twig-block-name-snake-case",
-    "html-attribute-name-kebab-case",
     "twig-logic-and",
     "twig-logic-or",
     "twig-no-break",
