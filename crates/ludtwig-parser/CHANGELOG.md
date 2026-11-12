@@ -1,5 +1,6 @@
 # NEXT-VERSION
 
+- [#212](https://github.com/MalteJanz/ludtwig/pull/212) Parse Twig `types` tags, including optional variables and mappings with or without braces.
 
 
 # v0.11.0

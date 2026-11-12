@@ -104,6 +104,8 @@ pub(crate) fn parse_twig_block_statement(
         Some(parse_twig_component(parser, m, child_parser))
     } else if parser.at(T!["props"]) {
         Some(parse_twig_props(parser, m))
+    } else if parser.at(T!["types"]) {
+        Some(parse_twig_types(parser, m))
     } else {
         match parse_shopware_twig_block_statement(parser, m, child_parser) {
             BlockParseResult::NothingFound(m) => {
@@ -1378,6 +1380,61 @@ fn parse_twig_trans(
     parser.complete(wrapper_m, SyntaxKind::TWIG_TRANS)
 }
 
+fn parse_twig_types(parser: &mut Parser, outer: Marker) -> CompletedMarker {
+    debug_assert!(parser.at(T!["types"]));
+    parser.bump();
+
+    let enclosed = parser.at(T!["{"]);
+    if enclosed {
+        parser.bump();
+    }
+
+    parse_many(
+        parser,
+        |p| p.at_twig_block_close() || p.at_set(&[T!["}"], T!["</"]]),
+        |p| {
+            let declaration = p.start();
+            if parse_twig_name(p).is_none() {
+                p.add_error(ParseErrorBuilder::new("twig variable name"));
+            }
+            if p.at(T!["?"]) {
+                p.bump();
+            }
+            p.expect(
+                T![":"],
+                &[
+                    T!["'"],
+                    T!["\""],
+                    T![","],
+                    T!["}"],
+                    T!["%}"],
+                    T!["-%}"],
+                    T!["~%}"],
+                ],
+            );
+            if p.at_set(&[T!["'"], T!["\""]]) {
+                parse_twig_string(p, false);
+            } else {
+                p.add_error(ParseErrorBuilder::new("type string"));
+                p.recover(&[T![","], T!["}"], T!["%}"], T!["-%}"], T!["~%}"]]);
+            }
+            p.complete(declaration, SyntaxKind::TWIG_TYPE_DECLARATION);
+
+            if p.at(T![","]) {
+                p.bump();
+            } else if !p.at_twig_block_close() && !p.at(T!["}"]) {
+                p.add_error(ParseErrorBuilder::new(","));
+            }
+        },
+    );
+
+    if enclosed {
+        parser.expect(T!["}"], TWIG_BLOCK_CLOSE_SET);
+    }
+    parser.expect_any(TWIG_BLOCK_CLOSE_SET, &[T!["</"]]);
+    parser.complete(outer, SyntaxKind::TWIG_TYPES)
+}
+
 fn parse_twig_props(parser: &mut Parser, outer: Marker) -> CompletedMarker {
     // example:
     // {% props icon, type = 'primary' %}
@@ -1481,6 +1538,82 @@ fn parse_twig_component(
 mod tests {
     use crate::parser::check_parse;
     use expect_test::expect;
+
+    #[test]
+    fn parse_twig_types_tag() {
+        let parse = crate::parse("{% types { nestingLevel: 'int' } %}");
+        assert!(parse.errors.is_empty(), "{:?}", parse.errors);
+        check_parse(
+            "{% types { nestingLevel: 'int' } %}",
+            expect![[r#"
+            ROOT@0..35
+              TWIG_TYPES@0..35
+                TK_CURLY_PERCENT@0..2 "{%"
+                TK_WHITESPACE@2..3 " "
+                TK_TYPES@3..8 "types"
+                TK_WHITESPACE@8..9 " "
+                TK_OPEN_CURLY@9..10 "{"
+                TWIG_TYPE_DECLARATION@10..30
+                  TWIG_LITERAL_NAME@10..23
+                    TK_WHITESPACE@10..11 " "
+                    TK_WORD@11..23 "nestingLevel"
+                  TK_COLON@23..24 ":"
+                  TWIG_LITERAL_STRING@24..30
+                    TK_WHITESPACE@24..25 " "
+                    TK_SINGLE_QUOTES@25..26 "'"
+                    TWIG_LITERAL_STRING_INNER@26..29
+                      TK_WORD@26..29 "int"
+                    TK_SINGLE_QUOTES@29..30 "'"
+                TK_WHITESPACE@30..31 " "
+                TK_CLOSE_CURLY@31..32 "}"
+                TK_WHITESPACE@32..33 " "
+                TK_PERCENT_CURLY@33..35 "%}""#]],
+        );
+    }
+
+    #[test]
+    fn parse_twig_types_mappings() {
+        for input in [
+            "{% types {} %}",
+            "{% types %}",
+            "{% types name: 'string', %}",
+            "{% types { user?: 'App\\\\User', count: 'int', } %}",
+            "{%~ types {value: \"int|null\"} ~%}",
+            "{%- types name ? : 'array{value: int}' -%}",
+            "{% types { types: 'string' } %}{{ types }}",
+            "{% types {\n    first: 'string',\n    second?: 'list<int>',\n} %}",
+        ] {
+            let parse = crate::parse(input);
+            assert!(parse.errors.is_empty(), "{input}: {:?}", parse.errors);
+            assert_eq!(parse.green_node.to_string(), input);
+        }
+    }
+
+    #[test]
+    fn parse_twig_types_invalid_mapping_recovers() {
+        for input in [
+            "{% types { name 'string' } %}",
+            "{% types { name: 42 } %}",
+            "{% types { 'name': 'string' } %}",
+            "{% types { name: 'string' %}",
+            "{% types { name: 'string' other: 'int' } %}",
+            "{% types { name: 'string' }",
+            "{% types { name: \"#{value}\" } %}",
+        ] {
+            let input = format!("{input}<p>after</p>");
+            let parse = crate::parse(&input);
+            assert!(!parse.errors.is_empty(), "{input}");
+            assert_eq!(parse.green_node.to_string(), input);
+            let (root, _) = parse.split();
+            assert!(
+                root.descendants().any(|node| {
+                    node.kind() == crate::syntax::untyped::SyntaxKind::HTML_TAG
+                        && node.to_string() == "<p>after</p>"
+                }),
+                "failed to recover after {input}"
+            );
+        }
+    }
 
     #[test]
     fn parses_shopware_break_tag() {
